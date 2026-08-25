@@ -1,0 +1,10 @@
+node_modules/
+dist/
+build/
+release/
+.turbo/
+.env
+*.log
+.DS_Store
+coverage/
+.vite/

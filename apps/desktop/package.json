@@ -1,0 +1,36 @@
+{
+  "name": "desktop",
+  "version": "0.0.0",
+  "private": true,
+  "main": "dist/main.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc --noEmit",
+    "test": "echo \"no tests yet\" && exit 0",
+    "package:win": "electron-builder --win nsis"
+  },
+  "dependencies": {
+    "@erp-platform/shared-kernel": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.5.4",
+    "electron": "^32.1.0",
+    "electron-builder": "^25.0.5",
+    "typescript": "^5.6.2"
+  },
+  "build": {
+    "appId": "com.erp-platform.desktop",
+    "productName": "ERP Platform",
+    "directories": {
+      "output": "release"
+    },
+    "files": ["dist/**/*"],
+    "win": {
+      "target": ["nsis"]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  }
+}
