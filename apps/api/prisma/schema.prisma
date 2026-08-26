@@ -1,0 +1,45 @@
+// Public/platform schema (CLAUDE.md §2.2, §2.3): plans, tenants, platform
+// users. Owned by Prisma. Never used against a tenant schema — Kysely
+// handles those (see ../src/database/tenant/).
+//
+// Minimal at this stage: only what the Tenant Migration Runner and
+// Provisioning service need to function (CLAUDE.md §3). Full platform/plan/
+// signup modeling is explicitly out of scope for this task.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Tenant {
+  id         String   @id @default(uuid())
+  name       String
+  schemaName String   @unique @map("schema_name")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  migrationFailures MigrationFailure[]
+
+  @@map("tenants")
+}
+
+// Tenant migration failure tracking (CLAUDE.md §3 [مستقر]).
+// Real alert delivery (email/Slack webhook) is intentionally stubbed for
+// this task (implementation plan decision 10) — failures are recorded and
+// logged clearly, with a documented extension point, not wired to a real
+// notification channel yet.
+model MigrationFailure {
+  id            String    @id @default(uuid())
+  tenantId      String    @map("tenant_id")
+  tenant        Tenant    @relation(fields: [tenantId], references: [id])
+  migrationFile String    @map("migration_file")
+  error         String
+  resolvedAt    DateTime? @map("resolved_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+
+  @@map("migration_failures")
+}
