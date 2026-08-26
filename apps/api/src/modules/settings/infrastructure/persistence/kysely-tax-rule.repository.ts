@@ -1,0 +1,65 @@
+import { randomUUID } from 'node:crypto';
+import type { Kysely, Selectable } from 'kysely';
+import type { TaxRulesTable, TenantDatabase } from '../../../../database/tenant/kysely-client';
+import type { TaxRuleRepository } from '../../application/ports/tax-rule.repository';
+import type { CreateTaxRuleInput, TaxRule, UpdateTaxRuleInput } from '../../domain/tax-rule.entity';
+
+// pg returns NUMERIC columns as strings (to avoid float precision loss) —
+// TaxRulesTable.rate is typed `string` for that reason; the domain entity
+// exposes it as `number`, converted here at the infrastructure boundary.
+function toDomain(row: Selectable<TaxRulesTable>): TaxRule {
+  return {
+    id: row.id,
+    name: row.name,
+    rate: Number(row.rate),
+    isActive: row.is_active,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+export class KyselyTaxRuleRepository implements TaxRuleRepository {
+  async list(db: Kysely<TenantDatabase>): Promise<TaxRule[]> {
+    const rows = await db.selectFrom('tax_rules').selectAll().orderBy('name').execute();
+    return rows.map(toDomain);
+  }
+
+  async findById(db: Kysely<TenantDatabase>, id: string): Promise<TaxRule | null> {
+    const row = await db.selectFrom('tax_rules').selectAll().where('id', '=', id).executeTakeFirst();
+    return row ? toDomain(row) : null;
+  }
+
+  async create(db: Kysely<TenantDatabase>, input: CreateTaxRuleInput): Promise<TaxRule> {
+    const row = await db
+      .insertInto('tax_rules')
+      .values({
+        id: randomUUID(),
+        name: input.name,
+        rate: String(input.rate),
+        is_active: input.isActive ?? true,
+      })
+      .returningAll()
+      .executeTakeFirstOrThrow();
+    return toDomain(row);
+  }
+
+  async update(db: Kysely<TenantDatabase>, id: string, input: UpdateTaxRuleInput): Promise<TaxRule | null> {
+    const row = await db
+      .updateTable('tax_rules')
+      .set({
+        ...(input.name !== undefined ? { name: input.name } : {}),
+        ...(input.rate !== undefined ? { rate: String(input.rate) } : {}),
+        ...(input.isActive !== undefined ? { is_active: input.isActive } : {}),
+        updated_at: new Date(),
+      })
+      .where('id', '=', id)
+      .returningAll()
+      .executeTakeFirst();
+    return row ? toDomain(row) : null;
+  }
+
+  async delete(db: Kysely<TenantDatabase>, id: string): Promise<boolean> {
+    const result = await db.deleteFrom('tax_rules').where('id', '=', id).executeTakeFirst();
+    return result.numDeletedRows > 0n;
+  }
+}

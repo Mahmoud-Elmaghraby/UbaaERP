@@ -1,4 +1,4 @@
-import { Kysely, PostgresDialect } from 'kysely';
+import { Kysely, PostgresDialect, type Generated } from 'kysely';
 import { Pool } from 'pg';
 
 /**
@@ -10,10 +10,11 @@ import { Pool } from 'pg';
  * reflecting schema-per-tenant isolation at the connection level (§2.3):
  * no `tenant_id` column, no shared table.
  *
- * The `TenantDatabase` type is intentionally minimal at this stage — it
- * only describes infrastructure tables this task owns (schema_migrations).
- * Business-module tables (e.g. Settings' tenant_settings, branches, ...)
- * get added here as their own migrations are implemented, in a later task.
+ * `TenantDatabase` grows one row-type entry per tenant-schema table, added
+ * here as each table's migration is written (see ./migrations/). Row
+ * shapes use snake_case to match the actual Postgres column names — Kysely
+ * has no implicit camelCase mapping, and repositories map to camelCase
+ * domain types explicitly at the infrastructure boundary.
  */
 export interface SchemaMigrationsTable {
   id: string;
@@ -21,8 +22,76 @@ export interface SchemaMigrationsTable {
   applied_at: Date;
 }
 
+export interface TenantSettingsTable {
+  id: string;
+  singleton: boolean;
+  currency_code: string;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
+export interface BranchesTable {
+  id: string;
+  name: string;
+  code: string;
+  address: string | null;
+  is_active: boolean;
+  custom_fields: unknown;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
+export interface NumberingSequencesTable {
+  id: string;
+  document_type: string;
+  branch_id: string | null;
+  prefix: string | null;
+  next_number: number;
+  padding_length: number;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
+export interface DocumentTemplatesTable {
+  id: string;
+  document_type: string;
+  name: string;
+  content: string;
+  is_default: boolean;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
+export interface TaxRulesTable {
+  id: string;
+  name: string;
+  rate: string;
+  is_active: boolean;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
+export interface CustomFieldDefinitionsTable {
+  id: string;
+  entity_type: string;
+  field_key: string;
+  label: string;
+  field_type: string;
+  options: unknown;
+  is_required: boolean;
+  display_order: number;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
 export interface TenantDatabase {
   schema_migrations: SchemaMigrationsTable;
+  tenant_settings: TenantSettingsTable;
+  branches: BranchesTable;
+  numbering_sequences: NumberingSequencesTable;
+  document_templates: DocumentTemplatesTable;
+  tax_rules: TaxRulesTable;
+  custom_field_definitions: CustomFieldDefinitionsTable;
 }
 
 const SCHEMA_NAME_PATTERN = /^[a-z][a-z0-9_]*$/;

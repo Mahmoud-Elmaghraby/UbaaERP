@@ -1,8 +1,5 @@
-export {};
-
-// Placeholder entry point for @erp-platform/contracts.
-//
-// This is the target home for the shared Zod schema library (CLAUDE.md
-// §2.9 — [مقترح], not yet implemented): schemas imported verbatim by
-// apps/api (validation) and apps/web (zodResolver), module by module,
-// starting once the first business module (Settings) is implemented.
+// Entry point for @erp-platform/contracts (CLAUDE.md §2.9 — [مقترح]):
+// Zod schemas imported verbatim by apps/api (validation) and, later,
+// apps/web (zodResolver), so both sides validate against the same source
+// of truth. Grown module by module as each is implemented.
+export * from './settings';

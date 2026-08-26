@@ -1,16 +1,16 @@
 import { Module } from '@nestjs/common';
+import { TenancyModule } from './shared/tenancy/tenancy.module';
+import { SettingsModule } from './modules/settings/settings.module';
 
 /**
  * Root application module for the ERP API.
  *
- * Intentionally empty — this is foundation scaffolding only. Business
- * modules (Settings, Users & Permissions, Inventory, Purchases, Sales,
- * Accounting) are registered here as they are implemented, in the build
- * order fixed by CLAUDE.md §10. No module, database, or domain code
- * exists yet.
+ * Business modules are registered here as they are implemented, in the
+ * build order fixed by CLAUDE.md §10: Settings + Users & Permissions →
+ * Inventory → Purchases → Sales → Accounting. Settings is the first.
  */
 @Module({
-  imports: [],
+  imports: [TenancyModule, SettingsModule],
   controllers: [],
   providers: [],
 })
