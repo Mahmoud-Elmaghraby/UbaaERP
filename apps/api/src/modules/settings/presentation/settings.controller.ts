@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Patch, UsePipes } from '@nestjs/common';
+import { Body, Controller, Get, Patch } from '@nestjs/common';
 import {
   tenantSettingsSchema,
   updateTenantSettingsSchema,
@@ -32,10 +32,16 @@ export class SettingsController {
   }
 
   @Patch()
-  @UsePipes(new ZodValidationPipe(updateTenantSettingsSchema))
   async update(
     @TenantSchema() schema: string,
-    @Body() body: UpdateTenantSettingsDto,
+    // The Zod pipe is bound directly to @Body(), not via a method-level
+    // @UsePipes() — a method-level pipe applies to EVERY parameter of the
+    // handler, including @TenantSchema()'s plain string, which then fails
+    // validation against an object schema before the real body is even
+    // looked at. (Same fix applied uniformly across every controller with
+    // this pattern — see branches.controller.ts's create() for the fuller
+    // note.)
+    @Body(new ZodValidationPipe(updateTenantSettingsSchema)) body: UpdateTenantSettingsDto,
   ): Promise<TenantSettingsDto> {
     const db = this.connections.getClient(schema);
     const updated = await this.service.update(db, body);

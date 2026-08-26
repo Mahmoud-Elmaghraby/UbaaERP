@@ -1,3 +1,13 @@
+// Loaded first, as a side effect, before any other import: several
+// modules read process.env at decorator-evaluation time (e.g.
+// TenancyModule's mustGetDatabaseUrl(), AuthInfraModule's
+// mustGetAccessSecret()), which happens as soon as AppModule's import
+// graph is required below — so .env must already be loaded by then.
+// Previously nothing loaded it for the actual server (only Prisma's
+// CLI incidentally auto-loads .env for the db:* scripts that import
+// @prisma/client — a fragile, undocumented side effect this makes
+// explicit and applies uniformly instead).
+import 'dotenv/config';
 import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';

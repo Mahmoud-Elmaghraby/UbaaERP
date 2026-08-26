@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, UsePipes } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post } from '@nestjs/common';
 import {
   allocateNextRequestSchema,
   allocatedDocumentNumberSchema,
@@ -42,10 +42,11 @@ export class NumberingSequencesController {
   }
 
   @Post()
-  @UsePipes(new ZodValidationPipe(createNumberingSequenceSchema))
   async create(
     @TenantSchema() schema: string,
-    @Body() body: CreateNumberingSequenceDto,
+    // See branches.controller.ts's create() comment: pipe bound to
+    // @Body() directly, not a method-level @UsePipes().
+    @Body(new ZodValidationPipe(createNumberingSequenceSchema)) body: CreateNumberingSequenceDto,
   ): Promise<NumberingSequenceDto> {
     const db = this.connections.getClient(schema);
     const sequence = await this.service.create(db, body);
@@ -53,11 +54,10 @@ export class NumberingSequencesController {
   }
 
   @Patch(':id')
-  @UsePipes(new ZodValidationPipe(updateNumberingSequenceSchema))
   async update(
     @TenantSchema() schema: string,
     @Param('id') id: string,
-    @Body() body: UpdateNumberingSequenceDto,
+    @Body(new ZodValidationPipe(updateNumberingSequenceSchema)) body: UpdateNumberingSequenceDto,
   ): Promise<NumberingSequenceDto> {
     const db = this.connections.getClient(schema);
     const sequence = await this.service.update(db, id, body);
@@ -77,10 +77,9 @@ export class NumberingSequencesController {
    * and usable standalone today).
    */
   @Post('allocate-next')
-  @UsePipes(new ZodValidationPipe(allocateNextRequestSchema))
   async allocateNext(
     @TenantSchema() schema: string,
-    @Body() body: AllocateNextRequestDto,
+    @Body(new ZodValidationPipe(allocateNextRequestSchema)) body: AllocateNextRequestDto,
   ): Promise<AllocatedDocumentNumberDto> {
     const db = this.connections.getClient(schema);
     const allocated = await this.service.allocateNext(db, body.documentType, body.branchId ?? null);

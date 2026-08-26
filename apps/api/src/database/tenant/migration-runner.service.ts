@@ -1,3 +1,9 @@
+// Loaded first, as a side effect, before any other import: this CLI
+// reads process.env.DATABASE_URL directly. Explicit rather than
+// relying on @prisma/client's incidental auto-loading of .env (which
+// some sibling CLI scripts happen to get as a side effect of
+// importing PrismaClient, and this one doesn't import at all).
+import 'dotenv/config';
 import { randomUUID } from 'node:crypto';
 import type { PrismaClient, Tenant } from '@prisma/client';
 import { createTenantKyselyClient } from './kysely-client';

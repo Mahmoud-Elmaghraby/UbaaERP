@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, UsePipes } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post } from '@nestjs/common';
 import {
   createDocumentTemplateSchema,
   documentTemplateSchema,
@@ -38,10 +38,11 @@ export class DocumentTemplatesController {
   }
 
   @Post()
-  @UsePipes(new ZodValidationPipe(createDocumentTemplateSchema))
   async create(
     @TenantSchema() schema: string,
-    @Body() body: CreateDocumentTemplateDto,
+    // See branches.controller.ts's create() comment: pipe bound to
+    // @Body() directly, not a method-level @UsePipes().
+    @Body(new ZodValidationPipe(createDocumentTemplateSchema)) body: CreateDocumentTemplateDto,
   ): Promise<DocumentTemplateDto> {
     const db = this.connections.getClient(schema);
     const template = await this.service.create(db, body);
@@ -49,11 +50,10 @@ export class DocumentTemplatesController {
   }
 
   @Patch(':id')
-  @UsePipes(new ZodValidationPipe(updateDocumentTemplateSchema))
   async update(
     @TenantSchema() schema: string,
     @Param('id') id: string,
-    @Body() body: UpdateDocumentTemplateDto,
+    @Body(new ZodValidationPipe(updateDocumentTemplateSchema)) body: UpdateDocumentTemplateDto,
   ): Promise<DocumentTemplateDto> {
     const db = this.connections.getClient(schema);
     const template = await this.service.update(db, id, body);

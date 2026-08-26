@@ -10,7 +10,6 @@ import {
   Patch,
   Post,
   Query,
-  UsePipes,
 } from '@nestjs/common';
 import {
   createCustomFieldDefinitionSchema,
@@ -60,10 +59,11 @@ export class CustomFieldDefinitionsController {
   }
 
   @Post()
-  @UsePipes(new ZodValidationPipe(createCustomFieldDefinitionSchema))
   async create(
     @TenantSchema() schema: string,
-    @Body() body: CreateCustomFieldDefinitionDto,
+    // See branches.controller.ts's create() comment: pipe bound to
+    // @Body() directly, not a method-level @UsePipes().
+    @Body(new ZodValidationPipe(createCustomFieldDefinitionSchema)) body: CreateCustomFieldDefinitionDto,
   ): Promise<CustomFieldDefinitionDto> {
     const db = this.connections.getClient(schema);
     const definition = await this.service.create(db, body);
@@ -71,11 +71,10 @@ export class CustomFieldDefinitionsController {
   }
 
   @Patch(':id')
-  @UsePipes(new ZodValidationPipe(updateCustomFieldDefinitionSchema))
   async update(
     @TenantSchema() schema: string,
     @Param('id') id: string,
-    @Body() body: UpdateCustomFieldDefinitionDto,
+    @Body(new ZodValidationPipe(updateCustomFieldDefinitionSchema)) body: UpdateCustomFieldDefinitionDto,
   ): Promise<CustomFieldDefinitionDto> {
     const db = this.connections.getClient(schema);
     const definition = await this.service.update(db, id, body);

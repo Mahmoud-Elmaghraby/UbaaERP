@@ -84,6 +84,69 @@ export interface CustomFieldDefinitionsTable {
   updated_at: Generated<Date>;
 }
 
+export interface PermissionsTable {
+  id: string;
+  key: string;
+  description: string;
+  created_at: Generated<Date>;
+}
+
+export interface RolesTable {
+  id: string;
+  name: string;
+  is_system: boolean;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
+export interface RolePermissionsTable {
+  role_id: string;
+  permission_id: string;
+}
+
+export interface UsersTable {
+  id: string;
+  email: string;
+  password_hash: string;
+  full_name: string;
+  role_id: string;
+  is_active: boolean;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
+export interface UserBranchAccessTable {
+  user_id: string;
+  branch_id: string;
+}
+
+export interface ApprovalChainsTable {
+  id: string;
+  user_id: string;
+  manager_id: string | null;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
+export interface AuditLogsTable {
+  id: string;
+  user_id: string | null;
+  action: string;
+  entity_type: string;
+  entity_id: string | null;
+  metadata: unknown;
+  created_at: Generated<Date>;
+}
+
+export interface RefreshTokensTable {
+  id: string;
+  user_id: string;
+  token_hash: string;
+  expires_at: Date;
+  revoked_at: Date | null;
+  created_at: Generated<Date>;
+}
+
 export interface TenantDatabase {
   schema_migrations: SchemaMigrationsTable;
   tenant_settings: TenantSettingsTable;
@@ -92,6 +155,14 @@ export interface TenantDatabase {
   document_templates: DocumentTemplatesTable;
   tax_rules: TaxRulesTable;
   custom_field_definitions: CustomFieldDefinitionsTable;
+  permissions: PermissionsTable;
+  roles: RolesTable;
+  role_permissions: RolePermissionsTable;
+  users: UsersTable;
+  user_branch_access: UserBranchAccessTable;
+  approval_chains: ApprovalChainsTable;
+  audit_logs: AuditLogsTable;
+  refresh_tokens: RefreshTokensTable;
 }
 
 const SCHEMA_NAME_PATTERN = /^[a-z][a-z0-9_]*$/;

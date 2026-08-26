@@ -1,7 +1,14 @@
+// Loaded first, as a side effect, before any other import: this CLI
+// reads process.env.DATABASE_URL directly. Explicit rather than
+// relying on @prisma/client's incidental auto-loading of .env (which
+// some sibling CLI scripts happen to get as a side effect of
+// importing PrismaClient, and this one doesn't import at all).
+import 'dotenv/config';
 import { Pool } from 'pg';
 import type { PrismaClient } from '@prisma/client';
 import { assertValidSchemaName } from './kysely-client';
 import { applyPendingMigrationsForTenant } from './migration-runner.service';
+import { seedOwnerUser } from './owner-seed';
 
 /**
  * Tenant Provisioning (CLAUDE.md §3 [مستقر]).
@@ -27,6 +34,14 @@ import { applyPendingMigrationsForTenant } from './migration-runner.service';
 export interface ProvisionTenantInput {
   name: string;
   schemaName: string;
+  /** Optional: when provided, an Owner-role user is seeded once
+   * migrations succeed (see owner-seed.ts) — without one, the tenant has
+   * no way for anyone to log in until seeded separately (db:seed-owner). */
+  owner?: {
+    email: string;
+    password: string;
+    fullName: string;
+  };
 }
 
 export interface ProvisionTenantResult {
@@ -78,6 +93,16 @@ export async function provisionTenant(
     );
   }
 
+  if (input.owner) {
+    await seedOwnerUser(databaseUrl, {
+      schemaName: input.schemaName,
+      email: input.owner.email,
+      password: input.owner.password,
+      fullName: input.owner.fullName,
+    });
+    console.log(`[provisioning] seeded Owner user "${input.owner.email}" for "${input.schemaName}"`);
+  }
+
   console.log(`[provisioning] tenant "${input.schemaName}" (${tenant.id}) fully provisioned`);
   return { id: tenant.id, name: tenant.name, schemaName: tenant.schemaName };
 }
@@ -86,11 +111,14 @@ if (require.main === module) {
   void (async () => {
     const { PrismaClient } = await import('@prisma/client');
     const args = process.argv.slice(2).filter((a) => a !== '--');
-    const [name, schemaName] = args;
+    const [name, schemaName, ownerEmail, ownerPassword, ownerFullName] = args;
     const databaseUrl = process.env.DATABASE_URL;
 
     if (!name || !schemaName) {
-      console.error('Usage: pnpm run db:provision -- "<Tenant Name>" <schema_name>');
+      console.error(
+        'Usage: pnpm run db:provision -- "<Tenant Name>" <schema_name> ' +
+          '[owner_email owner_password "Owner Full Name"]',
+      );
       process.exit(1);
     }
     if (!databaseUrl) {
@@ -98,9 +126,14 @@ if (require.main === module) {
       process.exit(1);
     }
 
+    const owner =
+      ownerEmail && ownerPassword && ownerFullName
+        ? { email: ownerEmail, password: ownerPassword, fullName: ownerFullName }
+        : undefined;
+
     const prisma = new PrismaClient();
     try {
-      await provisionTenant(prisma, databaseUrl, { name, schemaName });
+      await provisionTenant(prisma, databaseUrl, { name, schemaName, owner });
     } catch (err) {
       console.error('[provisioning] fatal error:', err);
       process.exitCode = 1;

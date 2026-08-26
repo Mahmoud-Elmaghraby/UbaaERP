@@ -3,3 +3,4 @@
 // apps/web (zodResolver), so both sides validate against the same source
 // of truth. Grown module by module as each is implemented.
 export * from './settings';
+export * from './users-permissions';

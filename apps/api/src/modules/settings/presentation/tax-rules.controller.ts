@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, UsePipes } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post } from '@nestjs/common';
 import {
   createTaxRuleSchema,
   taxRuleSchema,
@@ -35,19 +35,22 @@ export class TaxRulesController {
   }
 
   @Post()
-  @UsePipes(new ZodValidationPipe(createTaxRuleSchema))
-  async create(@TenantSchema() schema: string, @Body() body: CreateTaxRuleDto): Promise<TaxRuleDto> {
+  async create(
+    @TenantSchema() schema: string,
+    // See branches.controller.ts's create() comment: pipe bound to
+    // @Body() directly, not a method-level @UsePipes().
+    @Body(new ZodValidationPipe(createTaxRuleSchema)) body: CreateTaxRuleDto,
+  ): Promise<TaxRuleDto> {
     const db = this.connections.getClient(schema);
     const rule = await this.service.create(db, body);
     return taxRuleSchema.parse(rule);
   }
 
   @Patch(':id')
-  @UsePipes(new ZodValidationPipe(updateTaxRuleSchema))
   async update(
     @TenantSchema() schema: string,
     @Param('id') id: string,
-    @Body() body: UpdateTaxRuleDto,
+    @Body(new ZodValidationPipe(updateTaxRuleSchema)) body: UpdateTaxRuleDto,
   ): Promise<TaxRuleDto> {
     const db = this.connections.getClient(schema);
     const rule = await this.service.update(db, id, body);

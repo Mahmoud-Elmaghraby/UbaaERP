@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, UsePipes } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post } from '@nestjs/common';
 import {
   branchSchema,
   createBranchSchema,
@@ -36,19 +36,27 @@ export class BranchesController {
   }
 
   @Post()
-  @UsePipes(new ZodValidationPipe(createBranchSchema))
-  async create(@TenantSchema() schema: string, @Body() body: CreateBranchDto): Promise<BranchDto> {
+  async create(
+    @TenantSchema() schema: string,
+    // The Zod pipe is bound directly to @Body(), not via a method-level
+    // @UsePipes() — a method-level pipe applies to EVERY parameter of the
+    // handler, including @TenantSchema()'s plain string, which then fails
+    // validation against an object schema before the real body is even
+    // looked at. (Found by an actual HTTP smoke test against
+    // AuthController.login, which had the same bug — see that file's
+    // history — then swept across every controller with this pattern.)
+    @Body(new ZodValidationPipe(createBranchSchema)) body: CreateBranchDto,
+  ): Promise<BranchDto> {
     const db = this.connections.getClient(schema);
     const branch = await this.service.create(db, body);
     return branchSchema.parse(branch);
   }
 
   @Patch(':id')
-  @UsePipes(new ZodValidationPipe(updateBranchSchema))
   async update(
     @TenantSchema() schema: string,
     @Param('id') id: string,
-    @Body() body: UpdateBranchDto,
+    @Body(new ZodValidationPipe(updateBranchSchema)) body: UpdateBranchDto,
   ): Promise<BranchDto> {
     const db = this.connections.getClient(schema);
     const branch = await this.service.update(db, id, body);
