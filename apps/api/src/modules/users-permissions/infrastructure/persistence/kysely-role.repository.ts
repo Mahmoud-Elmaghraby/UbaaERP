@@ -61,7 +61,13 @@ export class KyselyRoleRepository implements RoleRepository {
       .returningAll()
       .executeTakeFirstOrThrow();
     await this.setPermissions(db, id, input.permissionKeys);
-    return toDomain(row, input.permissionKeys);
+    // Return what was actually persisted, not the raw input — setPermissions()
+    // silently drops unknown permission keys (see its `where key in ...` join
+    // against the real permissions table), so echoing input.permissionKeys
+    // back here would misreport keys that were never written. Mirrors
+    // update()'s post-write re-fetch below for the same reason.
+    const keysByRole = await loadPermissionKeys(db, [id]);
+    return toDomain(row, keysByRole.get(id) ?? []);
   }
 
   async update(db: Kysely<TenantDatabase>, id: string, input: UpdateRoleInput): Promise<Role | null> {
