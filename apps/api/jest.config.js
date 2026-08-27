@@ -27,6 +27,25 @@
  * transpilation (ESM import/export -> CJS) rather than full type-checked
  * compilation, since kysely's .js is plainly outside this project's own
  * tsconfig `include`.
+ *
+ * The transformIgnorePatterns regex below is NOT the textbook
+ * `'/node_modules/(?!(kysely)/)'` example from Jest's own docs — that
+ * one breaks under pnpm. pnpm nests every package as
+ * `node_modules/.pnpm/kysely@X.Y.Z/node_modules/kysely/...`, i.e. the
+ * literal string "node_modules/" appears TWICE in kysely's real path.
+ * `.test()` tries every start position in the string, and the *first*
+ * "node_modules/" occurrence (right before ".pnpm/...") is NOT
+ * immediately followed by "kysely/", so the textbook pattern matches
+ * (= ignored = NOT transformed) right there — the second, correct
+ * occurrence never gets a chance to override that. Confirmed by
+ * reproducing the exact "Unexpected token 'export'" failure with the
+ * textbook pattern against this repo's real pnpm-nested kysely path,
+ * then fixing it with the lookahead below (which checks for a "kysely/"
+ * segment anywhere in the remainder of the path, not just immediately
+ * after "node_modules/") and re-confirming the same import parses
+ * cleanly. Verified directly against this project's real
+ * `node_modules/.pnpm/kysely@.../node_modules/kysely/...` layout, not
+ * just in the abstract.
  */
 const tsJestTransform = {
   '^.+\\.[tj]sx?$': [
@@ -40,7 +59,7 @@ const tsJestTransform = {
   ],
 };
 
-const transformIgnorePatterns = ['/node_modules/(?!(kysely)/)'];
+const transformIgnorePatterns = ['node_modules/(?!(?:.*/)?kysely/)'];
 
 /** @type {import('jest').Config} */
 module.exports = {
