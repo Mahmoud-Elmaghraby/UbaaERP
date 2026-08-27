@@ -14,10 +14,33 @@
  * Uses tsconfig.spec.json (not tsconfig.json) so test/ files — outside
  * tsconfig.json's `rootDir: "src"` — type-check cleanly without changing
  * what the production `build`/`typecheck` scripts compile.
+ *
+ * `kysely` (used throughout src/database/tenant/) ships as a pure ESM
+ * package — no CommonJS build at all (package.json: "type": "module",
+ * "main": "dist/index.js" containing `export * from './kysely.js'`).
+ * Jest's default CommonJS runtime can't `require()` that without help:
+ * `transformIgnorePatterns` normally skips all of node_modules, so
+ * kysely's ESM source reaches Node's CJS loader untransformed and blows
+ * up on the bare `export` keyword. Fix: let kysely through the transform
+ * (transformIgnorePatterns below) and let ts-jest transpile it too —
+ * isolatedModules + allowJs so ts-jest treats it as file-by-file
+ * transpilation (ESM import/export -> CJS) rather than full type-checked
+ * compilation, since kysely's .js is plainly outside this project's own
+ * tsconfig `include`.
  */
 const tsJestTransform = {
-  '^.+\\.ts$': ['ts-jest', { tsconfig: '<rootDir>/tsconfig.spec.json' }],
+  '^.+\\.[tj]sx?$': [
+    'ts-jest',
+    {
+      // isolatedModules lives in tsconfig.spec.json now (ts-jest's own
+      // "isolatedModules" transform option is deprecated as of ts-jest
+      // 29, removed in 30 — see tsconfig.spec.json's compilerOptions).
+      tsconfig: '<rootDir>/tsconfig.spec.json',
+    },
+  ],
 };
+
+const transformIgnorePatterns = ['/node_modules/(?!(kysely)/)'];
 
 /** @type {import('jest').Config} */
 module.exports = {
@@ -28,6 +51,7 @@ module.exports = {
       rootDir: __dirname,
       testMatch: ['<rootDir>/src/**/*.spec.ts'],
       transform: tsJestTransform,
+      transformIgnorePatterns,
       setupFiles: ['<rootDir>/test/support/load-env.ts'],
     },
     {
@@ -36,10 +60,11 @@ module.exports = {
       rootDir: __dirname,
       testMatch: ['<rootDir>/test/integration/**/*.int-spec.ts'],
       transform: tsJestTransform,
+      transformIgnorePatterns,
       setupFiles: ['<rootDir>/test/support/load-env.ts'],
+      setupFilesAfterEnv: ['<rootDir>/test/integration/jest-timeout-setup.ts'],
       globalSetup: '<rootDir>/test/integration/global-setup.ts',
       globalTeardown: '<rootDir>/test/integration/global-teardown.ts',
-      testTimeout: 20000,
     },
     {
       displayName: 'e2e',
@@ -47,10 +72,11 @@ module.exports = {
       rootDir: __dirname,
       testMatch: ['<rootDir>/test/e2e/**/*.e2e-spec.ts'],
       transform: tsJestTransform,
+      transformIgnorePatterns,
       setupFiles: ['<rootDir>/test/support/load-env.ts'],
+      setupFilesAfterEnv: ['<rootDir>/test/e2e/jest-timeout-setup.ts'],
       globalSetup: '<rootDir>/test/e2e/global-setup.ts',
       globalTeardown: '<rootDir>/test/e2e/global-teardown.ts',
-      testTimeout: 30000,
     },
   ],
 };
