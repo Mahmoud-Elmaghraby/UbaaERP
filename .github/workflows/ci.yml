@@ -8,6 +8,35 @@ on:
 jobs:
   ci:
     runs-on: ubuntu-latest
+
+    # Real Postgres service container — CLAUDE.md §8's testing strategy
+    # requires integration tests to exercise real Kysely repositories
+    # against a real, freshly migrated tenant schema, and e2e tests to
+    # boot the real Nest app end-to-end. Neither is mocked, so CI needs a
+    # real reachable database, same as local dev's docker-compose.yml
+    # (same default credentials/port, so DATABASE_URL below matches
+    # apps/api/.env.example exactly).
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: erp
+          POSTGRES_PASSWORD: erp_dev_password
+          POSTGRES_DB: erp_platform
+        ports:
+          - 5434:5432
+        options: >-
+          --health-cmd "pg_isready -U erp"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: "postgresql://erp:erp_dev_password@localhost:5434/erp_platform?schema=public"
+      JWT_ACCESS_SECRET: "ci-only-test-secret-not-for-any-real-environment"
+      JWT_ACCESS_TTL: "15m"
+      JWT_REFRESH_TTL_DAYS: "30"
+
     steps:
       - uses: actions/checkout@v4
 
@@ -26,6 +55,12 @@ jobs:
 
       - name: Typecheck
         run: pnpm typecheck
+
+      - name: Apply public-schema (Prisma) migrations
+        # Creates the tenants/migration_failures tables the Test step's
+        # integration/e2e tenant provisioning needs (CLAUDE.md §3) — a
+        # fresh CI Postgres container starts with none of this.
+        run: pnpm --filter api exec prisma migrate deploy
 
       - name: Test
         run: pnpm test

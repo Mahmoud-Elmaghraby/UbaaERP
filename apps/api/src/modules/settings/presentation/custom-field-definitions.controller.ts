@@ -1,16 +1,4 @@
-import {
-  BadRequestException,
-  Body,
-  Controller,
-  Delete,
-  Get,
-  HttpCode,
-  HttpStatus,
-  Param,
-  Patch,
-  Post,
-  Query,
-} from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import {
   createCustomFieldDefinitionSchema,
   customFieldDefinitionSchema,
@@ -20,14 +8,15 @@ import {
   type UpdateCustomFieldDefinitionDto,
 } from '@erp-platform/contracts';
 import { TenantConnectionManager } from '../../../shared/tenancy/tenant-connection-manager';
-import { TenantSchema } from '../../../shared/tenancy/tenant-schema.decorator';
+import { CurrentTenantSchema } from '../../../shared/auth/current-tenant-schema.decorator';
+import { JwtAuthGuard } from '../../../shared/auth/jwt-auth.guard';
+import { PermissionsGuard } from '../../../shared/auth/permissions.guard';
+import { RequirePermissions } from '../../../shared/auth/require-permissions.decorator';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 import { CustomFieldDefinitionsService } from '../application/services/custom-field-definitions.service';
 
-// Permission gap: see the note at the top of settings.controller.ts.
-// Backend-half-only gap: see the note atop custom-field-definitions.service.ts
-// — this stores definitions; nothing renders them yet (dynamic form engine,
-// frontend, not built).
+@UseGuards(JwtAuthGuard, PermissionsGuard)
+@RequirePermissions('settings.manage')
 @Controller('custom-field-definitions')
 export class CustomFieldDefinitionsController {
   constructor(
@@ -37,7 +26,7 @@ export class CustomFieldDefinitionsController {
 
   @Get()
   async listByEntityType(
-    @TenantSchema() schema: string,
+    @CurrentTenantSchema() schema: string,
     @Query('entityType') entityType: string | undefined,
   ): Promise<CustomFieldDefinitionDto[]> {
     if (!entityType) {
@@ -50,7 +39,7 @@ export class CustomFieldDefinitionsController {
 
   @Get(':id')
   async getById(
-    @TenantSchema() schema: string,
+    @CurrentTenantSchema() schema: string,
     @Param('id') id: string,
   ): Promise<CustomFieldDefinitionDto> {
     const db = this.connections.getClient(schema);
@@ -60,7 +49,7 @@ export class CustomFieldDefinitionsController {
 
   @Post()
   async create(
-    @TenantSchema() schema: string,
+    @CurrentTenantSchema() schema: string,
     // See branches.controller.ts's create() comment: pipe bound to
     // @Body() directly, not a method-level @UsePipes().
     @Body(new ZodValidationPipe(createCustomFieldDefinitionSchema)) body: CreateCustomFieldDefinitionDto,
@@ -72,7 +61,7 @@ export class CustomFieldDefinitionsController {
 
   @Patch(':id')
   async update(
-    @TenantSchema() schema: string,
+    @CurrentTenantSchema() schema: string,
     @Param('id') id: string,
     @Body(new ZodValidationPipe(updateCustomFieldDefinitionSchema)) body: UpdateCustomFieldDefinitionDto,
   ): Promise<CustomFieldDefinitionDto> {
@@ -83,7 +72,7 @@ export class CustomFieldDefinitionsController {
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  async delete(@TenantSchema() schema: string, @Param('id') id: string): Promise<void> {
+  async delete(@CurrentTenantSchema() schema: string, @Param('id') id: string): Promise<void> {
     const db = this.connections.getClient(schema);
     await this.service.delete(db, id);
   }

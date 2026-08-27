@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, UseGuards } from '@nestjs/common';
 import {
   createDocumentTemplateSchema,
   documentTemplateSchema,
@@ -8,11 +8,15 @@ import {
   type UpdateDocumentTemplateDto,
 } from '@erp-platform/contracts';
 import { TenantConnectionManager } from '../../../shared/tenancy/tenant-connection-manager';
-import { TenantSchema } from '../../../shared/tenancy/tenant-schema.decorator';
+import { CurrentTenantSchema } from '../../../shared/auth/current-tenant-schema.decorator';
+import { JwtAuthGuard } from '../../../shared/auth/jwt-auth.guard';
+import { PermissionsGuard } from '../../../shared/auth/permissions.guard';
+import { RequirePermissions } from '../../../shared/auth/require-permissions.decorator';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 import { DocumentTemplatesService } from '../application/services/document-templates.service';
 
-// Permission gap: see the note at the top of settings.controller.ts.
+@UseGuards(JwtAuthGuard, PermissionsGuard)
+@RequirePermissions('settings.manage')
 @Controller('document-templates')
 export class DocumentTemplatesController {
   constructor(
@@ -21,7 +25,7 @@ export class DocumentTemplatesController {
   ) {}
 
   @Get()
-  async list(@TenantSchema() schema: string): Promise<DocumentTemplateDto[]> {
+  async list(@CurrentTenantSchema() schema: string): Promise<DocumentTemplateDto[]> {
     const db = this.connections.getClient(schema);
     const templates = await this.service.list(db);
     return templates.map((t) => documentTemplateSchema.parse(t));
@@ -29,7 +33,7 @@ export class DocumentTemplatesController {
 
   @Get(':id')
   async getById(
-    @TenantSchema() schema: string,
+    @CurrentTenantSchema() schema: string,
     @Param('id') id: string,
   ): Promise<DocumentTemplateDto> {
     const db = this.connections.getClient(schema);
@@ -39,7 +43,7 @@ export class DocumentTemplatesController {
 
   @Post()
   async create(
-    @TenantSchema() schema: string,
+    @CurrentTenantSchema() schema: string,
     // See branches.controller.ts's create() comment: pipe bound to
     // @Body() directly, not a method-level @UsePipes().
     @Body(new ZodValidationPipe(createDocumentTemplateSchema)) body: CreateDocumentTemplateDto,
@@ -51,7 +55,7 @@ export class DocumentTemplatesController {
 
   @Patch(':id')
   async update(
-    @TenantSchema() schema: string,
+    @CurrentTenantSchema() schema: string,
     @Param('id') id: string,
     @Body(new ZodValidationPipe(updateDocumentTemplateSchema)) body: UpdateDocumentTemplateDto,
   ): Promise<DocumentTemplateDto> {
@@ -62,7 +66,7 @@ export class DocumentTemplatesController {
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  async delete(@TenantSchema() schema: string, @Param('id') id: string): Promise<void> {
+  async delete(@CurrentTenantSchema() schema: string, @Param('id') id: string): Promise<void> {
     const db = this.connections.getClient(schema);
     await this.service.delete(db, id);
   }

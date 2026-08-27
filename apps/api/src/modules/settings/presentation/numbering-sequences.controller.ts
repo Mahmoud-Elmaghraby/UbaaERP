@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, UseGuards } from '@nestjs/common';
 import {
   allocateNextRequestSchema,
   allocatedDocumentNumberSchema,
@@ -12,11 +12,15 @@ import {
   type UpdateNumberingSequenceDto,
 } from '@erp-platform/contracts';
 import { TenantConnectionManager } from '../../../shared/tenancy/tenant-connection-manager';
-import { TenantSchema } from '../../../shared/tenancy/tenant-schema.decorator';
+import { CurrentTenantSchema } from '../../../shared/auth/current-tenant-schema.decorator';
+import { JwtAuthGuard } from '../../../shared/auth/jwt-auth.guard';
+import { PermissionsGuard } from '../../../shared/auth/permissions.guard';
+import { RequirePermissions } from '../../../shared/auth/require-permissions.decorator';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 import { NumberingSequencesService } from '../application/services/numbering-sequences.service';
 
-// Permission gap: see the note at the top of settings.controller.ts.
+@UseGuards(JwtAuthGuard, PermissionsGuard)
+@RequirePermissions('settings.manage')
 @Controller('numbering-sequences')
 export class NumberingSequencesController {
   constructor(
@@ -25,7 +29,7 @@ export class NumberingSequencesController {
   ) {}
 
   @Get()
-  async list(@TenantSchema() schema: string): Promise<NumberingSequenceDto[]> {
+  async list(@CurrentTenantSchema() schema: string): Promise<NumberingSequenceDto[]> {
     const db = this.connections.getClient(schema);
     const sequences = await this.service.list(db);
     return sequences.map((s) => numberingSequenceSchema.parse(s));
@@ -33,7 +37,7 @@ export class NumberingSequencesController {
 
   @Get(':id')
   async getById(
-    @TenantSchema() schema: string,
+    @CurrentTenantSchema() schema: string,
     @Param('id') id: string,
   ): Promise<NumberingSequenceDto> {
     const db = this.connections.getClient(schema);
@@ -43,7 +47,7 @@ export class NumberingSequencesController {
 
   @Post()
   async create(
-    @TenantSchema() schema: string,
+    @CurrentTenantSchema() schema: string,
     // See branches.controller.ts's create() comment: pipe bound to
     // @Body() directly, not a method-level @UsePipes().
     @Body(new ZodValidationPipe(createNumberingSequenceSchema)) body: CreateNumberingSequenceDto,
@@ -55,7 +59,7 @@ export class NumberingSequencesController {
 
   @Patch(':id')
   async update(
-    @TenantSchema() schema: string,
+    @CurrentTenantSchema() schema: string,
     @Param('id') id: string,
     @Body(new ZodValidationPipe(updateNumberingSequenceSchema)) body: UpdateNumberingSequenceDto,
   ): Promise<NumberingSequenceDto> {
@@ -66,7 +70,7 @@ export class NumberingSequencesController {
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  async delete(@TenantSchema() schema: string, @Param('id') id: string): Promise<void> {
+  async delete(@CurrentTenantSchema() schema: string, @Param('id') id: string): Promise<void> {
     const db = this.connections.getClient(schema);
     await this.service.delete(db, id);
   }
@@ -78,7 +82,7 @@ export class NumberingSequencesController {
    */
   @Post('allocate-next')
   async allocateNext(
-    @TenantSchema() schema: string,
+    @CurrentTenantSchema() schema: string,
     @Body(new ZodValidationPipe(allocateNextRequestSchema)) body: AllocateNextRequestDto,
   ): Promise<AllocatedDocumentNumberDto> {
     const db = this.connections.getClient(schema);

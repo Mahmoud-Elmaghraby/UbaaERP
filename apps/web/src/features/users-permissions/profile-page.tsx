@@ -1,0 +1,102 @@
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useTranslation } from 'react-i18next';
+import { changePasswordSchema, type ChangePasswordDto } from '@erp-platform/contracts';
+import {
+  Button,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+  Input,
+  toast,
+} from '@erp-platform/ui';
+
+import { useAuthStore } from '../../lib/auth-store';
+import { useChangeOwnPassword } from './queries';
+import { ApiError } from '../../lib/api-client';
+
+export function ProfilePage() {
+  const { t } = useTranslation();
+  const user = useAuthStore((state) => state.user);
+
+  return (
+    <div className="grid gap-6">
+      <div>
+        <h1 className="text-2xl font-semibold">{t('profile.title')}</h1>
+        <p className="text-sm text-muted-foreground">{user?.fullName} — {user?.email}</p>
+      </div>
+
+      <Card className="max-w-sm">
+        <CardHeader>
+          <CardTitle>{t('profile.changePassword')}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ChangePasswordForm />
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function ChangePasswordForm() {
+  const { t } = useTranslation();
+  const changePassword = useChangeOwnPassword();
+
+  const form = useForm<ChangePasswordDto>({
+    resolver: zodResolver(changePasswordSchema),
+    defaultValues: { currentPassword: '', newPassword: '' },
+  });
+
+  async function onSubmit(values: ChangePasswordDto) {
+    try {
+      await changePassword.mutateAsync(values);
+      toast.success(t('profile.changeSuccess'));
+      form.reset();
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : t('profile.changeError'));
+    }
+  }
+
+  return (
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-4">
+        <FormField
+          control={form.control}
+          name="currentPassword"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>{t('profile.currentPassword')}</FormLabel>
+              <FormControl>
+                <Input type="password" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="newPassword"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>{t('profile.newPassword')}</FormLabel>
+              <FormControl>
+                <Input type="password" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <Button type="submit" disabled={changePassword.isPending} className="mt-2">
+          {t('profile.changePassword')}
+        </Button>
+      </form>
+    </Form>
+  );
+}

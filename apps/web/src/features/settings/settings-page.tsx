@@ -1,0 +1,43 @@
+import { useTranslation } from 'react-i18next';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@erp-platform/ui';
+
+import { BranchesTab } from './branches-tab';
+import { GeneralTab } from './general-tab';
+import { NumberingTab } from './numbering-tab';
+import { TemplatesTab } from './templates-tab';
+import { TaxesTab } from './taxes-tab';
+
+export function SettingsPage() {
+  const { t } = useTranslation();
+
+  return (
+    <div className="grid gap-6">
+      <h1 className="text-2xl font-semibold">{t('settings.title')}</h1>
+
+      <Tabs defaultValue="branches">
+        <TabsList>
+          <TabsTrigger value="general">{t('settings.tabs.general')}</TabsTrigger>
+          <TabsTrigger value="branches">{t('settings.tabs.branches')}</TabsTrigger>
+          <TabsTrigger value="numbering">{t('settings.tabs.numbering')}</TabsTrigger>
+          <TabsTrigger value="templates">{t('settings.tabs.templates')}</TabsTrigger>
+          <TabsTrigger value="taxes">{t('settings.tabs.taxes')}</TabsTrigger>
+        </TabsList>
+        <TabsContent value="general">
+          <GeneralTab />
+        </TabsContent>
+        <TabsContent value="branches">
+          <BranchesTab />
+        </TabsContent>
+        <TabsContent value="numbering">
+          <NumberingTab />
+        </TabsContent>
+        <TabsContent value="templates">
+          <TemplatesTab />
+        </TabsContent>
+        <TabsContent value="taxes">
+          <TaxesTab />
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}

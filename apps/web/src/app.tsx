@@ -1,11 +1,18 @@
+import { RouterProvider } from 'react-router-dom';
+
+import { AppProviders } from './app/providers';
+import { router } from './app/router';
+
 /**
- * Root application shell.
- *
- * Intentionally empty — this is foundation scaffolding only. Routing,
- * layout, and the i18n provider (CLAUDE.md §9.1, §14) are wired up here
- * once the first module (Settings) is implemented. Arabic/RTL is already
- * set at the document level (see index.html), not duplicated here.
+ * Root application shell: routing (react-router-dom), server-state
+ * (React Query), client-state permissions context (<Can>, fed from the
+ * Zustand auth store), and toasts. Arabic/RTL is already set at the
+ * document level (see index.html) — not duplicated here.
  */
 export function App() {
-  return <div />;
+  return (
+    <AppProviders>
+      <RouterProvider router={router} />
+    </AppProviders>
+  );
 }

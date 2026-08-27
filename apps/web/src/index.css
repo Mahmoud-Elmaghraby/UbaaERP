@@ -1,3 +1,70 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 210 25% 98%;
+    --foreground: 213 45% 14%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 213 45% 14%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 213 45% 14%;
+
+    /* Deep navy — the brand's primary color (classic/formal, per the
+       chosen visual direction). Distinct from the generic shadcn default
+       blue that shipped in the first pass. */
+    --primary: 213 55% 26%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 210 28% 95%;
+    --secondary-foreground: 213 40% 20%;
+
+    --muted: 210 25% 95%;
+    --muted-foreground: 215 16% 45%;
+
+    --accent: 210 28% 93%;
+    --accent-foreground: 213 40% 20%;
+
+    --destructive: 0 68% 48%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 214 22% 89%;
+    --input: 214 22% 89%;
+    --ring: 213 55% 26%;
+
+    --radius: 0.6rem;
+
+    /* Brand accent (warm gold) — used sparingly: active nav indicator,
+       the wordmark mark, small highlights. Pairs with the navy sidebar
+       for the classic "financial/institutional" look the brand calls for. */
+    --brand-gold: 38 68% 54%;
+    --brand-gold-foreground: 213 45% 14%;
+
+    /* Sidebar — deliberately a fixed dark-navy surface independent of the
+       light content area, not a light/dark theme toggle. This is what
+       gives the shell a distinct identity instead of the flat, all-white
+       "generic admin template" look. */
+    --sidebar-background: 213 46% 13%;
+    --sidebar-foreground: 210 25% 92%;
+    --sidebar-muted-foreground: 213 18% 66%;
+    --sidebar-accent: 213 38% 21%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 213 32% 22%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings:
+      'rlig' 1,
+      'calt' 1;
+  }
+}

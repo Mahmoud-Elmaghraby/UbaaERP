@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, UseGuards } from '@nestjs/common';
 import {
   createTaxRuleSchema,
   taxRuleSchema,
@@ -8,11 +8,15 @@ import {
   type UpdateTaxRuleDto,
 } from '@erp-platform/contracts';
 import { TenantConnectionManager } from '../../../shared/tenancy/tenant-connection-manager';
-import { TenantSchema } from '../../../shared/tenancy/tenant-schema.decorator';
+import { CurrentTenantSchema } from '../../../shared/auth/current-tenant-schema.decorator';
+import { JwtAuthGuard } from '../../../shared/auth/jwt-auth.guard';
+import { PermissionsGuard } from '../../../shared/auth/permissions.guard';
+import { RequirePermissions } from '../../../shared/auth/require-permissions.decorator';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 import { TaxRulesService } from '../application/services/tax-rules.service';
 
-// Permission gap: see the note at the top of settings.controller.ts.
+@UseGuards(JwtAuthGuard, PermissionsGuard)
+@RequirePermissions('settings.manage')
 @Controller('tax-rules')
 export class TaxRulesController {
   constructor(
@@ -21,14 +25,14 @@ export class TaxRulesController {
   ) {}
 
   @Get()
-  async list(@TenantSchema() schema: string): Promise<TaxRuleDto[]> {
+  async list(@CurrentTenantSchema() schema: string): Promise<TaxRuleDto[]> {
     const db = this.connections.getClient(schema);
     const rules = await this.service.list(db);
     return rules.map((r) => taxRuleSchema.parse(r));
   }
 
   @Get(':id')
-  async getById(@TenantSchema() schema: string, @Param('id') id: string): Promise<TaxRuleDto> {
+  async getById(@CurrentTenantSchema() schema: string, @Param('id') id: string): Promise<TaxRuleDto> {
     const db = this.connections.getClient(schema);
     const rule = await this.service.getById(db, id);
     return taxRuleSchema.parse(rule);
@@ -36,7 +40,7 @@ export class TaxRulesController {
 
   @Post()
   async create(
-    @TenantSchema() schema: string,
+    @CurrentTenantSchema() schema: string,
     // See branches.controller.ts's create() comment: pipe bound to
     // @Body() directly, not a method-level @UsePipes().
     @Body(new ZodValidationPipe(createTaxRuleSchema)) body: CreateTaxRuleDto,
@@ -48,7 +52,7 @@ export class TaxRulesController {
 
   @Patch(':id')
   async update(
-    @TenantSchema() schema: string,
+    @CurrentTenantSchema() schema: string,
     @Param('id') id: string,
     @Body(new ZodValidationPipe(updateTaxRuleSchema)) body: UpdateTaxRuleDto,
   ): Promise<TaxRuleDto> {
@@ -59,7 +63,7 @@ export class TaxRulesController {
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  async delete(@TenantSchema() schema: string, @Param('id') id: string): Promise<void> {
+  async delete(@CurrentTenantSchema() schema: string, @Param('id') id: string): Promise<void> {
     const db = this.connections.getClient(schema);
     await this.service.delete(db, id);
   }

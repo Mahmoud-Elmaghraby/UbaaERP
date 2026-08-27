@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, UseGuards } from '@nestjs/common';
 import {
   branchSchema,
   createBranchSchema,
@@ -8,12 +8,15 @@ import {
   type UpdateBranchDto,
 } from '@erp-platform/contracts';
 import { TenantConnectionManager } from '../../../shared/tenancy/tenant-connection-manager';
-import { TenantSchema } from '../../../shared/tenancy/tenant-schema.decorator';
+import { CurrentTenantSchema } from '../../../shared/auth/current-tenant-schema.decorator';
+import { JwtAuthGuard } from '../../../shared/auth/jwt-auth.guard';
+import { PermissionsGuard } from '../../../shared/auth/permissions.guard';
+import { RequirePermissions } from '../../../shared/auth/require-permissions.decorator';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 import { BranchesService } from '../application/services/branches.service';
 
-// Permission gap: see the note at the top of settings.controller.ts —
-// applies to every controller in this module.
+@UseGuards(JwtAuthGuard, PermissionsGuard)
+@RequirePermissions('settings.manage')
 @Controller('branches')
 export class BranchesController {
   constructor(
@@ -22,14 +25,14 @@ export class BranchesController {
   ) {}
 
   @Get()
-  async list(@TenantSchema() schema: string): Promise<BranchDto[]> {
+  async list(@CurrentTenantSchema() schema: string): Promise<BranchDto[]> {
     const db = this.connections.getClient(schema);
     const branches = await this.service.list(db);
     return branches.map((b) => branchSchema.parse(b));
   }
 
   @Get(':id')
-  async getById(@TenantSchema() schema: string, @Param('id') id: string): Promise<BranchDto> {
+  async getById(@CurrentTenantSchema() schema: string, @Param('id') id: string): Promise<BranchDto> {
     const db = this.connections.getClient(schema);
     const branch = await this.service.getById(db, id);
     return branchSchema.parse(branch);
@@ -37,10 +40,10 @@ export class BranchesController {
 
   @Post()
   async create(
-    @TenantSchema() schema: string,
+    @CurrentTenantSchema() schema: string,
     // The Zod pipe is bound directly to @Body(), not via a method-level
     // @UsePipes() — a method-level pipe applies to EVERY parameter of the
-    // handler, including @TenantSchema()'s plain string, which then fails
+    // handler, including @CurrentTenantSchema()'s plain string, which then fails
     // validation against an object schema before the real body is even
     // looked at. (Found by an actual HTTP smoke test against
     // AuthController.login, which had the same bug — see that file's
@@ -54,7 +57,7 @@ export class BranchesController {
 
   @Patch(':id')
   async update(
-    @TenantSchema() schema: string,
+    @CurrentTenantSchema() schema: string,
     @Param('id') id: string,
     @Body(new ZodValidationPipe(updateBranchSchema)) body: UpdateBranchDto,
   ): Promise<BranchDto> {
@@ -65,7 +68,7 @@ export class BranchesController {
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  async delete(@TenantSchema() schema: string, @Param('id') id: string): Promise<void> {
+  async delete(@CurrentTenantSchema() schema: string, @Param('id') id: string): Promise<void> {
     const db = this.connections.getClient(schema);
     await this.service.delete(db, id);
   }

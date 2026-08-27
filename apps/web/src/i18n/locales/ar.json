@@ -1,0 +1,162 @@
+{
+  "app": {
+    "name": "أصول"
+  },
+  "nav": {
+    "settings": "الإعدادات",
+    "users": "المستخدمون",
+    "roles": "الأدوار والصلاحيات",
+    "auditLogs": "سجل التدقيق",
+    "logout": "تسجيل الخروج"
+  },
+  "auth": {
+    "loginTitle": "تسجيل الدخول",
+    "loginSubtitle": "ادخل بيانات الدخول للوصول إلى النظام",
+    "tenantSchema": "معرّف المنشأة",
+    "tenantSchemaPlaceholder": "مثال: test_tenant",
+    "email": "البريد الإلكتروني",
+    "password": "كلمة المرور",
+    "submit": "دخول",
+    "submitting": "جارٍ الدخول...",
+    "invalidCredentials": "البريد الإلكتروني أو كلمة المرور غير صحيحة"
+  },
+  "common": {
+    "save": "حفظ",
+    "cancel": "إلغاء",
+    "create": "إضافة",
+    "edit": "تعديل",
+    "delete": "حذف",
+    "loading": "جارٍ التحميل...",
+    "error": "حدث خطأ",
+    "comingSoon": "قريبًا",
+    "active": "مفعّل",
+    "inactive": "غير مفعّل",
+    "actions": "إجراءات",
+    "close": "إغلاق",
+    "search": "بحث",
+    "noResults": "لا توجد نتائج"
+  },
+  "users": {
+    "title": "المستخدمون",
+    "subtitle": "إدارة مستخدمي النظام وأدوارهم",
+    "newUser": "مستخدم جديد",
+    "fullName": "الاسم الكامل",
+    "email": "البريد الإلكتروني",
+    "role": "الدور",
+    "status": "الحالة",
+    "password": "كلمة المرور",
+    "createSuccess": "تم إنشاء المستخدم بنجاح",
+    "createError": "تعذّر إنشاء المستخدم",
+    "manageAccess": "إدارة الصلاحيات",
+    "branchAccess": "الفروع المتاحة",
+    "manager": "المدير المباشر",
+    "noManager": "بدون مدير مباشر",
+    "accessSaveSuccess": "تم حفظ الفروع المتاحة بنجاح",
+    "accessSaveError": "تعذّر حفظ الفروع المتاحة",
+    "managerSaveSuccess": "تم حفظ المدير المباشر بنجاح",
+    "managerSaveError": "تعذّر حفظ المدير المباشر"
+  },
+  "roles": {
+    "title": "الأدوار والصلاحيات",
+    "subtitle": "إدارة الأدوار ومصفوفة الصلاحيات",
+    "newRole": "دور جديد",
+    "name": "اسم الدور",
+    "systemRole": "دور نظام",
+    "permissions": "الصلاحيات",
+    "createSuccess": "تم إنشاء الدور بنجاح",
+    "createError": "تعذّر إنشاء الدور",
+    "updateSuccess": "تم تحديث صلاحيات الدور"
+  },
+  "auditLogs": {
+    "title": "سجل التدقيق",
+    "subtitle": "سجل بجميع العمليات الحساسة في النظام",
+    "action": "العملية",
+    "entityType": "نوع الكيان",
+    "entityId": "معرّف الكيان",
+    "user": "المستخدم",
+    "date": "التاريخ",
+    "filters": {
+      "entityType": "نوع الكيان",
+      "action": "العملية",
+      "from": "من تاريخ",
+      "to": "إلى تاريخ",
+      "apply": "تطبيق"
+    }
+  },
+  "settings": {
+    "title": "الإعدادات",
+    "tabs": {
+      "general": "عام",
+      "branches": "الفروع",
+      "numbering": "ترقيم المستندات",
+      "templates": "قوالب الطباعة",
+      "taxes": "الضرائب"
+    },
+    "branches": {
+      "newBranch": "فرع جديد",
+      "name": "اسم الفرع",
+      "code": "الكود",
+      "address": "العنوان",
+      "status": "الحالة",
+      "createSuccess": "تم إنشاء الفرع بنجاح",
+      "createError": "تعذّر إنشاء الفرع",
+      "customFields": "حقول إضافية"
+    },
+    "general": {
+      "currency": "العملة",
+      "currencyCode": "رمز العملة",
+      "currencyCodeHint": "رمز العملة الدولي المكوّن من 3 أحرف، مثل EGP",
+      "saveSuccess": "تم حفظ الإعدادات بنجاح",
+      "saveError": "تعذّر حفظ الإعدادات"
+    },
+    "numbering": {
+      "newSequence": "تسلسل ترقيم جديد",
+      "documentType": "نوع المستند",
+      "branch": "الفرع",
+      "tenantWide": "على مستوى المنشأة",
+      "prefix": "البادئة",
+      "nextNumber": "الرقم التالي",
+      "paddingLength": "طول الترقيم",
+      "createSuccess": "تم إنشاء تسلسل الترقيم بنجاح",
+      "createError": "تعذّر إنشاء تسلسل الترقيم",
+      "updateSuccess": "تم تحديث تسلسل الترقيم بنجاح",
+      "updateError": "تعذّر تحديث تسلسل الترقيم",
+      "deleteConfirm": "هل أنت متأكد من حذف تسلسل الترقيم هذا؟",
+      "deleteSuccess": "تم حذف تسلسل الترقيم بنجاح"
+    },
+    "templates": {
+      "newTemplate": "قالب جديد",
+      "documentType": "نوع المستند",
+      "name": "الاسم",
+      "content": "المحتوى",
+      "isDefault": "افتراضي",
+      "defaultBadge": "افتراضي",
+      "createSuccess": "تم إنشاء القالب بنجاح",
+      "createError": "تعذّر إنشاء القالب",
+      "updateSuccess": "تم تحديث القالب بنجاح",
+      "updateError": "تعذّر تحديث القالب",
+      "deleteConfirm": "هل أنت متأكد من حذف هذا القالب؟",
+      "deleteSuccess": "تم حذف القالب بنجاح"
+    },
+    "taxes": {
+      "newTaxRule": "ضريبة جديدة",
+      "name": "الاسم",
+      "rate": "النسبة (%)",
+      "status": "مفعّلة",
+      "createSuccess": "تم إنشاء الضريبة بنجاح",
+      "createError": "تعذّر إنشاء الضريبة",
+      "updateSuccess": "تم تحديث الضريبة بنجاح",
+      "updateError": "تعذّر تحديث الضريبة",
+      "deleteConfirm": "هل أنت متأكد من حذف هذه الضريبة؟",
+      "deleteSuccess": "تم حذف الضريبة بنجاح"
+    }
+  },
+  "profile": {
+    "title": "الملف الشخصي",
+    "changePassword": "تغيير كلمة المرور",
+    "currentPassword": "كلمة المرور الحالية",
+    "newPassword": "كلمة المرور الجديدة",
+    "changeSuccess": "تم تغيير كلمة المرور بنجاح",
+    "changeError": "تعذّر تغيير كلمة المرور"
+  }
+}

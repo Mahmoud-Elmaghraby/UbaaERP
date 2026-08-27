@@ -9,6 +9,8 @@ If anything in this file ever appears to conflict with the master document, the 
 wins — stop and flag the conflict rather than resolving it silently. If the master document itself
 is ambiguous or silent on a point, **stop and ask** rather than inventing a decision.
 
+**Important nuance (added 2026-08-26, see §17 for the full statement):** the master document's *architecture* and everything explicitly tagged **[مستقر]** stays final and must not be silently overridden. Its *feature/product scope* per module (the screens, entities, and capability lists) is a starting outline, not exhaustive scripture — future sessions are expected to research real competitors and propose well-justified feature enhancements while building each module, not just replicate the master document's list verbatim. See §17 before assuming the master document's feature scope is complete.
+
 Decisions below are tagged the same way the master document tags them:
 
 - **[مستقر]** — Final. Never override, weaken, or silently reinterpret without explicit user approval.
@@ -386,7 +388,9 @@ erp-platform/
 ## 15. Development workflow (required for every task)
 
 1. **Inspect before coding** — read the relevant existing files and re-check this document and the
-   master document for constraints before touching anything.
+   master document for constraints before touching anything. When starting or actively working on
+   a module, this includes the §17 research step (real-competitor research + forward-looking,
+   non-blocking feature proposals) as a normal part of inspection, not an optional extra.
 2. **Define the scope of one task** — work on one clearly defined task at a time (e.g. "implement the
    Settings module only"). Do not bundle unrelated work into the same change.
 3. **Explain the intended changes briefly** before making them, distinguishing clearly between
@@ -418,3 +422,84 @@ erp-platform/
   enforcement (`PlanFeatureGuard`, `<Can>`'s underlying permission checks are UX only).
 - Never bypass the Event Bus/Outbox pattern for financial events, and never let Accounting be called
   directly by another business module.
+
+---
+
+## 17. Working philosophy: master-document feature scope vs. architecture [مستقر — process rule, added 2026-08-26]
+
+This section exists because of an explicit user instruction (2026-08-26): future sessions must not
+treat `docs/project-master-doc.md` as an immutable scripture for *feature scope*. This section is
+itself now part of the operating manual and carries the same weight as any other **[مستقر]** rule
+until the user says otherwise.
+
+### 17.1 Two different kinds of "the master document says so"
+
+The master document mixes two categories that must be handled very differently:
+
+- **Architecture, technology choices, and everything explicitly tagged [مستقر]** (Clean Architecture,
+  the ORM split, schema-per-tenant, Event Bus + Outbox, `PlanFeatureGuard`, the module build order in
+  §10, etc.) — these remain **final**. Nothing in this section changes that. Do not silently
+  override, weaken, or reinterpret any of it; the existing stop-and-ask rules in §16 still apply in
+  full.
+- **The feature/product scope listed for each module** (the screens, entities, and capability bullet
+  lists in §9–§10) — this is a **starting outline, not an exhaustive spec**. It reflects what was
+  known/planned when the master document was written, not a ceiling on what the product should
+  eventually do.
+
+### 17.2 Standing process requirement: research before/while building a module
+
+When starting or actively working on a given module, do the following as a normal part of the
+workflow (not an optional nice-to-have — see also the pointer added to §15, step 1):
+
+1. **Research real competitors** serving the same market (Egyptian/MENA-region ERP & accounting SaaS
+   — e.g. Daftra, Wafeq, Odoo, and similar) and identify what they actually ship for the equivalent
+   module. Use WebSearch/WebFetch and cite what was actually found — don't guess or assume.
+2. **Propose well-justified enhancements** grounded in that research — not speculative feature
+   creep, and not a copy-paste of a competitor's whole feature list. Each proposal should say which
+   competitor(s) offer it, why it's valuable here, and roughly how invasive it would be to add.
+3. **Design with forward compatibility in mind** — prefer schema/architecture choices that leave room
+   for a later addition (e.g. a nullable/optional column, an event a future listener can pick up)
+   over choices that would force a rework later — **but do not let this gold-plate or delay the
+   current task.** Forward-compatibility is a tiebreaker between otherwise-equal designs, not a
+   justification for building speculative infrastructure now.
+4. **Ship the essential/core version first.** Per the user's explicit priority — "عايز انزل السوق
+   بالحاجات الاساسيه الاول وبعدين نبدأ نشوف الباقي" — get the core module shipped, then revisit
+   competitive additions. Do not block core progress chasing feature parity with competitors.
+
+### 17.3 What still requires stopping and asking
+
+Competitor research and creative feature proposals are expected and encouraged. Actually **building**
+any of the following still requires explicit user approval before starting, because these are scope
+decisions, not implementation details:
+
+- A feature that implies a new module or a materially new domain concept (e.g. HR/Payroll, WhatsApp
+  integration, loyalty points, subscriptions/recurring billing, rental/unit management,
+  manufacturing) — propose it with reasoning, do not build it unprompted.
+- Anything that would change the module build order in §10.
+- Anything that touches a **[مستقر]** architectural decision in §2.
+
+In short: **research and propose freely; build only what's been asked for or explicitly approved.**
+
+### 17.4 Known open competitive-research findings (context for future sessions)
+
+Captured from a 2026-08-25/26 research pass so it isn't redone from scratch:
+
+- **Daftra** (a leading Egyptian competitor) additionally offers: full HR/Payroll (org hierarchy,
+  contracts, attendance, payroll, employee requests), customer loyalty points, subscriptions/
+  memberships, rental/unit management, manufacturing, cheque-cycle management, dedicated mobile
+  apps, and **WhatsApp invoice/payment-reminder sending**.
+- **Wafeq** (a Saudi competitor) also offers WhatsApp invoice/payment-reminder sending.
+- WhatsApp integration is notable because the current Electron-child-process backend architecture
+  (§2.4) was specifically designed to avoid the ESM/CommonJS conflict that caused a real production
+  WhatsApp-integration incident in نبغة — meaning this architecture already safely supports adding
+  WhatsApp messaging, but it has not been added to any module's scope yet. This is a **proposal
+  candidate** for the Sales module, not a decision.
+- HR/Payroll as a possible 7th module (and its position in the build order) is an **open question** —
+  not decided, not to be decided unilaterally.
+- A larger, separately-raised idea (new industry verticals: real estate development, clothing/
+  fashion, medical) was discussed and explicitly **not approved or acted on** — do not build toward
+  it without the user re-opening that topic.
+- Product name/visual identity: still not finalized. The current placeholder in code ("أصول")
+  collides with an existing product (OSOL) and must not be treated as final. See the project doc
+  (`claude/settings-module-status.md` in the attached Project) for the full naming history before
+  re-proposing names already ruled out.
