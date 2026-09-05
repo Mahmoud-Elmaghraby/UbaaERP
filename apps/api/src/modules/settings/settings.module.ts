@@ -59,5 +59,19 @@ import { CustomFieldDefinitionsController } from './presentation/custom-field-de
     TaxRulesService,
     CustomFieldDefinitionsService,
   ],
+  // Exported narrowly, growing only as later modules actually need
+  // something: NumberingSequencesService is the shared mechanism every
+  // document-numbering module (Purchases, Sales, and now Accounting's
+  // journal entries) allocates document numbers through — see Purchases'
+  // migration 0030 and PurchaseRequisitionsService for the reasoning
+  // (treated as a foundational/platform dependency, not a business-
+  // module-to-business-module call under CLAUDE.md §2.6).
+  // TenantSettingsService is exported starting with Accounting Stage 2
+  // (Journal Entries) — the ledger's ONE base/functional currency for
+  // every journal entry is tenant_settings.currencyCode
+  // (JournalEntriesService reads it via TenantSettingsService.get()),
+  // the same foundational-dependency reasoning as NumberingSequencesService
+  // above, not a business-module call.
+  exports: [NumberingSequencesService, TenantSettingsService],
 })
 export class SettingsModule {}

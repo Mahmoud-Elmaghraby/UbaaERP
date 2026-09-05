@@ -33,6 +33,20 @@ export class AuthenticationError extends Error {
   }
 }
 
+/**
+ * A domain business-rule violation that isn't really "not found" or a
+ * uniqueness conflict — e.g. Inventory's "cannot record an outgoing stock
+ * movement that would leave quantity_on_hand negative". Translated to 422
+ * Unprocessable Entity by DomainExceptionFilter. First real consumer:
+ * StockMovementsService.
+ */
+export class BusinessRuleError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'BusinessRuleError';
+  }
+}
+
 export const POSTGRES_UNIQUE_VIOLATION = '23505';
 
 export function isPostgresUniqueViolation(err: unknown): boolean {

@@ -5,8 +5,9 @@ import {
   ExceptionFilter,
   NotFoundException,
   UnauthorizedException,
+  UnprocessableEntityException,
 } from '@nestjs/common';
-import { AuthenticationError, ConflictError, NotFoundError } from './domain-errors';
+import { AuthenticationError, BusinessRuleError, ConflictError, NotFoundError } from './domain-errors';
 
 /**
  * Translates application-layer errors (see ./domain-errors.ts) into the
@@ -15,15 +16,20 @@ import { AuthenticationError, ConflictError, NotFoundError } from './domain-erro
  * layer itself free of any NestJS/HTTP dependency (Clean Architecture
  * §2.1: dependencies point inward only).
  */
-@Catch(NotFoundError, ConflictError, AuthenticationError)
+@Catch(NotFoundError, ConflictError, AuthenticationError, BusinessRuleError)
 export class DomainExceptionFilter implements ExceptionFilter {
-  catch(exception: NotFoundError | ConflictError | AuthenticationError, host: ArgumentsHost): void {
+  catch(
+    exception: NotFoundError | ConflictError | AuthenticationError | BusinessRuleError,
+    host: ArgumentsHost,
+  ): void {
     const httpException =
       exception instanceof NotFoundError
         ? new NotFoundException(exception.message)
         : exception instanceof AuthenticationError
           ? new UnauthorizedException(exception.message)
-          : new ConflictException(exception.message);
+          : exception instanceof BusinessRuleError
+            ? new UnprocessableEntityException(exception.message)
+            : new ConflictException(exception.message);
 
     const response = host.switchToHttp().getResponse();
     const status = httpException.getStatus();

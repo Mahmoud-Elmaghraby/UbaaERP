@@ -4,3 +4,7 @@
 // of truth. Grown module by module as each is implemented.
 export * from './settings';
 export * from './users-permissions';
+export * from './inventory';
+export * from './purchases';
+export * from './sales';
+export * from './accounting';

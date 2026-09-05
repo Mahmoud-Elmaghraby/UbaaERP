@@ -19,6 +19,7 @@ export * from './components/ui/separator';
 export * from './components/ui/skeleton';
 export * from './components/ui/avatar';
 export * from './components/ui/table';
+export * from './components/ui/data-table';
 export * from './components/ui/tabs';
 export * from './components/ui/dialog';
 export * from './components/ui/checkbox';

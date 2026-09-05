@@ -147,6 +147,550 @@ export interface RefreshTokensTable {
   created_at: Generated<Date>;
 }
 
+
+export interface UnitsOfMeasureTable {
+  id: string;
+  name: string;
+  symbol: string;
+  base_unit_id: string | null;
+  conversion_factor: string;
+  is_active: boolean;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
+export interface WarehousesTable {
+  id: string;
+  name: string;
+  code: string;
+  address: string | null;
+  branch_id: string | null;
+  is_active: boolean;
+  custom_fields: unknown;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
+export interface ProductsTable {
+  id: string;
+  code: string;
+  name: string;
+  description: string | null;
+  unit_of_measure_id: string;
+  track_variants: boolean;
+  tracking_type: string;
+  attributes: unknown;
+  is_active: boolean;
+  custom_fields: unknown;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
+export interface ProductVariantsTable {
+  id: string;
+  product_id: string;
+  sku: string;
+  attribute_values: unknown;
+  barcode: string | null;
+  is_active: boolean;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
+export interface WarehouseLocationsTable {
+  id: string;
+  warehouse_id: string;
+  code: string;
+  name: string;
+  is_active: boolean;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
+export interface StockLevelsTable {
+  id: string;
+  product_variant_id: string;
+  warehouse_id: string;
+  location_id: string;
+  quantity_on_hand: string;
+  reorder_point: string | null;
+  average_cost_amount: string;
+  average_cost_currency: string;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
+export interface StockMovementsTable {
+  id: string;
+  product_variant_id: string;
+  warehouse_id: string;
+  location_id: string;
+  movement_type: string;
+  quantity: string;
+  unit_cost_amount: string | null;
+  unit_cost_currency: string | null;
+  resulting_average_cost_amount: string;
+  resulting_average_cost_currency: string;
+  reference_type: string | null;
+  reference_id: string | null;
+  related_movement_id: string | null;
+  stock_lot_id: string | null;
+  notes: string | null;
+  created_by: string | null;
+  created_at: Generated<Date>;
+}
+
+export interface StockLotsTable {
+  id: string;
+  product_variant_id: string;
+  lot_number: string;
+  expiry_date: Date | null;
+  unit_cost_amount: string;
+  unit_cost_currency: string;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
+export interface StockLotLevelsTable {
+  id: string;
+  stock_lot_id: string;
+  location_id: string;
+  warehouse_id: string;
+  quantity_on_hand: string;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
+export interface StockLotConsumptionsTable {
+  id: string;
+  stock_movement_id: string;
+  stock_lot_id: string;
+  quantity: string;
+  created_at: Generated<Date>;
+}
+
+export interface LandedCostsTable {
+  id: string;
+  total_cost_amount: string;
+  total_cost_currency: string;
+  allocation_method: string;
+  reference_type: string | null;
+  reference_id: string | null;
+  notes: string | null;
+  created_by: string | null;
+  created_at: Generated<Date>;
+}
+
+export interface LandedCostAllocationsTable {
+  id: string;
+  landed_cost_id: string;
+  stock_movement_id: string;
+  product_variant_id: string;
+  location_id: string;
+  warehouse_id: string;
+  allocated_amount_amount: string;
+  allocated_amount_currency: string;
+  resulting_average_cost_amount: string;
+  resulting_average_cost_currency: string;
+  created_at: Generated<Date>;
+}
+
+export interface SuppliersTable {
+  id: string;
+  name: string;
+  code: string;
+  contact_person: string | null;
+  email: string | null;
+  phone: string | null;
+  address: string | null;
+  tax_number: string | null;
+  default_currency: string;
+  payment_terms_days: number | null;
+  notes: string | null;
+  is_active: boolean;
+  custom_fields: unknown;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
+export interface CustomersTable {
+  id: string;
+  name: string;
+  code: string;
+  customer_type: string;
+  contact_person: string | null;
+  email: string | null;
+  phone: string | null;
+  address: string | null;
+  tax_number: string | null;
+  default_currency: string;
+  payment_terms_days: number | null;
+  notes: string | null;
+  is_active: boolean;
+  custom_fields: unknown;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
+export interface SalesOrdersTable {
+  id: string;
+  so_number: string;
+  customer_id: string;
+  source_quotation_id: string | null;
+  status: string;
+  notes: string | null;
+  custom_fields: unknown;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
+export interface SalesOrderLinesTable {
+  id: string;
+  sales_order_id: string;
+  product_variant_id: string;
+  quantity: string;
+  unit_price_amount: string;
+  unit_price_currency: string;
+  notes: string | null;
+  created_at: Generated<Date>;
+}
+
+export interface DeliveriesTable {
+  id: string;
+  delivery_number: string;
+  sales_order_id: string;
+  warehouse_id: string;
+  status: string;
+  delivery_date: string | null;
+  notes: string | null;
+  custom_fields: unknown;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
+export interface DeliveryLinesTable {
+  id: string;
+  delivery_id: string;
+  sales_order_line_id: string;
+  product_variant_id: string;
+  quantity_delivered: string;
+  notes: string | null;
+  created_at: Generated<Date>;
+}
+
+export interface SalesInvoicesTable {
+  id: string;
+  invoice_number: string;
+  sales_order_id: string;
+  status: string;
+  invoice_date: string | null;
+  due_date: string | null;
+  notes: string | null;
+  custom_fields: unknown;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
+export interface SalesInvoiceLinesTable {
+  id: string;
+  sales_invoice_id: string;
+  sales_order_line_id: string;
+  product_variant_id: string;
+  quantity_invoiced: string;
+  unit_price_amount: string;
+  unit_price_currency: string;
+  notes: string | null;
+  created_at: Generated<Date>;
+}
+
+export interface PaymentsReceivedTable {
+  id: string;
+  payment_number: string;
+  customer_id: string;
+  status: string;
+  payment_date: string | null;
+  payment_method: string;
+  reference_number: string | null;
+  amount_amount: string;
+  amount_currency: string;
+  notes: string | null;
+  custom_fields: unknown;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
+export interface PaymentAllocationsTable {
+  id: string;
+  payment_received_id: string;
+  sales_invoice_id: string;
+  allocated_amount_amount: string;
+  allocated_amount_currency: string;
+  created_at: Generated<Date>;
+}
+
+export interface SalesReturnsTable {
+  id: string;
+  return_number: string;
+  delivery_id: string;
+  status: string;
+  return_date: string | null;
+  notes: string | null;
+  custom_fields: unknown;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
+export interface SalesReturnLinesTable {
+  id: string;
+  sales_return_id: string;
+  delivery_line_id: string;
+  product_variant_id: string;
+  quantity_returned: string;
+  reason: string | null;
+  notes: string | null;
+  created_at: Generated<Date>;
+}
+
+export interface SalesCreditNotesTable {
+  id: string;
+  credit_note_number: string;
+  sales_return_id: string;
+  customer_id: string;
+  currency: string;
+  notes: string | null;
+  custom_fields: unknown;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
+export interface SalesCreditNoteLinesTable {
+  id: string;
+  sales_credit_note_id: string;
+  sales_return_line_id: string;
+  product_variant_id: string;
+  quantity: string;
+  unit_price_amount: string;
+  unit_price_currency: string;
+  created_at: Generated<Date>;
+}
+
+export interface QuotationsTable {
+  id: string;
+  quotation_number: string;
+  customer_id: string;
+  status: string;
+  valid_until_date: string | null;
+  notes: string | null;
+  custom_fields: unknown;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
+export interface QuotationLinesTable {
+  id: string;
+  quotation_id: string;
+  product_variant_id: string;
+  quantity: string;
+  unit_price_amount: string;
+  unit_price_currency: string;
+  notes: string | null;
+  created_at: Generated<Date>;
+}
+
+export interface EtaCredentialsTable {
+  id: string;
+  singleton: boolean;
+  client_id: string | null;
+  client_secret_encrypted: string | null;
+  tax_registration_number: string | null;
+  environment: string;
+  document_version: string;
+  is_enabled: boolean;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
+export interface PurchaseRequisitionsTable {
+  id: string;
+  requisition_number: string;
+  requested_by: string;
+  branch_id: string | null;
+  status: string;
+  needed_by_date: string | null;
+  notes: string | null;
+  custom_fields: unknown;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
+export interface PurchaseRequisitionLinesTable {
+  id: string;
+  requisition_id: string;
+  product_variant_id: string;
+  quantity: string;
+  notes: string | null;
+  created_at: Generated<Date>;
+}
+
+export interface RequestForQuotationsTable {
+  id: string;
+  rfq_number: string;
+  source_requisition_id: string | null;
+  status: string;
+  notes: string | null;
+  custom_fields: unknown;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
+export interface RfqLinesTable {
+  id: string;
+  rfq_id: string;
+  product_variant_id: string;
+  quantity: string;
+  notes: string | null;
+  created_at: Generated<Date>;
+}
+
+export interface RfqSuppliersTable {
+  id: string;
+  rfq_id: string;
+  supplier_id: string;
+  created_at: Generated<Date>;
+}
+
+export interface SupplierQuotationsTable {
+  id: string;
+  rfq_id: string;
+  supplier_id: string;
+  status: string;
+  valid_until: string | null;
+  notes: string | null;
+  custom_fields: unknown;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
+export interface SupplierQuotationLinesTable {
+  id: string;
+  quotation_id: string;
+  product_variant_id: string;
+  quantity: string;
+  unit_price_amount: string;
+  unit_price_currency: string;
+  notes: string | null;
+  created_at: Generated<Date>;
+}
+
+export interface PurchaseOrdersTable {
+  id: string;
+  po_number: string;
+  supplier_id: string;
+  source_quotation_id: string | null;
+  status: string;
+  expected_delivery_date: string | null;
+  notes: string | null;
+  custom_fields: unknown;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
+export interface PurchaseOrderLinesTable {
+  id: string;
+  purchase_order_id: string;
+  product_variant_id: string;
+  quantity: string;
+  unit_price_amount: string;
+  unit_price_currency: string;
+  notes: string | null;
+  created_at: Generated<Date>;
+}
+
+export interface GoodsReceiptsTable {
+  id: string;
+  receipt_number: string;
+  purchase_order_id: string;
+  warehouse_id: string;
+  status: string;
+  received_date: string | null;
+  notes: string | null;
+  custom_fields: unknown;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
+export interface GoodsReceiptLinesTable {
+  id: string;
+  goods_receipt_id: string;
+  purchase_order_line_id: string;
+  product_variant_id: string;
+  quantity_received: string;
+  unit_cost_amount: string;
+  unit_cost_currency: string;
+  notes: string | null;
+  created_at: Generated<Date>;
+}
+
+export interface PurchaseReturnsTable {
+  id: string;
+  return_number: string;
+  goods_receipt_id: string;
+  status: string;
+  return_date: string | null;
+  notes: string | null;
+  custom_fields: unknown;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
+export interface PurchaseReturnLinesTable {
+  id: string;
+  purchase_return_id: string;
+  goods_receipt_line_id: string;
+  product_variant_id: string;
+  quantity_returned: string;
+  reason: string | null;
+  notes: string | null;
+  created_at: Generated<Date>;
+}
+
+export interface OutboxEventsTable {
+  id: string;
+  event_type: string;
+  payload: unknown;
+  status: string;
+  attempts: number;
+  last_error: string | null;
+  created_at: Generated<Date>;
+  processed_at: Date | null;
+}
+
+export interface PurchaseInvoicesTable {
+  id: string;
+  invoice_number: string;
+  supplier_invoice_number: string | null;
+  purchase_order_id: string;
+  status: string;
+  invoice_date: string | null;
+  due_date: string | null;
+  notes: string | null;
+  custom_fields: unknown;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
+export interface PurchaseInvoiceLinesTable {
+  id: string;
+  purchase_invoice_id: string;
+  purchase_order_line_id: string;
+  product_variant_id: string;
+  quantity_invoiced: string;
+  unit_price_amount: string;
+  unit_price_currency: string;
+  notes: string | null;
+  created_at: Generated<Date>;
+}
+
 export interface TenantDatabase {
   schema_migrations: SchemaMigrationsTable;
   tenant_settings: TenantSettingsTable;
@@ -163,6 +707,59 @@ export interface TenantDatabase {
   approval_chains: ApprovalChainsTable;
   audit_logs: AuditLogsTable;
   refresh_tokens: RefreshTokensTable;
+  units_of_measure: UnitsOfMeasureTable;
+  warehouses: WarehousesTable;
+  products: ProductsTable;
+  product_variants: ProductVariantsTable;
+  warehouse_locations: WarehouseLocationsTable;
+  stock_levels: StockLevelsTable;
+  stock_movements: StockMovementsTable;
+  landed_costs: LandedCostsTable;
+  landed_cost_allocations: LandedCostAllocationsTable;
+  stock_lots: StockLotsTable;
+  stock_lot_levels: StockLotLevelsTable;
+  stock_lot_consumptions: StockLotConsumptionsTable;
+  suppliers: SuppliersTable;
+  purchase_requisitions: PurchaseRequisitionsTable;
+  purchase_requisition_lines: PurchaseRequisitionLinesTable;
+  request_for_quotations: RequestForQuotationsTable;
+  rfq_lines: RfqLinesTable;
+  rfq_suppliers: RfqSuppliersTable;
+  supplier_quotations: SupplierQuotationsTable;
+  supplier_quotation_lines: SupplierQuotationLinesTable;
+  purchase_orders: PurchaseOrdersTable;
+  purchase_order_lines: PurchaseOrderLinesTable;
+  goods_receipts: GoodsReceiptsTable;
+  goods_receipt_lines: GoodsReceiptLinesTable;
+  purchase_returns: PurchaseReturnsTable;
+  purchase_return_lines: PurchaseReturnLinesTable;
+  outbox_events: OutboxEventsTable;
+  purchase_invoices: PurchaseInvoicesTable;
+  purchase_invoice_lines: PurchaseInvoiceLinesTable;
+  customers: CustomersTable;
+  eta_credentials: EtaCredentialsTable;
+  quotations: QuotationsTable;
+  quotation_lines: QuotationLinesTable;
+  sales_orders: SalesOrdersTable;
+  sales_order_lines: SalesOrderLinesTable;
+  deliveries: DeliveriesTable;
+  delivery_lines: DeliveryLinesTable;
+  sales_invoices: SalesInvoicesTable;
+  sales_invoice_lines: SalesInvoiceLinesTable;
+  payments_received: PaymentsReceivedTable;
+  payment_allocations: PaymentAllocationsTable;
+  sales_returns: SalesReturnsTable;
+  sales_return_lines: SalesReturnLinesTable;
+  sales_credit_notes: SalesCreditNotesTable;
+  sales_credit_note_lines: SalesCreditNoteLinesTable;
+  chart_of_accounts: ChartOfAccountsTable;
+  fiscal_years: FiscalYearsTable;
+  accounting_periods: AccountingPeriodsTable;
+  journal_entries: JournalEntriesTable;
+  journal_entry_lines: JournalEntryLinesTable;
+  accounting_settings: AccountingSettingsTable;
+  cost_centers: CostCentersTable;
+  bank_accounts: BankAccountsTable;
 }
 
 const SCHEMA_NAME_PATTERN = /^[a-z][a-z0-9_]*$/;
@@ -196,4 +793,125 @@ export function createTenantKyselyClient(
       }),
     }),
   });
+}
+
+export interface ChartOfAccountsTable {
+  id: string;
+  code: string;
+  name: string;
+  account_type: string;
+  normal_balance: string;
+  parent_id: string | null;
+  is_group: boolean;
+  is_system: boolean;
+  /** DB DEFAULT TRUE (migration 0048) — create() intentionally omits it. */
+  is_active: Generated<boolean>;
+  notes: string | null;
+  custom_fields: unknown;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
+export interface FiscalYearsTable {
+  id: string;
+  name: string;
+  start_date: string;
+  end_date: string;
+  /** DB DEFAULT 'open' (migration 0049) — create() intentionally omits it. */
+  status: Generated<string>;
+  notes: string | null;
+  custom_fields: unknown;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
+export interface AccountingPeriodsTable {
+  id: string;
+  fiscal_year_id: string;
+  name: string;
+  start_date: string;
+  end_date: string;
+  /** DB DEFAULT 'open' (migration 0049) — create() intentionally omits it. */
+  status: Generated<string>;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
+export interface JournalEntriesTable {
+  id: string;
+  entry_number: string;
+  entry_date: string;
+  currency: string;
+  /** DB DEFAULT 'draft' (migration 0050) — create() intentionally omits it. */
+  status: Generated<string>;
+  source: string;
+  description: string | null;
+  reversal_of_entry_id: string | null;
+  posted_at: Date | null;
+  notes: string | null;
+  custom_fields: unknown;
+  /** Set only on auto-generated entries (source = 'auto') — see migration 0051. */
+  source_reference_type: string | null;
+  source_reference_id: string | null;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
+export interface JournalEntryLinesTable {
+  id: string;
+  journal_entry_id: string;
+  account_id: string;
+  debit_amount: string;
+  credit_amount: string;
+  description: string | null;
+  line_order: number;
+  cost_center_id: string | null;
+  /** DB DEFAULT FALSE (migration 0057) — createMany() intentionally omits it. */
+  is_reconciled: Generated<boolean>;
+  reconciled_at: Date | null;
+  created_at: Generated<Date>;
+}
+
+export interface AccountingSettingsTable {
+  id: string;
+  singleton: boolean;
+  accounts_receivable_account_id: string | null;
+  inventory_account_id: string | null;
+  cogs_account_id: string | null;
+  sales_returns_contra_account_id: string | null;
+  revenue_account_id: string | null;
+  accounts_payable_account_id: string | null;
+  purchase_expense_account_id: string | null;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
+export interface CostCentersTable {
+  id: string;
+  code: string;
+  name: string;
+  /** DB DEFAULT TRUE (migration 0055) — create() intentionally omits it. */
+  is_active: Generated<boolean>;
+  notes: string | null;
+  custom_fields: unknown;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
+export interface BankAccountsTable {
+  id: string;
+  name: string;
+  bank_name: string;
+  account_number: string;
+  iban: string | null;
+  currency: string;
+  chart_of_account_id: string;
+  opening_balance_amount: string;
+  opening_balance_date: string | null;
+  /** DB DEFAULT TRUE (migration 0058) — create() intentionally omits it. */
+  is_active: Generated<boolean>;
+  notes: string | null;
+  custom_fields: unknown;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
 }

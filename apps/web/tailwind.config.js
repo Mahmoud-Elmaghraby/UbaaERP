@@ -49,10 +49,6 @@ module.exports = {
           DEFAULT: 'hsl(var(--card))',
           foreground: 'hsl(var(--card-foreground))',
         },
-        brandGold: {
-          DEFAULT: 'hsl(var(--brand-gold))',
-          foreground: 'hsl(var(--brand-gold-foreground))',
-        },
         sidebar: {
           DEFAULT: 'hsl(var(--sidebar-background))',
           foreground: 'hsl(var(--sidebar-foreground))',
@@ -69,6 +65,7 @@ module.exports = {
       },
       fontFamily: {
         sans: ['"Cairo"', 'system-ui', 'sans-serif'],
+        display: ['"IBM Plex Sans Arabic"', '"Cairo"', 'system-ui', 'sans-serif'],
       },
       keyframes: {
         'accordion-down': {

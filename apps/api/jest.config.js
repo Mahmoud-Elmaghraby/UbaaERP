@@ -61,8 +61,30 @@ const tsJestTransform = {
 
 const transformIgnorePatterns = ['node_modules/(?!(?:.*/)?kysely/)'];
 
+/**
+ * maxWorkers is capped (not left at Jest's default, which is roughly one
+ * worker per CPU core) because `pnpm test` runs all three projects —
+ * unit, integration, and e2e — in a single Jest invocation, and every
+ * integration test file opens its own `pg.Pool` (createTenantKyselyClient,
+ * default max 10 connections, no explicit cap) while every e2e test file
+ * boots a *full* Nest app (PrismaService's own pool + one
+ * TenantConnectionManager pool per tenant schema it touches). Confirmed
+ * by reproducing directly: `pnpm test` (default worker count) reliably
+ * hung past the e2e project's 30s beforeAll timeout on every run, while
+ * `jest --selectProjects e2e --runInBand` (serialized, one file at a
+ * time) passed all 23 e2e tests in ~16s — same code, same database, only
+ * the concurrency changed. Uncapped, enough test files can run at once
+ * to pile up more concurrent Postgres connections/pool-acquisition waits
+ * than the local Docker Postgres instance (and, under Docker
+ * Desktop/WSL2, its virtualized networking) comfortably serves within
+ * the timeout — not a code bug, a test-run concurrency issue. 4 keeps
+ * concurrent connection pressure bounded while still running unit,
+ * integration, and e2e files in parallel with each other (just not
+ * dozens-wide) instead of forcing a fully serial run.
+ */
 /** @type {import('jest').Config} */
 module.exports = {
+  maxWorkers: 4,
   projects: [
     {
       displayName: 'unit',

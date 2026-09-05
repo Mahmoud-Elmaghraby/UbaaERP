@@ -4,55 +4,90 @@
 
 @layer base {
   :root {
-    --background: 210 25% 98%;
-    --foreground: 213 45% 14%;
+    /* خلفية باردة بميل أخضر-رمادي خفيف (وليست رمادي/أبيض خالص) — جزء من
+       هوية الـ teal/emerald الجديدة. */
+    --background: 150 16% 97%;
+    --foreground: 168 25% 13%;
 
     --card: 0 0% 100%;
-    --card-foreground: 213 45% 14%;
+    --card-foreground: 168 25% 13%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 213 45% 14%;
+    --popover-foreground: 168 25% 13%;
 
-    /* Deep navy — the brand's primary color (classic/formal, per the
-       chosen visual direction). Distinct from the generic shadcn default
-       blue that shipped in the first pass. */
-    --primary: 213 55% 26%;
+    /* Teal/emerald — اللون الأساسي الجديد للبراند (يحل محل الأزرق الداكن
+       والذهبي معًا)، مطابق لقيمة الموكاب #0e6b5c. */
+    --primary: 170 77% 24%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 210 28% 95%;
-    --secondary-foreground: 213 40% 20%;
+    --secondary: 150 14% 94%;
+    --secondary-foreground: 168 25% 18%;
 
-    --muted: 210 25% 95%;
-    --muted-foreground: 215 16% 45%;
+    --muted: 150 12% 95%;
+    --muted-foreground: 168 10% 40%;
 
-    --accent: 210 28% 93%;
-    --accent-foreground: 213 40% 20%;
+    --accent: 160 30% 92%;
+    --accent-foreground: 170 60% 18%;
 
     --destructive: 0 68% 48%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 214 22% 89%;
-    --input: 214 22% 89%;
-    --ring: 213 55% 26%;
+    --border: 160 15% 88%;
+    --input: 160 15% 88%;
+    --ring: 170 77% 24%;
 
     --radius: 0.6rem;
 
-    /* Brand accent (warm gold) — used sparingly: active nav indicator,
-       the wordmark mark, small highlights. Pairs with the navy sidebar
-       for the classic "financial/institutional" look the brand calls for. */
-    --brand-gold: 38 68% 54%;
-    --brand-gold-foreground: 213 45% 14%;
+    /* Sidebar — لوحة فاتحة متمايزة عن خلفية المحتوى بحد فاصل رفيع، بدل
+       اللوح الداكن (navy) السابق. التمييز البصري بين الشريط الجانبي
+       والمحتوى بقي، لكن عبر درجة فاتحة أنظف بدل التباين الداكن/الفاتح. */
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 168 25% 15%;
+    --sidebar-muted-foreground: 168 10% 45%;
+    --sidebar-accent: 160 45% 94%;
+    --sidebar-accent-foreground: 170 77% 20%;
+    --sidebar-border: 160 15% 90%;
+  }
 
-    /* Sidebar — deliberately a fixed dark-navy surface independent of the
-       light content area, not a light/dark theme toggle. This is what
-       gives the shell a distinct identity instead of the flat, all-white
-       "generic admin template" look. */
-    --sidebar-background: 213 46% 13%;
-    --sidebar-foreground: 210 25% 92%;
-    --sidebar-muted-foreground: 213 18% 66%;
-    --sidebar-accent: 213 38% 21%;
-    --sidebar-accent-foreground: 0 0% 100%;
-    --sidebar-border: 213 32% 22%;
+  /* رموز الوضع الداكن — معرّفة الآن رغم عدم وجود مفتاح تبديل بعد في الواجهة
+     (التبديل نفسه غير مطلوب حاليًا)، حتى تكون جاهزة فور إضافته لاحقًا،
+     ومتوافقة مع darkMode: ['class'] في tailwind.config.js. */
+  .dark {
+    --background: 170 15% 8%;
+    --foreground: 150 15% 92%;
+
+    --card: 170 15% 11%;
+    --card-foreground: 150 15% 92%;
+
+    --popover: 170 15% 11%;
+    --popover-foreground: 150 15% 92%;
+
+    /* Teal/emerald الأفتح، مطابق لقيمة الموكاب #35c9a8 — أوضح على خلفية داكنة. */
+    --primary: 167 58% 50%;
+    --primary-foreground: 170 60% 12%;
+
+    --secondary: 170 12% 16%;
+    --secondary-foreground: 150 15% 90%;
+
+    --muted: 170 12% 16%;
+    --muted-foreground: 160 10% 60%;
+
+    --accent: 170 20% 20%;
+    --accent-foreground: 150 15% 92%;
+
+    --destructive: 0 62% 42%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 170 12% 20%;
+    --input: 170 12% 20%;
+    --ring: 167 58% 50%;
+
+    --sidebar-background: 170 18% 10%;
+    --sidebar-foreground: 150 15% 90%;
+    --sidebar-muted-foreground: 160 10% 55%;
+    --sidebar-accent: 170 25% 18%;
+    --sidebar-accent-foreground: 167 58% 60%;
+    --sidebar-border: 170 12% 18%;
   }
 }
 
@@ -66,5 +101,13 @@
     font-feature-settings:
       'rlig' 1,
       'calt' 1;
+  }
+
+  /* عناوين الصفحات (h1-h3) تستخدم خط العرض IBM Plex Sans Arabic بدل خط
+     المتن Cairo، عبر قاعدة عامة واحدة بدل تعديل كل صفحة على حدة. */
+  h1,
+  h2,
+  h3 {
+    @apply font-display;
   }
 }

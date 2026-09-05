@@ -28,6 +28,7 @@ import { PermissionsController } from './presentation/permissions.controller';
 import { RolesController } from './presentation/roles.controller';
 import { UsersController } from './presentation/users.controller';
 import { AuditLogsController } from './presentation/audit-logs.controller';
+import { InventoryAuditListener } from './infrastructure/listeners/inventory-audit.listener';
 
 /**
  * Users & Permissions module (CLAUDE.md §10: step 1, alongside Settings).
@@ -54,6 +55,7 @@ import { AuditLogsController } from './presentation/audit-logs.controller';
     ApprovalChainsService,
     AuditLogsService,
     AuthService,
+    InventoryAuditListener,
   ],
 })
 export class UsersPermissionsModule {}
