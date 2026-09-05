@@ -1,0 +1,171 @@
+import { Inject, Injectable, Logger } from '@nestjs/common';
+import { OnEvent } from '@nestjs/event-emitter';
+import { Money } from '@erp-platform/shared-kernel';
+import { TenantConnectionManager } from '../../../../shared/tenancy/tenant-connection-manager';
+import { StockMovementsService } from '../../application/services/stock-movements.service';
+import {
+  WAREHOUSE_LOCATION_REPOSITORY,
+  type WarehouseLocationRepository,
+} from '../../application/ports/warehouse-location.repository';
+import { DEFAULT_LOCATION_CODE } from '../../domain/warehouse-location.entity';
+import type { DomainEventPayload } from '../../../../shared/events/domain-event';
+import { OutboxWriterService } from '../../../../shared/outbox/application/services/outbox-writer.service';
+import { moneyToDto } from '../../presentation/money.mapper';
+
+interface DeliveryConfirmedLine {
+  productVariantId: string;
+  quantity: number;
+}
+
+interface DeliveryConfirmedMetadata {
+  salesOrderId: string;
+  warehouseId: string;
+  lines: DeliveryConfirmedLine[];
+}
+
+/**
+ * Decreases stock when Sales confirms a delivery — the Event Bus
+ * integration point CLAUDE.md §2.6 requires, Sales' first cross-module
+ * side effect (sales-module-status.md, Stage 4). Structurally identical
+ * to PurchaseReturnStockListener (same directory): resolve the
+ * warehouse's default location, record one cost-free 'out' movement per
+ * line via StockMovementsService — no import of anything from the sales
+ * module, only the event payload shape (DeliveryConfirmedMetadata) is
+ * the contract, matching every other cross-module listener in this
+ * codebase.
+ *
+ * No unitCost is passed: 'out' movements always use the location's
+ * current weighted-average cost (StockMovementsService.OutgoingParams),
+ * which is also why delivery_lines (migration 0044) carries no
+ * unit_cost column in the first place — there is nothing to carry
+ * across from the sales order.
+ *
+ * Known limitation, explicitly not solved here: for a lot/serial-tracked
+ * product, this uses the default FIFO-by-expiry lot selection (no lotId
+ * given) rather than a caller-chosen lot — same accepted scope
+ * boundary as GoodsReceiptStockListener/PurchaseReturnStockListener.
+ *
+ * Reliability: plain Event Bus (EventEmitter2), not Outbox-backed
+ * (CLAUDE.md §2.7 is scoped to financial events; a stock decrease isn't
+ * one). A failure here is a real correctness gap (the delivery is
+ * confirmed, but stock doesn't decrease) — logged loudly for manual
+ * reconciliation rather than silently swallowed or retried, same
+ * trade-off as its Purchases-side siblings.
+ */
+@Injectable()
+export class DeliveryStockListener {
+  private readonly logger = new Logger(DeliveryStockListener.name);
+
+  constructor(
+    private readonly stockMovements: StockMovementsService,
+    @Inject(WAREHOUSE_LOCATION_REPOSITORY) private readonly locations: WarehouseLocationRepository,
+    private readonly connections: TenantConnectionManager,
+    private readonly outboxWriter: OutboxWriterService,
+  ) {}
+
+  /**
+   * Records the stock decrease AND, in the SAME (nested, savepoint)
+   * transaction, writes a new Outbox-backed 'inventory.stock_consumption.
+   * recorded' event carrying the actual cost consumed — Accounting's
+   * Stage 6 COGS auto-posting listener is the consumer (CLAUDE.md §10 —
+   * step 5). This is genuinely financial data (it becomes a COGS journal
+   * entry), so unlike the plain stock movements themselves it needs
+   * Outbox's atomicity: either the movement AND its cost fact both
+   * commit, or neither does — see OutboxWriterService's own comment for
+   * why passing the SAME trx is the entire mechanism.
+   *
+   * Each 'out' StockMovementsService.recordMovement() call returns its
+   * own unitCost — always the location's current weighted-average cost
+   * for an outgoing movement (StockMovementsService.applyOutgoing) — so
+   * no separate valuation lookup is needed here; the cost is simply read
+   * back off the movements this same handler already has to create.
+   *
+   * The outer try/catch keeps this listener's existing, accepted
+   * reliability posture for the stock-decrease side (plain Event Bus,
+   * not itself Outbox-backed — CLAUDE.md §2.7 scopes Outbox to
+   * financial events, and 'sales.delivery.confirmed' is now Outbox-
+   * upgraded at its SOURCE — DeliveriesService.confirm() — precisely so
+   * this handler firing at all is reliable; a failure *inside* this
+   * handler is still logged loudly for manual reconciliation rather
+   * than retried, unchanged from before).
+   */
+  @OnEvent('sales.delivery.confirmed')
+  async handle(payload: DomainEventPayload): Promise<void> {
+    const metadata = payload.metadata as unknown as DeliveryConfirmedMetadata | undefined;
+    if (!metadata || !metadata.lines || metadata.lines.length === 0) {
+      this.logger.warn(`Received 'sales.delivery.confirmed' with no usable line metadata — ignoring.`);
+      return;
+    }
+
+    const db = this.connections.getClient(payload.schema);
+
+    try {
+      const warehouseLocations = await this.locations.listByWarehouseId(db, metadata.warehouseId);
+      const defaultLocation = warehouseLocations.find((location) => location.code === DEFAULT_LOCATION_CODE);
+      if (!defaultLocation) {
+        throw new Error(`Warehouse "${metadata.warehouseId}" has no default location — cannot ship stock.`);
+      }
+
+      await db.transaction().execute(async (trx) => {
+        const movements = [];
+        for (const line of metadata.lines) {
+          movements.push(
+            await this.stockMovements.recordMovement(trx, {
+              productVariantId: line.productVariantId,
+              locationId: defaultLocation.id,
+              movementType: 'out',
+              quantity: line.quantity,
+              referenceType: 'delivery',
+              referenceId: payload.entityId,
+            }),
+          );
+        }
+
+        const currency = movements.find((m) => m.unitCost)?.unitCost?.currency;
+        if (!currency) {
+          this.logger.warn(
+            `Delivery "${payload.entityId}" recorded stock movement(s) with no unit cost on any line — ` +
+              'skipping the COGS event (no valuation to post).',
+          );
+          return;
+        }
+
+        let totalCost = Money.zero(currency);
+        const costLines = movements.map((movement) => {
+          const unitCost = movement.unitCost ?? Money.zero(currency);
+          const lineCost = unitCost.multiplyByQuantity(movement.quantity);
+          totalCost = totalCost.add(lineCost);
+          return {
+            productVariantId: movement.productVariantId,
+            quantity: movement.quantity,
+            unitCost: moneyToDto(unitCost),
+            totalCost: moneyToDto(lineCost),
+          };
+        });
+
+        await this.outboxWriter.write(trx, 'inventory.stock_consumption.recorded', {
+          schema: payload.schema,
+          entityType: 'stock_consumption',
+          entityId: payload.entityId,
+          action: 'recorded',
+          actorUserId: payload.actorUserId,
+          metadata: {
+            referenceType: 'delivery',
+            referenceId: payload.entityId,
+            warehouseId: metadata.warehouseId,
+            currency,
+            totalCost: moneyToDto(totalCost),
+            lines: costLines,
+          },
+          occurredAt: new Date(),
+        });
+      });
+    } catch (err) {
+      this.logger.error(
+        `Failed to apply stock movement(s) for delivery "${payload.entityId}" ` +
+          `(tenant schema "${payload.schema}"): ${err instanceof Error ? err.message : String(err)}. ` +
+          'Stock levels may now be out of sync with what was physically shipped — needs manual reconciliation.',
+      );
+    }
+  }
+}

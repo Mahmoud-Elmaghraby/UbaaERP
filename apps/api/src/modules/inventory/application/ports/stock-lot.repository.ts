@@ -1,0 +1,54 @@
+import type { Kysely } from 'kysely';
+import type { TenantDatabase } from '../../../../database/tenant/kysely-client';
+import type {
+  StockLot,
+  CreateStockLotInput,
+  StockLotLevel,
+  StockLotWithLevels,
+  StockLotConsumption,
+} from '../../domain/stock-lot.entity';
+
+/** One lot's available quantity at one location, ordered oldest-expiry-first — the shape FIFO selection consumes. */
+export interface AvailableLotLevel {
+  stockLotId: string;
+  lotNumber: string;
+  expiryDate: Date | null;
+  quantityAvailable: number;
+}
+
+export interface StockLotRepository {
+  findByVariantAndLotNumber(
+    db: Kysely<TenantDatabase>,
+    productVariantId: string,
+    lotNumber: string,
+  ): Promise<StockLot | null>;
+  findById(db: Kysely<TenantDatabase>, id: string): Promise<StockLot | null>;
+  listByVariantId(db: Kysely<TenantDatabase>, productVariantId: string): Promise<StockLotWithLevels[]>;
+  createLot(db: Kysely<TenantDatabase>, input: CreateStockLotInput): Promise<StockLot>;
+
+  findLevel(db: Kysely<TenantDatabase>, stockLotId: string, locationId: string): Promise<StockLotLevel | null>;
+  /** Creates the (lot, location) row on first use, or updates its quantity — always inside the movement's own transaction. */
+  upsertLevel(
+    db: Kysely<TenantDatabase>,
+    input: { stockLotId: string; locationId: string; warehouseId: string; quantityOnHand: number },
+  ): Promise<StockLotLevel>;
+
+  /**
+   * Lots with quantity > 0 for this (variant, location), oldest expiry
+   * first (nulls last), then oldest-created first — the FIFO-by-expiry
+   * consumption order StockMovementsService draws from.
+   */
+  listAvailableForFifo(
+    db: Kysely<TenantDatabase>,
+    productVariantId: string,
+    locationId: string,
+  ): Promise<AvailableLotLevel[]>;
+
+  createConsumption(
+    db: Kysely<TenantDatabase>,
+    input: { stockMovementId: string; stockLotId: string; quantity: number },
+  ): Promise<StockLotConsumption>;
+  listConsumptionsByMovementId(db: Kysely<TenantDatabase>, stockMovementId: string): Promise<StockLotConsumption[]>;
+}
+
+export const STOCK_LOT_REPOSITORY = Symbol('STOCK_LOT_REPOSITORY');
