@@ -10,6 +10,11 @@
  * purchaseExpenseAccountId is never auto-populated (see migration
  * 0054's comment) — it legitimately starts NULL and stays that way
  * until a tenant admin configures it here.
+ *
+ * cashAccountId/cashOverShortAccountId (migration 0061 — POS feature
+ * Stage 1, claude/sales-pos-research.md) follow the exact same
+ * pattern as the pair above: cashAccountId auto-populates from the
+ * default template's code '111', cashOverShortAccountId never does.
  */
 export interface AccountingSettings {
   id: string;
@@ -20,6 +25,8 @@ export interface AccountingSettings {
   revenueAccountId: string | null;
   accountsPayableAccountId: string | null;
   purchaseExpenseAccountId: string | null;
+  cashAccountId: string | null;
+  cashOverShortAccountId: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -32,4 +39,6 @@ export interface UpdateAccountingSettingsInput {
   revenueAccountId?: string | null;
   accountsPayableAccountId?: string | null;
   purchaseExpenseAccountId?: string | null;
+  cashAccountId?: string | null;
+  cashOverShortAccountId?: string | null;
 }

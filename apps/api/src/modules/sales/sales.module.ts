@@ -16,6 +16,7 @@ import { SALES_RETURN_REPOSITORY } from './application/ports/sales-return.reposi
 import { SALES_RETURN_LINE_REPOSITORY } from './application/ports/sales-return-line.repository';
 import { SALES_CREDIT_NOTE_REPOSITORY } from './application/ports/sales-credit-note.repository';
 import { SALES_CREDIT_NOTE_LINE_REPOSITORY } from './application/ports/sales-credit-note-line.repository';
+import { POS_SESSION_REPOSITORY } from './application/ports/pos-session.repository';
 
 import { KyselyCustomerRepository } from './infrastructure/persistence/kysely-customer.repository';
 import { KyselyEtaCredentialsRepository } from './infrastructure/persistence/kysely-eta-credentials.repository';
@@ -33,6 +34,7 @@ import { KyselySalesReturnRepository } from './infrastructure/persistence/kysely
 import { KyselySalesReturnLineRepository } from './infrastructure/persistence/kysely-sales-return-line.repository';
 import { KyselySalesCreditNoteRepository } from './infrastructure/persistence/kysely-sales-credit-note.repository';
 import { KyselySalesCreditNoteLineRepository } from './infrastructure/persistence/kysely-sales-credit-note-line.repository';
+import { KyselyPosSessionRepository } from './infrastructure/persistence/kysely-pos-session.repository';
 
 import { CustomersService } from './application/services/customers.service';
 import { EtaCredentialsService } from './application/services/eta-credentials.service';
@@ -43,6 +45,7 @@ import { SalesInvoicesService } from './application/services/sales-invoices.serv
 import { PaymentsReceivedService } from './application/services/payments-received.service';
 import { SalesReturnsService } from './application/services/sales-returns.service';
 import { SalesCreditNotesService } from './application/services/sales-credit-notes.service';
+import { PosSessionsService } from './application/services/pos-sessions.service';
 
 import { CustomersController } from './presentation/customers.controller';
 import { EtaCredentialsController } from './presentation/eta-credentials.controller';
@@ -53,6 +56,7 @@ import { SalesInvoicesController } from './presentation/sales-invoices.controlle
 import { PaymentsReceivedController } from './presentation/payments-received.controller';
 import { SalesReturnsController } from './presentation/sales-returns.controller';
 import { SalesCreditNotesController } from './presentation/sales-credit-notes.controller';
+import { PosSessionsController } from './presentation/pos-sessions.controller';
 
 import { SalesEventPublisher } from './infrastructure/events/sales-event-publisher';
 
@@ -114,6 +118,16 @@ import { SalesEventPublisher } from './infrastructure/events/sales-event-publish
  *     (CLAUDE.md §2.7), not a direct post-commit publish() call — see
  *     that service's own comment.
  *
+ *  9. POS Cash Sessions (done, this pass) — Stage 1 of the POS feature
+ *     (claude/sales-pos-research.md). The one genuinely new domain
+ *     concept POS needs: open()/close() lifecycle, close() being a
+ *     financial event (Outbox-backed, CLAUDE.md §2.7) whenever the
+ *     counted-vs-expected variance is non-zero — consumed by
+ *     AccountingAutoPostingListeners.handlePosSessionClosed(). Stages
+ *     2 (discounts + Walk-in Customer) and 3 (checkout orchestration
+ *     reusing Sales Order->Delivery->Invoice->Payment) are not built
+ *     yet.
+ *
  * Imports SettingsModule for NumberingSequencesService only (exported
  * narrowly there) — same treatment as PurchasesModule; see
  * PurchaseRequisitionsService's class comment for why this cross-module
@@ -137,6 +151,7 @@ import { SalesEventPublisher } from './infrastructure/events/sales-event-publish
     PaymentsReceivedController,
     SalesReturnsController,
     SalesCreditNotesController,
+    PosSessionsController,
   ],
   providers: [
     { provide: CUSTOMER_REPOSITORY, useClass: KyselyCustomerRepository },
@@ -155,6 +170,7 @@ import { SalesEventPublisher } from './infrastructure/events/sales-event-publish
     { provide: SALES_RETURN_LINE_REPOSITORY, useClass: KyselySalesReturnLineRepository },
     { provide: SALES_CREDIT_NOTE_REPOSITORY, useClass: KyselySalesCreditNoteRepository },
     { provide: SALES_CREDIT_NOTE_LINE_REPOSITORY, useClass: KyselySalesCreditNoteLineRepository },
+    { provide: POS_SESSION_REPOSITORY, useClass: KyselyPosSessionRepository },
     CustomersService,
     EtaCredentialsService,
     QuotationsService,
@@ -164,6 +180,7 @@ import { SalesEventPublisher } from './infrastructure/events/sales-event-publish
     PaymentsReceivedService,
     SalesReturnsService,
     SalesCreditNotesService,
+    PosSessionsService,
     SalesEventPublisher,
   ],
 })

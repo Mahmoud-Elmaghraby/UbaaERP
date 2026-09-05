@@ -15,6 +15,8 @@ function toDomain(row: Selectable<AccountingSettingsTable>): AccountingSettings 
     revenueAccountId: row.revenue_account_id,
     accountsPayableAccountId: row.accounts_payable_account_id,
     purchaseExpenseAccountId: row.purchase_expense_account_id,
+    cashAccountId: row.cash_account_id,
+    cashOverShortAccountId: row.cash_over_short_account_id,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -33,6 +35,7 @@ const DEFAULT_CODES = {
   sales_returns_contra_account_id: '42',
   revenue_account_id: '41',
   accounts_payable_account_id: '211',
+  cash_account_id: '111',
 } as const;
 
 export class KyselyAccountingSettingsRepository implements AccountingSettingsRepository {
@@ -64,6 +67,8 @@ export class KyselyAccountingSettingsRepository implements AccountingSettingsRep
           revenue_account_id: accountIdByCode.get(DEFAULT_CODES.revenue_account_id) ?? null,
           accounts_payable_account_id: accountIdByCode.get(DEFAULT_CODES.accounts_payable_account_id) ?? null,
           purchase_expense_account_id: null,
+          cash_account_id: accountIdByCode.get(DEFAULT_CODES.cash_account_id) ?? null,
+          cash_over_short_account_id: null,
         })
         .returningAll()
         .executeTakeFirstOrThrow();
@@ -98,6 +103,10 @@ export class KyselyAccountingSettingsRepository implements AccountingSettingsRep
           : {}),
         ...(input.purchaseExpenseAccountId !== undefined
           ? { purchase_expense_account_id: input.purchaseExpenseAccountId }
+          : {}),
+        ...(input.cashAccountId !== undefined ? { cash_account_id: input.cashAccountId } : {}),
+        ...(input.cashOverShortAccountId !== undefined
+          ? { cash_over_short_account_id: input.cashOverShortAccountId }
           : {}),
         updated_at: new Date(),
       })

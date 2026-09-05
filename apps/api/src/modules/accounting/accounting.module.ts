@@ -93,6 +93,16 @@ import { AccountingAutoPostingListeners } from './infrastructure/events/accounti
  *     POST :id/lines/:lineId/reconcile|unreconcile — no statement-import
  *     reconciliation, matching the roadmap's own "basic ... not full"
  *     scoping.
+ *  6. POS feature Stage 1 (done, this pass) — AccountingAutoPostingListeners
+ *     gained a sixth @OnEvent handler, handlePosSessionClosed(),
+ *     reacting to Sales' 'sales.pos_session.closed' (see
+ *     claude/sales-pos-research.md and PosSessionsService.close()'s own
+ *     comment) — debit/credit Cash vs Cash Over/Short depending on
+ *     whether a closed session's counted cash was over or short.
+ *     AccountingSettings (migration 0061) gained cashAccountId
+ *     (auto-populated from the default template, code '111') and
+ *     cashOverShortAccountId (not auto-populated — no generic template
+ *     leaf for it, same treatment as purchaseExpenseAccountId).
  *
  * SettingsModule is imported for NumberingSequencesService (numbered
  * "JE-0001"-style entryNumbers) and TenantSettingsService (the tenant's

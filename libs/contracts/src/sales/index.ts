@@ -7,3 +7,4 @@ export * from './sales-invoice.contract';
 export * from './payment-received.contract';
 export * from './sales-return.contract';
 export * from './sales-credit-note.contract';
+export * from './pos-session.contract';

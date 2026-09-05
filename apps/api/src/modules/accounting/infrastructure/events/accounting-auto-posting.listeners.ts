@@ -35,10 +35,16 @@ interface InvoicePostedMetadata {
   totalAmount: { amountMinorUnits: string; currency: string };
 }
 
+/** PosSessionsService.close()'s outbox metadata (sales.pos_session.closed) — see that method's own comment. */
+interface PosSessionClosedMetadata {
+  cashierUserId: string;
+  varianceAmount: { amountMinorUnits: string; currency: string };
+}
+
 /**
  * Accounting Stages 6/7 and 3 (CLAUDE.md §10 — step 5): the auto-posting
  * listeners that make this module load-bearing instead of a standalone
- * ledger nobody writes to automatically. Five @OnEvent handlers, one
+ * ledger nobody writes to automatically. Six @OnEvent handlers, one
  * journal entry each, all via JournalEntriesService.createAuto() (which
  * builds+validates the lines, creates a draft tagged source='auto', and
  * immediately posts it — see that method's own comment on why "for
@@ -295,6 +301,64 @@ export class AccountingAutoPostingListeners {
       description: `Purchase invoice expense — invoice ${payload.entityId}`,
       lines,
       sourceReferenceType: 'purchase_invoice',
+      sourceReferenceId: payload.entityId,
+    });
+  }
+
+  /**
+   * POS feature Stage 1 (claude/sales-pos-research.md): a closed POS
+   * session's counted-vs-expected cash variance. PosSessionsService
+   * .close() only writes this outbox record when variance is non-zero
+   * (see that method's own comment), so this handler never has to
+   * special-case a zero variance itself.
+   *
+   * Over (counted > expected): debit Cash (the drawer actually holds
+   * more than the books expected), credit Cash Over/Short (misc
+   * income). Short (counted < expected): debit Cash Over/Short
+   * (expense), credit Cash (the drawer holds less than expected).
+   * Computed with plain BigInt, not Money — this file's other handlers
+   * only ever see non-negative business amounts; variance is the one
+   * value here that can legitimately be negative, so its sign is read
+   * directly rather than introduced through a new dependency.
+   */
+  @OnEvent('sales.pos_session.closed')
+  async handlePosSessionClosed(payload: DomainEventPayload): Promise<void> {
+    const metadata = payload.metadata as unknown as PosSessionClosedMetadata | undefined;
+    if (!metadata) {
+      this.logger.warn(`Received 'sales.pos_session.closed' with no metadata — ignoring.`);
+      return;
+    }
+
+    const varianceMinorUnits = BigInt(metadata.varianceAmount.amountMinorUnits);
+    if (varianceMinorUnits === 0n) return;
+
+    const db = this.connections.getClient(payload.schema);
+    const settings = await this.accountingSettings.get(db);
+    if (!settings.cashAccountId || !settings.cashOverShortAccountId) {
+      throw new BusinessRuleError(
+        'Cannot auto-post the POS cash session variance: accounting_settings has no ' +
+          'cashAccountId/cashOverShortAccountId configured yet. Configure both via the Accounting Settings screen first.',
+      );
+    }
+
+    const isOver = varianceMinorUnits > 0n;
+    const absMinorUnits = (isOver ? varianceMinorUnits : -varianceMinorUnits).toString();
+
+    const lines: CreateJournalEntryLineInput[] = isOver
+      ? [
+          { accountId: settings.cashAccountId, debitAmountMinorUnits: absMinorUnits, creditAmountMinorUnits: '0' },
+          { accountId: settings.cashOverShortAccountId, debitAmountMinorUnits: '0', creditAmountMinorUnits: absMinorUnits },
+        ]
+      : [
+          { accountId: settings.cashOverShortAccountId, debitAmountMinorUnits: absMinorUnits, creditAmountMinorUnits: '0' },
+          { accountId: settings.cashAccountId, debitAmountMinorUnits: '0', creditAmountMinorUnits: absMinorUnits },
+        ];
+
+    await this.journalEntries.createAuto(db, {
+      entryDate: payload.occurredAt.toISOString().slice(0, 10),
+      description: `POS cash session ${isOver ? 'overage' : 'shortage'} — session ${payload.entityId}`,
+      lines,
+      sourceReferenceType: 'pos_session',
       sourceReferenceId: payload.entityId,
     });
   }

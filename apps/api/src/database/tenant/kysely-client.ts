@@ -415,6 +415,8 @@ export interface PaymentsReceivedTable {
   amount_currency: string;
   notes: string | null;
   custom_fields: unknown;
+  /** Migration 0060 — tags a payment as recorded within a POS cash session; null for every non-POS payment. */
+  pos_session_id: string | null;
   created_at: Generated<Date>;
   updated_at: Generated<Date>;
 }
@@ -760,6 +762,7 @@ export interface TenantDatabase {
   accounting_settings: AccountingSettingsTable;
   cost_centers: CostCentersTable;
   bank_accounts: BankAccountsTable;
+  pos_sessions: PosSessionsTable;
 }
 
 const SCHEMA_NAME_PATTERN = /^[a-z][a-z0-9_]*$/;
@@ -882,6 +885,26 @@ export interface AccountingSettingsTable {
   revenue_account_id: string | null;
   accounts_payable_account_id: string | null;
   purchase_expense_account_id: string | null;
+  /** Migration 0061 — POS feature Stage 1 (claude/sales-pos-research.md). */
+  cash_account_id: string | null;
+  /** Migration 0061 — POS feature Stage 1. Never auto-populated, same reasoning as purchase_expense_account_id. */
+  cash_over_short_account_id: string | null;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
+export interface PosSessionsTable {
+  id: string;
+  cashier_user_id: string;
+  status: string;
+  opening_cash_amount: string;
+  currency: string;
+  expected_cash_amount: string | null;
+  counted_cash_amount: string | null;
+  variance_amount: string | null;
+  notes: string | null;
+  opened_at: Generated<Date>;
+  closed_at: Date | null;
   created_at: Generated<Date>;
   updated_at: Generated<Date>;
 }
