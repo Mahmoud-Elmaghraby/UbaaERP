@@ -1,6 +1,7 @@
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { createE2eApp } from './app';
+import { extractRefreshTokenCookie } from './auth-helpers';
 import { E2E_OWNER_EMAIL, E2E_OWNER_PASSWORD } from './global-setup';
 
 describe('Auth flow (e2e, real HTTP against a real Nest app)', () => {
@@ -15,7 +16,7 @@ describe('Auth flow (e2e, real HTTP against a real Nest app)', () => {
     await app.close();
   });
 
-  it('logs in with valid credentials and returns a usable token pair', async () => {
+  it('logs in with valid credentials and returns a usable token pair, with the refresh token only as an httpOnly cookie', async () => {
     const response = await request(app.getHttpServer())
       .post('/auth/login')
       .set('x-tenant-schema', schema())
@@ -23,8 +24,14 @@ describe('Auth flow (e2e, real HTTP against a real Nest app)', () => {
       .expect(201);
 
     expect(response.body.accessToken).toEqual(expect.any(String));
-    expect(response.body.refreshToken).toEqual(expect.any(String));
     expect(response.body.user.email).toBe(E2E_OWNER_EMAIL);
+    // The refresh token must never appear in the JSON body (Task 9) — it's
+    // transported exclusively via the httpOnly cookie asserted below.
+    expect(response.body).not.toHaveProperty('refreshToken');
+
+    const cookie = extractRefreshTokenCookie(response.headers['set-cookie']);
+    expect(cookie).toEqual(expect.any(String));
+    expect(response.headers['set-cookie']?.[0]).toMatch(/HttpOnly/i);
   });
 
   it('rejects a wrong password with 401, not a stack trace or a 500', async () => {
@@ -60,27 +67,30 @@ describe('Auth flow (e2e, real HTTP against a real Nest app)', () => {
   });
 
   it('refreshes a valid refresh token for a new, working token pair, and rotates it (old one stops working)', async () => {
-    const login = await request(app.getHttpServer())
+    // request.agent() carries the httpOnly cookie automatically across
+    // calls, exactly like a real browser would — the refresh token is
+    // never read from or written to the request/response body.
+    const agent = request.agent(app.getHttpServer());
+    const login = await agent
       .post('/auth/login')
       .set('x-tenant-schema', schema())
       .send({ email: E2E_OWNER_EMAIL, password: E2E_OWNER_PASSWORD })
       .expect(201);
-    const oldRefreshToken = login.body.refreshToken;
+    const oldCookie = extractRefreshTokenCookie(login.headers['set-cookie']);
 
-    const refreshed = await request(app.getHttpServer())
-      .post('/auth/refresh')
-      .set('x-tenant-schema', schema())
-      .send({ refreshToken: oldRefreshToken })
-      .expect(201);
+    const refreshed = await agent.post('/auth/refresh').set('x-tenant-schema', schema()).expect(201);
 
     expect(refreshed.body.accessToken).toEqual(expect.any(String));
-    expect(refreshed.body.refreshToken).not.toBe(oldRefreshToken);
+    const newCookie = extractRefreshTokenCookie(refreshed.headers['set-cookie']);
+    expect(newCookie).not.toBe(oldCookie);
 
-    // Rotation: the old refresh token must be dead now.
+    // Rotation: the old refresh token must be dead now — replayed
+    // explicitly via a plain (non-agent) request, since the agent's own
+    // cookie jar has already moved on to the new cookie above.
     await request(app.getHttpServer())
       .post('/auth/refresh')
       .set('x-tenant-schema', schema())
-      .send({ refreshToken: oldRefreshToken })
+      .set('Cookie', `refresh_token=${oldCookie}`)
       .expect(401);
   });
 
@@ -88,27 +98,29 @@ describe('Auth flow (e2e, real HTTP against a real Nest app)', () => {
     await request(app.getHttpServer())
       .post('/auth/refresh')
       .set('x-tenant-schema', schema())
-      .send({ refreshToken: 'not-a-real-token' })
+      .set('Cookie', 'refresh_token=not-a-real-token')
       .expect(401);
   });
 
+  it('rejects refreshing with no cookie at all', async () => {
+    await request(app.getHttpServer()).post('/auth/refresh').set('x-tenant-schema', schema()).expect(401);
+  });
+
   it('logout revokes the refresh token — it can no longer be used to refresh afterwards', async () => {
-    const login = await request(app.getHttpServer())
+    const agent = request.agent(app.getHttpServer());
+    const login = await agent
       .post('/auth/login')
       .set('x-tenant-schema', schema())
       .send({ email: E2E_OWNER_EMAIL, password: E2E_OWNER_PASSWORD })
       .expect(201);
+    const cookie = extractRefreshTokenCookie(login.headers['set-cookie']);
 
-    await request(app.getHttpServer())
-      .post('/auth/logout')
-      .set('x-tenant-schema', schema())
-      .send({ refreshToken: login.body.refreshToken })
-      .expect(204);
+    await agent.post('/auth/logout').set('x-tenant-schema', schema()).expect(204);
 
     await request(app.getHttpServer())
       .post('/auth/refresh')
       .set('x-tenant-schema', schema())
-      .send({ refreshToken: login.body.refreshToken })
+      .set('Cookie', `refresh_token=${cookie}`)
       .expect(401);
   });
 

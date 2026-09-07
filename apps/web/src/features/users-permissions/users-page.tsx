@@ -34,7 +34,7 @@ import {
   toast,
 } from '@erp-platform/ui';
 
-import { useCreateUser, useRoles, useUsers } from './queries';
+import { useCreateUser, useRoles, useSendUserInvite, useUsers } from './queries';
 import { UserAccessDialog } from './user-access-dialog';
 import { ApiError } from '../../lib/api-client';
 
@@ -93,9 +93,12 @@ export function UsersPage() {
                 </TableCell>
                 <TableCell>
                   <Can permission="users.manage">
-                    <Button variant="outline" size="sm" onClick={() => setManagingUser(user)}>
-                      {t('users.manageAccess')}
-                    </Button>
+                    <div className="flex justify-end gap-2">
+                      <Button variant="outline" size="sm" onClick={() => setManagingUser(user)}>
+                        {t('users.manageAccess')}
+                      </Button>
+                      <SendInviteButton userId={user.id} />
+                    </div>
                   </Can>
                 </TableCell>
               </TableRow>
@@ -113,6 +116,28 @@ export function UsersPage() {
 
       <UserAccessDialog user={managingUser} onClose={() => setManagingUser(null)} />
     </div>
+  );
+}
+
+function SendInviteButton({ userId }: { userId: string }) {
+  const { t } = useTranslation();
+  const sendInvite = useSendUserInvite();
+
+  async function handleClick() {
+    // eslint-disable-next-line no-alert
+    if (!window.confirm(t('users.sendInviteConfirm'))) return;
+    try {
+      await sendInvite.mutateAsync(userId);
+      toast.success(t('users.sendInviteSuccess'));
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : t('users.sendInviteError'));
+    }
+  }
+
+  return (
+    <Button variant="outline" size="sm" disabled={sendInvite.isPending} onClick={() => void handleClick()}>
+      {t('users.sendInvite')}
+    </Button>
   );
 }
 

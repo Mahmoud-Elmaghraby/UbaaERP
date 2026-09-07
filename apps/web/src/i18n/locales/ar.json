@@ -24,7 +24,25 @@
     "password": "كلمة المرور",
     "submit": "دخول",
     "submitting": "جارٍ الدخول...",
-    "invalidCredentials": "البريد الإلكتروني أو كلمة المرور غير صحيحة"
+    "invalidCredentials": "البريد الإلكتروني أو كلمة المرور غير صحيحة",
+    "forgotPasswordLink": "نسيت كلمة المرور؟",
+    "forgotPasswordTitle": "إعادة تعيين كلمة المرور",
+    "forgotPasswordSubtitle": "أدخل بريدك الإلكتروني وهنبعتلك رابط لإعادة تعيين كلمة المرور",
+    "forgotPasswordSubmit": "إرسال",
+    "forgotPasswordSent": "لو البريد الإلكتروني ده مسجل عندنا، هيوصلك رمز لإعادة تعيين كلمة المرور.",
+    "forgotPasswordError": "تعذّر إرسال طلب إعادة التعيين",
+    "backToLogin": "الرجوع لتسجيل الدخول",
+    "resetPasswordTitle": "تعيين كلمة مرور جديدة",
+    "resetPasswordSubtitle": "أدخل كلمة المرور الجديدة",
+    "resetPasswordSubmit": "تعيين كلمة المرور",
+    "resetPasswordError": "الرمز غير صالح أو منتهي الصلاحية",
+    "resetPasswordMissingToken": "الرابط غير صالح — الرمز مفقود.",
+    "newPassword": "كلمة المرور الجديدة",
+    "twoFactorTitle": "التحقق بخطوتين",
+    "twoFactorSubtitle": "ادخل الكود من تطبيق المصادقة أو أحد أكواد الاسترجاع",
+    "twoFactorCode": "الكود",
+    "twoFactorCodePlaceholder": "123456",
+    "invalidTwoFactorCode": "الكود غير صحيح أو منتهي الصلاحية"
   },
   "common": {
     "save": "حفظ",
@@ -65,7 +83,11 @@
     "accessSaveSuccess": "تم حفظ الفروع المتاحة بنجاح",
     "accessSaveError": "تعذّر حفظ الفروع المتاحة",
     "managerSaveSuccess": "تم حفظ المدير المباشر بنجاح",
-    "managerSaveError": "تعذّر حفظ المدير المباشر"
+    "managerSaveError": "تعذّر حفظ المدير المباشر",
+    "sendInvite": "إرسال دعوة",
+    "sendInviteConfirm": "هيتبعت للمستخدم رابط لإعداد كلمة مرور خاصة بيه. تكمل؟",
+    "sendInviteSuccess": "تم إرسال الدعوة",
+    "sendInviteError": "تعذّر إرسال الدعوة"
   },
   "roles": {
     "title": "الأدوار والصلاحيات",
@@ -168,7 +190,32 @@
     "currentPassword": "كلمة المرور الحالية",
     "newPassword": "كلمة المرور الجديدة",
     "changeSuccess": "تم تغيير كلمة المرور بنجاح",
-    "changeError": "تعذّر تغيير كلمة المرور"
+    "changeError": "تعذّر تغيير كلمة المرور",
+    "sessionSecurity": "أمان الجلسة",
+    "sessionSecurityDescription": "تسجيل الخروج من كل الأجهزة التي سجلت دخولك منها، بما فيها هذا الجهاز. هتحتاج تسجل دخول تاني بعدها.",
+    "revokeSessions": "تسجيل الخروج من كل الأجهزة",
+    "revokeSessionsConfirm": "هيتم تسجيل خروجك من كل الأجهزة بما فيها هذا الجهاز. متأكد؟",
+    "revokeSessionsSuccess": "تم تسجيل الخروج من كل الأجهزة",
+    "revokeSessionsError": "تعذّر تسجيل الخروج من الأجهزة",
+    "twoFactor": {
+      "title": "التحقق بخطوتين (2FA)",
+      "loading": "جارٍ التحميل...",
+      "disabledDescription": "فعّل التحقق بخطوتين عشان تزود أمان حسابك — هتحتاج تطبيق مصادقة زي Google Authenticator أو Authy.",
+      "enable": "تفعيل",
+      "setupError": "تعذّر بدء إعداد التحقق بخطوتين",
+      "scanInstructions": "امسح الكود ده بتطبيق المصادقة، أو ضيفه يدويًا، وبعدين ادخل الكود المكوّن من 6 أرقام للتأكيد.",
+      "secretLabel": "المفتاح السري",
+      "codeLabel": "كود التأكيد",
+      "confirm": "تأكيد",
+      "confirmError": "الكود غير صحيح",
+      "backupCodesWarning": "احفظ أكواد الاسترجاع دي في مكان آمن — مش هتقدر تشوفها تاني. كل كود بيتستخدم مرة واحدة بس لو ضيّعت هاتفك.",
+      "backupCodesDone": "تم الحفظ",
+      "enabledDescription": "التحقق بخطوتين مفعّل على حسابك دلوقتي.",
+      "disable": "إلغاء التفعيل",
+      "confirmPasswordLabel": "أدخل كلمة المرور للتأكيد",
+      "disableSuccess": "تم إلغاء تفعيل التحقق بخطوتين",
+      "disableError": "تعذّر إلغاء التفعيل — تأكد من كلمة المرور"
+    }
   },
   "inventory": {
     "title": "المخزون",

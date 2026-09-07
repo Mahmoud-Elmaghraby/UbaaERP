@@ -38,7 +38,10 @@
     "rxjs": "^7.8.1",
     "zod": "^3.23.8",
     "@nestjs/event-emitter": "^2.1.1",
-    "eventemitter2": "^6.4.9"
+    "eventemitter2": "^6.4.9",
+    "@nestjs/throttler": "^5.2.0",
+    "helmet": "^7.1.0",
+    "cookie-parser": "^1.4.6"
   },
   "devDependencies": {
     "@nestjs/testing": "^10.4.15",
@@ -54,6 +57,7 @@
     "supertest": "^7.0.0",
     "ts-jest": "^29.2.5",
     "ts-node": "^10.9.2",
-    "typescript": "^5.6.2"
+    "typescript": "^5.6.2",
+    "@types/cookie-parser": "^1.4.7"
   }
 }

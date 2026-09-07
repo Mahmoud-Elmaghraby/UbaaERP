@@ -5,6 +5,7 @@ import { Can, Avatar, AvatarFallback, Button, Skeleton, cn } from '@erp-platform
 import { LogOut, Menu, X } from 'lucide-react';
 
 import { useAuthStore } from '../../lib/auth-store';
+import { useLogout } from '../../features/users-permissions/queries';
 import { NAV_ITEMS, type NavItem } from './nav-items';
 
 export function AppShell() {
@@ -12,7 +13,23 @@ export function AppShell() {
   const location = useLocation();
   const user = useAuthStore((state) => state.user);
   const clearSession = useAuthStore((state) => state.clearSession);
+  const logout = useLogout();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+
+  // Best-effort: revoke the refresh token server-side, but never block
+  // the user from actually logging out if the API call itself fails
+  // (offline, API down) — local state is cleared either way. No token
+  // value to check/pass anymore: the refresh token lives only in an
+  // httpOnly cookie now (see auth-store.ts's comment), so this call is
+  // unconditional — the backend just no-ops if there's no cookie to revoke.
+  async function handleLogout() {
+    try {
+      await logout.mutateAsync();
+    } catch {
+      // Swallowed deliberately — see comment above.
+    }
+    clearSession();
+  }
 
   // Lock background scroll while the mobile drawer is open.
   useEffect(() => {
@@ -141,7 +158,7 @@ export function AppShell() {
             variant="ghost"
             size="icon"
             className="shrink-0 text-sidebar-mutedForeground hover:bg-sidebar-accent hover:text-sidebar-accentForeground"
-            onClick={() => clearSession()}
+            onClick={() => void handleLogout()}
             title={t('nav.logout')}
           >
             <LogOut className="h-4 w-4" />

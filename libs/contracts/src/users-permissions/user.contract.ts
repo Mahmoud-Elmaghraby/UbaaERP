@@ -1,5 +1,23 @@
 import { z } from 'zod';
 
+/**
+ * Single source of truth for password complexity (CLAUDE.md §2.9 —
+ * shared Zod contracts, backend + frontend). Previously both
+ * createUserSchema.password and changePasswordSchema.newPassword only
+ * checked length (min 8) — no complexity requirement at all. Kept
+ * deliberately simple (length + the three standard character classes,
+ * no special-character requirement, no dictionary/breach check) rather
+ * than an aggressive policy that mostly just annoys real users; this is
+ * a floor, not a full password-strength product.
+ */
+export const strongPassword = z
+  .string()
+  .min(8, 'Password must be at least 8 characters.')
+  .max(128, 'Password must be at most 128 characters.')
+  .refine((value) => /[a-z]/.test(value), 'Password must contain at least one lowercase letter.')
+  .refine((value) => /[A-Z]/.test(value), 'Password must contain at least one uppercase letter.')
+  .refine((value) => /[0-9]/.test(value), 'Password must contain at least one digit.');
+
 export const userSchema = z.object({
   id: z.string().uuid(),
   email: z.string().email(),
@@ -13,7 +31,7 @@ export type UserDto = z.infer<typeof userSchema>;
 
 export const createUserSchema = z.object({
   email: z.string().email(),
-  password: z.string().min(8),
+  password: strongPassword,
   fullName: z.string().min(1),
   roleId: z.string().uuid(),
   isActive: z.boolean().optional(),
@@ -29,7 +47,7 @@ export type UpdateUserDto = z.infer<typeof updateUserSchema>;
 
 export const changePasswordSchema = z.object({
   currentPassword: z.string().min(1),
-  newPassword: z.string().min(8),
+  newPassword: strongPassword,
 });
 export type ChangePasswordDto = z.infer<typeof changePasswordSchema>;
 

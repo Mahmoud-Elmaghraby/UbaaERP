@@ -41,6 +41,7 @@ export async function seedOwnerUser(databaseUrl: string, input: SeedOwnerInput):
         full_name: input.fullName,
         role_id: OWNER_ROLE_ID,
         is_active: true,
+        totp_enabled: false,
       })
       .returning(['id', 'email'])
       .executeTakeFirstOrThrow();

@@ -3,6 +3,8 @@ import { Navigate, createBrowserRouter } from 'react-router-dom';
 import { ProtectedRoute } from './protected-route';
 import { AppShell } from './layout/app-shell';
 import { LoginPage } from '../features/users-permissions/login-page';
+import { ForgotPasswordPage } from '../features/users-permissions/forgot-password-page';
+import { ResetPasswordPage } from '../features/users-permissions/reset-password-page';
 import { UsersPage } from '../features/users-permissions/users-page';
 import { RolesPage } from '../features/users-permissions/roles-page';
 import { AuditLogsPage } from '../features/users-permissions/audit-logs-page';
@@ -15,6 +17,8 @@ import { accountingRoutes } from '../features/accounting/routes';
 
 export const router = createBrowserRouter([
   { path: '/login', element: <LoginPage /> },
+  { path: '/forgot-password', element: <ForgotPasswordPage /> },
+  { path: '/reset-password', element: <ResetPasswordPage /> },
   {
     path: '/',
     element: (

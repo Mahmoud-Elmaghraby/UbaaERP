@@ -19,8 +19,9 @@ import {
 } from '@erp-platform/ui';
 
 import { useAuthStore } from '../../lib/auth-store';
-import { useChangeOwnPassword } from './queries';
+import { useChangeOwnPassword, useRevokeOwnSessions } from './queries';
 import { ApiError } from '../../lib/api-client';
+import { TwoFactorCard } from './two-factor-card';
 
 export function ProfilePage() {
   const { t } = useTranslation();
@@ -41,6 +42,53 @@ export function ProfilePage() {
           <ChangePasswordForm />
         </CardContent>
       </Card>
+
+      <Card className="max-w-sm">
+        <CardHeader>
+          <CardTitle>{t('profile.sessionSecurity')}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <RevokeSessionsAction />
+        </CardContent>
+      </Card>
+
+      <TwoFactorCard />
+    </div>
+  );
+}
+
+function RevokeSessionsAction() {
+  const { t } = useTranslation();
+  const clearSession = useAuthStore((state) => state.clearSession);
+  const revokeSessions = useRevokeOwnSessions();
+
+  async function handleRevoke() {
+    // eslint-disable-next-line no-alert
+    if (!window.confirm(t('profile.revokeSessionsConfirm'))) return;
+    try {
+      await revokeSessions.mutateAsync();
+      toast.success(t('profile.revokeSessionsSuccess'));
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : t('profile.revokeSessionsError'));
+      return;
+    }
+    // This device's own session is revoked too (see useRevokeOwnSessions'
+    // comment) — clear local state immediately rather than waiting for
+    // the next failed silent refresh to discover it.
+    clearSession();
+  }
+
+  return (
+    <div className="grid gap-2">
+      <p className="text-sm text-muted-foreground">{t('profile.sessionSecurityDescription')}</p>
+      <Button
+        type="button"
+        variant="destructive"
+        disabled={revokeSessions.isPending}
+        onClick={() => void handleRevoke()}
+      >
+        {t('profile.revokeSessions')}
+      </Button>
     </div>
   );
 }

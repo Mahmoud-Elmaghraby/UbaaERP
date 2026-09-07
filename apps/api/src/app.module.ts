@@ -1,10 +1,13 @@
 import { Module } from '@nestjs/common';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { EventsModule } from './shared/events/events.module';
 import { TenancyModule } from './shared/tenancy/tenancy.module';
 import { PrismaModule } from './shared/database/prisma.module';
 import { OutboxModule } from './shared/outbox/outbox.module';
 import { SecretsEncryptionModule } from './shared/crypto/secrets-encryption.module';
 import { AuthInfraModule } from './shared/auth/auth-infra.module';
+import { EmailModule } from './shared/email/email.module';
+import { HealthController } from './shared/health/health.controller';
 import { SettingsModule } from './modules/settings/settings.module';
 import { UsersPermissionsModule } from './modules/users-permissions/users-permissions.module';
 import { InventoryModule } from './modules/inventory/inventory.module';
@@ -34,12 +37,18 @@ import { AccountingModule } from './modules/accounting/accounting.module';
  */
 @Module({
   imports: [
+    // Registered globally so ThrottlerGuard is available for DI wherever
+    // it's applied (currently just AuthController — see its own comment).
+    // 60 req/min is a generous default for normal API traffic; the login
+    // route overrides this with its own much stricter @Throttle().
+    ThrottlerModule.forRoot([{ name: 'default', ttl: 60_000, limit: 60 }]),
     EventsModule,
     TenancyModule,
     PrismaModule,
     OutboxModule,
     SecretsEncryptionModule,
     AuthInfraModule,
+    EmailModule,
     SettingsModule,
     UsersPermissionsModule,
     InventoryModule,
@@ -47,7 +56,7 @@ import { AccountingModule } from './modules/accounting/accounting.module';
     SalesModule,
     AccountingModule,
   ],
-  controllers: [],
+  controllers: [HealthController],
   providers: [],
 })
 export class AppModule {}

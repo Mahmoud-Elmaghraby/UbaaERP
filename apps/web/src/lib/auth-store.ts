@@ -23,7 +23,6 @@ interface AuthState {
    */
   tenantSchema: string | null;
   accessToken: string | null;
-  refreshToken: string | null;
   user: AuthUser | null;
   permissions: string[];
   setTenantSchema: (schema: string) => void;
@@ -31,12 +30,22 @@ interface AuthState {
   clearSession: () => void;
 }
 
+/**
+ * The refresh token is deliberately NOT stored here anymore (claude/
+ * settings-module-audit.md §2.2/Task 9). It never reaches this state at
+ * all now — the backend sets it directly as an httpOnly cookie
+ * (AuthController), which client-side JavaScript cannot read, closing
+ * the XSS-exposure gap the previous localStorage-based storage had. Only
+ * the short-lived access token (15m default) is still kept here, in
+ * memory and in this store's own persisted localStorage entry — a much
+ * smaller exposure window than a 30-day refresh token, and one every
+ * other JWT-based SPA auth flow accepts as a standard trade-off.
+ */
 export const useAuthStore = create<AuthState>()(
   persist(
     (set) => ({
       tenantSchema: null,
       accessToken: null,
-      refreshToken: null,
       user: null,
       permissions: [],
       setTenantSchema: (schema) => set({ tenantSchema: schema }),
@@ -44,20 +53,17 @@ export const useAuthStore = create<AuthState>()(
         const decoded = decodeAccessToken(tokens.accessToken);
         set({
           accessToken: tokens.accessToken,
-          refreshToken: tokens.refreshToken,
           user: tokens.user,
           permissions: decoded?.permissions ?? [],
         });
       },
-      clearSession: () =>
-        set({ accessToken: null, refreshToken: null, user: null, permissions: [] }),
+      clearSession: () => set({ accessToken: null, user: null, permissions: [] }),
     }),
     {
       name: 'erp-auth',
       partialize: (state) => ({
         tenantSchema: state.tenantSchema,
         accessToken: state.accessToken,
-        refreshToken: state.refreshToken,
         user: state.user,
         permissions: state.permissions,
       }),

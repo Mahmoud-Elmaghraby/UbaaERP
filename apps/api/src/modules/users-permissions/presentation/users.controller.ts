@@ -1,15 +1,22 @@
-import { Body, Controller, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Param, Patch, Post, UseGuards } from '@nestjs/common';
 import {
   changePasswordSchema,
+  confirmTotpSchema,
   createUserSchema,
+  disableTotpSchema,
   setBranchAccessSchema,
   setManagerSchema,
   updateUserSchema,
   userSchema,
   type ChangePasswordDto,
+  type ConfirmTotpDto,
   type CreateUserDto,
+  type DisableTotpDto,
   type SetBranchAccessDto,
   type SetManagerDto,
+  type TotpEnabledResponseDto,
+  type TotpSetupResponseDto,
+  type TotpStatusResponseDto,
   type UpdateUserDto,
   type UserDto,
 } from '@erp-platform/contracts';
@@ -24,6 +31,8 @@ import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pip
 import { UsersService } from '../application/services/users.service';
 import { UserBranchAccessService } from '../application/services/user-branch-access.service';
 import { ApprovalChainsService } from '../application/services/approval-chains.service';
+import { AccountAccessService } from '../application/services/account-access.service';
+import { TwoFactorService } from '../application/services/two-factor.service';
 
 // Every Zod pipe below is bound directly to @Body(), not via a
 // method-level @UsePipes() — see auth.controller.ts's class comment for
@@ -35,6 +44,8 @@ export class UsersController {
     private readonly service: UsersService,
     private readonly branchAccess: UserBranchAccessService,
     private readonly approvalChains: ApprovalChainsService,
+    private readonly accountAccess: AccountAccessService,
+    private readonly twoFactor: TwoFactorService,
     private readonly connections: TenantConnectionManager,
   ) {}
 
@@ -113,6 +124,106 @@ export class UsersController {
     const db = this.connections.getClient(schema);
     await this.branchAccess.setForUser(db, id, body.branchIds, actor.sub);
     return { branchIds: body.branchIds };
+  }
+
+  // Sends an invite token so a user can set their OWN password,
+  // replacing the one the admin had to type to satisfy POST /users's
+  // schema (createUserSchema.password is still required — see
+  // AccountAccessService.sendInvite()'s comment for why this is
+  // additive rather than a breaking change to that endpoint).
+  @Post(':id/invite')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @RequirePermissions('users.manage')
+  async invite(
+    @CurrentTenantSchema() schema: string,
+    @CurrentUser() actor: JwtAccessPayload,
+    @Param('id') id: string,
+  ): Promise<void> {
+    const db = this.connections.getClient(schema);
+    await this.accountAccess.sendInvite(db, id, actor.sub);
+  }
+
+  // Force-logout: revoke every refresh token currently issued to a
+  // user. Deliberately separate from the isActive toggle in update()
+  // (which already does this automatically on deactivation, per
+  // UsersService.update()'s own comment) — this lets an Owner kick a
+  // user's active sessions without deactivating their account at all
+  // (e.g. "I think this laptop was stolen but the employee still
+  // works here").
+  @Post(':id/revoke-sessions')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @RequirePermissions('users.manage')
+  async revokeSessions(
+    @CurrentTenantSchema() schema: string,
+    @CurrentUser() actor: JwtAccessPayload,
+    @Param('id') id: string,
+  ): Promise<void> {
+    const db = this.connections.getClient(schema);
+    await this.service.revokeSessions(db, id, actor.sub);
+  }
+
+  // Self-service "log out everywhere" — any authenticated user, no
+  // users.manage requirement, same reasoning as me/change-password
+  // above: a user must always be able to act on their own session
+  // security without depending on an admin.
+  @Post('me/revoke-sessions')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async revokeOwnSessions(
+    @CurrentTenantSchema() schema: string,
+    @CurrentUser() actor: JwtAccessPayload,
+  ): Promise<void> {
+    const db = this.connections.getClient(schema);
+    await this.service.revokeSessions(db, actor.sub, actor.sub);
+  }
+
+  // --- Optional TOTP two-factor authentication (self-service only —
+  // no admin-managed equivalent: 2FA is a credential a user proves
+  // possession of, the same category as their password, not something
+  // an Owner can set on someone else's behalf). See TwoFactorService's
+  // class comment for the two-step setup/confirm design. ---------------
+
+  // The only TOTP state ever exposed to the frontend — never the secret,
+  // pending or otherwise (see TwoFactorService.getStatus()'s own
+  // comment). Multi-segment path, so this doesn't collide with the
+  // single-segment @Get(':id') above regardless of registration order.
+  @Get('me/2fa/status')
+  async getTwoFactorStatus(
+    @CurrentTenantSchema() schema: string,
+    @CurrentUser() actor: JwtAccessPayload,
+  ): Promise<TotpStatusResponseDto> {
+    const db = this.connections.getClient(schema);
+    return this.twoFactor.getStatus(db, actor.sub);
+  }
+
+  @Post('me/2fa/setup')
+  async setupTwoFactor(
+    @CurrentTenantSchema() schema: string,
+    @CurrentUser() actor: JwtAccessPayload,
+  ): Promise<TotpSetupResponseDto> {
+    const db = this.connections.getClient(schema);
+    const user = await this.service.getById(db, actor.sub);
+    return this.twoFactor.initiateSetup(db, actor.sub, user.email);
+  }
+
+  @Post('me/2fa/confirm')
+  async confirmTwoFactor(
+    @CurrentTenantSchema() schema: string,
+    @CurrentUser() actor: JwtAccessPayload,
+    @Body(new ZodValidationPipe(confirmTotpSchema)) body: ConfirmTotpDto,
+  ): Promise<TotpEnabledResponseDto> {
+    const db = this.connections.getClient(schema);
+    return this.twoFactor.confirmSetup(db, actor.sub, body.code);
+  }
+
+  @Post('me/2fa/disable')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async disableTwoFactor(
+    @CurrentTenantSchema() schema: string,
+    @CurrentUser() actor: JwtAccessPayload,
+    @Body(new ZodValidationPipe(disableTotpSchema)) body: DisableTotpDto,
+  ): Promise<void> {
+    const db = this.connections.getClient(schema);
+    await this.twoFactor.disable(db, actor.sub, body.password);
   }
 
   @Get(':id/manager')

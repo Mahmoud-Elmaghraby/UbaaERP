@@ -49,6 +49,7 @@ export default async function globalSetup(): Promise<void> {
         full_name: 'E2E Limited User',
         role_id: noPermissionsRoleId,
         is_active: true,
+        totp_enabled: false,
       })
       .execute();
   } finally {

@@ -5,6 +5,7 @@ import type {
   CreateUserRecord,
   UserAuthRecord,
   UserRepository,
+  UserTotpState,
 } from '../../application/ports/user.repository';
 import type { UpdateUserInput, User } from '../../domain/user.entity';
 
@@ -34,7 +35,7 @@ export class KyselyUserRepository implements UserRepository {
   async findByEmailForAuth(db: Kysely<TenantDatabase>, email: string): Promise<UserAuthRecord | null> {
     const row = await db.selectFrom('users').selectAll().where('email', '=', email).executeTakeFirst();
     if (!row) return null;
-    return { ...toDomain(row), passwordHash: row.password_hash };
+    return { ...toDomain(row), passwordHash: row.password_hash, totpEnabled: row.totp_enabled };
   }
 
   async create(db: Kysely<TenantDatabase>, input: CreateUserRecord): Promise<User> {
@@ -47,6 +48,7 @@ export class KyselyUserRepository implements UserRepository {
         full_name: input.fullName,
         role_id: input.roleId,
         is_active: input.isActive,
+        totp_enabled: false,
       })
       .returningAll()
       .executeTakeFirstOrThrow();
@@ -73,6 +75,39 @@ export class KyselyUserRepository implements UserRepository {
       .updateTable('users')
       .set({ password_hash: passwordHash, updated_at: new Date() })
       .where('id', '=', id)
+      .execute();
+  }
+
+  async getTotpState(db: Kysely<TenantDatabase>, userId: string): Promise<UserTotpState> {
+    const row = await db
+      .selectFrom('users')
+      .select(['totp_enabled', 'totp_secret_encrypted'])
+      .where('id', '=', userId)
+      .executeTakeFirst();
+    return { enabled: row?.totp_enabled ?? false, secretEncrypted: row?.totp_secret_encrypted ?? null };
+  }
+
+  async setPendingTotpSecret(db: Kysely<TenantDatabase>, userId: string, secretEncrypted: string): Promise<void> {
+    await db
+      .updateTable('users')
+      .set({ totp_secret_encrypted: secretEncrypted, totp_enabled: false, updated_at: new Date() })
+      .where('id', '=', userId)
+      .execute();
+  }
+
+  async enableTotp(db: Kysely<TenantDatabase>, userId: string): Promise<void> {
+    await db
+      .updateTable('users')
+      .set({ totp_enabled: true, updated_at: new Date() })
+      .where('id', '=', userId)
+      .execute();
+  }
+
+  async disableTotp(db: Kysely<TenantDatabase>, userId: string): Promise<void> {
+    await db
+      .updateTable('users')
+      .set({ totp_secret_encrypted: null, totp_enabled: false, updated_at: new Date() })
+      .where('id', '=', userId)
       .execute();
   }
 }

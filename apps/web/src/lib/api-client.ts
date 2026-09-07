@@ -55,13 +55,17 @@ async function parseBody(response: Response): Promise<unknown> {
 }
 
 async function refreshSession(): Promise<boolean> {
-  const { refreshToken, setSession, clearSession } = useAuthStore.getState();
-  if (!refreshToken) return false;
+  const { setSession, clearSession } = useAuthStore.getState();
 
+  // No body, no refreshToken to read from local state — the refresh
+  // token itself now lives only in the httpOnly cookie the browser
+  // attaches automatically (credentials: 'include' below), never in
+  // JS-reachable storage. See auth-store.ts's own comment on why that
+  // field was removed entirely.
   const response = await fetch(`${BASE_URL}/auth/refresh`, {
     method: 'POST',
     headers: buildHeaders(true),
-    body: JSON.stringify({ refreshToken }),
+    credentials: 'include',
   });
 
   if (!response.ok) {
@@ -83,6 +87,12 @@ export async function apiFetch<T>(path: string, options: RequestOptions = {}): P
       method,
       headers: buildHeaders(skipAuth),
       body: body !== undefined ? JSON.stringify(body) : undefined,
+      // Required so the browser sends/accepts the httpOnly refresh-token
+      // cookie on every call to this (cross-origin, in dev) API — without
+      // it, fetch() silently drops Set-Cookie on the response and never
+      // attaches the cookie on the next request. Safe to set globally:
+      // it's a no-op for endpoints that don't touch the cookie at all.
+      credentials: 'include',
     });
   } catch {
     // fetch() itself throws for network failures AND for CORS blocks (the

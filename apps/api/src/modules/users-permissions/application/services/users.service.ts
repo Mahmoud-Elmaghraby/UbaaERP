@@ -5,6 +5,7 @@ import type { TenantDatabase } from '../../../../database/tenant/kysely-client';
 import { USER_REPOSITORY, type UserRepository } from '../ports/user.repository';
 import { ROLE_REPOSITORY, type RoleRepository } from '../ports/role.repository';
 import { AUDIT_LOG_REPOSITORY, type AuditLogRepository } from '../ports/audit-log.repository';
+import { REFRESH_TOKEN_REPOSITORY, type RefreshTokenRepository } from '../ports/refresh-token.repository';
 import type { CreateUserInput, UpdateUserInput, User } from '../../domain/user.entity';
 import { ConflictError, NotFoundError, isPostgresUniqueViolation } from '../errors';
 
@@ -17,6 +18,7 @@ export class UsersService {
     @Inject(USER_REPOSITORY) private readonly repository: UserRepository,
     @Inject(ROLE_REPOSITORY) private readonly roles: RoleRepository,
     @Inject(AUDIT_LOG_REPOSITORY) private readonly auditLogs: AuditLogRepository,
+    @Inject(REFRESH_TOKEN_REPOSITORY) private readonly refreshTokens: RefreshTokenRepository,
   ) {}
 
   list(db: Kysely<TenantDatabase>): Promise<User[]> {
@@ -91,7 +93,49 @@ export class UsersService {
       entityId: user.id,
       metadata: { ...input },
     });
+
+    // Deactivation alone does NOT invalidate a still-valid access token
+    // already in someone's hands (permissions/active-status are only
+    // re-checked on refresh — see PermissionsGuard's and AuthService's
+    // own comments on that bounded staleness window). Revoking every
+    // refresh token here closes the other half of the gap: the user
+    // cannot silently stay logged in past their current access token's
+    // TTL by refreshing, and this is also the real incident-response
+    // action ("kick this user out now") an Owner needs when deactivating
+    // someone, not just a side-effect worth mentioning.
+    if (input.isActive === false) {
+      await this.refreshTokens.revokeAllForUser(db, id);
+      await this.auditLogs.record(db, {
+        userId: actingUserId,
+        action: 'user.sessions_revoked',
+        entityType: 'user',
+        entityId: user.id,
+        metadata: { reason: 'deactivated' },
+      });
+    }
     return user;
+  }
+
+  /**
+   * Force-logout: revokes every refresh token currently issued to a
+   * user, without changing anything else about their account. Two
+   * callers use this: an admin acting on another user (suspected
+   * compromise, offboarding in progress but not yet a full
+   * deactivation) via UsersController, and a user revoking their own
+   * other sessions ("log out everywhere") via the /me variant.
+   */
+  async revokeSessions(db: Kysely<TenantDatabase>, targetUserId: string, actingUserId: string): Promise<void> {
+    const user = await this.repository.findById(db, targetUserId);
+    if (!user) throw new NotFoundError(`User "${targetUserId}" not found.`);
+
+    await this.refreshTokens.revokeAllForUser(db, targetUserId);
+    await this.auditLogs.record(db, {
+      userId: actingUserId,
+      action: 'user.sessions_revoked',
+      entityType: 'user',
+      entityId: targetUserId,
+      metadata: { reason: actingUserId === targetUserId ? 'self_requested' : 'admin_requested' },
+    });
   }
 
   async changeOwnPassword(

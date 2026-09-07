@@ -37,6 +37,10 @@ describe('ApprovalChainsService', () => {
       create: jest.fn(),
       update: jest.fn(),
       updatePasswordHash: jest.fn(),
+      getTotpState: jest.fn(),
+      setPendingTotpSecret: jest.fn(),
+      enableTotp: jest.fn(),
+      disableTotp: jest.fn(),
     };
     auditLogs = { record: jest.fn(), list: jest.fn() };
     service = new ApprovalChainsService(repository, users, auditLogs);

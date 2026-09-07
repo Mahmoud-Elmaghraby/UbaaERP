@@ -111,6 +111,11 @@ export interface UsersTable {
   full_name: string;
   role_id: string;
   is_active: boolean;
+  // Optional TOTP two-factor auth (migration 0066) — see
+  // TwoFactorService's class comment for the pending/enabled two-step
+  // design totp_secret_encrypted/totp_enabled together encode.
+  totp_secret_encrypted: string | null;
+  totp_enabled: boolean;
   created_at: Generated<Date>;
   updated_at: Generated<Date>;
 }
@@ -144,6 +149,24 @@ export interface RefreshTokensTable {
   token_hash: string;
   expires_at: Date;
   revoked_at: Date | null;
+  created_at: Generated<Date>;
+}
+
+export interface AccountActionTokensTable {
+  id: string;
+  user_id: string;
+  token_hash: string;
+  purpose: string;
+  expires_at: Date;
+  used_at: Date | null;
+  created_at: Generated<Date>;
+}
+
+export interface UserBackupCodesTable {
+  id: string;
+  user_id: string;
+  code_hash: string;
+  used_at: Date | null;
   created_at: Generated<Date>;
 }
 
@@ -721,6 +744,8 @@ export interface TenantDatabase {
   approval_chains: ApprovalChainsTable;
   audit_logs: AuditLogsTable;
   refresh_tokens: RefreshTokensTable;
+  account_action_tokens: AccountActionTokensTable;
+  user_backup_codes: UserBackupCodesTable;
   units_of_measure: UnitsOfMeasureTable;
   warehouses: WarehousesTable;
   products: ProductsTable;
