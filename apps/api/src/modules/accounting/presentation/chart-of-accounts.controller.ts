@@ -13,18 +13,25 @@ import { CurrentUser } from '../../../shared/auth/current-user.decorator';
 import type { JwtAccessPayload } from '../../../shared/auth/jwt-payload.type';
 import { JwtAuthGuard } from '../../../shared/auth/jwt-auth.guard';
 import { PermissionsGuard } from '../../../shared/auth/permissions.guard';
+import { PlanFeatureGuard } from '../../../shared/auth/plan-feature.guard';
 import { RequirePermissions } from '../../../shared/auth/require-permissions.decorator';
+import { RequireFeature } from '../../../shared/auth/require-feature.decorator';
+import { FEATURE_KEYS } from '../../../shared/plans/feature-catalog';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 import { ChartOfAccountsService } from '../application/services/chart-of-accounts.service';
 import { AccountingEventPublisher } from '../infrastructure/events/accounting-event-publisher';
 
 /**
- * No PlanFeatureGuard yet — same deliberate, tracked gap as every other
- * module's controllers (see SuppliersController's class comment): no
- * plans/features model exists in the public schema yet.
+ * Gated behind PlanFeatureGuard (FEATURE_KEYS.ACCOUNTING) — closes the
+ * long-flagged gap this comment used to describe (see
+ * docs/claude-context/accounting-module-status.md): a tenant's plan is
+ * now enforced here, at the API layer, not just hidden in the frontend
+ * nav (CLAUDE.md §2.8). Every other Accounting controller carries the
+ * same guard/decorator pair.
  */
-@UseGuards(JwtAuthGuard, PermissionsGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard, PlanFeatureGuard)
 @RequirePermissions('accounting.manage')
+@RequireFeature(FEATURE_KEYS.ACCOUNTING)
 @Controller('chart-of-accounts')
 export class ChartOfAccountsController {
   constructor(

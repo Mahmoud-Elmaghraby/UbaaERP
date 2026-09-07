@@ -18,7 +18,10 @@ import { CurrentUser } from '../../../shared/auth/current-user.decorator';
 import type { JwtAccessPayload } from '../../../shared/auth/jwt-payload.type';
 import { JwtAuthGuard } from '../../../shared/auth/jwt-auth.guard';
 import { PermissionsGuard } from '../../../shared/auth/permissions.guard';
+import { PlanFeatureGuard } from '../../../shared/auth/plan-feature.guard';
 import { RequirePermissions } from '../../../shared/auth/require-permissions.decorator';
+import { RequireFeature } from '../../../shared/auth/require-feature.decorator';
+import { FEATURE_KEYS } from '../../../shared/plans/feature-catalog';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 import { BankAccountsService } from '../application/services/bank-accounts.service';
 import { AccountingEventPublisher } from '../infrastructure/events/accounting-event-publisher';
@@ -56,11 +59,13 @@ function registerToDto(register: BankAccountRegister): BankAccountRegisterDto {
  * plus two read/action endpoints: the register (getRegister — a
  * general-ledger-shaped view of this account's own linked GL account,
  * with running balance and reconciliation status) and reconcile/
- * unreconcile (toggle one line's isReconciled flag). No PlanFeatureGuard
- * yet, same deliberate, tracked gap as every other module's controllers.
+ * unreconcile (toggle one line's isReconciled flag). Gated behind
+ * PlanFeatureGuard (FEATURE_KEYS.ACCOUNTING) — see
+ * ChartOfAccountsController's class comment.
  */
-@UseGuards(JwtAuthGuard, PermissionsGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard, PlanFeatureGuard)
 @RequirePermissions('accounting.manage')
+@RequireFeature(FEATURE_KEYS.ACCOUNTING)
 @Controller('bank-accounts')
 export class BankAccountsController {
   constructor(

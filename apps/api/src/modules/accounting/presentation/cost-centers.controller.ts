@@ -13,7 +13,10 @@ import { CurrentUser } from '../../../shared/auth/current-user.decorator';
 import type { JwtAccessPayload } from '../../../shared/auth/jwt-payload.type';
 import { JwtAuthGuard } from '../../../shared/auth/jwt-auth.guard';
 import { PermissionsGuard } from '../../../shared/auth/permissions.guard';
+import { PlanFeatureGuard } from '../../../shared/auth/plan-feature.guard';
 import { RequirePermissions } from '../../../shared/auth/require-permissions.decorator';
+import { RequireFeature } from '../../../shared/auth/require-feature.decorator';
+import { FEATURE_KEYS } from '../../../shared/plans/feature-catalog';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 import { CostCentersService } from '../application/services/cost-centers.service';
 import { AccountingEventPublisher } from '../infrastructure/events/accounting-event-publisher';
@@ -21,11 +24,12 @@ import { AccountingEventPublisher } from '../infrastructure/events/accounting-ev
 /**
  * Cost Centers (CLAUDE.md §10 — step 5, Accounting, Stage 4) — plain
  * CRUD, same shape as ChartOfAccountsController minus the tree-specific
- * pieces. No PlanFeatureGuard yet, same deliberate, tracked gap as
- * every other module's controllers.
+ * pieces. Gated behind PlanFeatureGuard (FEATURE_KEYS.ACCOUNTING) — see
+ * ChartOfAccountsController's class comment.
  */
-@UseGuards(JwtAuthGuard, PermissionsGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard, PlanFeatureGuard)
 @RequirePermissions('accounting.manage')
+@RequireFeature(FEATURE_KEYS.ACCOUNTING)
 @Controller('cost-centers')
 export class CostCentersController {
   constructor(

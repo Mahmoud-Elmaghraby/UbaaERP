@@ -10,6 +10,8 @@ import type { AccountActionTokenRepository } from '../ports/account-action-token
 import type { AccountActionToken } from '../../domain/account-action-token.entity';
 import type { Role } from '../../domain/role.entity';
 import type { TwoFactorService } from './two-factor.service';
+import type { PlanResolverService } from '../../../../shared/plans/plan-resolver.service';
+import { ALL_FEATURE_KEYS } from '../../../../shared/plans/feature-catalog';
 import { AuthenticationError } from '../errors';
 import { AuthService, type MfaChallenge } from './auth.service';
 
@@ -57,6 +59,7 @@ describe('AuthService', () => {
   let auditLogs: jest.Mocked<AuditLogRepository>;
   let actionTokens: jest.Mocked<AccountActionTokenRepository>;
   let twoFactor: jest.Mocked<TwoFactorService>;
+  let plans: jest.Mocked<PlanResolverService>;
   let jwtService: JwtService;
   let service: AuthService;
 
@@ -79,11 +82,14 @@ describe('AuthService', () => {
     auditLogs = { record: jest.fn(), list: jest.fn() };
     actionTokens = { create: jest.fn(), findValidByHash: jest.fn(), markUsed: jest.fn() };
     twoFactor = { verifyLoginCode: jest.fn() } as unknown as jest.Mocked<TwoFactorService>;
+    plans = {
+      resolveFeatureKeysForSchema: jest.fn().mockResolvedValue(ALL_FEATURE_KEYS),
+    } as unknown as jest.Mocked<PlanResolverService>;
     // A real JwtService (not a mock) — signing/verifying a real token is
     // the whole point of testing this service; only the repositories and
     // bcrypt are faked.
     jwtService = new JwtService({ secret: TEST_JWT_SECRET, signOptions: { expiresIn: '15m' } });
-    service = new AuthService(jwtService, users, roles, refreshTokens, auditLogs, actionTokens, twoFactor);
+    service = new AuthService(jwtService, users, roles, refreshTokens, auditLogs, actionTokens, twoFactor, plans);
   });
 
   describe('login()', () => {

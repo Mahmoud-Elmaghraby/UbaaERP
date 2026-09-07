@@ -19,7 +19,10 @@ import { CurrentUser } from '../../../shared/auth/current-user.decorator';
 import type { JwtAccessPayload } from '../../../shared/auth/jwt-payload.type';
 import { JwtAuthGuard } from '../../../shared/auth/jwt-auth.guard';
 import { PermissionsGuard } from '../../../shared/auth/permissions.guard';
+import { PlanFeatureGuard } from '../../../shared/auth/plan-feature.guard';
 import { RequirePermissions } from '../../../shared/auth/require-permissions.decorator';
+import { RequireFeature } from '../../../shared/auth/require-feature.decorator';
+import { FEATURE_KEYS } from '../../../shared/plans/feature-catalog';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 import { JournalEntriesService } from '../application/services/journal-entries.service';
 import { AccountingEventPublisher } from '../infrastructure/events/accounting-event-publisher';
@@ -42,8 +45,8 @@ function entryWithLinesToDto(entry: JournalEntryWithLines): JournalEntryWithLine
 
 /**
  * Journal Entries (CLAUDE.md §10 — step 5, Accounting, Stage 2). Manual
- * entries only — no PlanFeatureGuard yet, same deliberate, tracked gap
- * as every other module (see ChartOfAccountsController's own comment).
+ * entries only. Gated behind PlanFeatureGuard (FEATURE_KEYS.ACCOUNTING)
+ * — see ChartOfAccountsController's own comment.
  *
  * post()/cancel()/reverse() still publish through AccountingEventPublisher
  * (plain EventEmitter2), NOT the Outbox — unlike PurchaseInvoicesController's
@@ -51,8 +54,9 @@ function entryWithLinesToDto(entry: JournalEntryWithLines): JournalEntryWithLine
  * integration event another module needs to reliably observe (see
  * AccountingEventPublisher's own class comment).
  */
-@UseGuards(JwtAuthGuard, PermissionsGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard, PlanFeatureGuard)
 @RequirePermissions('accounting.manage')
+@RequireFeature(FEATURE_KEYS.ACCOUNTING)
 @Controller('journal-entries')
 export class JournalEntriesController {
   constructor(

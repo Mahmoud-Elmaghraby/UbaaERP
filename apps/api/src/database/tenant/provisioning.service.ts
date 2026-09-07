@@ -10,6 +10,7 @@ import { assertValidSchemaName } from './kysely-client';
 import { applyPendingMigrationsForTenant } from './migration-runner.service';
 import { seedOwnerUser } from './owner-seed';
 import { seedWalkInCustomer } from './walk-in-customer-seed';
+import { CORE_PLAN_KEY } from '../../shared/plans/feature-catalog';
 
 /**
  * Tenant Provisioning (CLAUDE.md §3 [مستقر]).
@@ -65,8 +66,23 @@ export async function provisionTenant(
     throw new Error(`A tenant with schema_name "${input.schemaName}" already exists.`);
   }
 
+  // Assign the default "core" plan up front (seed-plans.command.ts must
+  // have been run at least once per environment — see its own comment).
+  // Not found is a soft warning, not a hard failure: PlanResolverService
+  // treats a null planId as full access, so an unseeded environment
+  // (e.g. a fresh local dev DB before the first `db:seed-plans` run)
+  // still provisions a fully-working tenant, just without a plan row to
+  // point at yet.
+  const corePlan = await prisma.plan.findUnique({ where: { key: CORE_PLAN_KEY } });
+  if (!corePlan) {
+    console.warn(
+      `[provisioning] no "${CORE_PLAN_KEY}" plan found (run "pnpm --filter api db:seed-plans" first) — ` +
+        'provisioning this tenant with no plan assigned (full access, per PlanResolverService\'s fail-open default).',
+    );
+  }
+
   const tenant = await prisma.tenant.create({
-    data: { name: input.name, schemaName: input.schemaName },
+    data: { name: input.name, schemaName: input.schemaName, planId: corePlan?.id },
   });
   console.log(`[provisioning] created tenant record "${tenant.schemaName}" (${tenant.id})`);
 

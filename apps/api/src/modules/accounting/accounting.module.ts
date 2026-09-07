@@ -111,8 +111,10 @@ import { AccountingAutoPostingListeners } from './infrastructure/events/accounti
  * TenantConnectionManager comes from the global TenancyModule — not
  * re-provided here, same as every other business module.
  *
- * No PlanFeatureGuard yet — see ChartOfAccountsController's class
- * comment, same deliberate, tracked gap as every other module.
+ * PlanFeatureGuard (FEATURE_KEYS.ACCOUNTING) closes the long-flagged
+ * gap this comment used to describe — see ChartOfAccountsController's
+ * class comment. Every controller in this module carries it; Sales/
+ * Purchases/Inventory controllers do not yet (tracked, not forgotten).
  */
 @Module({
   imports: [SettingsModule],

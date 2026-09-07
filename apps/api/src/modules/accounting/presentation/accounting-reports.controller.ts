@@ -19,7 +19,10 @@ import { TenantConnectionManager } from '../../../shared/tenancy/tenant-connecti
 import { CurrentTenantSchema } from '../../../shared/auth/current-tenant-schema.decorator';
 import { JwtAuthGuard } from '../../../shared/auth/jwt-auth.guard';
 import { PermissionsGuard } from '../../../shared/auth/permissions.guard';
+import { PlanFeatureGuard } from '../../../shared/auth/plan-feature.guard';
 import { RequirePermissions } from '../../../shared/auth/require-permissions.decorator';
+import { RequireFeature } from '../../../shared/auth/require-feature.decorator';
+import { FEATURE_KEYS } from '../../../shared/plans/feature-catalog';
 import { AccountingReportsService } from '../application/services/accounting-reports.service';
 import { moneyToDto } from './money.mapper';
 
@@ -83,11 +86,12 @@ function balanceSheetToDto(report: BalanceSheetReport): BalanceSheetReportDto {
  * GET with query filters. See the terminology map in
  * claude/accounting-module-research.md.
  *
- * No PlanFeatureGuard yet — same deliberate, tracked gap as every other
- * module's controllers.
+ * Gated behind PlanFeatureGuard (FEATURE_KEYS.ACCOUNTING) — see
+ * ChartOfAccountsController's class comment.
  */
-@UseGuards(JwtAuthGuard, PermissionsGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard, PlanFeatureGuard)
 @RequirePermissions('accounting.manage')
+@RequireFeature(FEATURE_KEYS.ACCOUNTING)
 @Controller('accounting-reports')
 export class AccountingReportsController {
   constructor(

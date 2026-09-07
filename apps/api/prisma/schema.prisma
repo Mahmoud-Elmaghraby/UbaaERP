@@ -2,9 +2,11 @@
 // users. Owned by Prisma. Never used against a tenant schema — Kysely
 // handles those (see ../src/database/tenant/).
 //
-// Minimal at this stage: only what the Tenant Migration Runner and
-// Provisioning service need to function (CLAUDE.md §3). Full platform/plan/
-// signup modeling is explicitly out of scope for this task.
+// Plan/PlanFeature (added for PlanFeatureGuard, CLAUDE.md §2.8/§13's
+// long-flagged gap — see docs/claude-context/accounting-module-status.md)
+// is deliberately minimal: a plan is just a named set of feature keys, no
+// billing/pricing/subscription-lifecycle modeling at all. That remains
+// out of scope until a real commercial plan structure is decided.
 
 generator client {
   provider = "prisma-client-js"
@@ -19,12 +21,52 @@ model Tenant {
   id         String   @id @default(uuid())
   name       String
   schemaName String   @unique @map("schema_name")
+  // Nullable on purpose: a tenant with no plan assigned yet is treated as
+  // full-access by PlanResolverService (fail-open), not locked out — see
+  // that service's own comment. New tenants get the default "core" plan
+  // via provisionTenant(); existing/pre-plan tenants stay null until an
+  // admin assigns one explicitly.
+  planId     String?  @map("plan_id")
+  plan       Plan?    @relation(fields: [planId], references: [id])
   createdAt  DateTime @default(now()) @map("created_at")
   updatedAt  DateTime @updatedAt @map("updated_at")
 
   migrationFailures MigrationFailure[]
 
   @@map("tenants")
+}
+
+/**
+ * A named, admin-managed set of feature keys (see
+ * apps/api/src/shared/plans/feature-catalog.ts for the actual key
+ * catalog and what each one gates). Deliberately just a label + a set
+ * of keys — no price, billing cycle, or seat count modeling here.
+ */
+model Plan {
+  id        String        @id @default(uuid())
+  key       String        @unique
+  name      String
+  features  PlanFeature[]
+  tenants   Tenant[]
+  createdAt DateTime      @default(now()) @map("created_at")
+  updatedAt DateTime      @updatedAt @map("updated_at")
+
+  @@map("plans")
+}
+
+/** One (plan, featureKey) grant. featureKey is a plain string, not an
+ * enum — see feature-catalog.ts's own comment on why (mirrors how
+ * Permission keys work: a fixed catalog enforced in application code,
+ * not a DB-level enum that would need a migration for every new key). */
+model PlanFeature {
+  id         String   @id @default(uuid())
+  planId     String   @map("plan_id")
+  plan       Plan     @relation(fields: [planId], references: [id])
+  featureKey String   @map("feature_key")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@unique([planId, featureKey])
+  @@map("plan_features")
 }
 
 // Tenant migration failure tracking (CLAUDE.md §3 [مستقر]).

@@ -15,15 +15,19 @@ import { CurrentUser } from '../../../shared/auth/current-user.decorator';
 import type { JwtAccessPayload } from '../../../shared/auth/jwt-payload.type';
 import { JwtAuthGuard } from '../../../shared/auth/jwt-auth.guard';
 import { PermissionsGuard } from '../../../shared/auth/permissions.guard';
+import { PlanFeatureGuard } from '../../../shared/auth/plan-feature.guard';
 import { RequirePermissions } from '../../../shared/auth/require-permissions.decorator';
+import { RequireFeature } from '../../../shared/auth/require-feature.decorator';
+import { FEATURE_KEYS } from '../../../shared/plans/feature-catalog';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 import { FiscalYearsService } from '../application/services/fiscal-years.service';
 import { AccountingPeriodsService } from '../application/services/accounting-periods.service';
 import { AccountingEventPublisher } from '../infrastructure/events/accounting-event-publisher';
 
-/** No PlanFeatureGuard yet — see ChartOfAccountsController's class comment. */
-@UseGuards(JwtAuthGuard, PermissionsGuard)
+/** Gated behind PlanFeatureGuard (FEATURE_KEYS.ACCOUNTING) — see ChartOfAccountsController's class comment. */
+@UseGuards(JwtAuthGuard, PermissionsGuard, PlanFeatureGuard)
 @RequirePermissions('accounting.manage')
+@RequireFeature(FEATURE_KEYS.ACCOUNTING)
 @Controller('fiscal-years')
 export class FiscalYearsController {
   constructor(

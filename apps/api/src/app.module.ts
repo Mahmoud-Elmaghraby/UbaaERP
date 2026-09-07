@@ -7,6 +7,7 @@ import { OutboxModule } from './shared/outbox/outbox.module';
 import { SecretsEncryptionModule } from './shared/crypto/secrets-encryption.module';
 import { AuthInfraModule } from './shared/auth/auth-infra.module';
 import { EmailModule } from './shared/email/email.module';
+import { PlansModule } from './shared/plans/plans.module';
 import { HealthController } from './shared/health/health.controller';
 import { SettingsModule } from './modules/settings/settings.module';
 import { UsersPermissionsModule } from './modules/users-permissions/users-permissions.module';
@@ -49,6 +50,7 @@ import { AccountingModule } from './modules/accounting/accounting.module';
     SecretsEncryptionModule,
     AuthInfraModule,
     EmailModule,
+    PlansModule,
     SettingsModule,
     UsersPermissionsModule,
     InventoryModule,

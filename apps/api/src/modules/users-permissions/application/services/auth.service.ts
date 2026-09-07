@@ -14,6 +14,7 @@ import {
   type AccountActionTokenRepository,
 } from '../ports/account-action-token.repository';
 import { TwoFactorService } from './two-factor.service';
+import { PlanResolverService } from '../../../../shared/plans/plan-resolver.service';
 import { AuthenticationError } from '../errors';
 
 const REFRESH_TOKEN_TTL_DAYS = Number(process.env.JWT_REFRESH_TTL_DAYS ?? 30);
@@ -66,6 +67,7 @@ export class AuthService {
     @Inject(AUDIT_LOG_REPOSITORY) private readonly auditLogs: AuditLogRepository,
     @Inject(ACCOUNT_ACTION_TOKEN_REPOSITORY) private readonly actionTokens: AccountActionTokenRepository,
     private readonly twoFactor: TwoFactorService,
+    private readonly plans: PlanResolverService,
   ) {}
 
   async login(
@@ -216,10 +218,13 @@ export class AuthService {
     userId: string,
     roleId: string,
   ): Promise<{ accessToken: string; refreshToken: string }> {
-    const role = await this.roles.findById(db, roleId);
+    const [role, features] = await Promise.all([
+      this.roles.findById(db, roleId),
+      this.plans.resolveFeatureKeysForSchema(schema),
+    ]);
     const permissions = role?.permissionKeys ?? [];
 
-    const payload: JwtAccessPayload = { sub: userId, schema, roleId, permissions };
+    const payload: JwtAccessPayload = { sub: userId, schema, roleId, permissions, features };
     const accessToken = this.jwtService.sign(payload);
 
     const refreshToken = randomBytes(REFRESH_TOKEN_BYTES).toString('hex');
