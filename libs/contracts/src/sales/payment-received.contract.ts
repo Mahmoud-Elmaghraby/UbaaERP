@@ -27,6 +27,8 @@ export const paymentReceivedSchema = z.object({
   amount: moneySchema,
   notes: z.string().nullable(),
   customFields: z.record(z.unknown()),
+  /** Migration 0060 — set when this payment was recorded within a POS cash session (Stage 3 checkout); read-only, never accepted on create. */
+  posSessionId: z.string().uuid().nullable(),
   createdAt: z.coerce.date(),
   updatedAt: z.coerce.date(),
 });

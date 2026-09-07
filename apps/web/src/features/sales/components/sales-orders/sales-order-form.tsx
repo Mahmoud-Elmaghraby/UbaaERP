@@ -54,6 +54,7 @@ import {
   SalesOrderLineItemsEditor,
   type SalesOrderLineDraft,
 } from './sales-order-line-items-editor';
+import { createEmptyDiscountDraft, DiscountFields, discountDraftFromDto, resolveDiscountInput, type DiscountDraft } from '../../lib/discount-fields';
 
 const SALES_ORDER_ENTITY_TYPE = 'sales_order';
 
@@ -69,11 +70,14 @@ function prepareLines(lines: SalesOrderLineDraft[], currency: string): CreateSal
     } catch {
       return null;
     }
+    const resolvedDiscount = resolveDiscountInput(line.discount, currency);
+    if (resolvedDiscount === 'invalid') return null;
     prepared.push({
       productVariantId: line.productVariantId,
       quantity,
       unitPrice: { amountMinorUnits, currency },
       notes: line.notes.trim() === '' ? undefined : line.notes,
+      ...resolvedDiscount,
     });
   }
   return prepared;
@@ -118,13 +122,23 @@ export function CreateSalesOrderFromQuotationForm({ onDone }: { onDone: () => vo
 
   const selectedQuotationId = form.watch('sourceQuotationId');
   const { data: quotationDetails, isLoading: quotationLoading } = useQuotation(selectedQuotationId);
+  const currency = quotationDetails?.lines[0]?.unitPrice.currency ?? 'SAR';
+  const [discountDraft, setDiscountDraft] = useState<DiscountDraft>(() => createEmptyDiscountDraft());
+  const [discountError, setDiscountError] = useState<string | null>(null);
 
   async function onSubmit(values: FromQuotationHeaderValues) {
+    setDiscountError(null);
+    const resolvedDiscount = resolveDiscountInput(discountDraft, currency);
+    if (resolvedDiscount === 'invalid') {
+      setDiscountError(t('sales.salesOrders.discountError'));
+      return;
+    }
     try {
       await createOrder.mutateAsync({
         sourceQuotationId: values.sourceQuotationId,
         notes: values.notes,
         customFields: values.customFields,
+        ...resolvedDiscount,
       });
       toast.success(t('sales.salesOrders.createSuccess'));
       onDone();
@@ -181,6 +195,11 @@ export function CreateSalesOrderFromQuotationForm({ onDone }: { onDone: () => vo
             </FormItem>
           )}
         />
+
+        <Separator />
+        <p className="text-sm font-medium text-muted-foreground">{t('sales.salesOrders.discountSectionTitle')}</p>
+        <DiscountFields value={discountDraft} onChange={setDiscountDraft} currency={currency} />
+        {discountError ? <p className="text-sm text-destructive">{discountError}</p> : null}
 
         <Separator />
         <p className="text-sm font-medium text-muted-foreground">{t('sales.salesOrders.linesPreview')}</p>
@@ -267,12 +286,20 @@ export function CreateSalesOrderManualForm({ onDone }: { onDone: () => void }) {
 
   const selectedCustomerId = form.watch('customerId');
   const currency = customers?.find((c) => c.id === selectedCustomerId)?.defaultCurrency ?? 'SAR';
+  const [discountDraft, setDiscountDraft] = useState<DiscountDraft>(() => createEmptyDiscountDraft());
+  const [discountError, setDiscountError] = useState<string | null>(null);
 
   async function onSubmit(headerValues: ManualHeaderValues) {
     setLinesError(null);
+    setDiscountError(null);
     const preparedLines = prepareLines(lines, currency);
     if (!preparedLines) {
       setLinesError(t('sales.salesOrders.linesError'));
+      return;
+    }
+    const resolvedDiscount = resolveDiscountInput(discountDraft, currency);
+    if (resolvedDiscount === 'invalid') {
+      setDiscountError(t('sales.salesOrders.discountError'));
       return;
     }
     try {
@@ -281,6 +308,7 @@ export function CreateSalesOrderManualForm({ onDone }: { onDone: () => void }) {
         notes: headerValues.notes,
         customFields: headerValues.customFields,
         lines: preparedLines,
+        ...resolvedDiscount,
       });
       toast.success(t('sales.salesOrders.createSuccess'));
       onDone();
@@ -333,6 +361,11 @@ export function CreateSalesOrderManualForm({ onDone }: { onDone: () => void }) {
             </FormItem>
           )}
         />
+
+        <Separator />
+        <p className="text-sm font-medium text-muted-foreground">{t('sales.salesOrders.discountSectionTitle')}</p>
+        <DiscountFields value={discountDraft} onChange={setDiscountDraft} currency={currency} />
+        {discountError ? <p className="text-sm text-destructive">{discountError}</p> : null}
 
         <Separator />
         <p className="text-sm font-medium text-muted-foreground">{t('sales.salesOrders.lines')}</p>
@@ -396,10 +429,13 @@ export function EditSalesOrderForm({
           quantity: String(line.quantity),
           unitPrice: minorUnitsToDecimalString(line.unitPrice.amountMinorUnits),
           notes: line.notes ?? '',
+          discount: discountDraftFromDto(line),
         }))
       : [createEmptySalesOrderLine()],
   );
   const [linesError, setLinesError] = useState<string | null>(null);
+  const [discountDraft, setDiscountDraft] = useState<DiscountDraft>(() => discountDraftFromDto(order));
+  const [discountError, setDiscountError] = useState<string | null>(null);
 
   const currency =
     order.lines[0]?.unitPrice.currency ?? customers?.find((c) => c.id === order.customerId)?.defaultCurrency ?? 'SAR';
@@ -420,9 +456,15 @@ export function EditSalesOrderForm({
 
   async function onSubmit(headerValues: Omit<UpdateSalesOrderDto, 'lines'>) {
     setLinesError(null);
+    setDiscountError(null);
     const preparedLines = prepareLines(lines, currency);
     if (!preparedLines) {
       setLinesError(t('sales.salesOrders.linesError'));
+      return;
+    }
+    const resolvedDiscount = resolveDiscountInput(discountDraft, currency);
+    if (resolvedDiscount === 'invalid') {
+      setDiscountError(t('sales.salesOrders.discountError'));
       return;
     }
     try {
@@ -430,6 +472,7 @@ export function EditSalesOrderForm({
         id: order.id,
         input: {
           ...headerValues,
+          ...resolvedDiscount,
           lines: preparedLines,
         },
       });
@@ -460,6 +503,11 @@ export function EditSalesOrderForm({
             </FormItem>
           )}
         />
+
+        <Separator />
+        <p className="text-sm font-medium text-muted-foreground">{t('sales.salesOrders.discountSectionTitle')}</p>
+        <DiscountFields value={discountDraft} onChange={setDiscountDraft} currency={currency} />
+        {discountError ? <p className="text-sm text-destructive">{discountError}</p> : null}
 
         <Separator />
         <p className="text-sm font-medium text-muted-foreground">{t('sales.salesOrders.lines')}</p>

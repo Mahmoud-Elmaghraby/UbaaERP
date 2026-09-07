@@ -9,6 +9,7 @@ import type { PrismaClient } from '@prisma/client';
 import { assertValidSchemaName } from './kysely-client';
 import { applyPendingMigrationsForTenant } from './migration-runner.service';
 import { seedOwnerUser } from './owner-seed';
+import { seedWalkInCustomer } from './walk-in-customer-seed';
 
 /**
  * Tenant Provisioning (CLAUDE.md §3 [مستقر]).
@@ -102,6 +103,12 @@ export async function provisionTenant(
     });
     console.log(`[provisioning] seeded Owner user "${input.owner.email}" for "${input.schemaName}"`);
   }
+
+  // POS feature Stage 2 (claude/sales-pos-research.md): every tenant gets
+  // a system-default Walk-in Customer, regardless of whether an owner was
+  // provided — unlike the owner, there's no meaningful "skip this" case.
+  await seedWalkInCustomer(databaseUrl, input.schemaName);
+  console.log(`[provisioning] seeded Walk-in Customer for "${input.schemaName}"`);
 
   console.log(`[provisioning] tenant "${input.schemaName}" (${tenant.id}) fully provisioned`);
   return { id: tenant.id, name: tenant.name, schemaName: tenant.schemaName };

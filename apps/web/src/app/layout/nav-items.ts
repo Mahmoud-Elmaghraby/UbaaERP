@@ -12,6 +12,7 @@ export interface NavItem {
 
 export const NAV_ITEMS: NavItem[] = [
   { to: '/settings', labelKey: 'nav.settings', permission: 'settings.manage' },
+  { to: '/pos', labelKey: 'nav.pos', permission: 'sales.manage' },
   {
     to: '/inventory',
     labelKey: 'nav.inventory',

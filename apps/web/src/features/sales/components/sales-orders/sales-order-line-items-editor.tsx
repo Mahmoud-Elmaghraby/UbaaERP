@@ -18,6 +18,7 @@ import {
 } from '@erp-platform/ui';
 
 import { useProductsWithVariants } from '../../../inventory/api/products/queries';
+import { createEmptyDiscountDraft, DiscountDraft } from '../../lib/discount-fields';
 
 export interface SalesOrderLineDraft {
   key: string;
@@ -27,12 +28,21 @@ export interface SalesOrderLineDraft {
    * on submit, same convention as Quotations'/Purchase Orders' line editors. */
   unitPrice: string;
   notes: string;
+  /** POS feature Stage 2/4 — this line's own discount, independent of the order's header discount. */
+  discount: DiscountDraft;
 }
 
 let nextKey = 0;
 export function createEmptySalesOrderLine(): SalesOrderLineDraft {
   nextKey += 1;
-  return { key: `new-${nextKey}`, productVariantId: undefined, quantity: '', unitPrice: '', notes: '' };
+  return {
+    key: `new-${nextKey}`,
+    productVariantId: undefined,
+    quantity: '',
+    unitPrice: '',
+    notes: '',
+    discount: createEmptyDiscountDraft(),
+  };
 }
 
 /**
@@ -87,6 +97,7 @@ export function SalesOrderLineItemsEditor({
               <TableHead>{t('sales.salesOrders.lineProduct')}</TableHead>
               <TableHead className="w-28">{t('sales.salesOrders.lineQuantity')}</TableHead>
               <TableHead className="w-36">{t('sales.salesOrders.lineUnitPrice', { currency })}</TableHead>
+              <TableHead className="w-40">{t('sales.salesOrders.lineDiscount')}</TableHead>
               <TableHead>{t('sales.salesOrders.lineNotes')}</TableHead>
               <TableHead className="w-10" />
             </TableRow>
@@ -128,6 +139,53 @@ export function SalesOrderLineItemsEditor({
                     value={line.unitPrice}
                     onChange={(e) => updateLine(line.key, { unitPrice: e.target.value })}
                   />
+                </TableCell>
+                <TableCell>
+                  <div className="grid gap-1">
+                    <Select
+                      value={line.discount.discountType}
+                      onValueChange={(next) =>
+                        updateLine(line.key, {
+                          discount: { ...line.discount, discountType: next as SalesOrderLineDraft['discount']['discountType'] },
+                        })
+                      }
+                    >
+                      <SelectTrigger className="h-8">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">{t('sales.salesOrders.discountTypeNone')}</SelectItem>
+                        <SelectItem value="percentage">{t('sales.salesOrders.discountTypePercentage')}</SelectItem>
+                        <SelectItem value="fixed">{t('sales.salesOrders.discountTypeFixed')}</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {line.discount.discountType === 'percentage' ? (
+                      <Input
+                        type="number"
+                        min={0}
+                        max={100}
+                        step="any"
+                        inputMode="decimal"
+                        placeholder="%"
+                        className="h-8"
+                        value={line.discount.discountPercentage}
+                        onChange={(e) =>
+                          updateLine(line.key, { discount: { ...line.discount, discountPercentage: e.target.value } })
+                        }
+                      />
+                    ) : null}
+                    {line.discount.discountType === 'fixed' ? (
+                      <Input
+                        inputMode="decimal"
+                        placeholder="0.00"
+                        className="h-8"
+                        value={line.discount.discountFixedAmount}
+                        onChange={(e) =>
+                          updateLine(line.key, { discount: { ...line.discount, discountFixedAmount: e.target.value } })
+                        }
+                      />
+                    ) : null}
+                  </div>
                 </TableCell>
                 <TableCell>
                   <Input value={line.notes} onChange={(e) => updateLine(line.key, { notes: e.target.value })} />

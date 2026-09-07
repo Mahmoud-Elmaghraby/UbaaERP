@@ -1,6 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import type { Kysely } from 'kysely';
 import type { TenantDatabase } from '../../../../database/tenant/kysely-client';
+import { withTransaction } from '../../../../database/tenant/transaction.util';
 import {
   PAYMENT_RECEIVED_REPOSITORY,
   type PaymentReceivedRepository,
@@ -197,7 +198,7 @@ export class PaymentsReceivedService {
     await this.validateAllocations(db, input.customerId, input.amount.currency, input.amount, allocationInputs);
 
     try {
-      return await db.transaction().execute(async (trx) => {
+      return await withTransaction(db, async (trx) => {
         const allocated = await this.numberingSequences.allocateNext(trx, 'payment_received', null);
 
         const payment = await this.payments.create(trx, {
@@ -209,6 +210,7 @@ export class PaymentsReceivedService {
           amount: input.amount,
           notes: input.notes ?? null,
           customFields: input.customFields ?? {},
+          posSessionId: input.posSessionId ?? null,
         });
 
         const createdAllocations = [];
@@ -273,7 +275,7 @@ export class PaymentsReceivedService {
       allocations.map((a) => ({ salesInvoiceId: a.salesInvoiceId, allocatedAmount: a.allocatedAmount })),
     );
 
-    return db.transaction().execute(async (trx) => {
+    return withTransaction(db, async (trx) => {
       const updated = await this.payments.updateStatus(trx, id, 'posted');
       if (!updated) throw new NotFoundError(`Payment "${id}" not found.`);
 

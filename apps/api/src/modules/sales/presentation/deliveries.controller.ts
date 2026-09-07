@@ -23,7 +23,7 @@ function deliveryToDto(delivery: Delivery): DeliveryDto {
   return deliverySchema.parse(delivery);
 }
 
-function deliveryWithLinesToDto(delivery: DeliveryWithLines): DeliveryWithLinesDto {
+export function deliveryWithLinesToDto(delivery: DeliveryWithLines): DeliveryWithLinesDto {
   return deliveryWithLinesSchema.parse(delivery);
 }
 

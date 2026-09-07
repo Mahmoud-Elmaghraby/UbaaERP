@@ -1,6 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import type { Kysely } from 'kysely';
 import type { TenantDatabase } from '../../../../database/tenant/kysely-client';
+import { withTransaction } from '../../../../database/tenant/transaction.util';
 import {
   SALES_INVOICE_REPOSITORY,
   type SalesInvoiceRepository,
@@ -133,7 +134,7 @@ export class SalesInvoicesService {
     }
 
     try {
-      return await db.transaction().execute(async (trx) => {
+      return await withTransaction(db, async (trx) => {
         const allocated = await this.numberingSequences.allocateNext(trx, 'sales_invoice', null);
 
         const invoice = await this.invoices.create(trx, {
@@ -206,7 +207,7 @@ export class SalesInvoicesService {
     }
     const totalAmount = calculateSalesInvoiceTotal(lines);
 
-    return db.transaction().execute(async (trx) => {
+    return withTransaction(db, async (trx) => {
       const updated = await this.invoices.updateStatus(trx, id, 'posted');
       if (!updated) throw new NotFoundError(`Sales invoice "${id}" not found.`);
 

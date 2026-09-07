@@ -1,6 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import type { Kysely } from 'kysely';
 import type { TenantDatabase } from '../../../../database/tenant/kysely-client';
+import { withTransaction } from '../../../../database/tenant/transaction.util';
 import { DELIVERY_REPOSITORY, type DeliveryRepository } from '../ports/delivery.repository';
 import { DELIVERY_LINE_REPOSITORY, type DeliveryLineRepository } from '../ports/delivery-line.repository';
 import { SALES_ORDER_REPOSITORY, type SalesOrderRepository } from '../ports/sales-order.repository';
@@ -98,7 +99,7 @@ export class DeliveriesService {
     }
 
     try {
-      return await db.transaction().execute(async (trx) => {
+      return await withTransaction(db, async (trx) => {
         const allocated = await this.numberingSequences.allocateNext(trx, 'delivery', null);
 
         const delivery = await this.deliveries.create(trx, {
@@ -193,7 +194,7 @@ export class DeliveriesService {
       );
     }
 
-    return db.transaction().execute(async (trx) => {
+    return withTransaction(db, async (trx) => {
       const updated = await this.deliveries.updateStatus(trx, id, 'confirmed');
       if (!updated) throw new NotFoundError(`Delivery "${id}" not found.`);
       const lines = await this.lines.listByDeliveryId(trx, id);

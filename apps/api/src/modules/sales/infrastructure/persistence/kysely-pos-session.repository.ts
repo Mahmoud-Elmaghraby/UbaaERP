@@ -12,6 +12,7 @@ function toDomain(row: Selectable<PosSessionsTable>): PosSession {
     cashierUserId: row.cashier_user_id,
     status: row.status as PosSessionStatus,
     openingCashAmount: Money.fromMinorUnits(BigInt(row.opening_cash_amount), currency),
+    warehouseId: row.warehouse_id,
     expectedCashAmount: row.expected_cash_amount === null ? null : Money.fromMinorUnits(BigInt(row.expected_cash_amount), currency),
     countedCashAmount: row.counted_cash_amount === null ? null : Money.fromMinorUnits(BigInt(row.counted_cash_amount), currency),
     varianceAmount: row.variance_amount === null ? null : Money.fromMinorUnits(BigInt(row.variance_amount), currency),
@@ -58,6 +59,37 @@ export class KyselyPosSessionRepository implements PosSessionRepository {
     return row?.total ?? null;
   }
 
+  async sumTendersByMethodForSession(
+    db: Kysely<TenantDatabase>,
+    sessionId: string,
+  ): Promise<{ paymentMethod: string; totalMinorUnits: string }[]> {
+    const rows = await db
+      .selectFrom('payments_received')
+      .select((eb) => ['payment_method', eb.fn.sum<string>('amount_amount').as('total')])
+      .where('pos_session_id', '=', sessionId)
+      .where('status', '=', 'posted')
+      .groupBy('payment_method')
+      .execute();
+    return rows.map((row) => ({ paymentMethod: row.payment_method, totalMinorUnits: row.total }));
+  }
+
+  async countAndSumSalesForSession(
+    db: Kysely<TenantDatabase>,
+    sessionId: string,
+  ): Promise<{ salesCount: number; totalMinorUnits: string | null }> {
+    const row = await db
+      .selectFrom('payment_allocations')
+      .innerJoin('payments_received', 'payments_received.id', 'payment_allocations.payment_received_id')
+      .select((eb) => [
+        eb.fn.count<string>('payment_allocations.sales_invoice_id').distinct().as('sales_count'),
+        eb.fn.sum<string>('payment_allocations.allocated_amount_amount').as('total'),
+      ])
+      .where('payments_received.pos_session_id', '=', sessionId)
+      .where('payments_received.status', '=', 'posted')
+      .executeTakeFirst();
+    return { salesCount: row ? Number(row.sales_count) : 0, totalMinorUnits: row?.total ?? null };
+  }
+
   async create(db: Kysely<TenantDatabase>, input: OpenPosSessionInput): Promise<PosSession> {
     const row = await db
       .insertInto('pos_sessions')
@@ -67,6 +99,7 @@ export class KyselyPosSessionRepository implements PosSessionRepository {
         status: 'open',
         opening_cash_amount: input.openingCashAmount.toMinorUnits().toString(),
         currency: input.openingCashAmount.currency,
+        warehouse_id: input.warehouseId,
         notes: input.notes ?? null,
       })
       .returningAll()

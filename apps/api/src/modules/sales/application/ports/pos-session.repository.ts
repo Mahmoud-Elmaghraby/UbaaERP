@@ -24,6 +24,26 @@ export interface PosSessionRepository {
    * Stage 3's checkout orchestration exists, is always).
    */
   sumCashTendersForSession(db: Kysely<TenantDatabase>, sessionId: string): Promise<string | null>;
+  /**
+   * POS Stage 5 — one row per distinct `payment_method` value among this session's
+   * posted `payments_received` rows, with the SUM of `amount_amount` for that method.
+   * Methods with no tenders in this session simply don't appear (no zero-filled rows).
+   */
+  sumTendersByMethodForSession(
+    db: Kysely<TenantDatabase>,
+    sessionId: string,
+  ): Promise<{ paymentMethod: string; totalMinorUnits: string }[]>;
+  /**
+   * POS Stage 5 — via `payment_allocations` joined to this session's posted
+   * `payments_received` rows: `salesCount` is the number of DISTINCT sales invoices
+   * referenced (never the number of payment rows — a single split-tender checkout
+   * writes several payments for one sale), `totalMinorUnits` is the sum of their
+   * allocated amounts (null when the session has no sales yet).
+   */
+  countAndSumSalesForSession(
+    db: Kysely<TenantDatabase>,
+    sessionId: string,
+  ): Promise<{ salesCount: number; totalMinorUnits: string | null }>;
   create(db: Kysely<TenantDatabase>, input: OpenPosSessionInput): Promise<PosSession>;
   close(db: Kysely<TenantDatabase>, id: string, fields: ClosePosSessionFields): Promise<PosSession | null>;
 }

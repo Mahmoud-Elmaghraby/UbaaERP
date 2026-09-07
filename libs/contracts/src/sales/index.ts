@@ -8,3 +8,5 @@ export * from './payment-received.contract';
 export * from './sales-return.contract';
 export * from './sales-credit-note.contract';
 export * from './pos-session.contract';
+export * from './pos-sale.contract';
+export * from './pos-session-report.contract';

@@ -327,6 +327,8 @@ export interface CustomersTable {
   payment_terms_days: number | null;
   notes: string | null;
   is_active: boolean;
+  /** Migration 0063 — POS feature Stage 2's Walk-in Customer. At most one TRUE row per tenant (partial UNIQUE index). */
+  is_system_default: boolean;
   custom_fields: unknown;
   created_at: Generated<Date>;
   updated_at: Generated<Date>;
@@ -338,6 +340,12 @@ export interface SalesOrdersTable {
   customer_id: string;
   source_quotation_id: string | null;
   status: string;
+  /** Migration 0062 — POS feature Stage 2. Null for orders created before that migration. */
+  currency: string | null;
+  discount_type: string | null;
+  /** NUMERIC(6,3) — string in/out, same convention as TaxRulesTable.rate. */
+  discount_percentage: string | null;
+  discount_fixed_amount: string | null;
   notes: string | null;
   custom_fields: unknown;
   created_at: Generated<Date>;
@@ -351,6 +359,10 @@ export interface SalesOrderLinesTable {
   quantity: string;
   unit_price_amount: string;
   unit_price_currency: string;
+  /** Migration 0062 — POS feature Stage 2. */
+  discount_type: string | null;
+  discount_percentage: string | null;
+  discount_fixed_amount: string | null;
   notes: string | null;
   created_at: Generated<Date>;
 }
@@ -899,6 +911,8 @@ export interface PosSessionsTable {
   status: string;
   opening_cash_amount: string;
   currency: string;
+  /** Migration 0064 — POS feature Stage 3. Resolved once per session, at open time (see that migration's comment). */
+  warehouse_id: string | null;
   expected_cash_amount: string | null;
   counted_cash_amount: string | null;
   variance_amount: string | null;

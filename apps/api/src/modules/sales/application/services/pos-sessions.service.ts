@@ -8,8 +8,9 @@ import type {
   OpenPosSessionInput,
   PosSession,
   PosSessionFilters,
+  PosSessionReport,
 } from '../../domain/pos-session.entity';
-import { BusinessRuleError, NotFoundError } from '../errors';
+import { BusinessRuleError, NotFoundError, isPostgresForeignKeyViolation } from '../errors';
 import { OutboxWriterService } from '../../../../shared/outbox/application/services/outbox-writer.service';
 
 /**
@@ -69,7 +70,17 @@ export class PosSessionsService {
     if (input.openingCashAmount.isNegative()) {
       throw new BusinessRuleError('Opening cash amount cannot be negative.');
     }
-    return this.repository.create(db, input);
+    if (!input.warehouseId) {
+      throw new BusinessRuleError('A warehouse must be selected to open a POS session (Stage 3 checkout delivers stock from it).');
+    }
+    try {
+      return await this.repository.create(db, input);
+    } catch (err) {
+      if (isPostgresForeignKeyViolation(err)) {
+        throw new NotFoundError(`Warehouse "${input.warehouseId}" not found.`);
+      }
+      throw err;
+    }
   }
 
   /**
@@ -134,5 +145,58 @@ export class PosSessionsService {
 
       return closed;
     });
+  }
+
+  /**
+   * POS Stage 5 — X Report (session still 'open') / Z Report (session 'closed'), same
+   * computation and shape either way — see `PosSessionReport`'s own doc comment
+   * (pos-session.entity.ts) for exactly why and what differs between the two states.
+   */
+  async getReport(db: Kysely<TenantDatabase>, id: string): Promise<PosSessionReport> {
+    const session = await this.getById(db, id);
+    const currency = session.openingCashAmount.currency;
+
+    const [tenderTotals, salesTotals] = await Promise.all([
+      this.repository.sumTendersByMethodForSession(db, id),
+      this.repository.countAndSumSalesForSession(db, id),
+    ]);
+
+    const tendersByMethod = tenderTotals.map((row) => ({
+      paymentMethod: row.paymentMethod,
+      amount: Money.fromMinorUnits(BigInt(row.totalMinorUnits), currency),
+    }));
+    const totalSalesAmount = salesTotals.totalMinorUnits
+      ? Money.fromMinorUnits(BigInt(salesTotals.totalMinorUnits), currency)
+      : Money.zero(currency);
+
+    let expectedCashAmount: Money;
+    let countedCashAmount: Money | null;
+    let varianceAmount: Money | null;
+    if (session.status === 'closed') {
+      // A closed session's figures are stored, immutable historical facts (migration
+      // 0059's own comment) — never recomputed here, exactly like close() itself.
+      expectedCashAmount = session.expectedCashAmount ?? Money.zero(currency);
+      countedCashAmount = session.countedCashAmount;
+      varianceAmount = session.varianceAmount;
+    } else {
+      const cashTendersMinorUnits = await this.repository.sumCashTendersForSession(db, id);
+      const cashTendersMoney = cashTendersMinorUnits
+        ? Money.fromMinorUnits(BigInt(cashTendersMinorUnits), currency)
+        : Money.zero(currency);
+      expectedCashAmount = session.openingCashAmount.add(cashTendersMoney);
+      countedCashAmount = null;
+      varianceAmount = null;
+    }
+
+    return {
+      session,
+      salesCount: salesTotals.salesCount,
+      totalSalesAmount,
+      tendersByMethod,
+      expectedCashAmount,
+      countedCashAmount,
+      varianceAmount,
+      generatedAt: new Date(),
+    };
   }
 }

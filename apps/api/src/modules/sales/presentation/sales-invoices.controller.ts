@@ -24,7 +24,7 @@ function invoiceToDto(invoice: SalesInvoice): SalesInvoiceDto {
   return salesInvoiceSchema.parse(invoice);
 }
 
-function invoiceWithLinesToDto(invoice: SalesInvoiceWithLines): SalesInvoiceWithLinesDto {
+export function invoiceWithLinesToDto(invoice: SalesInvoiceWithLines): SalesInvoiceWithLinesDto {
   return salesInvoiceWithLinesSchema.parse({
     ...invoice,
     lines: invoice.lines.map((line) => ({ ...line, unitPrice: moneyToDto(line.unitPrice) })),

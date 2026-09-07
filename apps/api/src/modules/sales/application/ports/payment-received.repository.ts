@@ -16,6 +16,7 @@ export interface CreatePaymentReceivedRow {
   amount: Money;
   notes: string | null;
   customFields: Record<string, unknown>;
+  posSessionId: string | null;
 }
 
 export interface PaymentReceivedRepository {

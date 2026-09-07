@@ -12,7 +12,8 @@
     "logout": "تسجيل الخروج",
     "openMenu": "فتح القائمة",
     "sales": "المبيعات",
-    "accounting": "الحسابات"
+    "accounting": "الحسابات",
+    "pos": "نقطة البيع"
   },
   "auth": {
     "loginTitle": "تسجيل الدخول",
@@ -729,17 +730,27 @@
       "noEligibleQuotations": "لا توجد عروض أسعار مقبولة وغير مستخدمة بعد لإنشاء أمر بيع منها",
       "notes": "ملاحظات",
       "customFields": "حقول إضافية",
+      "subtotalAmount": "الإجمالي قبل الخصم",
       "totalAmount": "الإجمالي",
+      "discountSectionTitle": "الخصم",
+      "discountType": "نوع الخصم",
+      "discountTypeNone": "بدون خصم",
+      "discountTypePercentage": "نسبة مئوية",
+      "discountTypeFixed": "مبلغ ثابت",
+      "discountPercentage": "نسبة الخصم (%)",
+      "discountFixedAmount": "قيمة الخصم ({{currency}})",
       "lines": "البنود",
       "linesPreview": "معاينة البنود",
       "lineProduct": "المنتج",
       "lineQuantity": "الكمية",
       "lineUnitPrice": "سعر الوحدة ({{currency}})",
       "lineUnitPriceHeader": "سعر الوحدة",
+      "lineDiscount": "خصم البند",
       "lineNotes": "ملاحظات",
       "selectProduct": "اختر منتجًا",
       "addLine": "إضافة بند",
       "linesError": "يرجى إدخال بنود صحيحة (منتج وكمية وسعر لكل بند)",
+      "discountError": "قيمة الخصم غير صحيحة",
       "viewDetails": "عرض التفاصيل",
       "confirm": "تأكيد",
       "confirmSuccess": "تم تأكيد أمر البيع بنجاح",
@@ -1195,6 +1206,82 @@
       "deleteConfirm": "هل أنت متأكد من حذف هذا الحساب البنكي؟",
       "deleteSuccess": "تم حذف الحساب البنكي بنجاح",
       "deleteError": "تعذّر حذف الحساب البنكي"
+    }
+  },
+  "pos": {
+    "session": {
+      "open": "جلسة مفتوحة",
+      "closed": "جلسة مقفولة"
+    },
+    "openSession": {
+      "title": "فتح جلسة نقطة بيع",
+      "subtitle": "أدخل المستودع الذي سيتم البيع منه ومبلغ النقدية الافتتاحي لبدء جلستك",
+      "warehouse": "المستودع",
+      "openingCashAmount": "مبلغ النقدية الافتتاحي",
+      "currency": "العملة",
+      "notes": "ملاحظات",
+      "submit": "فتح الجلسة",
+      "amountError": "قيمة مبلغ النقدية الافتتاحي غير صحيحة",
+      "success": "تم فتح الجلسة بنجاح",
+      "error": "تعذّر فتح الجلسة"
+    },
+    "closeSession": {
+      "trigger": "إغلاق الجلسة",
+      "title": "إغلاق جلسة نقطة البيع",
+      "countedCashAmount": "المبلغ النقدي المعدود",
+      "notes": "ملاحظات",
+      "submit": "إغلاق الجلسة",
+      "amountError": "قيمة المبلغ المعدود غير صحيحة",
+      "success": "تم إغلاق الجلسة بنجاح",
+      "error": "تعذّر إغلاق الجلسة",
+      "expectedCashAmount": "المبلغ المتوقع",
+      "varianceAmount": "الفرق"
+    },
+    "cart": {
+      "searchTitle": "بحث عن منتج",
+      "searchPlaceholder": "ابحث بالاسم أو رمز الصنف (SKU) أو الباركود",
+      "title": "سلة البيع",
+      "empty": "لم تتم إضافة أي أصناف بعد",
+      "emptyError": "أضف صنفًا واحدًا على الأقل قبل إتمام البيع",
+      "lineError": "أدخل كمية وسعر وحدة صحيحين لكل صنف في السلة",
+      "lineTotal": "إجمالي البند"
+    },
+    "customer": {
+      "label": "العميل",
+      "walkIn": "عميل نقدي (افتراضي)"
+    },
+    "tenders": {
+      "title": "طرق الدفع",
+      "addTender": "إضافة طريقة دفع",
+      "amount": "المبلغ ({{currency}})",
+      "referenceNumber": "رقم المرجع",
+      "amountError": "أدخل مبلغًا صحيحًا أكبر من صفر لكل طريقة دفع",
+      "emptyError": "أضف طريقة دفع واحدة على الأقل",
+      "totalTendered": "إجمالي المدفوع",
+      "remainingDue": "المتبقي على العميل",
+      "changeDue": "الباقي للعميل"
+    },
+    "notes": "ملاحظات",
+    "checkout": {
+      "title": "إتمام البيع",
+      "submit": "إتمام البيع",
+      "success": "تم إتمام عملية البيع بنجاح",
+      "error": "تعذّر إتمام عملية البيع",
+      "lastSaleTitle": "آخر عملية بيع",
+      "invoiceNumber": "رقم الفاتورة",
+      "newSale": "عملية بيع جديدة"
+    },
+    "report": {
+      "trigger": "عرض التقرير",
+      "titleX": "تقرير الجلسة (X)",
+      "titleZ": "تقرير إغلاق الجلسة (Z)",
+      "salesCount": "عدد المبيعات",
+      "totalSalesAmount": "إجمالي المبيعات",
+      "tendersByMethodTitle": "التحصيل حسب طريقة الدفع",
+      "noTenders": "لا توجد مدفوعات مسجلة بعد",
+      "cashSummaryTitle": "ملخص النقدية",
+      "generatedAt": "تم إنشاء التقرير في",
+      "refresh": "تحديث"
     }
   }
 }

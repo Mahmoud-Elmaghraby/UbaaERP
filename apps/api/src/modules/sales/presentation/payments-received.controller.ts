@@ -26,7 +26,7 @@ function paymentToDto(payment: PaymentReceived): PaymentReceivedDto {
   return paymentReceivedSchema.parse({ ...payment, amount: moneyToDto(payment.amount) });
 }
 
-function paymentWithAllocationsToDto(
+export function paymentWithAllocationsToDto(
   payment: PaymentReceivedWithAllocations,
 ): PaymentReceivedWithAllocationsDto {
   return paymentReceivedWithAllocationsSchema.parse({

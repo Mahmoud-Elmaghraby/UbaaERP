@@ -14,6 +14,7 @@
     "db:provision": "ts-node -P tsconfig.json src/database/tenant/provisioning.service.ts",
     "db:migrate:retry": "ts-node -P tsconfig.json src/database/tenant/retry-failed-migrations.command.ts",
     "db:seed-owner": "ts-node -P tsconfig.json src/database/tenant/seed-owner.command.ts",
+    "db:seed-walk-in-customer": "ts-node -P tsconfig.json src/database/tenant/seed-walk-in-customer.command.ts",
     "test:unit": "jest --config jest.config.js --selectProjects unit",
     "test:integration": "jest --config jest.config.js --selectProjects integration",
     "test:e2e": "jest --config jest.config.js --selectProjects e2e"

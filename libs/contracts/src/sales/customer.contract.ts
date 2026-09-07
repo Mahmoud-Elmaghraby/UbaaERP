@@ -16,6 +16,8 @@ export const customerSchema = z.object({
   paymentTermsDays: z.number().int().nonnegative().nullable(),
   notes: z.string().nullable(),
   isActive: z.boolean(),
+  /** POS feature Stage 2 — read-only; never settable via createCustomerSchema/updateCustomerSchema. */
+  isSystemDefault: z.boolean(),
   customFields: z.record(z.unknown()),
   createdAt: z.coerce.date(),
   updatedAt: z.coerce.date(),

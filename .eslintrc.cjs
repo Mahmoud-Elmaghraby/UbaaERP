@@ -61,6 +61,7 @@ module.exports = {
       { type: 'sales-payments-received', pattern: 'apps/web/src/features/sales/components/payments-received/**' },
       { type: 'sales-sales-returns', pattern: 'apps/web/src/features/sales/components/sales-returns/**' },
       { type: 'sales-sales-credit-notes', pattern: 'apps/web/src/features/sales/components/sales-credit-notes/**' },
+      { type: 'sales-pos', pattern: 'apps/web/src/features/sales/components/pos/**' },
       { type: 'purchases-purchase-invoices', pattern: 'apps/web/src/features/purchases/components/purchase-invoices/**' },
       { type: 'accounting-chart-of-accounts', pattern: 'apps/web/src/features/accounting/components/chart-of-accounts/**' },
       { type: 'accounting-fiscal-years', pattern: 'apps/web/src/features/accounting/components/fiscal-years/**' },
@@ -109,6 +110,7 @@ module.exports = {
               'sales-payments-received',
               'sales-sales-returns',
               'sales-sales-credit-notes',
+              'sales-pos',
               'accounting-chart-of-accounts',
               'accounting-fiscal-years',
               'accounting-journal-entries',
@@ -147,6 +149,7 @@ module.exports = {
               'sales-payments-received',
               'sales-sales-returns',
               'sales-sales-credit-notes',
+              'sales-pos',
               'accounting-chart-of-accounts',
               'accounting-fiscal-years',
               'accounting-journal-entries',
@@ -294,6 +297,7 @@ module.exports = {
               'sales-payments-received',
               'sales-sales-returns',
               'sales-sales-credit-notes',
+              'sales-pos',
             ],
             message:
               "Sales: components/customers must not import another entity's components directly — share logic through api/<entity>, hooks/<entity>, or a shared file (e.g. lib/money.ts).",
@@ -308,6 +312,7 @@ module.exports = {
               'sales-payments-received',
               'sales-sales-returns',
               'sales-sales-credit-notes',
+              'sales-pos',
             ],
             message:
               "Sales: components/quotations must not import another entity's components directly — share logic through api/<entity>, hooks/<entity>, or a shared file (e.g. lib/money.ts).",
@@ -322,6 +327,7 @@ module.exports = {
               'sales-payments-received',
               'sales-sales-returns',
               'sales-sales-credit-notes',
+              'sales-pos',
             ],
             message:
               "Sales: components/sales-orders must not import another entity's components directly — share logic through api/<entity>, hooks/<entity>, or a shared file (e.g. lib/money.ts).",
@@ -336,6 +342,7 @@ module.exports = {
               'sales-payments-received',
               'sales-sales-returns',
               'sales-sales-credit-notes',
+              'sales-pos',
             ],
             message:
               "Sales: components/deliveries must not import another entity's components directly — share logic through api/<entity>, hooks/<entity>, or a shared file (e.g. lib/money.ts).",
@@ -350,6 +357,7 @@ module.exports = {
               'sales-payments-received',
               'sales-sales-returns',
               'sales-sales-credit-notes',
+              'sales-pos',
             ],
             message:
               "Sales: components/sales-invoices must not import another entity's components directly — share logic through api/<entity>, hooks/<entity>, or a shared file (e.g. lib/money.ts).",
@@ -364,6 +372,7 @@ module.exports = {
               'sales-sales-invoices',
               'sales-sales-returns',
               'sales-sales-credit-notes',
+              'sales-pos',
             ],
             message:
               "Sales: components/payments-received must not import another entity's components directly — share logic through api/<entity>, hooks/<entity>, or a shared file (e.g. lib/money.ts).",
@@ -378,6 +387,7 @@ module.exports = {
               'sales-sales-invoices',
               'sales-payments-received',
               'sales-sales-credit-notes',
+              'sales-pos',
             ],
             message:
               "Sales: components/sales-returns must not import another entity's components directly — share logic through api/<entity>, hooks/<entity>, or a shared file (e.g. lib/money.ts).",
@@ -392,9 +402,25 @@ module.exports = {
               'sales-sales-invoices',
               'sales-payments-received',
               'sales-sales-returns',
+              'sales-pos',
             ],
             message:
               "Sales: components/sales-credit-notes must not import another entity's components directly — share logic through api/<entity>, hooks/<entity>, or a shared file (e.g. lib/money.ts).",
+          },
+          {
+            from: ['sales-pos'],
+            disallow: [
+              'sales-customers',
+              'sales-quotations',
+              'sales-sales-orders',
+              'sales-deliveries',
+              'sales-sales-invoices',
+              'sales-payments-received',
+              'sales-sales-returns',
+              'sales-sales-credit-notes',
+            ],
+            message:
+              "Sales: components/pos must not import another entity's components directly — share logic through api/<entity>, hooks/<entity>, or a shared file (e.g. lib/money.ts).",
           },
           {
             from: ['accounting-chart-of-accounts'],

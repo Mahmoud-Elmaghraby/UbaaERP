@@ -3,7 +3,7 @@ import type { Kysely } from 'kysely';
 import type { TenantDatabase } from '../../../../database/tenant/kysely-client';
 import { CUSTOMER_REPOSITORY, type CustomerRepository } from '../ports/customer.repository';
 import type { Customer, CreateCustomerInput, UpdateCustomerInput } from '../../domain/customer.entity';
-import { ConflictError, NotFoundError, isPostgresUniqueViolation } from '../errors';
+import { BusinessRuleError, ConflictError, NotFoundError, isPostgresUniqueViolation } from '../errors';
 
 @Injectable()
 export class CustomersService {
@@ -43,7 +43,14 @@ export class CustomersService {
     }
   }
 
+  /** The system-default Walk-in Customer (POS feature Stage 2) can never be deleted — see its own field comment on Customer. */
   async delete(db: Kysely<TenantDatabase>, id: string): Promise<void> {
+    const existing = await this.getById(db, id);
+    if (existing.isSystemDefault) {
+      throw new BusinessRuleError(
+        `Customer "${existing.name}" is the system-default Walk-in Customer and cannot be deleted.`,
+      );
+    }
     const deleted = await this.repository.delete(db, id);
     if (!deleted) throw new NotFoundError(`Customer "${id}" not found.`);
   }

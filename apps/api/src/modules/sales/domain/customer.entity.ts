@@ -25,6 +25,14 @@ export interface Customer {
   paymentTermsDays: number | null;
   notes: string | null;
   isActive: boolean;
+  /**
+   * POS feature Stage 2 (claude/sales-pos-research.md) — marks the one
+   * "Walk-in / Cash Customer" row per tenant that POS defaults new sales
+   * to. Seeded by walk-in-customer-seed.ts, never settable through
+   * CreateCustomerInput/UpdateCustomerInput — deliberately absent from
+   * both. CustomersService.delete() rejects deleting one.
+   */
+  isSystemDefault: boolean;
   customFields: Record<string, unknown>;
   createdAt: Date;
   updatedAt: Date;

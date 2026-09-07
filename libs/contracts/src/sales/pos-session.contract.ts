@@ -9,6 +9,7 @@ export const posSessionSchema = z.object({
   cashierUserId: z.string().uuid(),
   status: posSessionStatusSchema,
   openingCashAmount: moneySchema,
+  warehouseId: z.string().uuid().nullable(),
   expectedCashAmount: moneySchema.nullable(),
   countedCashAmount: moneySchema.nullable(),
   varianceAmount: moneySchema.nullable(),
@@ -22,6 +23,7 @@ export type PosSessionDto = z.infer<typeof posSessionSchema>;
 
 export const openPosSessionSchema = z.object({
   openingCashAmount: moneySchema,
+  warehouseId: z.string().uuid(),
   notes: z.string().nullable().optional(),
 });
 export type OpenPosSessionDto = z.infer<typeof openPosSessionSchema>;

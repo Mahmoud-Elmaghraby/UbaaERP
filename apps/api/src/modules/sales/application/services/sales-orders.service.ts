@@ -1,6 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import type { Kysely } from 'kysely';
 import type { TenantDatabase } from '../../../../database/tenant/kysely-client';
+import { withTransaction } from '../../../../database/tenant/transaction.util';
 import { SALES_ORDER_REPOSITORY, type SalesOrderRepository } from '../ports/sales-order.repository';
 import {
   SALES_ORDER_LINE_REPOSITORY,
@@ -41,7 +42,8 @@ export class SalesOrdersService {
     const order = await this.orders.findById(db, id);
     if (!order) throw new NotFoundError(`Sales order "${id}" not found.`);
     const lines = await this.lines.listBySalesOrderId(db, id);
-    return { ...order, lines, totalAmount: calculateSalesOrderTotal(lines) };
+    const { subtotalAmount, totalAmount } = calculateSalesOrderTotal(order, lines);
+    return { ...order, lines, subtotalAmount, totalAmount };
   }
 
   /**
@@ -108,11 +110,26 @@ export class SalesOrdersService {
       );
     }
 
-    return db.transaction().execute(async (trx) => {
+    // Validate the discount inputs (percentage range, fixed-not-exceeding-gross,
+    // consistent discount currency) up front, against the ungenerated total —
+    // same "fail before writing anything" discipline as assertSingleCurrency
+    // above. Real ids aren't known yet, but calculateSalesOrderTotal() only
+    // needs amounts/discounts, so this is safe to run before the transaction.
+    try {
+      calculateSalesOrderTotal(input, lines);
+    } catch (err) {
+      throw new BusinessRuleError(err instanceof Error ? err.message : String(err));
+    }
+
+    return withTransaction(db, async (trx) => {
       const order = await this.orders.create(trx, {
         soNumber: allocated.formatted,
         customerId,
         sourceQuotationId: input.sourceQuotationId ?? null,
+        currency: lines[0].unitPrice.currency,
+        discountType: input.discountType ?? null,
+        discountPercentage: input.discountPercentage ?? null,
+        discountFixedAmount: input.discountFixedAmount ?? null,
         notes: input.notes ?? null,
         customFields: input.customFields ?? {},
       });
@@ -122,7 +139,8 @@ export class SalesOrdersService {
         createdLines.push(await this.lines.create(trx, order.id, line));
       }
 
-      return { ...order, lines: createdLines, totalAmount: calculateSalesOrderTotal(createdLines) };
+      const { subtotalAmount, totalAmount } = calculateSalesOrderTotal(order, createdLines);
+      return { ...order, lines: createdLines, subtotalAmount, totalAmount };
     });
   }
 
@@ -149,6 +167,9 @@ export class SalesOrdersService {
       const updated = await this.orders.update(trx, id, {
         notes: input.notes,
         customFields: input.customFields,
+        discountType: input.discountType,
+        discountPercentage: input.discountPercentage,
+        discountFixedAmount: input.discountFixedAmount,
       });
       if (!updated) throw new NotFoundError(`Sales order "${id}" not found.`);
 
@@ -159,7 +180,15 @@ export class SalesOrdersService {
         for (const line of input.lines) lines.push(await this.lines.create(trx, id, line));
       }
 
-      return { ...updated, lines, totalAmount: calculateSalesOrderTotal(lines) };
+      const totals = (() => {
+        try {
+          return calculateSalesOrderTotal(updated, lines);
+        } catch (err) {
+          throw new BusinessRuleError(err instanceof Error ? err.message : String(err));
+        }
+      })();
+
+      return { ...updated, lines, subtotalAmount: totals.subtotalAmount, totalAmount: totals.totalAmount };
     });
   }
 

@@ -46,6 +46,7 @@ import { PaymentsReceivedService } from './application/services/payments-receive
 import { SalesReturnsService } from './application/services/sales-returns.service';
 import { SalesCreditNotesService } from './application/services/sales-credit-notes.service';
 import { PosSessionsService } from './application/services/pos-sessions.service';
+import { PosSalesService } from './application/services/pos-sales.service';
 
 import { CustomersController } from './presentation/customers.controller';
 import { EtaCredentialsController } from './presentation/eta-credentials.controller';
@@ -118,15 +119,26 @@ import { SalesEventPublisher } from './infrastructure/events/sales-event-publish
  *     (CLAUDE.md §2.7), not a direct post-commit publish() call — see
  *     that service's own comment.
  *
- *  9. POS Cash Sessions (done, this pass) — Stage 1 of the POS feature
+ *  9. POS Cash Sessions (done) — Stage 1 of the POS feature
  *     (claude/sales-pos-research.md). The one genuinely new domain
  *     concept POS needs: open()/close() lifecycle, close() being a
  *     financial event (Outbox-backed, CLAUDE.md §2.7) whenever the
  *     counted-vs-expected variance is non-zero — consumed by
- *     AccountingAutoPostingListeners.handlePosSessionClosed(). Stages
- *     2 (discounts + Walk-in Customer) and 3 (checkout orchestration
- *     reusing Sales Order->Delivery->Invoice->Payment) are not built
- *     yet.
+ *     AccountingAutoPostingListeners.handlePosSessionClosed(). Stage 2
+ *     (discounts on Sales Order + Walk-in Customer provisioning) is
+ *     also done.
+ *
+ *  10. POS Checkout orchestration (done, this pass) — Stage 3.
+ *      PosSalesService.checkout() drives the existing Sales Order ->
+ *      Delivery -> Sales Invoice -> Payment(s) Received chain
+ *      atomically in one outer transaction (see that service's own
+ *      comment, and database/tenant/transaction.util.ts's
+ *      withTransaction() helper — needed because Kysely 0.29.5 does
+ *      not support calling .transaction() on an already-active
+ *      Transaction). Every service method that chain calls now goes
+ *      through withTransaction() instead of a raw db.transaction()
+ *      call, so it stays a no-op change for every existing
+ *      single-step caller.
  *
  * Imports SettingsModule for NumberingSequencesService only (exported
  * narrowly there) — same treatment as PurchasesModule; see
@@ -181,6 +193,7 @@ import { SalesEventPublisher } from './infrastructure/events/sales-event-publish
     SalesReturnsService,
     SalesCreditNotesService,
     PosSessionsService,
+    PosSalesService,
     SalesEventPublisher,
   ],
 })

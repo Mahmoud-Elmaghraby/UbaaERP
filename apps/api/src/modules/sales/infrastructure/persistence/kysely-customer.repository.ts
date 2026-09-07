@@ -19,6 +19,7 @@ function toDomain(row: Selectable<CustomersTable>): Customer {
     paymentTermsDays: row.payment_terms_days,
     notes: row.notes,
     isActive: row.is_active,
+    isSystemDefault: row.is_system_default,
     customFields: (row.custom_fields ?? {}) as Record<string, unknown>,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -33,6 +34,11 @@ export class KyselyCustomerRepository implements CustomerRepository {
 
   async findById(db: Kysely<TenantDatabase>, id: string): Promise<Customer | null> {
     const row = await db.selectFrom('customers').selectAll().where('id', '=', id).executeTakeFirst();
+    return row ? toDomain(row) : null;
+  }
+
+  async findSystemDefault(db: Kysely<TenantDatabase>): Promise<Customer | null> {
+    const row = await db.selectFrom('customers').selectAll().where('is_system_default', '=', true).executeTakeFirst();
     return row ? toDomain(row) : null;
   }
 
@@ -53,6 +59,7 @@ export class KyselyCustomerRepository implements CustomerRepository {
         payment_terms_days: input.paymentTermsDays ?? null,
         notes: input.notes ?? null,
         is_active: input.isActive ?? true,
+        is_system_default: false,
         custom_fields: JSON.stringify(input.customFields ?? {}),
       })
       .returningAll()

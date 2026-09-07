@@ -3,11 +3,18 @@ import {
   posSessionSchema,
   openPosSessionSchema,
   closePosSessionSchema,
+  posCheckoutSchema,
+  posCheckoutResultSchema,
+  posSessionReportSchema,
   type PosSessionDto,
   type OpenPosSessionDto,
   type ClosePosSessionDto,
+  type PosCheckoutDto,
+  type PosCheckoutResultDto,
+  type PosSessionReportDto,
 } from '@erp-platform/contracts';
-import type { PosSession, PosSessionStatus } from '../domain/pos-session.entity';
+import type { PosSession, PosSessionReport, PosSessionStatus } from '../domain/pos-session.entity';
+import type { PosCheckoutResult } from '../domain/pos-sale.entity';
 import { TenantConnectionManager } from '../../../shared/tenancy/tenant-connection-manager';
 import { CurrentTenantSchema } from '../../../shared/auth/current-tenant-schema.decorator';
 import { CurrentUser } from '../../../shared/auth/current-user.decorator';
@@ -17,7 +24,12 @@ import { PermissionsGuard } from '../../../shared/auth/permissions.guard';
 import { RequirePermissions } from '../../../shared/auth/require-permissions.decorator';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 import { PosSessionsService } from '../application/services/pos-sessions.service';
+import { PosSalesService } from '../application/services/pos-sales.service';
 import { moneyFromDto, moneyToDto } from './money.mapper';
+import { orderWithLinesToDto } from './sales-orders.controller';
+import { deliveryWithLinesToDto } from './deliveries.controller';
+import { invoiceWithLinesToDto } from './sales-invoices.controller';
+import { paymentWithAllocationsToDto } from './payments-received.controller';
 
 function toDto(session: PosSession): PosSessionDto {
   return posSessionSchema.parse({
@@ -26,6 +38,31 @@ function toDto(session: PosSession): PosSessionDto {
     expectedCashAmount: session.expectedCashAmount ? moneyToDto(session.expectedCashAmount) : null,
     countedCashAmount: session.countedCashAmount ? moneyToDto(session.countedCashAmount) : null,
     varianceAmount: session.varianceAmount ? moneyToDto(session.varianceAmount) : null,
+  });
+}
+
+function checkoutResultToDto(result: PosCheckoutResult): PosCheckoutResultDto {
+  return posCheckoutResultSchema.parse({
+    salesOrder: orderWithLinesToDto(result.salesOrder),
+    delivery: deliveryWithLinesToDto(result.delivery),
+    salesInvoice: invoiceWithLinesToDto(result.salesInvoice),
+    payments: result.payments.map(paymentWithAllocationsToDto),
+  });
+}
+
+function reportToDto(report: PosSessionReport): PosSessionReportDto {
+  return posSessionReportSchema.parse({
+    session: toDto(report.session),
+    salesCount: report.salesCount,
+    totalSalesAmount: moneyToDto(report.totalSalesAmount),
+    tendersByMethod: report.tendersByMethod.map((t) => ({
+      paymentMethod: t.paymentMethod,
+      amount: moneyToDto(t.amount),
+    })),
+    expectedCashAmount: moneyToDto(report.expectedCashAmount),
+    countedCashAmount: report.countedCashAmount ? moneyToDto(report.countedCashAmount) : null,
+    varianceAmount: report.varianceAmount ? moneyToDto(report.varianceAmount) : null,
+    generatedAt: report.generatedAt,
   });
 }
 
@@ -46,6 +83,7 @@ function toDto(session: PosSession): PosSessionDto {
 export class PosSessionsController {
   constructor(
     private readonly service: PosSessionsService,
+    private readonly checkoutService: PosSalesService,
     private readonly connections: TenantConnectionManager,
   ) {}
 
@@ -88,6 +126,7 @@ export class PosSessionsController {
     const session = await this.service.open(db, {
       cashierUserId: user.sub,
       openingCashAmount: moneyFromDto(body.openingCashAmount),
+      warehouseId: body.warehouseId,
       notes: body.notes,
     });
     return toDto(session);
@@ -109,5 +148,63 @@ export class PosSessionsController {
       user.sub,
     );
     return toDto(session);
+  }
+
+  /**
+   * POS Stage 5 — X Report while the session is still 'open', Z Report once it's
+   * 'closed'; same endpoint, same shape either way (see PosSessionReport's own
+   * comment). Read-only — never mutates the session, safe to call any number of
+   * times during a shift.
+   */
+  @Get(':id/report')
+  async getReport(@CurrentTenantSchema() schema: string, @Param('id') id: string): Promise<PosSessionReportDto> {
+    const db = this.connections.getClient(schema);
+    const report = await this.service.getReport(db, id);
+    return reportToDto(report);
+  }
+
+  /**
+   * POS Stage 3 (claude/sales-pos-research.md §4). Orchestrates
+   * Sales Order → Delivery → Sales Invoice → Payment(s) Received
+   * atomically — see PosSalesService.checkout()'s own comment. Like
+   * open()/close(), never takes a customerId's absence as an error:
+   * omitting it resolves to the tenant's Walk-in Customer.
+   */
+  @Post(':id/checkout')
+  async checkout(
+    @CurrentTenantSchema() schema: string,
+    @CurrentUser() user: JwtAccessPayload,
+    @Param('id') id: string,
+    @Body(new ZodValidationPipe(posCheckoutSchema)) body: PosCheckoutDto,
+  ): Promise<PosCheckoutResultDto> {
+    const db = this.connections.getClient(schema);
+    const result = await this.checkoutService.checkout(
+      db,
+      id,
+      {
+        customerId: body.customerId,
+        lines: body.lines.map((line) => ({
+          productVariantId: line.productVariantId,
+          quantity: line.quantity,
+          unitPrice: moneyFromDto(line.unitPrice),
+          discountType: line.discountType,
+          discountPercentage: line.discountPercentage,
+          discountFixedAmount: line.discountFixedAmount ? moneyFromDto(line.discountFixedAmount) : line.discountFixedAmount,
+          notes: line.notes,
+        })),
+        discountType: body.discountType,
+        discountPercentage: body.discountPercentage,
+        discountFixedAmount: body.discountFixedAmount ? moneyFromDto(body.discountFixedAmount) : body.discountFixedAmount,
+        tenders: body.tenders.map((tender) => ({
+          paymentMethod: tender.paymentMethod,
+          amount: moneyFromDto(tender.amount),
+          referenceNumber: tender.referenceNumber,
+        })),
+        notes: body.notes,
+      },
+      schema,
+      user.sub,
+    );
+    return checkoutResultToDto(result);
   }
 }

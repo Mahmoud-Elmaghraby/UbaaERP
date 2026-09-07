@@ -22,6 +22,7 @@ const EtaCredentialsPage = lazy(() =>
 const SalesCreditNotesPage = lazy(() =>
   import('./components/sales-credit-notes').then((m) => ({ default: m.SalesCreditNotesPage })),
 );
+const PosPage = lazy(() => import('./components/pos').then((m) => ({ default: m.PosPage })));
 
 /**
  * Routes owned by the Sales module. Follows the same route-per-entity, lazy-loaded
@@ -54,4 +55,8 @@ export const salesRoutes: RouteObject[] = [
       { path: 'eta-credentials', element: <EtaCredentialsPage /> },
     ],
   },
+  // POS (Stage 4) is a standalone top-level screen, not a Sales sub-tab — a sibling
+  // route here rather than a child of the 'sales' group above, per its own standalone
+  // sidebar item (see nav-items.ts).
+  { path: 'pos', element: <PosPage /> },
 ];

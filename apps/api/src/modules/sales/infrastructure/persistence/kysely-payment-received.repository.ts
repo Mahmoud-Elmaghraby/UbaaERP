@@ -24,6 +24,7 @@ function toDomain(row: Selectable<PaymentsReceivedTable>): PaymentReceived {
     amount: Money.fromMinorUnits(BigInt(row.amount_amount), row.amount_currency),
     notes: row.notes,
     customFields: (row.custom_fields ?? {}) as Record<string, unknown>,
+    posSessionId: row.pos_session_id,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -65,6 +66,7 @@ export class KyselyPaymentReceivedRepository implements PaymentReceivedRepositor
         amount_currency: input.amount.currency,
         notes: input.notes,
         custom_fields: JSON.stringify(input.customFields ?? {}),
+        pos_session_id: input.posSessionId,
       })
       .returningAll()
       .executeTakeFirstOrThrow();

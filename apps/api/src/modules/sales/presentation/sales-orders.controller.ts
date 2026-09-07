@@ -23,13 +23,22 @@ import { SalesEventPublisher } from '../infrastructure/events/sales-event-publis
 import { moneyFromDto, moneyToDto } from './money.mapper';
 
 function orderToDto(order: SalesOrder): SalesOrderDto {
-  return salesOrderSchema.parse(order);
+  return salesOrderSchema.parse({
+    ...order,
+    discountFixedAmount: order.discountFixedAmount ? moneyToDto(order.discountFixedAmount) : null,
+  });
 }
 
-function orderWithLinesToDto(order: SalesOrderWithLines): SalesOrderWithLinesDto {
+export function orderWithLinesToDto(order: SalesOrderWithLines): SalesOrderWithLinesDto {
   return salesOrderWithLinesSchema.parse({
     ...order,
-    lines: order.lines.map((line) => ({ ...line, unitPrice: moneyToDto(line.unitPrice) })),
+    discountFixedAmount: order.discountFixedAmount ? moneyToDto(order.discountFixedAmount) : null,
+    lines: order.lines.map((line) => ({
+      ...line,
+      unitPrice: moneyToDto(line.unitPrice),
+      discountFixedAmount: line.discountFixedAmount ? moneyToDto(line.discountFixedAmount) : null,
+    })),
+    subtotalAmount: moneyToDto(order.subtotalAmount),
     totalAmount: moneyToDto(order.totalAmount),
   });
 }
@@ -71,7 +80,12 @@ export class SalesOrdersController {
     const db = this.connections.getClient(schema);
     const order = await this.service.create(db, {
       ...body,
-      lines: body.lines?.map((line) => ({ ...line, unitPrice: moneyFromDto(line.unitPrice) })),
+      discountFixedAmount: body.discountFixedAmount ? moneyFromDto(body.discountFixedAmount) : body.discountFixedAmount,
+      lines: body.lines?.map((line) => ({
+        ...line,
+        unitPrice: moneyFromDto(line.unitPrice),
+        discountFixedAmount: line.discountFixedAmount ? moneyFromDto(line.discountFixedAmount) : line.discountFixedAmount,
+      })),
     });
     this.events.publish('sales_order', 'created', { schema, entityId: order.id, actorUserId: user.sub });
     return orderWithLinesToDto(order);
@@ -87,7 +101,12 @@ export class SalesOrdersController {
     const db = this.connections.getClient(schema);
     const order = await this.service.update(db, id, {
       ...body,
-      lines: body.lines?.map((line) => ({ ...line, unitPrice: moneyFromDto(line.unitPrice) })),
+      discountFixedAmount: body.discountFixedAmount ? moneyFromDto(body.discountFixedAmount) : body.discountFixedAmount,
+      lines: body.lines?.map((line) => ({
+        ...line,
+        unitPrice: moneyFromDto(line.unitPrice),
+        discountFixedAmount: line.discountFixedAmount ? moneyFromDto(line.discountFixedAmount) : line.discountFixedAmount,
+      })),
     });
     this.events.publish('sales_order', 'updated', { schema, entityId: id, actorUserId: user.sub });
     return orderWithLinesToDto(order);
