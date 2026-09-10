@@ -19,6 +19,7 @@ import { NumberingSequencesService } from './application/services/numbering-sequ
 import { DocumentTemplatesService } from './application/services/document-templates.service';
 import { TaxRulesService } from './application/services/tax-rules.service';
 import { CustomFieldDefinitionsService } from './application/services/custom-field-definitions.service';
+import { FeatureTogglesService } from './application/services/feature-toggles.service';
 
 import { SettingsController } from './presentation/settings.controller';
 import { BranchesController } from './presentation/branches.controller';
@@ -26,6 +27,7 @@ import { NumberingSequencesController } from './presentation/numbering-sequences
 import { DocumentTemplatesController } from './presentation/document-templates.controller';
 import { TaxRulesController } from './presentation/tax-rules.controller';
 import { CustomFieldDefinitionsController } from './presentation/custom-field-definitions.controller';
+import { FeatureTogglesController } from './presentation/feature-toggles.controller';
 
 /**
  * Settings module (CLAUDE.md §10: step 1, alongside Users & Permissions).
@@ -35,6 +37,11 @@ import { CustomFieldDefinitionsController } from './presentation/custom-field-de
  *
  * TenantConnectionManager comes from the global TenancyModule (see
  * ../../shared/tenancy/tenancy.module.ts) — not re-provided here.
+ * FeatureTogglesService's two dependencies (TenantFeatureTogglesRepository,
+ * PlanResolverService) similarly come from the global PlansModule (see
+ * ../../shared/plans/plans.module.ts) — same treatment, not re-provided
+ * here either. FeatureTogglesController is the "Modules" tab: Layer 2 of
+ * claude/platform-flexibility-strategy.md.
  */
 @Module({
   controllers: [
@@ -44,6 +51,7 @@ import { CustomFieldDefinitionsController } from './presentation/custom-field-de
     DocumentTemplatesController,
     TaxRulesController,
     CustomFieldDefinitionsController,
+    FeatureTogglesController,
   ],
   providers: [
     { provide: TENANT_SETTINGS_REPOSITORY, useClass: KyselyTenantSettingsRepository },
@@ -58,6 +66,7 @@ import { CustomFieldDefinitionsController } from './presentation/custom-field-de
     DocumentTemplatesService,
     TaxRulesService,
     CustomFieldDefinitionsService,
+    FeatureTogglesService,
   ],
   // Exported narrowly, growing only as later modules actually need
   // something: NumberingSequencesService is the shared mechanism every

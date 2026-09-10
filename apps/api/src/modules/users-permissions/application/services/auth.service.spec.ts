@@ -11,6 +11,7 @@ import type { AccountActionToken } from '../../domain/account-action-token.entit
 import type { Role } from '../../domain/role.entity';
 import type { TwoFactorService } from './two-factor.service';
 import type { PlanResolverService } from '../../../../shared/plans/plan-resolver.service';
+import type { TenantFeatureTogglesRepository } from '../../../../shared/plans/tenant-feature-toggles.repository';
 import { ALL_FEATURE_KEYS } from '../../../../shared/plans/feature-catalog';
 import { AuthenticationError } from '../errors';
 import { AuthService, type MfaChallenge } from './auth.service';
@@ -60,6 +61,7 @@ describe('AuthService', () => {
   let actionTokens: jest.Mocked<AccountActionTokenRepository>;
   let twoFactor: jest.Mocked<TwoFactorService>;
   let plans: jest.Mocked<PlanResolverService>;
+  let featureToggles: jest.Mocked<TenantFeatureTogglesRepository>;
   let jwtService: JwtService;
   let service: AuthService;
 
@@ -85,11 +87,24 @@ describe('AuthService', () => {
     plans = {
       resolveFeatureKeysForSchema: jest.fn().mockResolvedValue(ALL_FEATURE_KEYS),
     } as unknown as jest.Mocked<PlanResolverService>;
+    featureToggles = {
+      listDisabledFeatureKeys: jest.fn().mockResolvedValue([]),
+    } as unknown as jest.Mocked<TenantFeatureTogglesRepository>;
     // A real JwtService (not a mock) — signing/verifying a real token is
     // the whole point of testing this service; only the repositories and
     // bcrypt are faked.
     jwtService = new JwtService({ secret: TEST_JWT_SECRET, signOptions: { expiresIn: '15m' } });
-    service = new AuthService(jwtService, users, roles, refreshTokens, auditLogs, actionTokens, twoFactor, plans);
+    service = new AuthService(
+      jwtService,
+      users,
+      roles,
+      refreshTokens,
+      auditLogs,
+      actionTokens,
+      twoFactor,
+      plans,
+      featureToggles,
+    );
   });
 
   describe('login()', () => {
@@ -237,6 +252,21 @@ describe('AuthService', () => {
         FAKE_DB,
         expect.objectContaining({ userId: 'user-1', action: 'auth.login', entityId: 'user-1' }),
       );
+    });
+
+    it('bakes the tenant\'s disabled feature keys (Layer 2 self-service toggles) into the access token', async () => {
+      users.findByEmailForAuth.mockResolvedValue(makeAuthUser());
+      (bcrypt.compare as jest.Mock).mockResolvedValue(true);
+      roles.findById.mockResolvedValue(makeRole());
+      featureToggles.listDisabledFeatureKeys.mockResolvedValue(['sales.quotations']);
+
+      const result = (await service.login(FAKE_DB, 'acme', 'owner@example.com', 'correct')) as Exclude<
+        Awaited<ReturnType<typeof service.login>>,
+        MfaChallenge
+      >;
+
+      const payload = jwtService.verify(result.accessToken, { secret: TEST_JWT_SECRET });
+      expect(payload.disabledFeatures).toEqual(['sales.quotations']);
     });
 
     it('signs in with zero permissions when the role has none (defensive default)', async () => {

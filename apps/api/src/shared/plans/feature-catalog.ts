@@ -7,17 +7,15 @@
  * just a new entry here + a migration to grant it to whichever Plan rows
  * need it, not a schema migration for the key itself.
  *
- * Only ACCOUNTING is actually enforced by a guard so far (wired onto
- * every Accounting controller this pass — CLAUDE.md §2.8/§13's
- * long-flagged gap, see docs/claude-context/accounting-module-status.md).
- * The Sales/Purchases document-step keys below are defined and already
- * granted to the default "core" plan (see seed-plans.command.ts) so a
- * later pass that wires PlanFeatureGuard onto those controllers doesn't
- * need a second migration just to add the keys — but nothing reads or
- * enforces them yet. Deliberately no key for Sales/Purchases Invoices:
- * per the platform-flexibility design (claude/platform-flexibility-
- * strategy.md), the invoice is the one mandatory document in each
- * chain and is never gate-able.
+ * Every key below is now actually enforced by PlanFeatureGuard
+ * (Accounting's 8 controllers, plus the 7 optional pre-invoice
+ * document-chain controllers in Sales/Purchases — CLAUDE.md §2.8/§13's
+ * long-flagged gap, see docs/claude-context/accounting-module-status.md
+ * and claude/platform-flexibility-strategy.md). Deliberately no key for
+ * Sales/Purchases Invoices: the invoice is the one mandatory document in
+ * each chain and is never gate-able. ALL_FEATURE_KEYS below doubles as
+ * the fixed set the Settings "Modules" tab (FeatureTogglesService, Layer
+ * 2 — self-service toggles on top of this Layer 1 ceiling) lists.
  */
 export const FEATURE_KEYS = {
   ACCOUNTING: 'accounting',

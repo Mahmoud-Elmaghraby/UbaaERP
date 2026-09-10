@@ -800,6 +800,7 @@ export interface TenantDatabase {
   cost_centers: CostCentersTable;
   bank_accounts: BankAccountsTable;
   pos_sessions: PosSessionsTable;
+  tenant_feature_toggles: TenantFeatureTogglesTable;
 }
 
 const SCHEMA_NAME_PATTERN = /^[a-z][a-z0-9_]*$/;
@@ -975,5 +976,15 @@ export interface BankAccountsTable {
   notes: string | null;
   custom_fields: unknown;
   created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
+/** Migration 0069 — Layer 2 of claude/platform-flexibility-strategy.md
+ * (tenant self-service module toggles, on top of Layer 1's Plan/
+ * PlanFeature ceiling in the public schema). No row for a key means
+ * "enabled" — see that migration's own comment. */
+export interface TenantFeatureTogglesTable {
+  feature_key: string;
+  enabled: boolean;
   updated_at: Generated<Date>;
 }
