@@ -128,7 +128,7 @@ import { SalesEventPublisher } from './infrastructure/events/sales-event-publish
  *     (discounts on Sales Order + Walk-in Customer provisioning) is
  *     also done.
  *
- *  10. POS Checkout orchestration (done, this pass) — Stage 3.
+ *  10. POS Checkout orchestration (done) — Stage 3.
  *      PosSalesService.checkout() drives the existing Sales Order ->
  *      Delivery -> Sales Invoice -> Payment(s) Received chain
  *      atomically in one outer transaction (see that service's own
@@ -139,6 +139,24 @@ import { SalesEventPublisher } from './infrastructure/events/sales-event-publish
  *      through withTransaction() instead of a raw db.transaction()
  *      call, so it stays a no-op change for every existing
  *      single-step caller.
+ *
+ *  11. Invoice-takeover orchestrator (done, this pass) —
+ *      claude/platform-flexibility-strategy.md's "قاعدة مين هيقوم
+ *      بالدور". Generalizes Stage 10's pattern beyond POS:
+ *      SalesInvoicesService.create() now accepts customerId +
+ *      directLines instead of salesOrderId (only when
+ *      SALES_SALES_ORDERS is not effectively enabled for the tenant —
+ *      FeatureAvailabilityService, shared/plans/), and, whenever
+ *      SALES_DELIVERIES is not effectively enabled, auto-creates and
+ *      confirms a matching Delivery for whatever quantity isn't
+ *      already covered by an existing one — same
+ *      "closest-still-active-document absorbs the disabled step" rule,
+ *      still inside the one invoice-creation transaction, still zero
+ *      duplicated business logic (reuses SalesOrdersService/
+ *      DeliveriesService's own create()/confirm()). Purchases' mirror
+ *      (RFQ/Supplier Quotations/Purchase Orders/Goods Receipts →
+ *      Purchase Invoice) is a deliberately separate, not-yet-started
+ *      follow-up pass.
  *
  * Imports SettingsModule for NumberingSequencesService only (exported
  * narrowly there) — same treatment as PurchasesModule; see

@@ -15,6 +15,7 @@ import {
   SALES_ORDER_LINE_REPOSITORY,
   type SalesOrderLineRepository,
 } from '../ports/sales-order-line.repository';
+import { DELIVERY_LINE_REPOSITORY, type DeliveryLineRepository } from '../ports/delivery-line.repository';
 import { Money } from '@erp-platform/shared-kernel';
 import {
   assertSingleCurrency,
@@ -23,9 +24,14 @@ import {
   type SalesInvoiceWithLines,
   type CreateSalesInvoiceInput,
 } from '../../domain/sales-invoice.entity';
+import type { SalesOrderLine } from '../../domain/sales-order.entity';
 import { BusinessRuleError, NotFoundError, isPostgresForeignKeyViolation } from '../errors';
 import { NumberingSequencesService } from '../../../settings/application/services/numbering-sequences.service';
 import { OutboxWriterService } from '../../../../shared/outbox/application/services/outbox-writer.service';
+import { FeatureAvailabilityService } from '../../../../shared/plans/feature-availability.service';
+import { FEATURE_KEYS } from '../../../../shared/plans/feature-catalog';
+import { SalesOrdersService } from './sales-orders.service';
+import { DeliveriesService } from './deliveries.service';
 
 /**
  * Sales Invoices (master doc §10, step 4 — Sales, Stage 5). This
@@ -46,19 +52,58 @@ import { OutboxWriterService } from '../../../../shared/outbox/application/servi
  * status-flip write to be atomic (CLAUDE.md §2.7).
  *
  * post() therefore needs `schema` and `actorUserId` as real parameters,
- * same deliberate exception as PurchaseInvoicesService.post() — every
- * other Sales service method only takes `db` plus domain input, because
- * only the controller layer has request context.
+ * same deliberate exception as PurchaseInvoicesService.post(). create()
+ * now needs them too — see "Invoice-takeover orchestrator" below.
+ *
+ * ## Invoice-takeover orchestrator (claude/platform-flexibility-strategy.md)
+ *
+ * Sales Orders and Deliveries are each independently toggleable
+ * (Layer 1 Plan ceiling + Layer 2 tenant self-service — PlanFeatureGuard
+ * blocks their own controllers' non-GET methods once disabled). But
+ * SalesInvoicesService.create() has always had a hard technical
+ * dependency on an existing, confirmed Sales Order (its FK), and Delivery
+ * confirmation is where COGS/stock deduction actually happens (Inventory's
+ * DeliveryStockListener, never Invoice posting — see PosSalesService's own
+ * comment for this same "key finding"). So a tenant that disables Sales
+ * Orders and/or Deliveries would otherwise have no way to invoice at all,
+ * or would silently skip stock/COGS entirely. create() now closes both
+ * gaps, using the exact same proven pattern PosSalesService.checkout()
+ * already ships: create the disabled step(s) automatically and
+ * invisibly, inside the SAME transaction as the invoice, reusing
+ * SalesOrdersService/DeliveriesService's own create()/confirm() methods
+ * — no shortcut logic duplicated here, no bypass of Outbox/event wiring.
+ *
+ * Two independent checks, each only when the caller needs that step:
+ * - No salesOrderId given (the "direct" path — customerId + directLines
+ *   instead): allowed only when SALES_SALES_ORDERS is NOT effectively
+ *   enabled for the tenant (FeatureAvailabilityService — Layer 1 AND
+ *   Layer 2 combined, same check PlanFeatureGuard applies from the JWT).
+ *   If it IS enabled, this is rejected — a tenant that keeps Sales Orders
+ *   on has chosen to require a real one for every sale, and this path
+ *   must not let that be routed around.
+ * - Whichever Sales Order ends up resolved (given, or just auto-created):
+ *   if SALES_DELIVERIES is NOT effectively enabled, a matching Delivery
+ *   is auto-created+confirmed covering exactly the quantities THIS
+ *   invoice is billing (not the whole order — correct for partial
+ *   invoicing over multiple calls against one order) before the invoice
+ *   itself is written. If Deliveries IS enabled, behavior is completely
+ *   unchanged from before this pass — a real Delivery still has to be
+ *   created separately, exactly as today (an accepted, pre-existing risk
+ *   profile, not a new one).
  */
 @Injectable()
 export class SalesInvoicesService {
   constructor(
     @Inject(SALES_INVOICE_REPOSITORY) private readonly invoices: SalesInvoiceRepository,
     @Inject(SALES_INVOICE_LINE_REPOSITORY) private readonly lines: SalesInvoiceLineRepository,
-    @Inject(SALES_ORDER_REPOSITORY) private readonly salesOrders: SalesOrderRepository,
+    @Inject(SALES_ORDER_REPOSITORY) private readonly salesOrderRepo: SalesOrderRepository,
     @Inject(SALES_ORDER_LINE_REPOSITORY) private readonly salesOrderLines: SalesOrderLineRepository,
+    @Inject(DELIVERY_LINE_REPOSITORY) private readonly deliveryLines: DeliveryLineRepository,
     private readonly numberingSequences: NumberingSequencesService,
     private readonly outboxWriter: OutboxWriterService,
+    private readonly featureAvailability: FeatureAvailabilityService,
+    private readonly salesOrdersService: SalesOrdersService,
+    private readonly deliveriesService: DeliveriesService,
   ) {}
 
   list(db: Kysely<TenantDatabase>): Promise<SalesInvoice[]> {
@@ -76,70 +121,173 @@ export class SalesInvoicesService {
     return { ...invoice, lines, totalAmount: calculateSalesInvoiceTotal(lines) };
   }
 
-  async create(db: Kysely<TenantDatabase>, input: CreateSalesInvoiceInput): Promise<SalesInvoiceWithLines> {
-    if (input.lines.length === 0) {
-      throw new BusinessRuleError('A sales invoice must have at least one line.');
-    }
-
-    const order = await this.salesOrders.findById(db, input.salesOrderId);
-    if (!order) throw new NotFoundError(`Sales order "${input.salesOrderId}" not found.`);
-    if (order.status === 'draft' || order.status === 'cancelled') {
-      throw new BusinessRuleError(
-        `Sales order "${input.salesOrderId}" is "${order.status}" — only a confirmed sales order can be invoiced.`,
-      );
-    }
-
-    const orderLines = await this.salesOrderLines.listBySalesOrderId(db, order.id);
-    const orderLineById = new Map(orderLines.map((line) => [line.id, line]));
-    for (const line of input.lines) {
-      if (!orderLineById.has(line.salesOrderLineId)) {
-        throw new NotFoundError(
-          `Sales order line "${line.salesOrderLineId}" was not found on sales order "${order.id}".`,
-        );
-      }
-    }
-
-    const alreadyInvoiced = await this.lines.sumInvoicedQuantityBySalesOrderLineIds(
-      db,
-      input.lines.map((line) => line.salesOrderLineId),
-    );
-    for (const line of input.lines) {
-      const orderLine = orderLineById.get(line.salesOrderLineId)!;
-      const invoiced = alreadyInvoiced[line.salesOrderLineId] ?? 0;
-      const remaining = orderLine.quantity - invoiced;
-      if (line.quantityInvoiced > remaining) {
+  async create(
+    db: Kysely<TenantDatabase>,
+    input: CreateSalesInvoiceInput,
+    schema: string,
+    actorUserId: string | null,
+  ): Promise<SalesInvoiceWithLines> {
+    const usingDirectPath = input.salesOrderId === undefined;
+    if (usingDirectPath) {
+      if (!input.customerId || !input.directLines || input.directLines.length === 0) {
         throw new BusinessRuleError(
-          `Cannot invoice ${line.quantityInvoiced} against sales order line "${line.salesOrderLineId}" — ` +
-            `only ${remaining} remaining to invoice (ordered ${orderLine.quantity}, already invoiced ${invoiced}).`,
+          'Provide a salesOrderId, or a customerId with at least one directLines entry, to create a sales invoice.',
         );
       }
-    }
-
-    interface ResolvedInvoiceLine {
-      salesOrderLineId: string;
-      quantityInvoiced: number;
-      unitPrice: Money;
-      notes: string | null | undefined;
-    }
-    const resolvedLines: ResolvedInvoiceLine[] = input.lines.map((line) => ({
-      salesOrderLineId: line.salesOrderLineId,
-      quantityInvoiced: line.quantityInvoiced,
-      unitPrice: line.unitPrice ?? orderLineById.get(line.salesOrderLineId)!.unitPrice,
-      notes: line.notes,
-    }));
-    try {
-      assertSingleCurrency(resolvedLines);
-    } catch (err) {
-      throw new BusinessRuleError(err instanceof Error ? err.message : String(err));
+    } else {
+      if (input.customerId || input.directLines) {
+        throw new BusinessRuleError(
+          'Provide either salesOrderId + lines, or customerId + directLines — not both.',
+        );
+      }
+      if (!input.lines || input.lines.length === 0) {
+        throw new BusinessRuleError('A sales invoice must have at least one line.');
+      }
     }
 
     try {
       return await withTransaction(db, async (trx) => {
+        let orderId: string;
+        let orderLines: SalesOrderLine[];
+        let resolvedLines: { salesOrderLineId: string; quantityInvoiced: number; unitPrice: Money; notes: string | null | undefined }[];
+
+        if (usingDirectPath) {
+          const salesOrdersEnabled = await this.featureAvailability.isEnabled(
+            trx,
+            schema,
+            FEATURE_KEYS.SALES_SALES_ORDERS,
+          );
+          if (salesOrdersEnabled) {
+            throw new BusinessRuleError(
+              'Sales Orders is enabled for this tenant — create a sales order first, then invoice it.',
+            );
+          }
+
+          const order = await this.salesOrdersService.create(trx, {
+            customerId: input.customerId!,
+            lines: input.directLines!.map((line) => ({
+              productVariantId: line.productVariantId,
+              quantity: line.quantity,
+              unitPrice: line.unitPrice,
+              notes: line.notes ?? null,
+            })),
+            customFields: {},
+          });
+          await this.salesOrdersService.confirm(trx, order.id);
+
+          orderId = order.id;
+          orderLines = order.lines;
+          resolvedLines = order.lines.map((line) => ({
+            salesOrderLineId: line.id,
+            quantityInvoiced: line.quantity,
+            unitPrice: line.unitPrice,
+            notes: undefined,
+          }));
+        } else {
+          const order = await this.salesOrderRepo.findById(trx, input.salesOrderId!);
+          if (!order) throw new NotFoundError(`Sales order "${input.salesOrderId}" not found.`);
+          if (order.status === 'draft' || order.status === 'cancelled') {
+            throw new BusinessRuleError(
+              `Sales order "${input.salesOrderId}" is "${order.status}" — only a confirmed sales order can be invoiced.`,
+            );
+          }
+
+          orderId = order.id;
+          orderLines = await this.salesOrderLines.listBySalesOrderId(trx, order.id);
+          const orderLineById = new Map(orderLines.map((line) => [line.id, line]));
+          for (const line of input.lines!) {
+            if (!orderLineById.has(line.salesOrderLineId)) {
+              throw new NotFoundError(
+                `Sales order line "${line.salesOrderLineId}" was not found on sales order "${order.id}".`,
+              );
+            }
+          }
+
+          const alreadyInvoiced = await this.lines.sumInvoicedQuantityBySalesOrderLineIds(
+            trx,
+            input.lines!.map((line) => line.salesOrderLineId),
+          );
+          for (const line of input.lines!) {
+            const orderLine = orderLineById.get(line.salesOrderLineId)!;
+            const invoiced = alreadyInvoiced[line.salesOrderLineId] ?? 0;
+            const remaining = orderLine.quantity - invoiced;
+            if (line.quantityInvoiced > remaining) {
+              throw new BusinessRuleError(
+                `Cannot invoice ${line.quantityInvoiced} against sales order line "${line.salesOrderLineId}" — ` +
+                  `only ${remaining} remaining to invoice (ordered ${orderLine.quantity}, already invoiced ${invoiced}).`,
+              );
+            }
+          }
+
+          resolvedLines = input.lines!.map((line) => ({
+            salesOrderLineId: line.salesOrderLineId,
+            quantityInvoiced: line.quantityInvoiced,
+            unitPrice: line.unitPrice ?? orderLineById.get(line.salesOrderLineId)!.unitPrice,
+            notes: line.notes,
+          }));
+        }
+
+        try {
+          assertSingleCurrency(resolvedLines);
+        } catch (err) {
+          throw new BusinessRuleError(err instanceof Error ? err.message : String(err));
+        }
+
+        const deliveriesEnabled = await this.featureAvailability.isEnabled(
+          trx,
+          schema,
+          FEATURE_KEYS.SALES_DELIVERIES,
+        );
+        if (!deliveriesEnabled) {
+          // Guard against double-delivering: the direct-invoicing path's
+          // freshly-created order is always undelivered, but the
+          // existing-salesOrderId path can be handed an order that was
+          // ALREADY fully (or partially) delivered by something else that
+          // isn't gated by this toggle — most notably PosSalesService.
+          // checkout(), which always creates+confirms its own Delivery
+          // for the whole order regardless of Layer 2 state. Only the
+          // portion of each line not yet covered by an existing confirmed
+          // delivery gets auto-delivered here.
+          const alreadyDelivered = await this.deliveryLines.sumDeliveredQuantityBySalesOrderLineIds(
+            trx,
+            resolvedLines.map((line) => line.salesOrderLineId),
+          );
+          const orderLineQuantityById = new Map(orderLines.map((line) => [line.id, line.quantity]));
+          const linesToDeliver = resolvedLines
+            .map((line) => {
+              const orderedQuantity = orderLineQuantityById.get(line.salesOrderLineId) ?? line.quantityInvoiced;
+              const delivered = alreadyDelivered[line.salesOrderLineId] ?? 0;
+              const remaining = Math.max(0, orderedQuantity - delivered);
+              return {
+                salesOrderLineId: line.salesOrderLineId,
+                quantityDelivered: Math.min(line.quantityInvoiced, remaining),
+              };
+            })
+            .filter((line) => line.quantityDelivered > 0);
+
+          if (linesToDeliver.length > 0) {
+            if (!input.warehouseId) {
+              throw new BusinessRuleError(
+                'Deliveries is disabled for this tenant, so this invoice must record the stock movement a ' +
+                  'Delivery normally would — provide a warehouseId.',
+              );
+            }
+            const delivery = await this.deliveriesService.create(trx, {
+              salesOrderId: orderId,
+              warehouseId: input.warehouseId,
+              lines: linesToDeliver.map((line) => ({ ...line, notes: null })),
+              customFields: {},
+            });
+            await this.deliveriesService.confirm(trx, delivery.id, schema, actorUserId);
+          }
+        }
+
+        const orderLineById = new Map(orderLines.map((line) => [line.id, line]));
         const allocated = await this.numberingSequences.allocateNext(trx, 'sales_invoice', null);
 
         const invoice = await this.invoices.create(trx, {
           invoiceNumber: allocated.formatted,
-          salesOrderId: order.id,
+          salesOrderId: orderId,
           invoiceDate: input.invoiceDate ?? null,
           dueDate: input.dueDate ?? null,
           notes: input.notes ?? null,
@@ -164,7 +312,7 @@ export class SalesInvoicesService {
       });
     } catch (err) {
       if (isPostgresForeignKeyViolation(err)) {
-        throw new NotFoundError('The given sales order or sales order line does not exist.');
+        throw new NotFoundError('The given sales order, sales order line, customer, or warehouse does not exist.');
       }
       if (err instanceof Error && err.message.includes('No numbering sequence configured')) {
         throw new BusinessRuleError(

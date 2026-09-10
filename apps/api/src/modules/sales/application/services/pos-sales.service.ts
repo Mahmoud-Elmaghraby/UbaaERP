@@ -158,19 +158,24 @@ export class PosSalesService {
       // order's own lines — see distributeOrderTotalAcrossLines()'s own comment for why this,
       // and not each line's raw/line-discounted unitPrice, is what the invoice must charge.
       const netLineTotals = distributeOrderTotalAcrossLines(order, order.lines);
-      const invoice = await this.salesInvoices.create(trx, {
-        salesOrderId: order.id,
-        lines: order.lines.map((line, i) => ({
-          salesOrderLineId: line.id,
-          quantityInvoiced: line.quantity,
-          unitPrice: netLineTotals[i].divideByQuantity(line.quantity),
-          notes: null,
-        })),
-        invoiceDate: null,
-        dueDate: null,
-        notes: input.notes ?? null,
-        customFields: {},
-      });
+      const invoice = await this.salesInvoices.create(
+        trx,
+        {
+          salesOrderId: order.id,
+          lines: order.lines.map((line, i) => ({
+            salesOrderLineId: line.id,
+            quantityInvoiced: line.quantity,
+            unitPrice: netLineTotals[i].divideByQuantity(line.quantity),
+            notes: null,
+          })),
+          invoiceDate: null,
+          dueDate: null,
+          notes: input.notes ?? null,
+          customFields: {},
+        },
+        schema,
+        actorUserId,
+      );
       const postedInvoice = await this.salesInvoices.post(trx, invoice.id, schema, actorUserId);
 
       const payments = [];

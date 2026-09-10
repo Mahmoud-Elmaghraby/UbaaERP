@@ -72,13 +72,22 @@ export class SalesInvoicesController {
     @Body(new ZodValidationPipe(createSalesInvoiceSchema)) body: CreateSalesInvoiceDto,
   ): Promise<SalesInvoiceWithLinesDto> {
     const db = this.connections.getClient(schema);
-    const invoice = await this.service.create(db, {
-      ...body,
-      lines: body.lines.map((line) => ({
-        ...line,
-        unitPrice: line.unitPrice ? moneyFromDto(line.unitPrice) : undefined,
-      })),
-    });
+    const invoice = await this.service.create(
+      db,
+      {
+        ...body,
+        lines: body.lines?.map((line) => ({
+          ...line,
+          unitPrice: line.unitPrice ? moneyFromDto(line.unitPrice) : undefined,
+        })),
+        directLines: body.directLines?.map((line) => ({
+          ...line,
+          unitPrice: moneyFromDto(line.unitPrice),
+        })),
+      },
+      schema,
+      user.sub,
+    );
     this.events.publish('sales_invoice', 'created', { schema, entityId: invoice.id, actorUserId: user.sub });
     return invoiceWithLinesToDto(invoice);
   }

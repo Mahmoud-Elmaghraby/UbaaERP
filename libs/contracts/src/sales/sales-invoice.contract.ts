@@ -44,9 +44,35 @@ export const createSalesInvoiceLineSchema = z.object({
 });
 export type CreateSalesInvoiceLineDto = z.infer<typeof createSalesInvoiceLineSchema>;
 
+/**
+ * The direct-invoicing path (claude/platform-flexibility-strategy.md) —
+ * provided instead of salesOrderId + lines when Sales Orders is not
+ * effectively enabled for the tenant. See
+ * CreateSalesInvoiceDirectLineInput's own comment (backend domain entity)
+ * for why this needs its own line shape rather than reusing
+ * createSalesInvoiceLineSchema.
+ */
+export const createSalesInvoiceDirectLineSchema = z.object({
+  productVariantId: z.string().uuid(),
+  quantity: z.number().positive(),
+  unitPrice: moneySchema,
+  notes: z.string().nullable().optional(),
+});
+export type CreateSalesInvoiceDirectLineDto = z.infer<typeof createSalesInvoiceDirectLineSchema>;
+
 export const createSalesInvoiceSchema = z.object({
-  salesOrderId: z.string().uuid(),
-  lines: z.array(createSalesInvoiceLineSchema).min(1),
+  // Provide salesOrderId + lines, OR customerId + directLines — not
+  // both. Enforced in SalesInvoicesService.create(), same as
+  // createSalesOrderSchema's own sourceQuotationId-XOR-customerId+lines
+  // shape does not enforce the XOR at the schema level either.
+  salesOrderId: z.string().uuid().optional(),
+  lines: z.array(createSalesInvoiceLineSchema).optional(),
+  customerId: z.string().uuid().optional(),
+  directLines: z.array(createSalesInvoiceDirectLineSchema).optional(),
+  // Required only when a Delivery must be auto-created behind the
+  // scenes (Deliveries disabled for the tenant, or the direct-invoicing
+  // path) — see CreateSalesInvoiceInput's own comment.
+  warehouseId: z.string().uuid().optional(),
   invoiceDate: z.string().nullable().optional(),
   dueDate: z.string().nullable().optional(),
   notes: z.string().nullable().optional(),

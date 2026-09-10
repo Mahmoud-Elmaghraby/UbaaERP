@@ -49,9 +49,38 @@ export interface CreateSalesInvoiceLineInput {
   notes?: string | null;
 }
 
+/**
+ * The alternative to a pre-existing salesOrderId — the invoice-takeover
+ * orchestrator's entry point (claude/platform-flexibility-strategy.md).
+ * Used only when Sales Orders is not effectively enabled for the tenant;
+ * SalesInvoicesService.create() rejects this path otherwise, so a tenant
+ * that keeps Sales Orders enabled can't have staff route around its own
+ * configured workflow. Unlike CreateSalesInvoiceLineInput, there is no
+ * existing sales order line to derive productVariantId/unitPrice from —
+ * both are given directly, same shape as CreateSalesOrderLineInput.
+ */
+export interface CreateSalesInvoiceDirectLineInput {
+  productVariantId: string;
+  quantity: number;
+  unitPrice: Money;
+  notes?: string | null;
+}
+
 export interface CreateSalesInvoiceInput {
-  salesOrderId: string;
-  lines: CreateSalesInvoiceLineInput[];
+  /** Provide this (with `lines`), OR `customerId` + `directLines` — not both. */
+  salesOrderId?: string;
+  lines?: CreateSalesInvoiceLineInput[];
+  /** Direct-invoicing path — see CreateSalesInvoiceDirectLineInput. */
+  customerId?: string;
+  directLines?: CreateSalesInvoiceDirectLineInput[];
+  /**
+   * Required whenever a Delivery must be created behind the scenes —
+   * either because Deliveries is not effectively enabled for the tenant
+   * (the invoice absorbs its role, same "closest active document" rule),
+   * or because the direct-invoicing path always needs one. Ignored
+   * otherwise.
+   */
+  warehouseId?: string;
   invoiceDate?: string | null;
   dueDate?: string | null;
   notes?: string | null;
