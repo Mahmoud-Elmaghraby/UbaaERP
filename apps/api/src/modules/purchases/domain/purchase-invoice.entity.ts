@@ -48,10 +48,39 @@ export interface CreatePurchaseInvoiceLineInput {
   notes?: string | null;
 }
 
+/**
+ * The alternative to a pre-existing purchaseOrderId — the invoice-takeover
+ * orchestrator's entry point (claude/platform-flexibility-strategy.md),
+ * mirroring CreateSalesInvoiceDirectLineInput. Used only when Purchase
+ * Orders is not effectively enabled for the tenant;
+ * PurchaseInvoicesService.create() rejects this path otherwise. Unlike
+ * CreatePurchaseInvoiceLineInput, there is no existing purchase order line
+ * to derive productVariantId/unitPrice from — both are given directly,
+ * same shape as CreatePurchaseOrderLineInput.
+ */
+export interface CreatePurchaseInvoiceDirectLineInput {
+  productVariantId: string;
+  quantityInvoiced: number;
+  unitPrice: Money;
+  notes?: string | null;
+}
+
 export interface CreatePurchaseInvoiceInput {
-  purchaseOrderId: string;
+  /** Provide this (with `lines`), OR `supplierId` + `directLines` — not both. */
+  purchaseOrderId?: string;
+  lines?: CreatePurchaseInvoiceLineInput[];
+  /** Direct-invoicing path — see CreatePurchaseInvoiceDirectLineInput. */
+  supplierId?: string;
+  directLines?: CreatePurchaseInvoiceDirectLineInput[];
+  /**
+   * Required whenever a Goods Receipt must be created behind the scenes —
+   * either because Goods Receipts is not effectively enabled for the
+   * tenant (the invoice absorbs its role, same "closest active document"
+   * rule), or because the direct-invoicing path always needs one. Ignored
+   * otherwise.
+   */
+  warehouseId?: string;
   supplierInvoiceNumber?: string | null;
-  lines: CreatePurchaseInvoiceLineInput[];
   invoiceDate?: string | null;
   dueDate?: string | null;
   notes?: string | null;

@@ -45,10 +45,22 @@ export const createPurchaseInvoiceLineSchema = z.object({
 });
 export type CreatePurchaseInvoiceLineDto = z.infer<typeof createPurchaseInvoiceLineSchema>;
 
+export const createPurchaseInvoiceDirectLineSchema = z.object({
+  productVariantId: z.string().uuid(),
+  quantityInvoiced: z.number().positive(),
+  unitPrice: moneySchema,
+  notes: z.string().nullable().optional(),
+});
+export type CreatePurchaseInvoiceDirectLineDto = z.infer<typeof createPurchaseInvoiceDirectLineSchema>;
+
+/** Provide (purchaseOrderId + lines) OR (supplierId + directLines) — see PurchaseInvoicesService.create(). */
 export const createPurchaseInvoiceSchema = z.object({
-  purchaseOrderId: z.string().uuid(),
+  purchaseOrderId: z.string().uuid().optional(),
+  lines: z.array(createPurchaseInvoiceLineSchema).min(1).optional(),
+  supplierId: z.string().uuid().optional(),
+  directLines: z.array(createPurchaseInvoiceDirectLineSchema).min(1).optional(),
+  warehouseId: z.string().uuid().optional(),
   supplierInvoiceNumber: z.string().nullable().optional(),
-  lines: z.array(createPurchaseInvoiceLineSchema).min(1),
   invoiceDate: z.string().nullable().optional(),
   dueDate: z.string().nullable().optional(),
   notes: z.string().nullable().optional(),

@@ -74,6 +74,15 @@ import { PurchasesEventPublisher } from './infrastructure/events/purchases-event
  *     here uses.
  * Purchases' baseline + both approved research-pass additions are now
  * all built. Sales is next per CLAUDE.md §10's fixed build order.
+ *  8. Invoice-takeover orchestrator (done, this pass) — mirrors Sales'
+ *     own SalesInvoicesService orchestrator: create() gains a direct-
+ *     invoicing path (supplierId + directLines) usable only when
+ *     PURCHASES_PURCHASE_ORDERS is disabled, plus independent Goods
+ *     Receipt auto-creation when PURCHASES_GOODS_RECEIPTS is disabled —
+ *     see PurchaseInvoicesService's own class comment, including the one
+ *     deliberate asymmetry with Sales (GoodsReceiptsService.confirm()
+ *     isn't Outbox-backed, so create() replicates the controller's
+ *     publish() call for the event Inventory's stock listener needs).
  *
  * Imports SettingsModule for NumberingSequencesService only (exported
  * narrowly there) — see PurchaseRequisitionsService's class comment for
