@@ -83,7 +83,16 @@ import { PurchasesEventPublisher } from './infrastructure/events/purchases-event
  * TenantConnectionManager comes from the global TenancyModule — not
  * re-provided here, same as every other business module.
  *
- * No PlanFeatureGuard yet — see SuppliersController's class comment.
+ * PlanFeatureGuard now gates the optional document-chain controllers
+ * (RfqsController: PURCHASES_RFQ, SupplierQuotationsController:
+ * PURCHASES_SUPPLIER_QUOTATIONS, PurchaseOrdersController:
+ * PURCHASES_PURCHASE_ORDERS, GoodsReceiptsController:
+ * PURCHASES_GOODS_RECEIPTS) — see RfqsController's class comment,
+ * mirroring Accounting's ChartOfAccountsController. SuppliersController,
+ * PurchaseRequisitionsController, PurchaseInvoicesController and
+ * PurchaseReturnsController do not carry it (suppliers/invoices are
+ * foundational or mandatory; requisitions and returns are out of
+ * scope for this pass — tracked, not forgotten).
  */
 @Module({
   imports: [SettingsModule],

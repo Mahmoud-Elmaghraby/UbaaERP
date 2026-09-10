@@ -17,6 +17,9 @@ import type { JwtAccessPayload } from '../../../shared/auth/jwt-payload.type';
 import { JwtAuthGuard } from '../../../shared/auth/jwt-auth.guard';
 import { PermissionsGuard } from '../../../shared/auth/permissions.guard';
 import { RequirePermissions } from '../../../shared/auth/require-permissions.decorator';
+import { PlanFeatureGuard } from '../../../shared/auth/plan-feature.guard';
+import { RequireFeature } from '../../../shared/auth/require-feature.decorator';
+import { FEATURE_KEYS } from '../../../shared/plans/feature-catalog';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 import { SalesOrdersService } from '../application/services/sales-orders.service';
 import { SalesEventPublisher } from '../infrastructure/events/sales-event-publisher';
@@ -43,9 +46,10 @@ export function orderWithLinesToDto(order: SalesOrderWithLines): SalesOrderWithL
   });
 }
 
-/** No PlanFeatureGuard yet — same deliberate, tracked gap as the rest of this module. */
-@UseGuards(JwtAuthGuard, PermissionsGuard)
+/** Optional document-chain module — gated by PlanFeatureGuard (SALES_SALES_ORDERS). */
+@UseGuards(JwtAuthGuard, PermissionsGuard, PlanFeatureGuard)
 @RequirePermissions('sales.manage')
+@RequireFeature(FEATURE_KEYS.SALES_SALES_ORDERS)
 @Controller('sales-orders')
 export class SalesOrdersController {
   constructor(

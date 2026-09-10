@@ -113,8 +113,13 @@ import { AccountingAutoPostingListeners } from './infrastructure/events/accounti
  *
  * PlanFeatureGuard (FEATURE_KEYS.ACCOUNTING) closes the long-flagged
  * gap this comment used to describe — see ChartOfAccountsController's
- * class comment. Every controller in this module carries it; Sales/
- * Purchases/Inventory controllers do not yet (tracked, not forgotten).
+ * class comment. Every controller in this module carries it. Sales/
+ * Purchases now also carry it on their optional document-chain
+ * controllers (Quotations/Sales Orders/Deliveries and RFQ/Supplier
+ * Quotations/Purchase Orders/Goods Receipts) — see those modules'
+ * own class comments. Customers/Suppliers, Invoices, Payments
+ * Received, Returns/Credit Notes, POS and Inventory controllers do
+ * not carry it yet (tracked, not forgotten).
  */
 @Module({
   imports: [SettingsModule],

@@ -16,13 +16,17 @@ import type { JwtAccessPayload } from '../../../shared/auth/jwt-payload.type';
 import { JwtAuthGuard } from '../../../shared/auth/jwt-auth.guard';
 import { PermissionsGuard } from '../../../shared/auth/permissions.guard';
 import { RequirePermissions } from '../../../shared/auth/require-permissions.decorator';
+import { PlanFeatureGuard } from '../../../shared/auth/plan-feature.guard';
+import { RequireFeature } from '../../../shared/auth/require-feature.decorator';
+import { FEATURE_KEYS } from '../../../shared/plans/feature-catalog';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 import { RfqsService } from '../application/services/rfqs.service';
 import { PurchasesEventPublisher } from '../infrastructure/events/purchases-event-publisher';
 
-/** No PlanFeatureGuard yet — same deliberate, tracked gap as the rest of this module. */
-@UseGuards(JwtAuthGuard, PermissionsGuard)
+/** Optional document-chain module — gated by PlanFeatureGuard (PURCHASES_RFQ). */
+@UseGuards(JwtAuthGuard, PermissionsGuard, PlanFeatureGuard)
 @RequirePermissions('purchases.manage')
+@RequireFeature(FEATURE_KEYS.PURCHASES_RFQ)
 @Controller('rfqs')
 export class RfqsController {
   constructor(

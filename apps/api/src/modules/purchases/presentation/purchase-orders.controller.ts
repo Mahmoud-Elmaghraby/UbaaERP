@@ -17,6 +17,9 @@ import type { JwtAccessPayload } from '../../../shared/auth/jwt-payload.type';
 import { JwtAuthGuard } from '../../../shared/auth/jwt-auth.guard';
 import { PermissionsGuard } from '../../../shared/auth/permissions.guard';
 import { RequirePermissions } from '../../../shared/auth/require-permissions.decorator';
+import { PlanFeatureGuard } from '../../../shared/auth/plan-feature.guard';
+import { RequireFeature } from '../../../shared/auth/require-feature.decorator';
+import { FEATURE_KEYS } from '../../../shared/plans/feature-catalog';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 import { PurchaseOrdersService } from '../application/services/purchase-orders.service';
 import { PurchasesEventPublisher } from '../infrastructure/events/purchases-event-publisher';
@@ -34,9 +37,10 @@ function orderWithLinesToDto(order: PurchaseOrderWithLines): PurchaseOrderWithLi
   });
 }
 
-/** No PlanFeatureGuard yet — same deliberate, tracked gap as the rest of this module. */
-@UseGuards(JwtAuthGuard, PermissionsGuard)
+/** Optional document-chain module — gated by PlanFeatureGuard (PURCHASES_PURCHASE_ORDERS). */
+@UseGuards(JwtAuthGuard, PermissionsGuard, PlanFeatureGuard)
 @RequirePermissions('purchases.manage')
+@RequireFeature(FEATURE_KEYS.PURCHASES_PURCHASE_ORDERS)
 @Controller('purchase-orders')
 export class PurchaseOrdersController {
   constructor(

@@ -149,7 +149,17 @@ import { SalesEventPublisher } from './infrastructure/events/sales-event-publish
  * SecretsEncryptionModule (used by EtaCredentialsService) is @Global(),
  * registered once in app.module.ts — not re-imported here.
  *
- * No PlanFeatureGuard yet — see CustomersController's class comment.
+ * PlanFeatureGuard now gates the optional document-chain controllers
+ * (QuotationsController: SALES_QUOTATIONS, SalesOrdersController:
+ * SALES_SALES_ORDERS, DeliveriesController: SALES_DELIVERIES) — see
+ * QuotationsController's class comment, mirroring Accounting's
+ * ChartOfAccountsController. CustomersController, SalesInvoicesController,
+ * PaymentsReceivedController, SalesReturnsController,
+ * SalesCreditNotesController, PosSessionsController and
+ * EtaCredentialsController do not carry it (customers/invoices/payments
+ * are foundational or mandatory, not optional chain steps; returns,
+ * credit notes and POS are out of scope for this pass — tracked, not
+ * forgotten).
  */
 @Module({
   imports: [SettingsModule],
