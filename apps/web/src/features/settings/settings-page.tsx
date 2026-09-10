@@ -3,6 +3,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@erp-platform/ui';
 
 import { BranchesTab } from './branches-tab';
 import { GeneralTab } from './general-tab';
+import { ModulesTab } from './modules-tab';
 import { NumberingTab } from './numbering-tab';
 import { TemplatesTab } from './templates-tab';
 import { TaxesTab } from './taxes-tab';
@@ -21,6 +22,7 @@ export function SettingsPage() {
           <TabsTrigger value="numbering">{t('settings.tabs.numbering')}</TabsTrigger>
           <TabsTrigger value="templates">{t('settings.tabs.templates')}</TabsTrigger>
           <TabsTrigger value="taxes">{t('settings.tabs.taxes')}</TabsTrigger>
+          <TabsTrigger value="modules">{t('settings.tabs.modules')}</TabsTrigger>
         </TabsList>
         <TabsContent value="general">
           <GeneralTab />
@@ -36,6 +38,9 @@ export function SettingsPage() {
         </TabsContent>
         <TabsContent value="taxes">
           <TaxesTab />
+        </TabsContent>
+        <TabsContent value="modules">
+          <ModulesTab />
         </TabsContent>
       </Tabs>
     </div>

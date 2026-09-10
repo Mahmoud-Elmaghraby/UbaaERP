@@ -7,10 +7,12 @@ import type {
   CreateTaxRuleDto,
   CustomFieldDefinitionDto,
   DocumentTemplateDto,
+  FeatureToggleDto,
   NumberingSequenceDto,
   TaxRuleDto,
   TenantSettingsDto,
   UpdateDocumentTemplateDto,
+  UpdateFeatureToggleDto,
   UpdateNumberingSequenceDto,
   UpdateTaxRuleDto,
   UpdateTenantSettingsDto,
@@ -152,5 +154,24 @@ export function useDeleteTaxRule() {
   return useMutation({
     mutationFn: (id: string) => apiDelete<void>(`/tax-rules/${id}`),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['tax-rules'] }),
+  });
+}
+
+// --- Feature toggles (Layer 2 self-service, platform-flexibility-strategy.md) ---
+
+export function useFeatureToggles(enabled = true) {
+  return useQuery({
+    queryKey: ['feature-toggles'],
+    queryFn: () => apiGet<FeatureToggleDto[]>('/feature-toggles'),
+    enabled,
+  });
+}
+
+export function useUpdateFeatureToggle() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ featureKey, input }: { featureKey: string; input: UpdateFeatureToggleDto }) =>
+      apiPatch<FeatureToggleDto>(`/feature-toggles/${encodeURIComponent(featureKey)}`, input),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['feature-toggles'] }),
   });
 }
