@@ -1,10 +1,10 @@
 # Claude Context Docs
 
-**Purpose:** this folder is a local, in-repo mirror of the working docs Claude (via the "ERP system" Claude Project) keeps about this codebase's build history, decisions, and status — settings/permissions, inventory, purchases, sales, and accounting. It exists so that starting a fresh Claude session (on this account or a different one) with just this repo attached is enough to pick up full context, without needing access to the Claude Project itself (which is tied to one account/organization and doesn't transfer automatically to a different account).
+**Purpose:** this folder is a local, in-repo mirror of the working docs Claude (via the "ERP system" Claude Project) keeps about this codebase's build history, decisions, and status — settings/permissions, inventory, purchases, sales, accounting, and the cross-cutting Plan/feature-flexibility work. It exists so that starting a fresh Claude session (on this account or a different one) with just this repo attached is enough to pick up full context, without needing access to the Claude Project itself (which is tied to one account/organization and doesn't transfer automatically to a different account).
 
-**Source of truth:** the Claude Project ("ERP system") is still the live, actively-updated copy — any future session working from that Project will keep writing there. This folder is a point-in-time export, generated 2026-08-31. If you're continuing work from the Project directly, these files may drift slightly behind it over time; ask whichever session is working to re-export this folder after a significant milestone if you want it kept current.
+**Source of truth:** the Claude Project ("ERP system") is still the live, actively-updated copy — any future session working from that Project will keep writing there. This folder is a point-in-time export, originally generated 2026-08-31 and **refreshed 2026-09-10** (added the 4 files below that didn't exist yet at the first export; the original 10 files were re-checked against the Project and are still byte-identical, so they were left untouched). If you're continuing work from the Project directly, these files may drift slightly behind it over time — ask whichever session is working to re-export this folder after a significant milestone if you want it kept current.
 
-**How to use this with a new Claude session:** attach/open this repo, then point the session at this folder (`docs/claude-context/`) and ask it to read these files before starting — that gives it the same grounding the Project docs give a session with Project access.
+**How to use this with a new Claude session:** attach/open this repo, then point the session at this folder (`docs/claude-context/`) and ask it to read these files before starting — that gives it the same grounding the Project docs give a session with Project access. **Start with `next-steps-backlog.md` first** — it's the newest file and is specifically written as a handoff: it names the open items, what state each is actually in, and what a new session should check before touching code.
 
 ## Files, in build order
 
@@ -18,17 +18,25 @@
 8. **`sales-module-status.md`** — Step 4: Sales, backend + frontend, all 8 entities including Sales Credit Notes.
 9. **`accounting-module-research.md`** — Competitor research, the terminology map (traditional Arabic bookkeeping terms vs. what's actually built), and the full 8-stage build roadmap for Accounting.
 10. **`accounting-module-status.md`** — Step 5: Accounting, Stages 1–7 done, backend + frontend. **Includes the first-ever fully-green native verification run** (`pnpm typecheck`/`lint`/`build`/`test`, 294/294 tests) across the *whole* repo, not just Accounting — read this file's "Verification status" section for the five bugs found and fixed to get there, several of which were pre-existing issues in Sales/Purchases.
+11. **`sales-pos-research.md`** *(added 2026-09-10 refresh)* — Point of Sale, an extension of the Sales module (cash sessions/shifts, discounts, checkout orchestration, X/Z reports). All 5 build stages are **code-complete but not yet committed** — see this file's own "Status" section and `next-steps-backlog.md` item 0.
+12. **`settings-module-audit.md`** *(added 2026-09-10 refresh)* — a follow-up security/operational-maturity audit of Module 1 (rate limiting, 2FA, password reset, httpOnly cookies, and more). Everything in the audit's backlog is implemented, but **not yet natively verified or confirmed committed** — see `next-steps-backlog.md` item 1.
+13. **`platform-flexibility-strategy.md`** *(added 2026-09-10 refresh)* — the Plan (commercial tiers) + tenant self-service feature-toggle design, and the "invoice-takeover orchestrator" pattern that lets a tenant skip optional documents in the Sales and Purchases cycles. Both layers and both orchestrators (Sales commit `6fcc1ce`, Purchases commit `41fe5af`) are built, verified, and committed as of this file.
+14. **`next-steps-backlog.md`** *(added 2026-09-10 refresh)* — a handoff doc listing every open item across the whole project (not tied to one module), what state each is actually in, and what a new session should check first. Written specifically so a new chat doesn't have to re-derive this from the other 13 files. **Read this one first.**
 
 ## What's NOT in this folder
 
 - **`docs/project-master-doc.md`** (in this same repo, one level up) — the actual master/architecture document these status docs all refer back to. Not duplicated here since it already lives in the repo as a real file.
 - **`CLAUDE.md`** (repo root) — the working engineering-rules document referenced throughout these docs as "CLAUDE.md §X". Also already a real file in this repo.
 
-## Current overall status (as of the 2026-08-31 export)
+## Current overall status (as of the 2026-09-10 refresh)
 
-Settings, Users & Permissions, Inventory, Purchases, and Sales are all fully done (backend + frontend). Accounting is done through Stage 7 (Chart of Accounts, Fiscal Years/Periods, Journal Entries, Reports, Sales/Purchases auto-posting, Cost Centers, Bank Accounts, COGS auto-posting, Sales Credit Note auto-posting) — only **Stage 8 (Tax Returns)** remains, and it needs its own research pass first. Native verification (`typecheck`/`lint`/`build`/`test`) is confirmed green across the whole monorepo. A manual UI/browser pass (exercising the new Cost Centers/Bank Accounts screens, and checking a suspected `reversalDate` validation bug in `journal-entry-reverse-form.tsx`) is still outstanding — see `accounting-module-status.md`'s "Still not verified" note.
+Settings, Users & Permissions, Inventory, Purchases, and Sales are all fully done (backend + frontend). Accounting is done through Stage 7 — only **Stage 8 (Tax Returns)** remains, and it needs its own research pass first. The Plan/self-service feature-flexibility layer (Layers 1+2) and the invoice-takeover orchestrator for both the Sales and Purchases cycles are also now built, verified, and committed.
+
+Three things are open and not yet closed out — see `next-steps-backlog.md` for full detail on each:
+- The POS feature (`sales-pos-research.md`) is code-complete across all 5 stages but was **deliberately never committed**, waiting on one native verification pass + one commit.
+- The Settings hardening backlog (`settings-module-audit.md`) is implemented but **not yet confirmed run natively or committed** — `pnpm install`, migrations `0065`–`0068`, and `pnpm typecheck/lint/test` all still need a native run, plus two production-readiness decisions (email provider, cookie hosting-topology assumption).
+- `GoodsReceiptsService.confirm()` is not yet Outbox-backed (an intentional, tracked asymmetry with Sales' `DeliveriesService.confirm()`), and `PlanFeatureGuard` coverage is inconsistent across a few controllers — both tracked, neither urgent.
 
 ## Environment note for whoever picks this up next
 
 If continuing via a Claude session with a device-bridge/remote-shell connection to this machine rather than direct native access: that bridge (as of this export) still cannot run `pnpm`/`node@24`/`docker` directly, so `pnpm typecheck`/`lint`/`build`/`test` need to be run by you, natively, in your own terminal, with output pasted back for diagnosis. This has been the working pattern for the whole project and is documented in more detail in `settings-module-status.md`'s "Environment notes" section.
-</content>
