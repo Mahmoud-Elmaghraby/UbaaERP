@@ -503,3 +503,61 @@ Captured from a 2026-08-25/26 research pass so it isn't redone from scratch:
   collides with an existing product (OSOL) and must not be treated as final. See the project doc
   (`claude/settings-module-status.md` in the attached Project) for the full naming history before
   re-proposing names already ruled out.
+
+---
+
+## 18. Session autonomy: what doesn't need a stop-and-ask [مستقر — process rule, added 2026-09-11]
+
+This section exists because per-step confirmation on routine, low-risk work slows sessions down
+without adding real safety. It does **not** change anything in §16 (Safety rules) or §17.3 (what
+still requires approval) — those stay in full force. It only clarifies the other side: what a
+session should just go ahead and do, report on afterward, and not pause mid-task to ask permission
+for.
+
+### 18.1 Proceed without asking
+
+- Reading/searching the codebase, running `git log`/`git status`, and any other read-only
+  investigation.
+- Running verification (`typecheck`, `lint`, `test`, `build`) for a module or the whole workspace.
+- Fixing a bug that is (a) discovered incidentally while verifying or investigating other work,
+  (b) narrowly scoped to the file(s) where it already lives, and (c) does not touch a **[مستقر]**
+  decision — e.g. a repository method using the wrong clock source for a timestamp, a stale or
+  incorrect code comment, a copy-paste bug confined to one function. Report what was found and
+  fixed; don't stop mid-investigation to ask permission to fix an obvious, narrow bug.
+- Correcting stale documentation (this file, module status docs, code comments) that no longer
+  matches what the repository actually shows — cite the specific evidence (a commit hash, a grep
+  result, a test run) for the correction, the same way any correction in this file should be
+  justified.
+- Research and competitor analysis under §17.2, including writing up a proposal — this was already
+  unrestricted; restated here for clarity.
+- Committing verified, narrowly-scoped work (a docs update, a comment fix, a bug fix already
+  covered above) with a clear commit message — this is not "destructive" (§16 only restricts
+  delete/reset/hand-editing prod schemas), so it doesn't need a separate ask on top of explaining
+  the change before making it (§15, step 3).
+
+### 18.2 Still stop and ask
+
+Unchanged from §16/§17.3 — restated together here so both are visible in one place without having
+to cross-reference:
+
+- Anything that touches a **[مستقر]** architectural decision in §2, or would change the module
+  build order (§10).
+- A feature that implies a new module or a materially new domain concept (a new module, a new
+  financial flow, a new integration).
+- Anything destructive: deleting files, resetting git history, hand-editing a production schema,
+  dropping data.
+- Installing a new dependency, unless the task at hand already justifies it and that justification
+  is stated up front.
+- Anything genuinely ambiguous, or where the "right" answer is a product/business decision rather
+  than an engineering one (pricing, which third-party provider to integrate, hosting topology,
+  naming).
+
+### 18.3 Precedent
+
+This formalizes the grant already made verbally on 2026-08-25/26 (recorded in
+`claude/settings-module-status.md`'s "Standing context for future sessions") and exercised again on
+2026-09-11: POS native verification, the Settings `updated_at` clock-skew fix applied across all 6
+affected repositories, and the PlanFeatureGuard stale-comment correction across 12 controllers were
+all investigated, fixed, and committed in one pass each — not one file at a time with a separate
+approval round per file. Future sessions should read this section rather than defaulting to asking
+before every small, clearly-scoped step.
