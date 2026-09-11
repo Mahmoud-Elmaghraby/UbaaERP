@@ -54,6 +54,23 @@ export class OutboxDispatcherService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(OutboxDispatcherService.name);
   private timer: ReturnType<typeof setInterval> | null = null;
   private ticking = false;
+  /**
+   * The currently in-flight tick(), if any — awaited by onModuleDestroy
+   * below. Without this, a tick that happened to be mid-query when
+   * shutdown began could still be running when
+   * TenantConnectionManager.onApplicationShutdown() destroys the very
+   * pg.Pool that query is using: NestJS runs every onModuleDestroy hook
+   * across the whole app to completion before any onApplicationShutdown
+   * hook starts, so onApplicationShutdown had no way to know this
+   * still-running tick existed. Observed as "driver has already been
+   * destroyed" in the log and, in the worst case, a hung `pool.end()`
+   * (it waits for every checked-out client to be released) that can
+   * block `app.close()` past a test's afterAll timeout. This was always
+   * possible — POLL_INTERVAL_MS is short enough that a tick can land at
+   * any point in a short-lived process's lifetime — awaiting it here
+   * closes the race regardless of timing.
+   */
+  private tickPromise: Promise<void> | null = null;
 
   constructor(
     @Inject(OUTBOX_EVENT_REPOSITORY) private readonly repository: OutboxEventRepository,
@@ -64,12 +81,13 @@ export class OutboxDispatcherService implements OnModuleInit, OnModuleDestroy {
 
   onModuleInit(): void {
     this.timer = setInterval(() => {
-      void this.tick();
+      this.tickPromise = this.tick();
     }, POLL_INTERVAL_MS);
   }
 
-  onModuleDestroy(): void {
+  async onModuleDestroy(): Promise<void> {
     if (this.timer) clearInterval(this.timer);
+    if (this.tickPromise) await this.tickPromise;
   }
 
   private async tick(): Promise<void> {
