@@ -23,13 +23,14 @@ import { UnitsOfMeasureService } from '../application/services/units-of-measure.
 import { InventoryEventPublisher } from '../infrastructure/events/inventory-event-publisher';
 
 /**
- * No PlanFeatureGuard yet — deliberately deferred (explicit user decision,
- * 2026-08-28): this is the first module that would actually need it (a
- * "plans/features" model doesn't exist anywhere in the public/Prisma
- * schema yet, since Settings/Users & Permissions are mandatory, not
- * plan-gated). Tracked as a known gap against CLAUDE.md §2.8/§6 to revisit
- * once, for every optional module at once, rather than inventing a
- * one-off model here.
+ * No PlanFeatureGuard: intentionally excluded. The Plan/PlanFeature model
+ * now exists (see feature-catalog.ts) and PlanFeatureGuard is wired onto
+ * Accounting plus the 7 Sales/Purchases optional document-chain
+ * controllers — but Inventory itself is core infrastructure every plan
+ * needs (Sales and Purchases both depend on it), not a standalone
+ * optional module, so it was never in scope for gating. This replaces an
+ * earlier (2026-08-28) comment that called this an open gap before the
+ * Plan model existed; it isn't one.
  */
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 @RequirePermissions('inventory.manage')

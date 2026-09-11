@@ -40,7 +40,11 @@ export function paymentWithAllocationsToDto(
   });
 }
 
-/** No PlanFeatureGuard yet — same deliberate, tracked gap as the rest of this module. */
+/**
+ * No PlanFeatureGuard: intentionally excluded — a payment is required to
+ * close out any sale regardless of plan, not one of the optional
+ * document-chain steps PlanFeatureGuard gates (see feature-catalog.ts).
+ */
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 @RequirePermissions('sales.manage')
 @Controller('payments-received')

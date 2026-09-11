@@ -74,8 +74,9 @@ function reportToDto(report: PosSessionReport): PosSessionReportDto {
  * same "only the controller layer has request context" discipline as
  * every Outbox-writing service. Reusing 'sales.manage' rather than a
  * new permission key, same as every other Sales controller. No
- * PlanFeatureGuard yet — same deliberate, tracked gap as the rest of
- * this module.
+ * PlanFeatureGuard: intentionally excluded — POS is its own feature
+ * area, not one of the 3 optional document-chain steps PlanFeatureGuard
+ * gates (see feature-catalog.ts).
  */
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 @RequirePermissions('sales.manage')

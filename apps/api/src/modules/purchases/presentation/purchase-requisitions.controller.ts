@@ -21,8 +21,10 @@ import { PurchaseRequisitionsService } from '../application/services/purchase-re
 import { PurchasesEventPublisher } from '../infrastructure/events/purchases-event-publisher';
 
 /**
- * No PlanFeatureGuard yet — same deliberate, tracked gap as the rest of
- * this module (see SuppliersController's class comment).
+ * No PlanFeatureGuard: intentionally excluded — a requisition is an
+ * internal pre-RFQ request, not one of the optional document-chain steps
+ * PlanFeatureGuard gates (see feature-catalog.ts and SuppliersController's
+ * class comment for the same reasoning).
  *
  * Status changes (submit/approve/reject/cancel) are gated by the same
  * 'purchases.manage' permission as everything else here — NOT wired to

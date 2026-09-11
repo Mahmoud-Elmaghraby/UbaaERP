@@ -27,7 +27,11 @@ function returnWithLinesToDto(purchaseReturn: PurchaseReturnWithLines): Purchase
   return purchaseReturnWithLinesSchema.parse(purchaseReturn);
 }
 
-/** No PlanFeatureGuard yet — same deliberate, tracked gap as the rest of this module. */
+/**
+ * No PlanFeatureGuard: intentionally excluded — a return is a post-invoice
+ * adjustment, not one of the 4 optional pre-invoice document-chain steps
+ * PlanFeatureGuard gates (see feature-catalog.ts).
+ */
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 @RequirePermissions('purchases.manage')
 @Controller('purchase-returns')

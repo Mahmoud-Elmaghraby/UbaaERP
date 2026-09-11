@@ -21,8 +21,9 @@ import { SalesEventPublisher } from '../infrastructure/events/sales-event-publis
  * PATCH only — no POST/DELETE, see migration 0040's comment). Reuses
  * 'sales.manage' rather than minting a new permission.
  *
- * No PlanFeatureGuard yet — same tracked gap as every other controller
- * in this codebase; see SuppliersController's class comment.
+ * No PlanFeatureGuard: intentionally excluded — this is an integration
+ * credentials record, not one of the optional document-chain steps
+ * PlanFeatureGuard gates (see feature-catalog.ts).
  */
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 @RequirePermissions('sales.manage')

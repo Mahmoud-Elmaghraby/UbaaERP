@@ -32,7 +32,11 @@ export function invoiceWithLinesToDto(invoice: SalesInvoiceWithLines): SalesInvo
   });
 }
 
-/** No PlanFeatureGuard yet — same deliberate, tracked gap as the rest of this module. */
+/**
+ * No PlanFeatureGuard: intentionally excluded — the invoice is the one
+ * mandatory document in the Sales chain and is deliberately never
+ * gate-able (see feature-catalog.ts's class comment).
+ */
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 @RequirePermissions('sales.manage')
 @Controller('sales-invoices')

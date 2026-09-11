@@ -19,9 +19,11 @@ import { CustomersService } from '../application/services/customers.service';
 import { SalesEventPublisher } from '../infrastructure/events/sales-event-publisher';
 
 /**
- * No PlanFeatureGuard yet — same deliberate, tracked gap shared with
- * every other business module's controllers (see SuppliersController's
- * class comment). Revisit once, for every optional module at once.
+ * No PlanFeatureGuard: intentionally excluded — Customers is master data
+ * every Sales plan needs, not one of the 3 optional document-chain steps
+ * PlanFeatureGuard gates (Quotations, Sales Orders, Deliveries — see
+ * feature-catalog.ts and SuppliersController's class comment for the
+ * same reasoning on the Purchases side).
  */
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 @RequirePermissions('sales.manage')

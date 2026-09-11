@@ -33,7 +33,11 @@ function confirmationToDto(confirmation: SalesReturnConfirmation): SalesReturnCo
   return salesReturnConfirmationSchema.parse(confirmation);
 }
 
-/** No PlanFeatureGuard yet — same deliberate, tracked gap as the rest of this module. */
+/**
+ * No PlanFeatureGuard: intentionally excluded — a return is a post-invoice
+ * adjustment, not one of the 3 optional pre-invoice document-chain steps
+ * PlanFeatureGuard gates (see feature-catalog.ts).
+ */
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 @RequirePermissions('sales.manage')
 @Controller('sales-returns')

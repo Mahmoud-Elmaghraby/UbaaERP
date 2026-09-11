@@ -19,11 +19,13 @@ import { SuppliersService } from '../application/services/suppliers.service';
 import { PurchasesEventPublisher } from '../infrastructure/events/purchases-event-publisher';
 
 /**
- * No PlanFeatureGuard yet — same deliberate, tracked gap as Inventory's
- * controllers (see UnitsOfMeasureController's class comment): no
- * plans/features model exists in the public schema yet. Revisit once,
- * for every optional module at once, rather than inventing a one-off
- * model here.
+ * No PlanFeatureGuard: intentionally excluded — Suppliers is master data
+ * every Purchases plan needs, not one of the 4 optional document-chain
+ * steps PlanFeatureGuard actually gates (RFQ, Supplier Quotations,
+ * Purchase Orders, Goods Receipts — see feature-catalog.ts). This
+ * replaces an earlier comment calling this an open gap before the
+ * Plan/PlanFeature model existed; the model exists now and this
+ * controller was deliberately left out of its scope.
  */
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 @RequirePermissions('purchases.manage')
