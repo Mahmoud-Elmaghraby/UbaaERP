@@ -18,6 +18,7 @@ import type {
   CreateGoodsReceiptInput,
 } from '../../domain/goods-receipt.entity';
 import { BusinessRuleError, NotFoundError, isPostgresForeignKeyViolation } from '../errors';
+import { entityNotFound } from '../../../../shared/errors/entity-errors';
 import { NumberingSequencesService } from '../../../settings/application/services/numbering-sequences.service';
 
 /**
@@ -58,22 +59,28 @@ export class GoodsReceiptsService {
 
   async getById(db: Kysely<TenantDatabase>, id: string): Promise<GoodsReceiptWithLines> {
     const receipt = await this.receipts.findById(db, id);
-    if (!receipt) throw new NotFoundError(`Goods receipt "${id}" not found.`);
+    if (!receipt) throw entityNotFound('GOODS_RECEIPT', id);
     const lines = await this.lines.listByGoodsReceiptId(db, id);
     return { ...receipt, lines };
   }
 
   async create(db: Kysely<TenantDatabase>, input: CreateGoodsReceiptInput): Promise<GoodsReceiptWithLines> {
     if (input.lines.length === 0) {
-      throw new BusinessRuleError('A goods receipt must have at least one line.');
+      throw new BusinessRuleError('A goods receipt must have at least one line.', {
+        code: 'GOODS_RECEIPT.AT_LEAST_ONE_LINE_REQUIRED',
+      });
     }
 
     const po = await this.purchaseOrders.findById(db, input.purchaseOrderId);
-    if (!po) throw new NotFoundError(`Purchase order "${input.purchaseOrderId}" not found.`);
+    if (!po) throw entityNotFound('PURCHASE_ORDER', input.purchaseOrderId);
     if (po.status !== 'confirmed' && po.status !== 'partially_received') {
       throw new BusinessRuleError(
         `Purchase order "${input.purchaseOrderId}" is "${po.status}" — goods can only be received against ` +
           'a confirmed (or already partially received) purchase order.',
+        {
+          code: 'GOODS_RECEIPT.PURCHASE_ORDER_NOT_RECEIVABLE',
+          params: { id: input.purchaseOrderId, status: po.status },
+        },
       );
     }
 
@@ -83,6 +90,10 @@ export class GoodsReceiptsService {
       if (!poLineById.has(line.purchaseOrderLineId)) {
         throw new NotFoundError(
           `Purchase order line "${line.purchaseOrderLineId}" was not found on purchase order "${po.id}".`,
+          {
+            code: 'GOODS_RECEIPT.PURCHASE_ORDER_LINE_NOT_FOUND',
+            params: { lineId: line.purchaseOrderLineId, purchaseOrderId: po.id },
+          },
         );
       }
     }
@@ -99,6 +110,16 @@ export class GoodsReceiptsService {
         throw new BusinessRuleError(
           `Cannot receive ${line.quantityReceived} against purchase order line "${line.purchaseOrderLineId}" — ` +
             `only ${remaining} remaining (ordered ${poLine.quantity}, already received ${received}).`,
+          {
+            code: 'GOODS_RECEIPT.QUANTITY_EXCEEDS_REMAINING',
+            params: {
+              lineId: line.purchaseOrderLineId,
+              quantityReceived: line.quantityReceived,
+              remaining,
+              ordered: poLine.quantity,
+              received,
+            },
+          },
         );
       }
     }
@@ -134,12 +155,15 @@ export class GoodsReceiptsService {
       });
     } catch (err) {
       if (isPostgresForeignKeyViolation(err)) {
-        throw new NotFoundError('The given purchase order, purchase order line, or warehouse does not exist.');
+        throw new NotFoundError('The given purchase order, purchase order line, or warehouse does not exist.', {
+          code: 'GOODS_RECEIPT.PO_OR_LINE_OR_WAREHOUSE_NOT_FOUND',
+        });
       }
       if (err instanceof Error && err.message.includes('No numbering sequence configured')) {
         throw new BusinessRuleError(
           'No numbering sequence configured for goods receipts yet. ' +
             'Create one for document type "goods_receipt" via Settings → Numbering Sequences first.',
+          { code: 'GOODS_RECEIPT.NO_NUMBERING_SEQUENCE' },
         );
       }
       throw err;
@@ -153,15 +177,19 @@ export class GoodsReceiptsService {
     to: GoodsReceiptStatus,
   ): Promise<GoodsReceipt> {
     const existing = await this.receipts.findById(db, id);
-    if (!existing) throw new NotFoundError(`Goods receipt "${id}" not found.`);
+    if (!existing) throw entityNotFound('GOODS_RECEIPT', id);
     if (!from.includes(existing.status)) {
       throw new BusinessRuleError(
         `Cannot move goods receipt "${id}" to "${to}" from its current status "${existing.status}" ` +
           `(expected one of: ${from.join(', ')}).`,
+        {
+          code: 'GOODS_RECEIPT.INVALID_STATUS_TRANSITION',
+          params: { id, to, from: existing.status, expected: from.join(', ') },
+        },
       );
     }
     const updated = await this.receipts.updateStatus(db, id, to);
-    if (!updated) throw new NotFoundError(`Goods receipt "${id}" not found.`);
+    if (!updated) throw entityNotFound('GOODS_RECEIPT', id);
     return updated;
   }
 
@@ -177,16 +205,17 @@ export class GoodsReceiptsService {
    */
   async confirm(db: Kysely<TenantDatabase>, id: string): Promise<GoodsReceiptWithLines> {
     const existing = await this.receipts.findById(db, id);
-    if (!existing) throw new NotFoundError(`Goods receipt "${id}" not found.`);
+    if (!existing) throw entityNotFound('GOODS_RECEIPT', id);
     if (existing.status !== 'draft') {
       throw new BusinessRuleError(
         `Cannot confirm goods receipt "${id}" from its current status "${existing.status}" (expected "draft").`,
+        { code: 'GOODS_RECEIPT.NOT_CONFIRMABLE', params: { id, status: existing.status } },
       );
     }
 
     return db.transaction().execute(async (trx) => {
       const updated = await this.receipts.updateStatus(trx, id, 'confirmed');
-      if (!updated) throw new NotFoundError(`Goods receipt "${id}" not found.`);
+      if (!updated) throw entityNotFound('GOODS_RECEIPT', id);
       const lines = await this.lines.listByGoodsReceiptId(trx, id);
 
       const po = await this.purchaseOrders.findById(trx, updated.purchaseOrderId);
@@ -213,9 +242,12 @@ export class GoodsReceiptsService {
 
   async delete(db: Kysely<TenantDatabase>, id: string): Promise<void> {
     const existing = await this.receipts.findById(db, id);
-    if (!existing) throw new NotFoundError(`Goods receipt "${id}" not found.`);
+    if (!existing) throw entityNotFound('GOODS_RECEIPT', id);
     if (existing.status !== 'draft' && existing.status !== 'cancelled') {
-      throw new BusinessRuleError(`Goods receipt "${id}" is "${existing.status}" and cannot be deleted.`);
+      throw new BusinessRuleError(`Goods receipt "${id}" is "${existing.status}" and cannot be deleted.`, {
+        code: 'GOODS_RECEIPT.NOT_DELETABLE',
+        params: { id, status: existing.status },
+      });
     }
     await this.receipts.delete(db, id);
   }

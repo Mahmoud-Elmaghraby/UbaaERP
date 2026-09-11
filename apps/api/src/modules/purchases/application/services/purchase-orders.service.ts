@@ -25,7 +25,8 @@ import {
   type CreatePurchaseOrderLineInput,
   type UpdatePurchaseOrderInput,
 } from '../../domain/purchase-order.entity';
-import { BusinessRuleError, NotFoundError } from '../errors';
+import { BusinessRuleError } from '../errors';
+import { entityNotFound } from '../../../../shared/errors/entity-errors';
 import { NumberingSequencesService } from '../../../settings/application/services/numbering-sequences.service';
 
 @Injectable()
@@ -45,7 +46,7 @@ export class PurchaseOrdersService {
 
   async getById(db: Kysely<TenantDatabase>, id: string): Promise<PurchaseOrderWithLines> {
     const order = await this.orders.findById(db, id);
-    if (!order) throw new NotFoundError(`Purchase order "${id}" not found.`);
+    if (!order) throw entityNotFound('PURCHASE_ORDER', id);
     const lines = await this.lines.listByPurchaseOrderId(db, id);
     return { ...order, lines, totalAmount: calculatePurchaseOrderTotal(lines) };
   }
@@ -63,14 +64,19 @@ export class PurchaseOrdersService {
       if (input.supplierId || input.lines) {
         throw new BusinessRuleError(
           'Provide either sourceQuotationId or supplierId + lines directly — not both.',
+          { code: 'PURCHASE_ORDER.AMBIGUOUS_SOURCE' },
         );
       }
       const quotation = await this.quotations.findById(db, input.sourceQuotationId);
-      if (!quotation) throw new NotFoundError(`Supplier quotation "${input.sourceQuotationId}" not found.`);
+      if (!quotation) throw entityNotFound('SUPPLIER_QUOTATION', input.sourceQuotationId);
       if (quotation.status !== 'selected') {
         throw new BusinessRuleError(
           `Supplier quotation "${input.sourceQuotationId}" is "${quotation.status}", not "selected" — ` +
             'a purchase order can only be raised from a selected quotation.',
+          {
+            code: 'PURCHASE_ORDER.SOURCE_QUOTATION_NOT_SELECTED',
+            params: { id: input.sourceQuotationId, status: quotation.status },
+          },
         );
       }
       const quotationLines = await this.quotationLines.listByQuotationId(db, quotation.id);
@@ -88,10 +94,11 @@ export class PurchaseOrdersService {
     if (!input.supplierId || !input.lines || input.lines.length === 0) {
       throw new BusinessRuleError(
         'Provide a sourceQuotationId, or a supplierId with at least one line, to create a purchase order.',
+        { code: 'PURCHASE_ORDER.MISSING_SOURCE' },
       );
     }
     const supplier = await this.suppliers.findById(db, input.supplierId);
-    if (!supplier) throw new NotFoundError(`Supplier "${input.supplierId}" not found.`);
+    if (!supplier) throw entityNotFound('SUPPLIER', input.supplierId);
     return { supplierId: input.supplierId, lines: input.lines };
   }
 
@@ -100,7 +107,11 @@ export class PurchaseOrdersService {
     try {
       assertSingleCurrency(lines);
     } catch (err) {
-      throw new BusinessRuleError(err instanceof Error ? err.message : String(err));
+      const message = err instanceof Error ? err.message : String(err);
+      throw new BusinessRuleError(message, {
+        code: 'PURCHASE_ORDER.MULTIPLE_CURRENCIES',
+        params: { reason: message },
+      });
     }
 
     let allocated;
@@ -110,6 +121,7 @@ export class PurchaseOrdersService {
       throw new BusinessRuleError(
         'No numbering sequence configured for purchase orders yet. ' +
           'Create one for document type "purchase_order" via Settings → Numbering Sequences first.',
+        { code: 'PURCHASE_ORDER.NO_NUMBERING_SEQUENCE' },
       );
     }
 
@@ -138,16 +150,27 @@ export class PurchaseOrdersService {
     input: UpdatePurchaseOrderInput,
   ): Promise<PurchaseOrderWithLines> {
     const existing = await this.orders.findById(db, id);
-    if (!existing) throw new NotFoundError(`Purchase order "${id}" not found.`);
+    if (!existing) throw entityNotFound('PURCHASE_ORDER', id);
     if (existing.status !== 'draft') {
-      throw new BusinessRuleError(`Purchase order "${id}" is "${existing.status}" and can no longer be edited.`);
+      throw new BusinessRuleError(`Purchase order "${id}" is "${existing.status}" and can no longer be edited.`, {
+        code: 'PURCHASE_ORDER.NOT_EDITABLE',
+        params: { id, status: existing.status },
+      });
     }
     if (input.lines !== undefined) {
-      if (input.lines.length === 0) throw new BusinessRuleError('A purchase order must have at least one line.');
+      if (input.lines.length === 0) {
+        throw new BusinessRuleError('A purchase order must have at least one line.', {
+          code: 'PURCHASE_ORDER.AT_LEAST_ONE_LINE_REQUIRED',
+        });
+      }
       try {
         assertSingleCurrency(input.lines);
       } catch (err) {
-        throw new BusinessRuleError(err instanceof Error ? err.message : String(err));
+        const message = err instanceof Error ? err.message : String(err);
+        throw new BusinessRuleError(message, {
+          code: 'PURCHASE_ORDER.MULTIPLE_CURRENCIES',
+          params: { reason: message },
+        });
       }
     }
 
@@ -157,7 +180,7 @@ export class PurchaseOrdersService {
         notes: input.notes,
         customFields: input.customFields,
       });
-      if (!updated) throw new NotFoundError(`Purchase order "${id}" not found.`);
+      if (!updated) throw entityNotFound('PURCHASE_ORDER', id);
 
       let lines = await this.lines.listByPurchaseOrderId(trx, id);
       if (input.lines !== undefined) {
@@ -177,15 +200,19 @@ export class PurchaseOrdersService {
     to: PurchaseOrderStatus,
   ): Promise<PurchaseOrder> {
     const existing = await this.orders.findById(db, id);
-    if (!existing) throw new NotFoundError(`Purchase order "${id}" not found.`);
+    if (!existing) throw entityNotFound('PURCHASE_ORDER', id);
     if (!from.includes(existing.status)) {
       throw new BusinessRuleError(
         `Cannot move purchase order "${id}" to "${to}" from its current status "${existing.status}" ` +
           `(expected one of: ${from.join(', ')}).`,
+        {
+          code: 'PURCHASE_ORDER.INVALID_STATUS_TRANSITION',
+          params: { id, to, from: existing.status, expected: from.join(', ') },
+        },
       );
     }
     const updated = await this.orders.updateStatus(db, id, to);
-    if (!updated) throw new NotFoundError(`Purchase order "${id}" not found.`);
+    if (!updated) throw entityNotFound('PURCHASE_ORDER', id);
     return updated;
   }
 
@@ -199,9 +226,12 @@ export class PurchaseOrdersService {
 
   async delete(db: Kysely<TenantDatabase>, id: string): Promise<void> {
     const existing = await this.orders.findById(db, id);
-    if (!existing) throw new NotFoundError(`Purchase order "${id}" not found.`);
+    if (!existing) throw entityNotFound('PURCHASE_ORDER', id);
     if (existing.status !== 'draft' && existing.status !== 'cancelled') {
-      throw new BusinessRuleError(`Purchase order "${id}" is "${existing.status}" and cannot be deleted.`);
+      throw new BusinessRuleError(`Purchase order "${id}" is "${existing.status}" and cannot be deleted.`, {
+        code: 'PURCHASE_ORDER.NOT_DELETABLE',
+        params: { id, status: existing.status },
+      });
     }
     await this.orders.delete(db, id);
   }

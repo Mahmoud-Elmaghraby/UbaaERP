@@ -3,7 +3,8 @@ import type { Kysely } from 'kysely';
 import type { TenantDatabase } from '../../../../database/tenant/kysely-client';
 import { SUPPLIER_REPOSITORY, type SupplierRepository } from '../ports/supplier.repository';
 import type { Supplier, CreateSupplierInput, UpdateSupplierInput } from '../../domain/supplier.entity';
-import { ConflictError, NotFoundError, isPostgresUniqueViolation } from '../errors';
+import { isPostgresUniqueViolation } from '../errors';
+import { duplicateEntity, entityNotFound } from '../../../../shared/errors/entity-errors';
 
 @Injectable()
 export class SuppliersService {
@@ -15,7 +16,7 @@ export class SuppliersService {
 
   async getById(db: Kysely<TenantDatabase>, id: string): Promise<Supplier> {
     const supplier = await this.repository.findById(db, id);
-    if (!supplier) throw new NotFoundError(`Supplier "${id}" not found.`);
+    if (!supplier) throw entityNotFound('SUPPLIER', id);
     return supplier;
   }
 
@@ -24,7 +25,7 @@ export class SuppliersService {
       return await this.repository.create(db, input);
     } catch (err) {
       if (isPostgresUniqueViolation(err)) {
-        throw new ConflictError(`A supplier with code "${input.code}" already exists.`);
+        throw duplicateEntity('SUPPLIER', 'code', input.code);
       }
       throw err;
     }
@@ -33,11 +34,11 @@ export class SuppliersService {
   async update(db: Kysely<TenantDatabase>, id: string, input: UpdateSupplierInput): Promise<Supplier> {
     try {
       const updated = await this.repository.update(db, id, input);
-      if (!updated) throw new NotFoundError(`Supplier "${id}" not found.`);
+      if (!updated) throw entityNotFound('SUPPLIER', id);
       return updated;
     } catch (err) {
       if (isPostgresUniqueViolation(err)) {
-        throw new ConflictError(`A supplier with code "${input.code}" already exists.`);
+        throw duplicateEntity('SUPPLIER', 'code', input.code);
       }
       throw err;
     }
@@ -45,6 +46,6 @@ export class SuppliersService {
 
   async delete(db: Kysely<TenantDatabase>, id: string): Promise<void> {
     const deleted = await this.repository.delete(db, id);
-    if (!deleted) throw new NotFoundError(`Supplier "${id}" not found.`);
+    if (!deleted) throw entityNotFound('SUPPLIER', id);
   }
 }

@@ -19,6 +19,7 @@ import type {
   CreatePurchaseReturnInput,
 } from '../../domain/purchase-return.entity';
 import { BusinessRuleError, NotFoundError, isPostgresForeignKeyViolation } from '../errors';
+import { entityNotFound } from '../../../../shared/errors/entity-errors';
 import { NumberingSequencesService } from '../../../settings/application/services/numbering-sequences.service';
 
 /**
@@ -62,22 +63,28 @@ export class PurchaseReturnsService {
 
   async getById(db: Kysely<TenantDatabase>, id: string): Promise<PurchaseReturnWithLines> {
     const purchaseReturn = await this.returns.findById(db, id);
-    if (!purchaseReturn) throw new NotFoundError(`Purchase return "${id}" not found.`);
+    if (!purchaseReturn) throw entityNotFound('PURCHASE_RETURN', id);
     const lines = await this.lines.listByPurchaseReturnId(db, id);
     return { ...purchaseReturn, lines };
   }
 
   async create(db: Kysely<TenantDatabase>, input: CreatePurchaseReturnInput): Promise<PurchaseReturnWithLines> {
     if (input.lines.length === 0) {
-      throw new BusinessRuleError('A purchase return must have at least one line.');
+      throw new BusinessRuleError('A purchase return must have at least one line.', {
+        code: 'PURCHASE_RETURN.AT_LEAST_ONE_LINE_REQUIRED',
+      });
     }
 
     const goodsReceipt = await this.goodsReceipts.findById(db, input.goodsReceiptId);
-    if (!goodsReceipt) throw new NotFoundError(`Goods receipt "${input.goodsReceiptId}" not found.`);
+    if (!goodsReceipt) throw entityNotFound('GOODS_RECEIPT', input.goodsReceiptId);
     if (goodsReceipt.status !== 'confirmed') {
       throw new BusinessRuleError(
         `Goods receipt "${input.goodsReceiptId}" is "${goodsReceipt.status}" — only a confirmed goods receipt ` +
           '(one that actually arrived in stock) can have anything returned against it.',
+        {
+          code: 'PURCHASE_RETURN.GOODS_RECEIPT_NOT_CONFIRMED',
+          params: { id: input.goodsReceiptId, status: goodsReceipt.status },
+        },
       );
     }
 
@@ -87,6 +94,10 @@ export class PurchaseReturnsService {
       if (!receiptLineById.has(line.goodsReceiptLineId)) {
         throw new NotFoundError(
           `Goods receipt line "${line.goodsReceiptLineId}" was not found on goods receipt "${goodsReceipt.id}".`,
+          {
+            code: 'PURCHASE_RETURN.RECEIPT_LINE_NOT_FOUND',
+            params: { lineId: line.goodsReceiptLineId, goodsReceiptId: goodsReceipt.id },
+          },
         );
       }
     }
@@ -103,6 +114,16 @@ export class PurchaseReturnsService {
         throw new BusinessRuleError(
           `Cannot return ${line.quantityReturned} against goods receipt line "${line.goodsReceiptLineId}" — ` +
             `only ${remaining} remaining returnable (received ${receiptLine.quantityReceived}, already returned ${returned}).`,
+          {
+            code: 'PURCHASE_RETURN.QUANTITY_EXCEEDS_REMAINING',
+            params: {
+              lineId: line.goodsReceiptLineId,
+              quantityReturned: line.quantityReturned,
+              remaining,
+              quantityReceived: receiptLine.quantityReceived,
+              returned,
+            },
+          },
         );
       }
     }
@@ -137,12 +158,15 @@ export class PurchaseReturnsService {
       });
     } catch (err) {
       if (isPostgresForeignKeyViolation(err)) {
-        throw new NotFoundError('The given goods receipt or goods receipt line does not exist.');
+        throw new NotFoundError('The given goods receipt or goods receipt line does not exist.', {
+          code: 'PURCHASE_RETURN.RECEIPT_OR_LINE_NOT_FOUND',
+        });
       }
       if (err instanceof Error && err.message.includes('No numbering sequence configured')) {
         throw new BusinessRuleError(
           'No numbering sequence configured for purchase returns yet. ' +
             'Create one for document type "purchase_return" via Settings → Numbering Sequences first.',
+          { code: 'PURCHASE_RETURN.NO_NUMBERING_SEQUENCE' },
         );
       }
       throw err;
@@ -157,20 +181,21 @@ export class PurchaseReturnsService {
    */
   async confirm(db: Kysely<TenantDatabase>, id: string): Promise<PurchaseReturnConfirmation> {
     const existing = await this.returns.findById(db, id);
-    if (!existing) throw new NotFoundError(`Purchase return "${id}" not found.`);
+    if (!existing) throw entityNotFound('PURCHASE_RETURN', id);
     if (existing.status !== 'draft') {
       throw new BusinessRuleError(
         `Cannot confirm purchase return "${id}" from its current status "${existing.status}" (expected "draft").`,
+        { code: 'PURCHASE_RETURN.NOT_CONFIRMABLE', params: { id, status: existing.status } },
       );
     }
 
     const updated = await this.returns.updateStatus(db, id, 'confirmed');
-    if (!updated) throw new NotFoundError(`Purchase return "${id}" not found.`);
+    if (!updated) throw entityNotFound('PURCHASE_RETURN', id);
     const lines = await this.lines.listByPurchaseReturnId(db, id);
 
     const goodsReceipt = await this.goodsReceipts.findById(db, updated.goodsReceiptId);
     if (!goodsReceipt) {
-      throw new NotFoundError(`Goods receipt "${updated.goodsReceiptId}" not found.`);
+      throw entityNotFound('GOODS_RECEIPT', updated.goodsReceiptId);
     }
 
     return { ...updated, lines, warehouseId: goodsReceipt.warehouseId };
@@ -183,15 +208,19 @@ export class PurchaseReturnsService {
     to: PurchaseReturnStatus,
   ): Promise<PurchaseReturn> {
     const existing = await this.returns.findById(db, id);
-    if (!existing) throw new NotFoundError(`Purchase return "${id}" not found.`);
+    if (!existing) throw entityNotFound('PURCHASE_RETURN', id);
     if (!from.includes(existing.status)) {
       throw new BusinessRuleError(
         `Cannot move purchase return "${id}" to "${to}" from its current status "${existing.status}" ` +
           `(expected one of: ${from.join(', ')}).`,
+        {
+          code: 'PURCHASE_RETURN.INVALID_STATUS_TRANSITION',
+          params: { id, to, from: existing.status, expected: from.join(', ') },
+        },
       );
     }
     const updated = await this.returns.updateStatus(db, id, to);
-    if (!updated) throw new NotFoundError(`Purchase return "${id}" not found.`);
+    if (!updated) throw entityNotFound('PURCHASE_RETURN', id);
     return updated;
   }
 
@@ -201,9 +230,12 @@ export class PurchaseReturnsService {
 
   async delete(db: Kysely<TenantDatabase>, id: string): Promise<void> {
     const existing = await this.returns.findById(db, id);
-    if (!existing) throw new NotFoundError(`Purchase return "${id}" not found.`);
+    if (!existing) throw entityNotFound('PURCHASE_RETURN', id);
     if (existing.status !== 'draft' && existing.status !== 'cancelled') {
-      throw new BusinessRuleError(`Purchase return "${id}" is "${existing.status}" and cannot be deleted.`);
+      throw new BusinessRuleError(`Purchase return "${id}" is "${existing.status}" and cannot be deleted.`, {
+        code: 'PURCHASE_RETURN.NOT_DELETABLE',
+        params: { id, status: existing.status },
+      });
     }
     await this.returns.delete(db, id);
   }

@@ -27,6 +27,7 @@ import {
 import type { PurchaseOrderLine } from '../../domain/purchase-order.entity';
 import type { GoodsReceiptWithLines } from '../../domain/goods-receipt.entity';
 import { BusinessRuleError, NotFoundError, isPostgresForeignKeyViolation } from '../errors';
+import { entityNotFound } from '../../../../shared/errors/entity-errors';
 import { NumberingSequencesService } from '../../../settings/application/services/numbering-sequences.service';
 import { OutboxWriterService } from '../../../../shared/outbox/application/services/outbox-writer.service';
 import { FeatureAvailabilityService } from '../../../../shared/plans/feature-availability.service';
@@ -140,7 +141,7 @@ export class PurchaseInvoicesService {
 
   async getById(db: Kysely<TenantDatabase>, id: string): Promise<PurchaseInvoiceWithLines> {
     const invoice = await this.invoices.findById(db, id);
-    if (!invoice) throw new NotFoundError(`Purchase invoice "${id}" not found.`);
+    if (!invoice) throw entityNotFound('PURCHASE_INVOICE', id);
     const lines = await this.lines.listByPurchaseInvoiceId(db, id);
     return { ...invoice, lines, totalAmount: calculatePurchaseInvoiceTotal(lines) };
   }
@@ -156,16 +157,20 @@ export class PurchaseInvoicesService {
       if (!input.supplierId || !input.directLines || input.directLines.length === 0) {
         throw new BusinessRuleError(
           'Provide a purchaseOrderId, or a supplierId with at least one directLines entry, to create a purchase invoice.',
+          { code: 'PURCHASE_INVOICE.MISSING_DIRECT_SOURCE' },
         );
       }
     } else {
       if (input.supplierId || input.directLines) {
         throw new BusinessRuleError(
           'Provide either purchaseOrderId + lines, or supplierId + directLines — not both.',
+          { code: 'PURCHASE_INVOICE.AMBIGUOUS_SOURCE' },
         );
       }
       if (!input.lines || input.lines.length === 0) {
-        throw new BusinessRuleError('A purchase invoice must have at least one line.');
+        throw new BusinessRuleError('A purchase invoice must have at least one line.', {
+          code: 'PURCHASE_INVOICE.AT_LEAST_ONE_LINE_REQUIRED',
+        });
       }
     }
 
@@ -200,6 +205,7 @@ export class PurchaseInvoicesService {
           if (purchaseOrdersEnabled) {
             throw new BusinessRuleError(
               'Purchase Orders is enabled for this tenant — create a purchase order first, then invoice it.',
+              { code: 'PURCHASE_INVOICE.PURCHASE_ORDERS_REQUIRED' },
             );
           }
 
@@ -225,10 +231,14 @@ export class PurchaseInvoicesService {
           }));
         } else {
           const po = await this.purchaseOrderRepo.findById(trx, input.purchaseOrderId!);
-          if (!po) throw new NotFoundError(`Purchase order "${input.purchaseOrderId}" not found.`);
+          if (!po) throw entityNotFound('PURCHASE_ORDER', input.purchaseOrderId);
           if (po.status === 'draft' || po.status === 'cancelled') {
             throw new BusinessRuleError(
               `Purchase order "${input.purchaseOrderId}" is "${po.status}" — only a confirmed purchase order can be invoiced.`,
+              {
+                code: 'PURCHASE_INVOICE.PURCHASE_ORDER_NOT_INVOICEABLE',
+                params: { id: input.purchaseOrderId ?? '', status: po.status },
+              },
             );
           }
 
@@ -239,6 +249,10 @@ export class PurchaseInvoicesService {
             if (!poLineById.has(line.purchaseOrderLineId)) {
               throw new NotFoundError(
                 `Purchase order line "${line.purchaseOrderLineId}" was not found on purchase order "${po.id}".`,
+                {
+                  code: 'PURCHASE_INVOICE.PURCHASE_ORDER_LINE_NOT_FOUND',
+                  params: { lineId: line.purchaseOrderLineId, purchaseOrderId: po.id },
+                },
               );
             }
           }
@@ -255,6 +269,16 @@ export class PurchaseInvoicesService {
               throw new BusinessRuleError(
                 `Cannot invoice ${line.quantityInvoiced} against purchase order line "${line.purchaseOrderLineId}" — ` +
                   `only ${remaining} remaining to invoice (ordered ${poLine.quantity}, already invoiced ${invoiced}).`,
+                {
+                  code: 'PURCHASE_INVOICE.QUANTITY_EXCEEDS_REMAINING',
+                  params: {
+                    lineId: line.purchaseOrderLineId,
+                    quantityInvoiced: line.quantityInvoiced,
+                    remaining,
+                    ordered: poLine.quantity,
+                    invoiced,
+                  },
+                },
               );
             }
           }
@@ -270,7 +294,11 @@ export class PurchaseInvoicesService {
         try {
           assertSingleCurrency(resolvedLines);
         } catch (err) {
-          throw new BusinessRuleError(err instanceof Error ? err.message : String(err));
+          const message = err instanceof Error ? err.message : String(err);
+          throw new BusinessRuleError(message, {
+            code: 'PURCHASE_INVOICE.MULTIPLE_CURRENCIES',
+            params: { reason: message },
+          });
         }
 
         const goodsReceiptsEnabled = await this.featureAvailability.isEnabled(
@@ -307,6 +335,7 @@ export class PurchaseInvoicesService {
               throw new BusinessRuleError(
                 'Goods Receipts is disabled for this tenant, so this invoice must record the stock movement a ' +
                   'Goods Receipt normally would — provide a warehouseId.',
+                { code: 'PURCHASE_INVOICE.WAREHOUSE_REQUIRED' },
               );
             }
             const receipt = await this.goodsReceiptsService.create(trx, {
@@ -350,12 +379,16 @@ export class PurchaseInvoicesService {
       });
     } catch (err) {
       if (isPostgresForeignKeyViolation(err)) {
-        throw new NotFoundError('The given purchase order, purchase order line, supplier, or warehouse does not exist.');
+        throw new NotFoundError(
+          'The given purchase order, purchase order line, supplier, or warehouse does not exist.',
+          { code: 'PURCHASE_INVOICE.SOURCE_NOT_FOUND' },
+        );
       }
       if (err instanceof Error && err.message.includes('No numbering sequence configured')) {
         throw new BusinessRuleError(
           'No numbering sequence configured for purchase invoices yet. ' +
             'Create one for document type "purchase_invoice" via Settings → Numbering Sequences first.',
+          { code: 'PURCHASE_INVOICE.NO_NUMBERING_SEQUENCE' },
         );
       }
       throw err;
@@ -398,22 +431,26 @@ export class PurchaseInvoicesService {
     actorUserId: string | null,
   ): Promise<PurchaseInvoiceWithLines> {
     const existing = await this.invoices.findById(db, id);
-    if (!existing) throw new NotFoundError(`Purchase invoice "${id}" not found.`);
+    if (!existing) throw entityNotFound('PURCHASE_INVOICE', id);
     if (existing.status !== 'draft') {
       throw new BusinessRuleError(
         `Cannot post purchase invoice "${id}" from its current status "${existing.status}" (expected "draft").`,
+        { code: 'PURCHASE_INVOICE.NOT_POSTABLE', params: { id, status: existing.status } },
       );
     }
 
     const lines = await this.lines.listByPurchaseInvoiceId(db, id);
     if (lines.length === 0) {
-      throw new BusinessRuleError(`Purchase invoice "${id}" has no lines and cannot be posted.`);
+      throw new BusinessRuleError(`Purchase invoice "${id}" has no lines and cannot be posted.`, {
+        code: 'PURCHASE_INVOICE.NO_LINES',
+        params: { id },
+      });
     }
     const totalAmount = calculatePurchaseInvoiceTotal(lines);
 
     return withTransaction(db, async (trx) => {
       const updated = await this.invoices.updateStatus(trx, id, 'posted');
-      if (!updated) throw new NotFoundError(`Purchase invoice "${id}" not found.`);
+      if (!updated) throw entityNotFound('PURCHASE_INVOICE', id);
 
       await this.outboxWriter.write(trx, 'purchases.purchase_invoice.posted', {
         schema,
@@ -440,23 +477,27 @@ export class PurchaseInvoicesService {
 
   async cancel(db: Kysely<TenantDatabase>, id: string): Promise<PurchaseInvoice> {
     const existing = await this.invoices.findById(db, id);
-    if (!existing) throw new NotFoundError(`Purchase invoice "${id}" not found.`);
+    if (!existing) throw entityNotFound('PURCHASE_INVOICE', id);
     if (existing.status !== 'draft') {
       throw new BusinessRuleError(
         `Cannot cancel purchase invoice "${id}" from its current status "${existing.status}" (expected "draft") — ` +
           'a posted invoice is a ledger-worthy fact; reversing one needs a real accounting reversal, not a plain cancel.',
+        { code: 'PURCHASE_INVOICE.NOT_CANCELLABLE', params: { id, status: existing.status } },
       );
     }
     const updated = await this.invoices.updateStatus(db, id, 'cancelled');
-    if (!updated) throw new NotFoundError(`Purchase invoice "${id}" not found.`);
+    if (!updated) throw entityNotFound('PURCHASE_INVOICE', id);
     return updated;
   }
 
   async delete(db: Kysely<TenantDatabase>, id: string): Promise<void> {
     const existing = await this.invoices.findById(db, id);
-    if (!existing) throw new NotFoundError(`Purchase invoice "${id}" not found.`);
+    if (!existing) throw entityNotFound('PURCHASE_INVOICE', id);
     if (existing.status !== 'draft' && existing.status !== 'cancelled') {
-      throw new BusinessRuleError(`Purchase invoice "${id}" is "${existing.status}" and cannot be deleted.`);
+      throw new BusinessRuleError(`Purchase invoice "${id}" is "${existing.status}" and cannot be deleted.`, {
+        code: 'PURCHASE_INVOICE.NOT_DELETABLE',
+        params: { id, status: existing.status },
+      });
     }
     await this.invoices.delete(db, id);
   }

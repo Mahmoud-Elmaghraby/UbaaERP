@@ -10,6 +10,7 @@ import {
 } from '../ports/purchase-requisition.repository';
 import type { Rfq, RfqWithDetails, RfqStatus, CreateRfqInput, UpdateRfqInput } from '../../domain/rfq.entity';
 import { BusinessRuleError, NotFoundError, isPostgresForeignKeyViolation } from '../errors';
+import { entityNotFound } from '../../../../shared/errors/entity-errors';
 import { NumberingSequencesService } from '../../../settings/application/services/numbering-sequences.service';
 
 @Injectable()
@@ -28,7 +29,7 @@ export class RfqsService {
 
   async getById(db: Kysely<TenantDatabase>, id: string): Promise<RfqWithDetails> {
     const rfq = await this.rfqs.findById(db, id);
-    if (!rfq) throw new NotFoundError(`RFQ "${id}" not found.`);
+    if (!rfq) throw entityNotFound('RFQ', id);
     const [lines, supplierIds] = await Promise.all([
       this.lines.listByRfqId(db, id),
       this.invitedSuppliers.listSupplierIdsByRfqId(db, id),
@@ -37,20 +38,30 @@ export class RfqsService {
   }
 
   async create(db: Kysely<TenantDatabase>, input: CreateRfqInput): Promise<RfqWithDetails> {
-    if (input.lines.length === 0) throw new BusinessRuleError('An RFQ must have at least one line.');
+    if (input.lines.length === 0) {
+      throw new BusinessRuleError('An RFQ must have at least one line.', {
+        code: 'RFQ.AT_LEAST_ONE_LINE_REQUIRED',
+      });
+    }
     if (input.supplierIds.length === 0) {
-      throw new BusinessRuleError('An RFQ must invite at least one supplier to quote.');
+      throw new BusinessRuleError('An RFQ must invite at least one supplier to quote.', {
+        code: 'RFQ.AT_LEAST_ONE_SUPPLIER_REQUIRED',
+      });
     }
 
     if (input.sourceRequisitionId) {
       const requisition = await this.requisitions.findById(db, input.sourceRequisitionId);
       if (!requisition) {
-        throw new NotFoundError(`Purchase requisition "${input.sourceRequisitionId}" not found.`);
+        throw entityNotFound('PURCHASE_REQUISITION', input.sourceRequisitionId);
       }
       if (requisition.status !== 'approved') {
         throw new BusinessRuleError(
           `Purchase requisition "${input.sourceRequisitionId}" is "${requisition.status}", not "approved" — ` +
             'an RFQ can only be raised from an approved requisition.',
+          {
+            code: 'RFQ.SOURCE_REQUISITION_NOT_APPROVED',
+            params: { id: input.sourceRequisitionId, status: requisition.status },
+          },
         );
       }
     }
@@ -78,12 +89,15 @@ export class RfqsService {
       });
     } catch (err) {
       if (isPostgresForeignKeyViolation(err)) {
-        throw new NotFoundError('One of the given product variants or suppliers does not exist.');
+        throw new NotFoundError('One of the given product variants or suppliers does not exist.', {
+          code: 'RFQ.LINE_OR_SUPPLIER_NOT_FOUND',
+        });
       }
       if (err instanceof Error && err.message.includes('No numbering sequence configured')) {
         throw new BusinessRuleError(
           'No numbering sequence configured for RFQs yet. ' +
             'Create one for document type "request_for_quotation" via Settings → Numbering Sequences first.',
+          { code: 'RFQ.NO_NUMBERING_SEQUENCE' },
         );
       }
       throw err;
@@ -92,20 +106,27 @@ export class RfqsService {
 
   async update(db: Kysely<TenantDatabase>, id: string, input: UpdateRfqInput): Promise<RfqWithDetails> {
     const existing = await this.rfqs.findById(db, id);
-    if (!existing) throw new NotFoundError(`RFQ "${id}" not found.`);
+    if (!existing) throw entityNotFound('RFQ', id);
     if (existing.status !== 'draft') {
-      throw new BusinessRuleError(`RFQ "${id}" is "${existing.status}" and can no longer be edited.`);
+      throw new BusinessRuleError(`RFQ "${id}" is "${existing.status}" and can no longer be edited.`, {
+        code: 'RFQ.NOT_EDITABLE',
+        params: { id, status: existing.status },
+      });
     }
     if (input.lines !== undefined && input.lines.length === 0) {
-      throw new BusinessRuleError('An RFQ must have at least one line.');
+      throw new BusinessRuleError('An RFQ must have at least one line.', {
+        code: 'RFQ.AT_LEAST_ONE_LINE_REQUIRED',
+      });
     }
     if (input.supplierIds !== undefined && input.supplierIds.length === 0) {
-      throw new BusinessRuleError('An RFQ must invite at least one supplier to quote.');
+      throw new BusinessRuleError('An RFQ must invite at least one supplier to quote.', {
+        code: 'RFQ.AT_LEAST_ONE_SUPPLIER_REQUIRED',
+      });
     }
 
     return db.transaction().execute(async (trx) => {
       const updated = await this.rfqs.update(trx, id, { notes: input.notes, customFields: input.customFields });
-      if (!updated) throw new NotFoundError(`RFQ "${id}" not found.`);
+      if (!updated) throw entityNotFound('RFQ', id);
 
       let lines = await this.lines.listByRfqId(trx, id);
       if (input.lines !== undefined) {
@@ -132,15 +153,19 @@ export class RfqsService {
     to: RfqStatus,
   ): Promise<Rfq> {
     const existing = await this.rfqs.findById(db, id);
-    if (!existing) throw new NotFoundError(`RFQ "${id}" not found.`);
+    if (!existing) throw entityNotFound('RFQ', id);
     if (!from.includes(existing.status)) {
       throw new BusinessRuleError(
         `Cannot move RFQ "${id}" to "${to}" from its current status "${existing.status}" ` +
           `(expected one of: ${from.join(', ')}).`,
+        {
+          code: 'RFQ.INVALID_STATUS_TRANSITION',
+          params: { id, to, from: existing.status, expected: from.join(', ') },
+        },
       );
     }
     const updated = await this.rfqs.updateStatus(db, id, to);
-    if (!updated) throw new NotFoundError(`RFQ "${id}" not found.`);
+    if (!updated) throw entityNotFound('RFQ', id);
     return updated;
   }
 
@@ -159,9 +184,12 @@ export class RfqsService {
 
   async delete(db: Kysely<TenantDatabase>, id: string): Promise<void> {
     const existing = await this.rfqs.findById(db, id);
-    if (!existing) throw new NotFoundError(`RFQ "${id}" not found.`);
+    if (!existing) throw entityNotFound('RFQ', id);
     if (existing.status !== 'draft' && existing.status !== 'cancelled') {
-      throw new BusinessRuleError(`RFQ "${id}" is "${existing.status}" and cannot be deleted.`);
+      throw new BusinessRuleError(`RFQ "${id}" is "${existing.status}" and cannot be deleted.`, {
+        code: 'RFQ.NOT_DELETABLE',
+        params: { id, status: existing.status },
+      });
     }
     try {
       await this.rfqs.delete(db, id);
@@ -169,6 +197,7 @@ export class RfqsService {
       if (isPostgresForeignKeyViolation(err)) {
         throw new BusinessRuleError(
           `RFQ "${id}" cannot be deleted — one or more supplier quotations already reference it.`,
+          { code: 'RFQ.HAS_SUPPLIER_QUOTATIONS', params: { id } },
         );
       }
       throw err;

@@ -17,7 +17,8 @@ import type {
   CreateSupplierQuotationInput,
   UpdateSupplierQuotationInput,
 } from '../../domain/supplier-quotation.entity';
-import { BusinessRuleError, ConflictError, NotFoundError, isPostgresUniqueViolation } from '../errors';
+import { BusinessRuleError, ConflictError, isPostgresUniqueViolation } from '../errors';
+import { entityNotFound } from '../../../../shared/errors/entity-errors';
 import { RfqsService } from './rfqs.service';
 
 @Injectable()
@@ -36,7 +37,7 @@ export class SupplierQuotationsService {
 
   async getById(db: Kysely<TenantDatabase>, id: string): Promise<SupplierQuotationWithLines> {
     const quotation = await this.quotations.findById(db, id);
-    if (!quotation) throw new NotFoundError(`Supplier quotation "${id}" not found.`);
+    if (!quotation) throw entityNotFound('SUPPLIER_QUOTATION', id);
     const lines = await this.lines.listByQuotationId(db, id);
     return { ...quotation, lines };
   }
@@ -46,15 +47,18 @@ export class SupplierQuotationsService {
     input: CreateSupplierQuotationInput,
   ): Promise<SupplierQuotationWithLines> {
     if (input.lines.length === 0) {
-      throw new BusinessRuleError('A supplier quotation must have at least one line.');
+      throw new BusinessRuleError('A supplier quotation must have at least one line.', {
+        code: 'SUPPLIER_QUOTATION.AT_LEAST_ONE_LINE_REQUIRED',
+      });
     }
 
     const rfq = await this.rfqs.findById(db, input.rfqId);
-    if (!rfq) throw new NotFoundError(`RFQ "${input.rfqId}" not found.`);
+    if (!rfq) throw entityNotFound('RFQ', input.rfqId);
     if (rfq.status !== 'sent') {
       throw new BusinessRuleError(
         `RFQ "${input.rfqId}" is "${rfq.status}", not "sent" — a supplier quotation can only be recorded ` +
           'against an RFQ that has actually been sent to suppliers.',
+        { code: 'SUPPLIER_QUOTATION.RFQ_NOT_SENT', params: { rfqId: input.rfqId, status: rfq.status } },
       );
     }
 
@@ -62,6 +66,7 @@ export class SupplierQuotationsService {
     if (!invited.includes(input.supplierId)) {
       throw new BusinessRuleError(
         `Supplier "${input.supplierId}" was not invited to quote on RFQ "${input.rfqId}".`,
+        { code: 'SUPPLIER_QUOTATION.SUPPLIER_NOT_INVITED', params: { supplierId: input.supplierId, rfqId: input.rfqId } },
       );
     }
 
@@ -86,6 +91,10 @@ export class SupplierQuotationsService {
       if (isPostgresUniqueViolation(err)) {
         throw new ConflictError(
           `Supplier "${input.supplierId}" already has a quotation recorded on RFQ "${input.rfqId}" — update it instead.`,
+          {
+            code: 'SUPPLIER_QUOTATION.ALREADY_EXISTS_FOR_SUPPLIER',
+            params: { supplierId: input.supplierId, rfqId: input.rfqId },
+          },
         );
       }
       throw err;
@@ -98,14 +107,17 @@ export class SupplierQuotationsService {
     input: UpdateSupplierQuotationInput,
   ): Promise<SupplierQuotationWithLines> {
     const existing = await this.quotations.findById(db, id);
-    if (!existing) throw new NotFoundError(`Supplier quotation "${id}" not found.`);
+    if (!existing) throw entityNotFound('SUPPLIER_QUOTATION', id);
     if (existing.status !== 'received') {
       throw new BusinessRuleError(
         `Supplier quotation "${id}" is "${existing.status}" and can no longer be edited.`,
+        { code: 'SUPPLIER_QUOTATION.NOT_EDITABLE', params: { id, status: existing.status } },
       );
     }
     if (input.lines !== undefined && input.lines.length === 0) {
-      throw new BusinessRuleError('A supplier quotation must have at least one line.');
+      throw new BusinessRuleError('A supplier quotation must have at least one line.', {
+        code: 'SUPPLIER_QUOTATION.AT_LEAST_ONE_LINE_REQUIRED',
+      });
     }
 
     return db.transaction().execute(async (trx) => {
@@ -114,7 +126,7 @@ export class SupplierQuotationsService {
         notes: input.notes,
         customFields: input.customFields,
       });
-      if (!updated) throw new NotFoundError(`Supplier quotation "${id}" not found.`);
+      if (!updated) throw entityNotFound('SUPPLIER_QUOTATION', id);
 
       let lines = await this.lines.listByQuotationId(trx, id);
       if (input.lines !== undefined) {
@@ -136,16 +148,17 @@ export class SupplierQuotationsService {
    */
   async select(db: Kysely<TenantDatabase>, id: string): Promise<SupplierQuotation> {
     const existing = await this.quotations.findById(db, id);
-    if (!existing) throw new NotFoundError(`Supplier quotation "${id}" not found.`);
+    if (!existing) throw entityNotFound('SUPPLIER_QUOTATION', id);
     if (existing.status !== 'received') {
       throw new BusinessRuleError(
         `Supplier quotation "${id}" is "${existing.status}", not "received" — only a pending quotation can be selected.`,
+        { code: 'SUPPLIER_QUOTATION.NOT_SELECTABLE', params: { id, status: existing.status } },
       );
     }
 
     return db.transaction().execute(async (trx) => {
       const selected = await this.quotations.updateStatus(trx, id, 'selected');
-      if (!selected) throw new NotFoundError(`Supplier quotation "${id}" not found.`);
+      if (!selected) throw entityNotFound('SUPPLIER_QUOTATION', id);
 
       const siblings = await this.quotations.listByRfqIdExcluding(trx, existing.rfqId, id);
       for (const sibling of siblings) {
@@ -161,23 +174,25 @@ export class SupplierQuotationsService {
 
   async reject(db: Kysely<TenantDatabase>, id: string): Promise<SupplierQuotation> {
     const existing = await this.quotations.findById(db, id);
-    if (!existing) throw new NotFoundError(`Supplier quotation "${id}" not found.`);
+    if (!existing) throw entityNotFound('SUPPLIER_QUOTATION', id);
     if (existing.status !== 'received') {
       throw new BusinessRuleError(
         `Supplier quotation "${id}" is "${existing.status}", not "received" — only a pending quotation can be rejected.`,
+        { code: 'SUPPLIER_QUOTATION.NOT_REJECTABLE', params: { id, status: existing.status } },
       );
     }
     const updated = await this.quotations.updateStatus(db, id, 'rejected');
-    if (!updated) throw new NotFoundError(`Supplier quotation "${id}" not found.`);
+    if (!updated) throw entityNotFound('SUPPLIER_QUOTATION', id);
     return updated;
   }
 
   async delete(db: Kysely<TenantDatabase>, id: string): Promise<void> {
     const existing = await this.quotations.findById(db, id);
-    if (!existing) throw new NotFoundError(`Supplier quotation "${id}" not found.`);
+    if (!existing) throw entityNotFound('SUPPLIER_QUOTATION', id);
     if (existing.status !== 'received') {
       throw new BusinessRuleError(
         `Supplier quotation "${id}" is "${existing.status}" and cannot be deleted.`,
+        { code: 'SUPPLIER_QUOTATION.NOT_DELETABLE', params: { id, status: existing.status } },
       );
     }
     await this.quotations.delete(db, id);

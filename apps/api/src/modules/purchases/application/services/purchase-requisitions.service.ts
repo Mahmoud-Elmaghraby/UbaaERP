@@ -16,7 +16,8 @@ import type {
   CreatePurchaseRequisitionInput,
   UpdatePurchaseRequisitionInput,
 } from '../../domain/purchase-requisition.entity';
-import { BusinessRuleError, NotFoundError } from '../errors';
+import { BusinessRuleError } from '../errors';
+import { entityNotFound } from '../../../../shared/errors/entity-errors';
 import { NumberingSequencesService } from '../../../settings/application/services/numbering-sequences.service';
 
 /**
@@ -43,7 +44,7 @@ export class PurchaseRequisitionsService {
 
   async getById(db: Kysely<TenantDatabase>, id: string): Promise<PurchaseRequisitionWithLines> {
     const requisition = await this.requisitions.findById(db, id);
-    if (!requisition) throw new NotFoundError(`Purchase requisition "${id}" not found.`);
+    if (!requisition) throw entityNotFound('PURCHASE_REQUISITION', id);
     const lines = await this.lines.listByRequisitionId(db, id);
     return { ...requisition, lines };
   }
@@ -54,7 +55,9 @@ export class PurchaseRequisitionsService {
     input: Omit<CreatePurchaseRequisitionInput, 'requestedBy'>,
   ): Promise<PurchaseRequisitionWithLines> {
     if (input.lines.length === 0) {
-      throw new BusinessRuleError('A purchase requisition must have at least one line.');
+      throw new BusinessRuleError('A purchase requisition must have at least one line.', {
+        code: 'PURCHASE_REQUISITION.AT_LEAST_ONE_LINE_REQUIRED',
+      });
     }
 
     return db.transaction().execute(async (trx) => {
@@ -69,6 +72,7 @@ export class PurchaseRequisitionsService {
         throw new BusinessRuleError(
           'No numbering sequence configured for purchase requisitions yet. ' +
             'Create one for document type "purchase_requisition" via Settings → Numbering Sequences first.',
+          { code: 'PURCHASE_REQUISITION.NO_NUMBERING_SEQUENCE' },
         );
       }
 
@@ -101,14 +105,17 @@ export class PurchaseRequisitionsService {
     input: UpdatePurchaseRequisitionInput,
   ): Promise<PurchaseRequisitionWithLines> {
     const existing = await this.requisitions.findById(db, id);
-    if (!existing) throw new NotFoundError(`Purchase requisition "${id}" not found.`);
+    if (!existing) throw entityNotFound('PURCHASE_REQUISITION', id);
     if (existing.status !== 'draft') {
       throw new BusinessRuleError(
         `Purchase requisition "${id}" is "${existing.status}" and can no longer be edited — only draft requisitions can be changed.`,
+        { code: 'PURCHASE_REQUISITION.NOT_EDITABLE', params: { id, status: existing.status } },
       );
     }
     if (input.lines !== undefined && input.lines.length === 0) {
-      throw new BusinessRuleError('A purchase requisition must have at least one line.');
+      throw new BusinessRuleError('A purchase requisition must have at least one line.', {
+        code: 'PURCHASE_REQUISITION.AT_LEAST_ONE_LINE_REQUIRED',
+      });
     }
 
     return db.transaction().execute(async (trx) => {
@@ -118,7 +125,7 @@ export class PurchaseRequisitionsService {
         notes: input.notes,
         customFields: input.customFields,
       });
-      if (!updated) throw new NotFoundError(`Purchase requisition "${id}" not found.`);
+      if (!updated) throw entityNotFound('PURCHASE_REQUISITION', id);
 
       let lines = await this.lines.listByRequisitionId(trx, id);
       if (input.lines !== undefined) {
@@ -140,15 +147,19 @@ export class PurchaseRequisitionsService {
     to: PurchaseRequisitionStatus,
   ): Promise<PurchaseRequisition> {
     const existing = await this.requisitions.findById(db, id);
-    if (!existing) throw new NotFoundError(`Purchase requisition "${id}" not found.`);
+    if (!existing) throw entityNotFound('PURCHASE_REQUISITION', id);
     if (!from.includes(existing.status)) {
       throw new BusinessRuleError(
         `Cannot move purchase requisition "${id}" to "${to}" from its current status "${existing.status}" ` +
           `(expected one of: ${from.join(', ')}).`,
+        {
+          code: 'PURCHASE_REQUISITION.INVALID_STATUS_TRANSITION',
+          params: { id, to, from: existing.status, expected: from.join(', ') },
+        },
       );
     }
     const updated = await this.requisitions.updateStatus(db, id, to);
-    if (!updated) throw new NotFoundError(`Purchase requisition "${id}" not found.`);
+    if (!updated) throw entityNotFound('PURCHASE_REQUISITION', id);
     return updated;
   }
 
@@ -170,10 +181,11 @@ export class PurchaseRequisitionsService {
 
   async delete(db: Kysely<TenantDatabase>, id: string): Promise<void> {
     const existing = await this.requisitions.findById(db, id);
-    if (!existing) throw new NotFoundError(`Purchase requisition "${id}" not found.`);
+    if (!existing) throw entityNotFound('PURCHASE_REQUISITION', id);
     if (existing.status !== 'draft' && existing.status !== 'cancelled') {
       throw new BusinessRuleError(
         `Purchase requisition "${id}" is "${existing.status}" and cannot be deleted — only draft or cancelled requisitions can be.`,
+        { code: 'PURCHASE_REQUISITION.NOT_DELETABLE', params: { id, status: existing.status } },
       );
     }
     await this.requisitions.delete(db, id);

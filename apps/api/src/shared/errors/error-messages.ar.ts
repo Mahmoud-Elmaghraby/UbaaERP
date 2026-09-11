@@ -123,6 +123,103 @@ export const AR_MESSAGES: Record<string, string> = {
   'STOCK_MOVEMENT.INSUFFICIENT_LOT_TRACKED_STOCK':
     'المخزون غير كافٍ عبر جميع الدُفعات: الكمية المطلوبة {requested}، والمتاح في هذا الموقع {available} فقط عبر كل الدُفعات.',
 
+  // ---- Purchases module ----
+  'SUPPLIER.DUPLICATE_CODE': 'يوجد مورّد آخر بنفس الرمز "{value}" بالفعل.',
+  'RFQ.AT_LEAST_ONE_LINE_REQUIRED': 'يجب أن يحتوي طلب عرض السعر (RFQ) على سطر واحد على الأقل.',
+  'RFQ.AT_LEAST_ONE_SUPPLIER_REQUIRED': 'يجب دعوة مورّد واحد على الأقل لتقديم عرض سعر على طلب عرض السعر (RFQ).',
+  'RFQ.SOURCE_REQUISITION_NOT_APPROVED':
+    'طلب الشراء "{id}" في حالة "{status}"، وليس "معتمد" — لا يمكن إنشاء طلب عرض سعر إلا من طلب شراء معتمد.',
+  'RFQ.LINE_OR_SUPPLIER_NOT_FOUND': 'أحد أنواع المنتجات أو الموردين المحددين غير موجود.',
+  'RFQ.NO_NUMBERING_SEQUENCE':
+    'لا يوجد تسلسل ترقيم مُعد لطلبات عروض الأسعار بعد. يرجى إنشاء تسلسل لنوع المستند "request_for_quotation" من الإعدادات ← تسلسلات الترقيم أولاً.',
+  'RFQ.NOT_EDITABLE': 'طلب عرض السعر "{id}" في حالة "{status}" ولم يعد قابلاً للتعديل.',
+  'RFQ.INVALID_STATUS_TRANSITION':
+    'لا يمكن نقل طلب عرض السعر "{id}" إلى الحالة "{to}" من حالته الحالية "{from}" (الحالات المتوقعة: {expected}).',
+  'RFQ.NOT_DELETABLE': 'طلب عرض السعر "{id}" في حالة "{status}" ولا يمكن حذفه.',
+  'RFQ.HAS_SUPPLIER_QUOTATIONS': 'لا يمكن حذف طلب عرض السعر "{id}" — توجد عروض أسعار من الموردين مرتبطة به بالفعل.',
+  'SUPPLIER_QUOTATION.AT_LEAST_ONE_LINE_REQUIRED': 'يجب أن يحتوي عرض سعر المورّد على سطر واحد على الأقل.',
+  'SUPPLIER_QUOTATION.RFQ_NOT_SENT':
+    'طلب عرض السعر "{rfqId}" في حالة "{status}"، وليس "مُرسل" — لا يمكن تسجيل عرض سعر إلا لطلب تم إرساله فعليًا للموردين.',
+  'SUPPLIER_QUOTATION.SUPPLIER_NOT_INVITED':
+    'المورّد "{supplierId}" لم تتم دعوته لتقديم عرض سعر على طلب عرض السعر "{rfqId}".',
+  'SUPPLIER_QUOTATION.ALREADY_EXISTS_FOR_SUPPLIER':
+    'المورّد "{supplierId}" لديه بالفعل عرض سعر مسجل على طلب عرض السعر "{rfqId}" — يرجى تعديله بدلاً من إنشاء عرض جديد.',
+  'SUPPLIER_QUOTATION.NOT_EDITABLE': 'عرض سعر المورّد "{id}" في حالة "{status}" ولم يعد قابلاً للتعديل.',
+  'SUPPLIER_QUOTATION.NOT_SELECTABLE':
+    'عرض سعر المورّد "{id}" في حالة "{status}"، وليس "مستلم" — يمكن اختيار العروض المعلّقة فقط.',
+  'SUPPLIER_QUOTATION.NOT_REJECTABLE':
+    'عرض سعر المورّد "{id}" في حالة "{status}"، وليس "مستلم" — يمكن رفض العروض المعلّقة فقط.',
+  'SUPPLIER_QUOTATION.NOT_DELETABLE': 'عرض سعر المورّد "{id}" في حالة "{status}" ولا يمكن حذفه.',
+  'PURCHASE_ORDER.AMBIGUOUS_SOURCE': 'يجب تحديد إما عرض سعر مصدر (sourceQuotationId) أو مورّد وسطور مباشرة — وليس كليهما معًا.',
+  'PURCHASE_ORDER.SOURCE_QUOTATION_NOT_SELECTED':
+    'عرض سعر المورد "{id}" في حالة "{status}"، وليس "مختار" — لا يمكن إنشاء أمر شراء إلا من عرض سعر تم اختياره.',
+  'PURCHASE_ORDER.MISSING_SOURCE': 'يجب تحديد عرض سعر مصدر، أو مورّد مع سطر واحد على الأقل، لإنشاء أمر شراء.',
+  'PURCHASE_ORDER.MULTIPLE_CURRENCIES': 'تعذّر إنشاء المستند: {reason}',
+  'PURCHASE_ORDER.NO_NUMBERING_SEQUENCE':
+    'لا يوجد تسلسل ترقيم مُعد لأوامر الشراء بعد. يرجى إنشاء تسلسل لنوع المستند "purchase_order" من الإعدادات ← تسلسلات الترقيم أولاً.',
+  'PURCHASE_ORDER.NOT_EDITABLE': 'أمر الشراء "{id}" في حالة "{status}" ولم يعد قابلاً للتعديل.',
+  'PURCHASE_ORDER.AT_LEAST_ONE_LINE_REQUIRED': 'يجب أن يحتوي أمر الشراء على سطر واحد على الأقل.',
+  'PURCHASE_ORDER.INVALID_STATUS_TRANSITION':
+    'لا يمكن نقل أمر الشراء "{id}" إلى الحالة "{to}" من حالته الحالية "{from}" (الحالات المتوقعة: {expected}).',
+  'PURCHASE_ORDER.NOT_DELETABLE': 'أمر الشراء "{id}" في حالة "{status}" ولا يمكن حذفه.',
+  'PURCHASE_REQUISITION.AT_LEAST_ONE_LINE_REQUIRED': 'يجب أن يحتوي طلب الشراء على سطر واحد على الأقل.',
+  'PURCHASE_REQUISITION.NO_NUMBERING_SEQUENCE':
+    'لا يوجد تسلسل ترقيم مُعد لطلبات الشراء بعد. يرجى إنشاء تسلسل لنوع المستند "purchase_requisition" من الإعدادات ← تسلسلات الترقيم أولاً.',
+  'PURCHASE_REQUISITION.NOT_EDITABLE':
+    'طلب الشراء "{id}" في حالة "{status}" ولم يعد قابلاً للتعديل — يمكن تعديل الطلبات في حالة المسودة فقط.',
+  'PURCHASE_REQUISITION.INVALID_STATUS_TRANSITION':
+    'لا يمكن نقل طلب الشراء "{id}" إلى الحالة "{to}" من حالته الحالية "{from}" (الحالات المتوقعة: {expected}).',
+  'PURCHASE_REQUISITION.NOT_DELETABLE':
+    'طلب الشراء "{id}" في حالة "{status}" ولا يمكن حذفه — يمكن حذف الطلبات في حالة المسودة أو الملغاة فقط.',
+  'PURCHASE_RETURN.AT_LEAST_ONE_LINE_REQUIRED': 'يجب أن يحتوي مرتجع الشراء على سطر واحد على الأقل.',
+  'PURCHASE_RETURN.GOODS_RECEIPT_NOT_CONFIRMED':
+    'إذن الاستلام "{id}" في حالة "{status}" — لا يمكن إرجاع بضاعة إلا مقابل إذن استلام مؤكد (وصل فعليًا إلى المخزون).',
+  'PURCHASE_RETURN.RECEIPT_LINE_NOT_FOUND': 'سطر إذن الاستلام "{lineId}" غير موجود ضمن إذن الاستلام "{goodsReceiptId}".',
+  'PURCHASE_RETURN.QUANTITY_EXCEEDS_REMAINING':
+    'لا يمكن إرجاع {quantityReturned} مقابل سطر إذن الاستلام "{lineId}" — المتبقي القابل للإرجاع {remaining} فقط (المستلم {quantityReceived}، تم إرجاع {returned} سابقًا).',
+  'PURCHASE_RETURN.RECEIPT_OR_LINE_NOT_FOUND': 'إذن الاستلام أو سطره المحدد غير موجود.',
+  'PURCHASE_RETURN.NO_NUMBERING_SEQUENCE':
+    'لا يوجد تسلسل ترقيم مُعد لمرتجعات الشراء بعد. يرجى إنشاء تسلسل لنوع المستند "purchase_return" من الإعدادات ← تسلسلات الترقيم أولاً.',
+  'PURCHASE_RETURN.NOT_CONFIRMABLE': 'لا يمكن تأكيد مرتجع الشراء "{id}" من حالته الحالية "{status}" (متوقع "مسودة").',
+  'PURCHASE_RETURN.INVALID_STATUS_TRANSITION':
+    'لا يمكن نقل مرتجع الشراء "{id}" إلى الحالة "{to}" من حالته الحالية "{from}" (الحالات المتوقعة: {expected}).',
+  'PURCHASE_RETURN.NOT_DELETABLE': 'مرتجع الشراء "{id}" في حالة "{status}" ولا يمكن حذفه.',
+  'GOODS_RECEIPT.AT_LEAST_ONE_LINE_REQUIRED': 'يجب أن يحتوي إذن استلام البضاعة على سطر واحد على الأقل.',
+  'GOODS_RECEIPT.PURCHASE_ORDER_NOT_RECEIVABLE':
+    'أمر الشراء "{id}" في حالة "{status}" — لا يمكن استلام بضاعة إلا مقابل أمر شراء مؤكد (أو مستلم جزئيًا).',
+  'GOODS_RECEIPT.PURCHASE_ORDER_LINE_NOT_FOUND': 'سطر أمر الشراء "{lineId}" غير موجود ضمن أمر الشراء "{purchaseOrderId}".',
+  'GOODS_RECEIPT.QUANTITY_EXCEEDS_REMAINING':
+    'لا يمكن استلام {quantityReceived} مقابل سطر أمر الشراء "{lineId}" — المتبقي القابل للاستلام {remaining} فقط (الكمية المطلوبة {ordered}، تم استلام {received} سابقًا).',
+  'GOODS_RECEIPT.PO_OR_LINE_OR_WAREHOUSE_NOT_FOUND': 'أمر الشراء أو سطر أمر الشراء أو المستودع المحدد غير موجود.',
+  'GOODS_RECEIPT.NO_NUMBERING_SEQUENCE':
+    'لا يوجد تسلسل ترقيم مُعد لأذون استلام البضاعة بعد. يرجى إنشاء تسلسل لنوع المستند "goods_receipt" من الإعدادات ← تسلسلات الترقيم أولاً.',
+  'GOODS_RECEIPT.INVALID_STATUS_TRANSITION':
+    'لا يمكن نقل إذن الاستلام "{id}" إلى الحالة "{to}" من حالته الحالية "{from}" (الحالات المتوقعة: {expected}).',
+  'GOODS_RECEIPT.NOT_CONFIRMABLE': 'لا يمكن تأكيد إذن الاستلام "{id}" من حالته الحالية "{status}" (متوقع "مسودة").',
+  'GOODS_RECEIPT.NOT_DELETABLE': 'إذن الاستلام "{id}" في حالة "{status}" ولا يمكن حذفه.',
+  'PURCHASE_INVOICE.MISSING_DIRECT_SOURCE':
+    'يجب تحديد أمر شراء، أو مورّد مع سطر مباشر واحد على الأقل، لإنشاء فاتورة شراء.',
+  'PURCHASE_INVOICE.AMBIGUOUS_SOURCE': 'يجب تحديد إما أمر شراء وسطوره أو مورّد وسطور مباشرة — وليس كليهما معًا.',
+  'PURCHASE_INVOICE.AT_LEAST_ONE_LINE_REQUIRED': 'يجب أن تحتوي فاتورة الشراء على سطر واحد على الأقل.',
+  'PURCHASE_INVOICE.PURCHASE_ORDERS_REQUIRED':
+    'ميزة أوامر الشراء مفعّلة لهذا المستأجر — يجب إنشاء أمر شراء أولاً ثم إصدار الفاتورة عليه.',
+  'PURCHASE_INVOICE.PURCHASE_ORDER_NOT_INVOICEABLE':
+    'أمر الشراء "{id}" في حالة "{status}" — يمكن إصدار فاتورة فقط لأمر شراء مؤكد.',
+  'PURCHASE_INVOICE.PURCHASE_ORDER_LINE_NOT_FOUND': 'سطر أمر الشراء "{lineId}" غير موجود ضمن أمر الشراء "{purchaseOrderId}".',
+  'PURCHASE_INVOICE.QUANTITY_EXCEEDS_REMAINING':
+    'لا يمكن إصدار فاتورة بكمية {quantityInvoiced} مقابل سطر أمر الشراء "{lineId}" — المتبقي القابل للفوترة {remaining} فقط (الكمية المطلوبة {ordered}، تم فوترة {invoiced} سابقًا).',
+  'PURCHASE_INVOICE.MULTIPLE_CURRENCIES': 'تعذّر إنشاء المستند: {reason}',
+  'PURCHASE_INVOICE.WAREHOUSE_REQUIRED':
+    'ميزة أذون استلام البضاعة معطّلة لهذا المستأجر، لذا يجب أن تسجّل هذه الفاتورة حركة المخزون التي كان سيسجلها إذن الاستلام — يرجى تحديد المستودع (warehouseId).',
+  'PURCHASE_INVOICE.SOURCE_NOT_FOUND': 'أمر الشراء أو سطره أو المورّد أو المستودع المحدد غير موجود.',
+  'PURCHASE_INVOICE.NO_NUMBERING_SEQUENCE':
+    'لا يوجد تسلسل ترقيم مُعد لفواتير الشراء بعد. يرجى إنشاء تسلسل لنوع المستند "purchase_invoice" من الإعدادات ← تسلسلات الترقيم أولاً.',
+  'PURCHASE_INVOICE.NOT_POSTABLE': 'لا يمكن ترحيل فاتورة الشراء "{id}" من حالتها الحالية "{status}" (متوقع "مسودة").',
+  'PURCHASE_INVOICE.NO_LINES': 'فاتورة الشراء "{id}" لا تحتوي على أي سطور ولا يمكن ترحيلها.',
+  'PURCHASE_INVOICE.NOT_CANCELLABLE':
+    'لا يمكن إلغاء فاتورة الشراء "{id}" من حالتها الحالية "{status}" (متوقع "مسودة") — الفاتورة المرحّلة مستند محاسبي نهائي؛ عكسها يتطلب قيدًا عكسيًا محاسبيًا حقيقيًا، لا إلغاءً بسيطًا.',
+  'PURCHASE_INVOICE.NOT_DELETABLE': 'فاتورة الشراء "{id}" في حالة "{status}" ولا يمكن حذفها.',
+
   // ---- generic fallbacks ----
   'VALIDATION.INVALID_INPUT': 'البيانات المُدخلة غير صحيحة. يرجى مراجعة الحقول والمحاولة مرة أخرى.',
   'UNEXPECTED.INTERNAL_ERROR': 'حدث خطأ غير متوقع. يرجى المحاولة مرة أخرى أو التواصل مع الدعم الفني.',
