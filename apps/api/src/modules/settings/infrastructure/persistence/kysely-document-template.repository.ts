@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { sql } from 'kysely';
 import type { Kysely, Selectable } from 'kysely';
 import type { DocumentTemplatesTable, TenantDatabase } from '../../../../database/tenant/kysely-client';
 import type { DocumentTemplateRepository } from '../../application/ports/document-template.repository';
@@ -69,7 +70,7 @@ export class KyselyDocumentTemplateRepository implements DocumentTemplateReposit
         ...(input.name !== undefined ? { name: input.name } : {}),
         ...(input.content !== undefined ? { content: input.content } : {}),
         ...(input.isDefault !== undefined ? { is_default: input.isDefault } : {}),
-        updated_at: new Date(),
+        updated_at: sql`now()`,
       })
       .where('id', '=', id)
       .returningAll()

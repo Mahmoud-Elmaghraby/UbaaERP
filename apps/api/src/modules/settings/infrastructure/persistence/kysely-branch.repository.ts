@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { sql } from 'kysely';
 import type { Kysely, Selectable } from 'kysely';
 import type { BranchesTable, TenantDatabase } from '../../../../database/tenant/kysely-client';
 import type { BranchRepository } from '../../application/ports/branch.repository';
@@ -60,7 +61,7 @@ export class KyselyBranchRepository implements BranchRepository {
         ...(input.customFields !== undefined
           ? { custom_fields: JSON.stringify(input.customFields) }
           : {}),
-        updated_at: new Date(),
+        updated_at: sql`now()`,
       })
       .where('id', '=', id)
       .returningAll()

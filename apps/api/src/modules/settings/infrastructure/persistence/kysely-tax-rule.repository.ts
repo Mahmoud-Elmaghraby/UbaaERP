@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { sql } from 'kysely';
 import type { Kysely, Selectable } from 'kysely';
 import type { TaxRulesTable, TenantDatabase } from '../../../../database/tenant/kysely-client';
 import type { TaxRuleRepository } from '../../application/ports/tax-rule.repository';
@@ -50,7 +51,7 @@ export class KyselyTaxRuleRepository implements TaxRuleRepository {
         ...(input.name !== undefined ? { name: input.name } : {}),
         ...(input.rate !== undefined ? { rate: String(input.rate) } : {}),
         ...(input.isActive !== undefined ? { is_active: input.isActive } : {}),
-        updated_at: new Date(),
+        updated_at: sql`now()`,
       })
       .where('id', '=', id)
       .returningAll()

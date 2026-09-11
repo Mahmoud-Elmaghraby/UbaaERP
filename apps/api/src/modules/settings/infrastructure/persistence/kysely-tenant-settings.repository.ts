@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { sql } from 'kysely';
 import type { Kysely, Selectable } from 'kysely';
 import type { TenantDatabase, TenantSettingsTable } from '../../../../database/tenant/kysely-client';
 import type { TenantSettingsRepository } from '../../application/ports/tenant-settings.repository';
@@ -43,7 +44,7 @@ export class KyselyTenantSettingsRepository implements TenantSettingsRepository 
 
     const updated = await db
       .updateTable('tenant_settings')
-      .set({ currency_code: input.currencyCode, updated_at: new Date() })
+      .set({ currency_code: input.currencyCode, updated_at: sql`now()` })
       .where('id', '=', settings.id)
       .returningAll()
       .executeTakeFirstOrThrow();

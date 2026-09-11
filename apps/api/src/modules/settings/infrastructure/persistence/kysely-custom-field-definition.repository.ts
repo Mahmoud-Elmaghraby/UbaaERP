@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { sql } from 'kysely';
 import type { Kysely, Selectable } from 'kysely';
 import type {
   CustomFieldDefinitionsTable,
@@ -86,7 +87,7 @@ export class KyselyCustomFieldDefinitionRepository implements CustomFieldDefinit
           : {}),
         ...(input.isRequired !== undefined ? { is_required: input.isRequired } : {}),
         ...(input.displayOrder !== undefined ? { display_order: input.displayOrder } : {}),
-        updated_at: new Date(),
+        updated_at: sql`now()`,
       })
       .where('id', '=', id)
       .returningAll()

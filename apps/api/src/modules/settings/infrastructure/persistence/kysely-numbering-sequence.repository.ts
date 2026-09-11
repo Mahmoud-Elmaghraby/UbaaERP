@@ -68,7 +68,7 @@ export class KyselyNumberingSequenceRepository implements NumberingSequenceRepos
         ...(input.prefix !== undefined ? { prefix: input.prefix } : {}),
         ...(input.nextNumber !== undefined ? { next_number: input.nextNumber } : {}),
         ...(input.paddingLength !== undefined ? { padding_length: input.paddingLength } : {}),
-        updated_at: new Date(),
+        updated_at: sql`now()`,
       })
       .where('id', '=', id)
       .returningAll()
