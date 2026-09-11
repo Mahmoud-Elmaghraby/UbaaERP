@@ -8,7 +8,8 @@ import type {
   CreateCostCenterInput,
   UpdateCostCenterInput,
 } from '../../domain/cost-center.entity';
-import { ConflictError, NotFoundError, isPostgresUniqueViolation } from '../errors';
+import { isPostgresUniqueViolation } from '../errors';
+import { duplicateEntity, entityNotFound } from '../../../../shared/errors/entity-errors';
 
 /**
  * Cost Centers (CLAUDE.md §10 — step 5, Accounting, Stage 4). Simpler
@@ -29,7 +30,7 @@ export class CostCentersService {
 
   async getById(db: Kysely<TenantDatabase>, id: string): Promise<CostCenter> {
     const costCenter = await this.repository.findById(db, id);
-    if (!costCenter) throw new NotFoundError(`Cost center "${id}" not found.`);
+    if (!costCenter) throw entityNotFound('COST_CENTER', id);
     return costCenter;
   }
 
@@ -38,7 +39,7 @@ export class CostCentersService {
       return await this.repository.create(db, input);
     } catch (err) {
       if (isPostgresUniqueViolation(err)) {
-        throw new ConflictError(`A cost center with code "${input.code}" already exists.`);
+        throw duplicateEntity('COST_CENTER', 'code', input.code);
       }
       throw err;
     }
@@ -48,11 +49,11 @@ export class CostCentersService {
     await this.getById(db, id);
     try {
       const updated = await this.repository.update(db, id, input);
-      if (!updated) throw new NotFoundError(`Cost center "${id}" not found.`);
+      if (!updated) throw entityNotFound('COST_CENTER', id);
       return updated;
     } catch (err) {
       if (isPostgresUniqueViolation(err)) {
-        throw new ConflictError(`A cost center with code "${input.code}" already exists.`);
+        throw duplicateEntity('COST_CENTER', 'code', input.code);
       }
       throw err;
     }
@@ -61,6 +62,6 @@ export class CostCentersService {
   async delete(db: Kysely<TenantDatabase>, id: string): Promise<void> {
     await this.getById(db, id);
     const deleted = await this.repository.delete(db, id);
-    if (!deleted) throw new NotFoundError(`Cost center "${id}" not found.`);
+    if (!deleted) throw entityNotFound('COST_CENTER', id);
   }
 }

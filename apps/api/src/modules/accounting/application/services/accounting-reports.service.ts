@@ -20,7 +20,7 @@ import type {
   IncomeStatementRow,
   BalanceSheetReport,
 } from '../../domain/accounting-report.entity';
-import { NotFoundError } from '../errors';
+import { entityNotFound } from '../../../../shared/errors/entity-errors';
 import { TenantSettingsService } from '../../../settings/application/services/tenant-settings.service';
 import { categoryCanonicalSide } from './account-balance-sign';
 
@@ -88,7 +88,7 @@ export class AccountingReportsService {
     toDate?: string,
   ): Promise<GeneralLedgerReport> {
     const account = await this.accounts.findById(db, accountId);
-    if (!account) throw new NotFoundError(`Chart of accounts entry "${accountId}" not found.`);
+    if (!account) throw entityNotFound('CHART_OF_ACCOUNT', accountId);
 
     const currency = (await this.tenantSettings.get(db)).currencyCode;
     const side = categoryCanonicalSide(account.accountType);

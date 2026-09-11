@@ -339,6 +339,49 @@ export const AR_MESSAGES: Record<string, string> = {
     'لا يمكن إلغاء فاتورة البيع "{id}" من حالتها الحالية "{status}" (متوقع "مسودة") — الفاتورة المرحّلة مستند محاسبي نهائي؛ عكسها يتطلب قيدًا عكسيًا محاسبيًا حقيقيًا، لا إلغاءً بسيطًا.',
   'SALES_INVOICE.NOT_DELETABLE': 'فاتورة البيع "{id}" في حالة "{status}" ولا يمكن حذفها.',
 
+  // ---- Accounting module ----
+  'CHART_OF_ACCOUNT.DUPLICATE_CODE': 'يوجد حساب آخر بنفس الرمز "{value}" بالفعل.',
+  'CHART_OF_ACCOUNT.PARENT_NOT_GROUP': '"{code} — {name}" ليس حساب مجموعة (تجميعي) ولا يمكن أن يحتوي على حسابات فرعية.',
+  'CHART_OF_ACCOUNT.CANNOT_DEACTIVATE_ROOT': '"{code} — {name}" هو أحد الحسابات الجذرية الخمسة ولا يمكن إلغاء تفعيله.',
+  'CHART_OF_ACCOUNT.CANNOT_DELETE_ROOT': '"{code} — {name}" هو حساب جذري ولا يمكن حذفه.',
+  'CHART_OF_ACCOUNT.HAS_CHILD_ACCOUNTS':
+    '"{code} — {name}" لا يزال يحتوي على {count} حساب فرعي — يرجى نقلها أو حذفها أولاً.',
+  'CHART_OF_ACCOUNT.REFERENCED_ELSEWHERE': '"{code} — {name}" مُستخدم في مكان آخر بالنظام ولا يمكن حذفه.',
+  'CHART_OF_ACCOUNT.CANNOT_POST_TO_GROUP':
+    '"{code} — {name}" هو حساب مجموعة (تجميعي) في دليل الحسابات ولا يمكن الترحيل إليه مباشرة — يرجى الترحيل إلى أحد حساباته الفرعية.',
+  'CHART_OF_ACCOUNT.INACTIVE': '"{code} — {name}" غير مفعّل ولا يمكن الترحيل إليه.',
+  'ACCOUNTING_PERIOD.ALREADY_CLOSED': 'الفترة المحاسبية "{name}" مغلقة بالفعل.',
+  'ACCOUNTING_PERIOD.ALREADY_OPEN': 'الفترة المحاسبية "{name}" مفتوحة بالفعل.',
+  'ACCOUNTING_PERIOD.NO_PERIOD_FOR_DATE':
+    'لا توجد فترة محاسبية تغطي تاريخ {date} — يرجى إعداد سنة مالية تغطي هذا التاريخ أولاً.',
+  'ACCOUNTING_PERIOD.CLOSED': 'الفترة المحاسبية "{name}" مغلقة — لا يمكن ترحيل قيد بتاريخ {date}.',
+  'FISCAL_YEAR.END_BEFORE_START': 'يجب أن يكون تاريخ النهاية بعد تاريخ البداية.',
+  'FISCAL_YEAR.DATE_RANGE_OVERLAPS': 'هذا النطاق الزمني يتداخل مع سنة مالية موجودة بالفعل.',
+  'FISCAL_YEAR.ALREADY_CLOSED': 'السنة المالية "{name}" مغلقة بالفعل.',
+  'FISCAL_YEAR.PERIODS_STILL_OPEN':
+    'لا يمكن إغلاق السنة المالية "{name}" — {count} من فتراتها المحاسبية لا تزال مفتوحة. يرجى إغلاق كل فترة أولاً.',
+  'FISCAL_YEAR.ALREADY_OPEN': 'السنة المالية "{name}" مفتوحة بالفعل.',
+  'FISCAL_YEAR.CANNOT_DELETE_TOUCHED':
+    'لا يمكن حذف السنة المالية "{name}" — تم إغلاقها هي أو إحدى فتراتها في وقت ما بالفعل.',
+  'COST_CENTER.DUPLICATE_CODE': 'يوجد مركز تكلفة آخر بنفس الرمز "{value}" بالفعل.',
+  'BANK_ACCOUNT.CHART_OF_ACCOUNT_ALREADY_LINKED':
+    'يوجد حساب بنكي آخر مرتبط بالفعل بهذا الحساب في دليل الحسابات — كل حساب أستاذ عام يمكن أن يدعم حسابًا بنكيًا واحدًا فقط.',
+  'BANK_ACCOUNT.LINE_NOT_ON_ACCOUNT': 'سطر القيد المحاسبي "{lineId}" ليس سطرًا مُرحّلاً على الحساب المرتبط بالحساب البنكي "{name}".',
+  'JOURNAL_ENTRY.AT_LEAST_TWO_LINES_REQUIRED': 'يجب أن يحتوي القيد المحاسبي على سطرين على الأقل ليتوازن.',
+  'JOURNAL_ENTRY.LINE_MUST_HAVE_ONE_SIDE':
+    'يجب أن يحتوي كل سطر في القيد المحاسبي على مبلغ مدين أو دائن واحد فقط — وليس كليهما، ولا يجب أن يكونا فارغين.',
+  'JOURNAL_ENTRY.NOT_BALANCED':
+    'هذا القيد غير متوازن — إجمالي المدين {totalDebit} {currency}، وإجمالي الدائن {totalCredit} {currency}.',
+  'JOURNAL_ENTRY.NOT_EDITABLE': 'القيد المحاسبي "{entryNumber}" في حالة "{status}" ولم يعد قابلاً للتعديل.',
+  'JOURNAL_ENTRY.NOT_POSTABLE': 'القيد المحاسبي "{entryNumber}" في حالة "{status}" — يمكن ترحيل المسودات فقط.',
+  'JOURNAL_ENTRY.POST_NOT_BALANCED': 'القيد المحاسبي "{entryNumber}" غير متوازن ولا يمكن ترحيله.',
+  'JOURNAL_ENTRY.NOT_CANCELLABLE':
+    'القيد المحاسبي "{entryNumber}" في حالة "{status}" — يمكن إلغاء المسودات فقط. القيد المرحّل حقيقة محاسبية نهائية؛ يجب عكسه بدلاً من إلغائه.',
+  'JOURNAL_ENTRY.NOT_REVERSIBLE': 'القيد المحاسبي "{entryNumber}" في حالة "{status}" — يمكن عكس القيود المرحّلة فقط.',
+  'JOURNAL_ENTRY.NOT_DELETABLE': 'القيد المحاسبي "{entryNumber}" في حالة "{status}" ولا يمكن حذفه.',
+  'JOURNAL_ENTRY.AUTO_ALREADY_PROCESSED':
+    'القيد المحاسبي "{entryNumber}" (المُنشأ تلقائيًا لـ {sourceReferenceType} "{sourceReferenceId}") في حالة "{status}" — لا يمكن ترحيله تلقائيًا مرة أخرى.',
+
   // ---- generic fallbacks ----
   'VALIDATION.INVALID_INPUT': 'البيانات المُدخلة غير صحيحة. يرجى مراجعة الحقول والمحاولة مرة أخرى.',
   'UNEXPECTED.INTERNAL_ERROR': 'حدث خطأ غير متوقع. يرجى المحاولة مرة أخرى أو التواصل مع الدعم الفني.',

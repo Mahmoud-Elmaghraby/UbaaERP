@@ -17,7 +17,8 @@ import type {
   JournalEntryLineToPersist,
   CreateAutoJournalEntryInput,
 } from '../../domain/journal-entry.entity';
-import { BusinessRuleError, NotFoundError, isPostgresUniqueViolation } from '../errors';
+import { BusinessRuleError, isPostgresUniqueViolation } from '../errors';
+import { entityNotFound } from '../../../../shared/errors/entity-errors';
 import { ChartOfAccountsService } from './chart-of-accounts.service';
 import { AccountingPeriodsService } from './accounting-periods.service';
 import { NumberingSequencesService } from '../../../settings/application/services/numbering-sequences.service';
@@ -50,7 +51,7 @@ export class JournalEntriesService {
 
   async getById(db: Kysely<TenantDatabase>, id: string): Promise<JournalEntryWithLines> {
     const entry = await this.entries.findById(db, id);
-    if (!entry) throw new NotFoundError(`Journal entry "${id}" not found.`);
+    if (!entry) throw entityNotFound('JOURNAL_ENTRY', id);
     const lines = await this.lines.listByJournalEntryId(db, id);
     return { ...entry, lines };
   }
@@ -67,7 +68,9 @@ export class JournalEntriesService {
     rawLines: CreateJournalEntryLineInput[],
   ): Promise<JournalEntryLineToPersist[]> {
     if (rawLines.length < 2) {
-      throw new BusinessRuleError('A journal entry needs at least two lines to balance.');
+      throw new BusinessRuleError('A journal entry needs at least two lines to balance.', {
+        code: 'JOURNAL_ENTRY.AT_LEAST_TWO_LINES_REQUIRED',
+      });
     }
 
     const built: JournalEntryLineToPersist[] = [];
@@ -80,6 +83,7 @@ export class JournalEntriesService {
       if (debit.isPositive() === credit.isPositive()) {
         throw new BusinessRuleError(
           'Each journal entry line must have exactly one of a debit or a credit amount — not both, not neither.',
+          { code: 'JOURNAL_ENTRY.LINE_MUST_HAVE_ONE_SIDE' },
         );
       }
 
@@ -100,6 +104,10 @@ export class JournalEntriesService {
       throw new BusinessRuleError(
         `This entry does not balance — total debits ${totalDebit.toDecimalString()} ${currency}, ` +
           `total credits ${totalCredit.toDecimalString()} ${currency}.`,
+        {
+          code: 'JOURNAL_ENTRY.NOT_BALANCED',
+          params: { totalDebit: totalDebit.toDecimalString(), totalCredit: totalCredit.toDecimalString(), currency },
+        },
       );
     }
 
@@ -133,9 +141,12 @@ export class JournalEntriesService {
     input: UpdateJournalEntryInput,
   ): Promise<JournalEntryWithLines> {
     const existing = await this.entries.findById(db, id);
-    if (!existing) throw new NotFoundError(`Journal entry "${id}" not found.`);
+    if (!existing) throw entityNotFound('JOURNAL_ENTRY', id);
     if (existing.status !== 'draft') {
-      throw new BusinessRuleError(`Journal entry "${existing.entryNumber}" is "${existing.status}" and can no longer be edited.`);
+      throw new BusinessRuleError(
+        `Journal entry "${existing.entryNumber}" is "${existing.status}" and can no longer be edited.`,
+        { code: 'JOURNAL_ENTRY.NOT_EDITABLE', params: { entryNumber: existing.entryNumber, status: existing.status } },
+      );
     }
 
     const builtLines = await this.buildAndValidateLines(db, existing.currency, input.lines);
@@ -147,7 +158,7 @@ export class JournalEntriesService {
         notes: input.notes ?? null,
         customFields: input.customFields ?? {},
       });
-      if (!updated) throw new NotFoundError(`Journal entry "${id}" not found.`);
+      if (!updated) throw entityNotFound('JOURNAL_ENTRY', id);
       await this.lines.deleteByJournalEntryId(trx, id);
       const lines = await this.lines.createMany(trx, id, builtLines);
       return { ...updated, lines };
@@ -164,7 +175,10 @@ export class JournalEntriesService {
   async post(db: Kysely<TenantDatabase>, id: string): Promise<JournalEntryWithLines> {
     const entry = await this.getById(db, id);
     if (entry.status !== 'draft') {
-      throw new BusinessRuleError(`Journal entry "${entry.entryNumber}" is "${entry.status}" — only a draft can be posted.`);
+      throw new BusinessRuleError(
+        `Journal entry "${entry.entryNumber}" is "${entry.status}" — only a draft can be posted.`,
+        { code: 'JOURNAL_ENTRY.NOT_POSTABLE', params: { entryNumber: entry.entryNumber, status: entry.status } },
+      );
     }
 
     let totalDebit = Money.zero(entry.currency);
@@ -174,7 +188,10 @@ export class JournalEntriesService {
       totalCredit = totalCredit.add(line.creditAmount);
     }
     if (!totalDebit.equals(totalCredit)) {
-      throw new BusinessRuleError(`Journal entry "${entry.entryNumber}" does not balance and cannot be posted.`);
+      throw new BusinessRuleError(`Journal entry "${entry.entryNumber}" does not balance and cannot be posted.`, {
+        code: 'JOURNAL_ENTRY.POST_NOT_BALANCED',
+        params: { entryNumber: entry.entryNumber },
+      });
     }
 
     await this.periods.assertOpenForDate(db, entry.entryDate);
@@ -185,11 +202,12 @@ export class JournalEntriesService {
 
   async cancel(db: Kysely<TenantDatabase>, id: string): Promise<JournalEntry> {
     const entry = await this.entries.findById(db, id);
-    if (!entry) throw new NotFoundError(`Journal entry "${id}" not found.`);
+    if (!entry) throw entityNotFound('JOURNAL_ENTRY', id);
     if (entry.status !== 'draft') {
       throw new BusinessRuleError(
         `Journal entry "${entry.entryNumber}" is "${entry.status}" — only a draft can be cancelled. ` +
           'A posted entry is a ledger-worthy fact; reverse it instead.',
+        { code: 'JOURNAL_ENTRY.NOT_CANCELLABLE', params: { entryNumber: entry.entryNumber, status: entry.status } },
       );
     }
     const updated = await this.entries.updateStatus(db, id, 'cancelled');
@@ -211,7 +229,13 @@ export class JournalEntriesService {
   ): Promise<JournalEntryWithLines> {
     const original = await this.getById(db, id);
     if (original.status !== 'posted') {
-      throw new BusinessRuleError(`Journal entry "${original.entryNumber}" is "${original.status}" — only a posted entry can be reversed.`);
+      throw new BusinessRuleError(
+        `Journal entry "${original.entryNumber}" is "${original.status}" — only a posted entry can be reversed.`,
+        {
+          code: 'JOURNAL_ENTRY.NOT_REVERSIBLE',
+          params: { entryNumber: original.entryNumber, status: original.status },
+        },
+      );
     }
 
     const reversalDate = options?.reversalDate ?? new Date().toISOString().slice(0, 10);
@@ -246,12 +270,15 @@ export class JournalEntriesService {
 
   async delete(db: Kysely<TenantDatabase>, id: string): Promise<void> {
     const entry = await this.entries.findById(db, id);
-    if (!entry) throw new NotFoundError(`Journal entry "${id}" not found.`);
+    if (!entry) throw entityNotFound('JOURNAL_ENTRY', id);
     if (entry.status !== 'draft') {
-      throw new BusinessRuleError(`Journal entry "${entry.entryNumber}" is "${entry.status}" and cannot be deleted.`);
+      throw new BusinessRuleError(`Journal entry "${entry.entryNumber}" is "${entry.status}" and cannot be deleted.`, {
+        code: 'JOURNAL_ENTRY.NOT_DELETABLE',
+        params: { entryNumber: entry.entryNumber, status: entry.status },
+      });
     }
     const deleted = await this.entries.delete(db, id);
-    if (!deleted) throw new NotFoundError(`Journal entry "${id}" not found.`);
+    if (!deleted) throw entityNotFound('JOURNAL_ENTRY', id);
   }
 
   /**
@@ -297,6 +324,15 @@ export class JournalEntriesService {
       throw new BusinessRuleError(
         `Journal entry "${existing.entryNumber}" (auto-generated for ${input.sourceReferenceType} ` +
           `"${input.sourceReferenceId}") is "${existing.status}" — cannot be auto-posted again.`,
+        {
+          code: 'JOURNAL_ENTRY.AUTO_ALREADY_PROCESSED',
+          params: {
+            entryNumber: existing.entryNumber,
+            sourceReferenceType: input.sourceReferenceType,
+            sourceReferenceId: input.sourceReferenceId,
+            status: existing.status,
+          },
+        },
       );
     }
 

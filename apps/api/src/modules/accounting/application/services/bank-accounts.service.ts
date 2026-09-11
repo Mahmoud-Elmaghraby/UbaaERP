@@ -15,7 +15,8 @@ import type {
   CreateBankAccountInput,
   UpdateBankAccountInput,
 } from '../../domain/bank-account.entity';
-import { BusinessRuleError, ConflictError, NotFoundError, isPostgresUniqueViolation } from '../errors';
+import { BusinessRuleError, isPostgresUniqueViolation } from '../errors';
+import { entityNotFound } from '../../../../shared/errors/entity-errors';
 import { ChartOfAccountsService } from './chart-of-accounts.service';
 import { categoryCanonicalSide } from './account-balance-sign';
 
@@ -48,7 +49,7 @@ export class BankAccountsService {
 
   async getById(db: Kysely<TenantDatabase>, id: string): Promise<BankAccount> {
     const bankAccount = await this.repository.findById(db, id);
-    if (!bankAccount) throw new NotFoundError(`Bank account "${id}" not found.`);
+    if (!bankAccount) throw entityNotFound('BANK_ACCOUNT', id);
     return bankAccount;
   }
 
@@ -62,8 +63,9 @@ export class BankAccountsService {
       return await this.repository.create(db, input);
     } catch (err) {
       if (isPostgresUniqueViolation(err)) {
-        throw new ConflictError(
+        throw new BusinessRuleError(
           'Another bank account is already linked to that chart of accounts entry — each GL account can back at most one bank account.',
+          { code: 'BANK_ACCOUNT.CHART_OF_ACCOUNT_ALREADY_LINKED' },
         );
       }
       throw err;
@@ -73,7 +75,7 @@ export class BankAccountsService {
   async update(db: Kysely<TenantDatabase>, id: string, input: UpdateBankAccountInput): Promise<BankAccount> {
     await this.getById(db, id);
     const updated = await this.repository.update(db, id, input);
-    if (!updated) throw new NotFoundError(`Bank account "${id}" not found.`);
+    if (!updated) throw entityNotFound('BANK_ACCOUNT', id);
     return updated;
   }
 
@@ -85,7 +87,7 @@ export class BankAccountsService {
     // (chart_of_accounts), not to the bank account, and are completely
     // untouched by this delete.
     const deleted = await this.repository.delete(db, id);
-    if (!deleted) throw new NotFoundError(`Bank account "${id}" not found.`);
+    if (!deleted) throw entityNotFound('BANK_ACCOUNT', id);
   }
 
   /**
@@ -174,11 +176,12 @@ export class BankAccountsService {
     if (!match) {
       throw new BusinessRuleError(
         `Journal entry line "${lineId}" is not a posted line on bank account "${bankAccount.name}"'s linked account.`,
+        { code: 'BANK_ACCOUNT.LINE_NOT_ON_ACCOUNT', params: { lineId, name: bankAccount.name } },
       );
     }
 
     const updatedLine = await this.journalEntryLines.setReconciled(db, lineId, reconciled);
-    if (!updatedLine) throw new NotFoundError(`Journal entry line "${lineId}" not found.`);
+    if (!updatedLine) throw entityNotFound('JOURNAL_ENTRY_LINE', lineId);
 
     return {
       id: updatedLine.id,

@@ -8,13 +8,8 @@ import type {
   CreateChartOfAccountInput,
   UpdateChartOfAccountInput,
 } from '../../domain/chart-of-account.entity';
-import {
-  BusinessRuleError,
-  ConflictError,
-  NotFoundError,
-  isPostgresForeignKeyViolation,
-  isPostgresUniqueViolation,
-} from '../errors';
+import { BusinessRuleError, isPostgresForeignKeyViolation, isPostgresUniqueViolation } from '../errors';
+import { duplicateEntity, entityNotFound } from '../../../../shared/errors/entity-errors';
 
 /**
  * Chart of accounts (CLAUDE.md §10 — step 5, Accounting, Stage 1). See
@@ -31,17 +26,18 @@ export class ChartOfAccountsService {
 
   async getById(db: Kysely<TenantDatabase>, id: string): Promise<ChartOfAccount> {
     const account = await this.repository.findById(db, id);
-    if (!account) throw new NotFoundError(`Chart of accounts entry "${id}" not found.`);
+    if (!account) throw entityNotFound('CHART_OF_ACCOUNT', id);
     return account;
   }
 
   async create(db: Kysely<TenantDatabase>, input: CreateChartOfAccountInput): Promise<ChartOfAccount> {
     if (input.parentId) {
       const parent = await this.repository.findById(db, input.parentId);
-      if (!parent) throw new NotFoundError(`Parent account "${input.parentId}" not found.`);
+      if (!parent) throw entityNotFound('CHART_OF_ACCOUNT', input.parentId);
       if (!parent.isGroup) {
         throw new BusinessRuleError(
           `"${parent.code} — ${parent.name}" is not a group account and cannot have child accounts.`,
+          { code: 'CHART_OF_ACCOUNT.PARENT_NOT_GROUP', params: { code: parent.code, name: parent.name } },
         );
       }
     }
@@ -50,7 +46,7 @@ export class ChartOfAccountsService {
       return await this.repository.create(db, input);
     } catch (err) {
       if (isPostgresUniqueViolation(err)) {
-        throw new ConflictError(`An account with code "${input.code}" already exists.`);
+        throw duplicateEntity('CHART_OF_ACCOUNT', 'code', input.code);
       }
       throw err;
     }
@@ -61,16 +57,17 @@ export class ChartOfAccountsService {
     if (existing.isSystem && input.isActive === false) {
       throw new BusinessRuleError(
         `"${existing.code} — ${existing.name}" is one of the five root accounts and cannot be deactivated.`,
+        { code: 'CHART_OF_ACCOUNT.CANNOT_DEACTIVATE_ROOT', params: { code: existing.code, name: existing.name } },
       );
     }
 
     try {
       const updated = await this.repository.update(db, id, input);
-      if (!updated) throw new NotFoundError(`Chart of accounts entry "${id}" not found.`);
+      if (!updated) throw entityNotFound('CHART_OF_ACCOUNT', id);
       return updated;
     } catch (err) {
       if (isPostgresUniqueViolation(err)) {
-        throw new ConflictError(`An account with code "${input.code}" already exists.`);
+        throw duplicateEntity('CHART_OF_ACCOUNT', 'code', input.code);
       }
       throw err;
     }
@@ -79,13 +76,20 @@ export class ChartOfAccountsService {
   async delete(db: Kysely<TenantDatabase>, id: string): Promise<void> {
     const existing = await this.getById(db, id);
     if (existing.isSystem) {
-      throw new BusinessRuleError(`"${existing.code} — ${existing.name}" is a root account and cannot be deleted.`);
+      throw new BusinessRuleError(`"${existing.code} — ${existing.name}" is a root account and cannot be deleted.`, {
+        code: 'CHART_OF_ACCOUNT.CANNOT_DELETE_ROOT',
+        params: { code: existing.code, name: existing.name },
+      });
     }
     if (existing.isGroup) {
       const children = await this.repository.listChildren(db, id);
       if (children.length > 0) {
         throw new BusinessRuleError(
           `"${existing.code} — ${existing.name}" still has ${children.length} child account(s) — move or delete them first.`,
+          {
+            code: 'CHART_OF_ACCOUNT.HAS_CHILD_ACCOUNTS',
+            params: { code: existing.code, name: existing.name, count: children.length },
+          },
         );
       }
     }
@@ -101,13 +105,14 @@ export class ChartOfAccountsService {
       deleted = await this.repository.delete(db, id);
     } catch (err) {
       if (isPostgresForeignKeyViolation(err)) {
-        throw new ConflictError(
+        throw new BusinessRuleError(
           `"${existing.code} — ${existing.name}" is referenced elsewhere and cannot be deleted.`,
+          { code: 'CHART_OF_ACCOUNT.REFERENCED_ELSEWHERE', params: { code: existing.code, name: existing.name } },
         );
       }
       throw err;
     }
-    if (!deleted) throw new NotFoundError(`Chart of accounts entry "${id}" not found.`);
+    if (!deleted) throw entityNotFound('CHART_OF_ACCOUNT', id);
   }
 
   /**
@@ -122,10 +127,14 @@ export class ChartOfAccountsService {
       throw new BusinessRuleError(
         `"${account.code} — ${account.name}" is a group account (a folder in the chart of accounts) and ` +
           'cannot be posted to directly — post to one of its sub-accounts instead.',
+        { code: 'CHART_OF_ACCOUNT.CANNOT_POST_TO_GROUP', params: { code: account.code, name: account.name } },
       );
     }
     if (!account.isActive) {
-      throw new BusinessRuleError(`"${account.code} — ${account.name}" is inactive and cannot be posted to.`);
+      throw new BusinessRuleError(`"${account.code} — ${account.name}" is inactive and cannot be posted to.`, {
+        code: 'CHART_OF_ACCOUNT.INACTIVE',
+        params: { code: account.code, name: account.name },
+      });
     }
     return account;
   }
