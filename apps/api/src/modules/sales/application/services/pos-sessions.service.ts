@@ -10,7 +10,8 @@ import type {
   PosSessionFilters,
   PosSessionReport,
 } from '../../domain/pos-session.entity';
-import { BusinessRuleError, NotFoundError, isPostgresForeignKeyViolation } from '../errors';
+import { BusinessRuleError, isPostgresForeignKeyViolation } from '../errors';
+import { entityNotFound } from '../../../../shared/errors/entity-errors';
 import { OutboxWriterService } from '../../../../shared/outbox/application/services/outbox-writer.service';
 
 /**
@@ -51,7 +52,7 @@ export class PosSessionsService {
 
   async getById(db: Kysely<TenantDatabase>, id: string): Promise<PosSession> {
     const session = await this.repository.findById(db, id);
-    if (!session) throw new NotFoundError(`POS session "${id}" not found.`);
+    if (!session) throw entityNotFound('POS_SESSION', id);
     return session;
   }
 
@@ -65,19 +66,28 @@ export class PosSessionsService {
     if (existing) {
       throw new BusinessRuleError(
         `This cashier already has an open POS session ("${existing.id}", opened ${existing.openedAt.toISOString()}). Close it before opening a new one.`,
+        {
+          code: 'POS_SESSION.CASHIER_ALREADY_HAS_OPEN_SESSION',
+          params: { sessionId: existing.id, openedAt: existing.openedAt.toISOString() },
+        },
       );
     }
     if (input.openingCashAmount.isNegative()) {
-      throw new BusinessRuleError('Opening cash amount cannot be negative.');
+      throw new BusinessRuleError('Opening cash amount cannot be negative.', {
+        code: 'POS_SESSION.OPENING_CASH_NEGATIVE',
+      });
     }
     if (!input.warehouseId) {
-      throw new BusinessRuleError('A warehouse must be selected to open a POS session (Stage 3 checkout delivers stock from it).');
+      throw new BusinessRuleError(
+        'A warehouse must be selected to open a POS session (Stage 3 checkout delivers stock from it).',
+        { code: 'POS_SESSION.WAREHOUSE_REQUIRED' },
+      );
     }
     try {
       return await this.repository.create(db, input);
     } catch (err) {
       if (isPostgresForeignKeyViolation(err)) {
-        throw new NotFoundError(`Warehouse "${input.warehouseId}" not found.`);
+        throw entityNotFound('WAREHOUSE', input.warehouseId);
       }
       throw err;
     }
@@ -101,10 +111,15 @@ export class PosSessionsService {
   ): Promise<PosSession> {
     const existing = await this.getById(db, id);
     if (existing.status !== 'open') {
-      throw new BusinessRuleError(`Cannot close POS session "${id}" — it is already "${existing.status}".`);
+      throw new BusinessRuleError(`Cannot close POS session "${id}" — it is already "${existing.status}".`, {
+        code: 'POS_SESSION.NOT_CLOSABLE',
+        params: { id, status: existing.status },
+      });
     }
     if (input.countedCashAmount.isNegative()) {
-      throw new BusinessRuleError('Counted cash amount cannot be negative.');
+      throw new BusinessRuleError('Counted cash amount cannot be negative.', {
+        code: 'POS_SESSION.COUNTED_CASH_NEGATIVE',
+      });
     }
 
     const currency = existing.openingCashAmount.currency;
@@ -123,7 +138,7 @@ export class PosSessionsService {
         notes: input.notes ?? existing.notes ?? null,
         closedAt: new Date(),
       });
-      if (!closed) throw new NotFoundError(`POS session "${id}" not found.`);
+      if (!closed) throw entityNotFound('POS_SESSION', id);
 
       if (!varianceAmount.isZero()) {
         await this.outboxWriter.write(trx, 'sales.pos_session.closed', {

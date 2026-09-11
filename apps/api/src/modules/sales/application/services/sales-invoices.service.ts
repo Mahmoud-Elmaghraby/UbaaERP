@@ -25,7 +25,8 @@ import {
   type CreateSalesInvoiceInput,
 } from '../../domain/sales-invoice.entity';
 import type { SalesOrderLine } from '../../domain/sales-order.entity';
-import { BusinessRuleError, NotFoundError, isPostgresForeignKeyViolation } from '../errors';
+import { BusinessRuleError, isPostgresForeignKeyViolation } from '../errors';
+import { entityNotFound } from '../../../../shared/errors/entity-errors';
 import { NumberingSequencesService } from '../../../settings/application/services/numbering-sequences.service';
 import { OutboxWriterService } from '../../../../shared/outbox/application/services/outbox-writer.service';
 import { FeatureAvailabilityService } from '../../../../shared/plans/feature-availability.service';
@@ -116,7 +117,7 @@ export class SalesInvoicesService {
 
   async getById(db: Kysely<TenantDatabase>, id: string): Promise<SalesInvoiceWithLines> {
     const invoice = await this.invoices.findById(db, id);
-    if (!invoice) throw new NotFoundError(`Sales invoice "${id}" not found.`);
+    if (!invoice) throw entityNotFound('SALES_INVOICE', id);
     const lines = await this.lines.listBySalesInvoiceId(db, id);
     return { ...invoice, lines, totalAmount: calculateSalesInvoiceTotal(lines) };
   }
@@ -132,16 +133,20 @@ export class SalesInvoicesService {
       if (!input.customerId || !input.directLines || input.directLines.length === 0) {
         throw new BusinessRuleError(
           'Provide a salesOrderId, or a customerId with at least one directLines entry, to create a sales invoice.',
+          { code: 'SALES_INVOICE.MISSING_DIRECT_SOURCE' },
         );
       }
     } else {
       if (input.customerId || input.directLines) {
         throw new BusinessRuleError(
           'Provide either salesOrderId + lines, or customerId + directLines — not both.',
+          { code: 'SALES_INVOICE.AMBIGUOUS_SOURCE' },
         );
       }
       if (!input.lines || input.lines.length === 0) {
-        throw new BusinessRuleError('A sales invoice must have at least one line.');
+        throw new BusinessRuleError('A sales invoice must have at least one line.', {
+          code: 'SALES_INVOICE.AT_LEAST_ONE_LINE_REQUIRED',
+        });
       }
     }
 
@@ -160,6 +165,7 @@ export class SalesInvoicesService {
           if (salesOrdersEnabled) {
             throw new BusinessRuleError(
               'Sales Orders is enabled for this tenant — create a sales order first, then invoice it.',
+              { code: 'SALES_INVOICE.SALES_ORDERS_REQUIRED' },
             );
           }
 
@@ -185,10 +191,11 @@ export class SalesInvoicesService {
           }));
         } else {
           const order = await this.salesOrderRepo.findById(trx, input.salesOrderId!);
-          if (!order) throw new NotFoundError(`Sales order "${input.salesOrderId}" not found.`);
+          if (!order) throw entityNotFound('SALES_ORDER', input.salesOrderId);
           if (order.status === 'draft' || order.status === 'cancelled') {
             throw new BusinessRuleError(
               `Sales order "${input.salesOrderId}" is "${order.status}" — only a confirmed sales order can be invoiced.`,
+              { code: 'SALES_INVOICE.SALES_ORDER_NOT_INVOICEABLE', params: { id: input.salesOrderId ?? '', status: order.status } },
             );
           }
 
@@ -197,8 +204,12 @@ export class SalesInvoicesService {
           const orderLineById = new Map(orderLines.map((line) => [line.id, line]));
           for (const line of input.lines!) {
             if (!orderLineById.has(line.salesOrderLineId)) {
-              throw new NotFoundError(
+              throw new BusinessRuleError(
                 `Sales order line "${line.salesOrderLineId}" was not found on sales order "${order.id}".`,
+                {
+                  code: 'SALES_INVOICE.SALES_ORDER_LINE_NOT_FOUND',
+                  params: { lineId: line.salesOrderLineId, salesOrderId: order.id },
+                },
               );
             }
           }
@@ -215,6 +226,16 @@ export class SalesInvoicesService {
               throw new BusinessRuleError(
                 `Cannot invoice ${line.quantityInvoiced} against sales order line "${line.salesOrderLineId}" — ` +
                   `only ${remaining} remaining to invoice (ordered ${orderLine.quantity}, already invoiced ${invoiced}).`,
+                {
+                  code: 'SALES_INVOICE.QUANTITY_EXCEEDS_REMAINING',
+                  params: {
+                    lineId: line.salesOrderLineId,
+                    quantityInvoiced: line.quantityInvoiced,
+                    remaining,
+                    ordered: orderLine.quantity,
+                    invoiced,
+                  },
+                },
               );
             }
           }
@@ -230,7 +251,8 @@ export class SalesInvoicesService {
         try {
           assertSingleCurrency(resolvedLines);
         } catch (err) {
-          throw new BusinessRuleError(err instanceof Error ? err.message : String(err));
+          const message = err instanceof Error ? err.message : String(err);
+          throw new BusinessRuleError(message, { code: 'SALES_INVOICE.MULTIPLE_CURRENCIES', params: { reason: message } });
         }
 
         const deliveriesEnabled = await this.featureAvailability.isEnabled(
@@ -270,6 +292,7 @@ export class SalesInvoicesService {
               throw new BusinessRuleError(
                 'Deliveries is disabled for this tenant, so this invoice must record the stock movement a ' +
                   'Delivery normally would — provide a warehouseId.',
+                { code: 'SALES_INVOICE.WAREHOUSE_REQUIRED' },
               );
             }
             const delivery = await this.deliveriesService.create(trx, {
@@ -312,12 +335,15 @@ export class SalesInvoicesService {
       });
     } catch (err) {
       if (isPostgresForeignKeyViolation(err)) {
-        throw new NotFoundError('The given sales order, sales order line, customer, or warehouse does not exist.');
+        throw new BusinessRuleError('The given sales order, sales order line, customer, or warehouse does not exist.', {
+          code: 'SALES_INVOICE.SOURCE_NOT_FOUND',
+        });
       }
       if (err instanceof Error && err.message.includes('No numbering sequence configured')) {
         throw new BusinessRuleError(
           'No numbering sequence configured for sales invoices yet. ' +
             'Create one for document type "sales_invoice" via Settings → Numbering Sequences first.',
+          { code: 'SALES_INVOICE.NO_NUMBERING_SEQUENCE' },
         );
       }
       throw err;
@@ -342,22 +368,26 @@ export class SalesInvoicesService {
     actorUserId: string | null,
   ): Promise<SalesInvoiceWithLines> {
     const existing = await this.invoices.findById(db, id);
-    if (!existing) throw new NotFoundError(`Sales invoice "${id}" not found.`);
+    if (!existing) throw entityNotFound('SALES_INVOICE', id);
     if (existing.status !== 'draft') {
       throw new BusinessRuleError(
         `Cannot post sales invoice "${id}" from its current status "${existing.status}" (expected "draft").`,
+        { code: 'SALES_INVOICE.NOT_POSTABLE', params: { id, status: existing.status } },
       );
     }
 
     const lines = await this.lines.listBySalesInvoiceId(db, id);
     if (lines.length === 0) {
-      throw new BusinessRuleError(`Sales invoice "${id}" has no lines and cannot be posted.`);
+      throw new BusinessRuleError(`Sales invoice "${id}" has no lines and cannot be posted.`, {
+        code: 'SALES_INVOICE.NO_LINES',
+        params: { id },
+      });
     }
     const totalAmount = calculateSalesInvoiceTotal(lines);
 
     return withTransaction(db, async (trx) => {
       const updated = await this.invoices.updateStatus(trx, id, 'posted');
-      if (!updated) throw new NotFoundError(`Sales invoice "${id}" not found.`);
+      if (!updated) throw entityNotFound('SALES_INVOICE', id);
 
       await this.outboxWriter.write(trx, 'sales.sales_invoice.posted', {
         schema,
@@ -383,23 +413,27 @@ export class SalesInvoicesService {
 
   async cancel(db: Kysely<TenantDatabase>, id: string): Promise<SalesInvoice> {
     const existing = await this.invoices.findById(db, id);
-    if (!existing) throw new NotFoundError(`Sales invoice "${id}" not found.`);
+    if (!existing) throw entityNotFound('SALES_INVOICE', id);
     if (existing.status !== 'draft') {
       throw new BusinessRuleError(
         `Cannot cancel sales invoice "${id}" from its current status "${existing.status}" (expected "draft") — ` +
           'a posted invoice is a ledger-worthy fact; reversing one needs a real accounting reversal, not a plain cancel.',
+        { code: 'SALES_INVOICE.NOT_CANCELLABLE', params: { id, status: existing.status } },
       );
     }
     const updated = await this.invoices.updateStatus(db, id, 'cancelled');
-    if (!updated) throw new NotFoundError(`Sales invoice "${id}" not found.`);
+    if (!updated) throw entityNotFound('SALES_INVOICE', id);
     return updated;
   }
 
   async delete(db: Kysely<TenantDatabase>, id: string): Promise<void> {
     const existing = await this.invoices.findById(db, id);
-    if (!existing) throw new NotFoundError(`Sales invoice "${id}" not found.`);
+    if (!existing) throw entityNotFound('SALES_INVOICE', id);
     if (existing.status !== 'draft' && existing.status !== 'cancelled') {
-      throw new BusinessRuleError(`Sales invoice "${id}" is "${existing.status}" and cannot be deleted.`);
+      throw new BusinessRuleError(`Sales invoice "${id}" is "${existing.status}" and cannot be deleted.`, {
+        code: 'SALES_INVOICE.NOT_DELETABLE',
+        params: { id, status: existing.status },
+      });
     }
     await this.invoices.delete(db, id);
   }

@@ -3,7 +3,8 @@ import type { Kysely } from 'kysely';
 import type { TenantDatabase } from '../../../../database/tenant/kysely-client';
 import { CUSTOMER_REPOSITORY, type CustomerRepository } from '../ports/customer.repository';
 import type { Customer, CreateCustomerInput, UpdateCustomerInput } from '../../domain/customer.entity';
-import { BusinessRuleError, ConflictError, NotFoundError, isPostgresUniqueViolation } from '../errors';
+import { BusinessRuleError, isPostgresUniqueViolation } from '../errors';
+import { duplicateEntity, entityNotFound } from '../../../../shared/errors/entity-errors';
 
 @Injectable()
 export class CustomersService {
@@ -15,7 +16,7 @@ export class CustomersService {
 
   async getById(db: Kysely<TenantDatabase>, id: string): Promise<Customer> {
     const customer = await this.repository.findById(db, id);
-    if (!customer) throw new NotFoundError(`Customer "${id}" not found.`);
+    if (!customer) throw entityNotFound('CUSTOMER', id);
     return customer;
   }
 
@@ -24,7 +25,7 @@ export class CustomersService {
       return await this.repository.create(db, input);
     } catch (err) {
       if (isPostgresUniqueViolation(err)) {
-        throw new ConflictError(`A customer with code "${input.code}" already exists.`);
+        throw duplicateEntity('CUSTOMER', 'code', input.code);
       }
       throw err;
     }
@@ -33,11 +34,11 @@ export class CustomersService {
   async update(db: Kysely<TenantDatabase>, id: string, input: UpdateCustomerInput): Promise<Customer> {
     try {
       const updated = await this.repository.update(db, id, input);
-      if (!updated) throw new NotFoundError(`Customer "${id}" not found.`);
+      if (!updated) throw entityNotFound('CUSTOMER', id);
       return updated;
     } catch (err) {
       if (isPostgresUniqueViolation(err)) {
-        throw new ConflictError(`A customer with code "${input.code}" already exists.`);
+        throw duplicateEntity('CUSTOMER', 'code', input.code);
       }
       throw err;
     }
@@ -49,9 +50,10 @@ export class CustomersService {
     if (existing.isSystemDefault) {
       throw new BusinessRuleError(
         `Customer "${existing.name}" is the system-default Walk-in Customer and cannot be deleted.`,
+        { code: 'CUSTOMER.CANNOT_DELETE_SYSTEM_DEFAULT', params: { name: existing.name } },
       );
     }
     const deleted = await this.repository.delete(db, id);
-    if (!deleted) throw new NotFoundError(`Customer "${id}" not found.`);
+    if (!deleted) throw entityNotFound('CUSTOMER', id);
   }
 }

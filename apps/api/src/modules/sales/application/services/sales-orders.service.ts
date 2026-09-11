@@ -20,7 +20,8 @@ import {
   type CreateSalesOrderLineInput,
   type UpdateSalesOrderInput,
 } from '../../domain/sales-order.entity';
-import { BusinessRuleError, NotFoundError } from '../errors';
+import { BusinessRuleError } from '../errors';
+import { entityNotFound } from '../../../../shared/errors/entity-errors';
 import { NumberingSequencesService } from '../../../settings/application/services/numbering-sequences.service';
 
 @Injectable()
@@ -40,7 +41,7 @@ export class SalesOrdersService {
 
   async getById(db: Kysely<TenantDatabase>, id: string): Promise<SalesOrderWithLines> {
     const order = await this.orders.findById(db, id);
-    if (!order) throw new NotFoundError(`Sales order "${id}" not found.`);
+    if (!order) throw entityNotFound('SALES_ORDER', id);
     const lines = await this.lines.listBySalesOrderId(db, id);
     const { subtotalAmount, totalAmount } = calculateSalesOrderTotal(order, lines);
     return { ...order, lines, subtotalAmount, totalAmount };
@@ -60,14 +61,19 @@ export class SalesOrdersService {
       if (input.customerId || input.lines) {
         throw new BusinessRuleError(
           'Provide either sourceQuotationId or customerId + lines directly — not both.',
+          { code: 'SALES_ORDER.AMBIGUOUS_SOURCE' },
         );
       }
       const quotation = await this.quotations.findById(db, input.sourceQuotationId);
-      if (!quotation) throw new NotFoundError(`Quotation "${input.sourceQuotationId}" not found.`);
+      if (!quotation) throw entityNotFound('QUOTATION', input.sourceQuotationId);
       if (quotation.status !== 'accepted') {
         throw new BusinessRuleError(
           `Quotation "${input.sourceQuotationId}" is "${quotation.status}", not "accepted" — ` +
             'a sales order can only be raised from an accepted quotation.',
+          {
+            code: 'SALES_ORDER.SOURCE_QUOTATION_NOT_ACCEPTED',
+            params: { id: input.sourceQuotationId, status: quotation.status },
+          },
         );
       }
       const quotationLines = await this.quotationLines.listByQuotationId(db, quotation.id);
@@ -85,10 +91,11 @@ export class SalesOrdersService {
     if (!input.customerId || !input.lines || input.lines.length === 0) {
       throw new BusinessRuleError(
         'Provide a sourceQuotationId, or a customerId with at least one line, to create a sales order.',
+        { code: 'SALES_ORDER.MISSING_SOURCE' },
       );
     }
     const customer = await this.customers.findById(db, input.customerId);
-    if (!customer) throw new NotFoundError(`Customer "${input.customerId}" not found.`);
+    if (!customer) throw entityNotFound('CUSTOMER', input.customerId);
     return { customerId: input.customerId, lines: input.lines };
   }
 
@@ -97,7 +104,8 @@ export class SalesOrdersService {
     try {
       assertSingleCurrency(lines);
     } catch (err) {
-      throw new BusinessRuleError(err instanceof Error ? err.message : String(err));
+      const message = err instanceof Error ? err.message : String(err);
+      throw new BusinessRuleError(message, { code: 'SALES_ORDER.MULTIPLE_CURRENCIES', params: { reason: message } });
     }
 
     let allocated;
@@ -107,6 +115,7 @@ export class SalesOrdersService {
       throw new BusinessRuleError(
         'No numbering sequence configured for sales orders yet. ' +
           'Create one for document type "sales_order" via Settings → Numbering Sequences first.',
+        { code: 'SALES_ORDER.NO_NUMBERING_SEQUENCE' },
       );
     }
 
@@ -118,7 +127,8 @@ export class SalesOrdersService {
     try {
       calculateSalesOrderTotal(input, lines);
     } catch (err) {
-      throw new BusinessRuleError(err instanceof Error ? err.message : String(err));
+      const message = err instanceof Error ? err.message : String(err);
+      throw new BusinessRuleError(message, { code: 'SALES_ORDER.INVALID_DISCOUNT', params: { reason: message } });
     }
 
     return withTransaction(db, async (trx) => {
@@ -150,16 +160,24 @@ export class SalesOrdersService {
     input: UpdateSalesOrderInput,
   ): Promise<SalesOrderWithLines> {
     const existing = await this.orders.findById(db, id);
-    if (!existing) throw new NotFoundError(`Sales order "${id}" not found.`);
+    if (!existing) throw entityNotFound('SALES_ORDER', id);
     if (existing.status !== 'draft') {
-      throw new BusinessRuleError(`Sales order "${id}" is "${existing.status}" and can no longer be edited.`);
+      throw new BusinessRuleError(`Sales order "${id}" is "${existing.status}" and can no longer be edited.`, {
+        code: 'SALES_ORDER.NOT_EDITABLE',
+        params: { id, status: existing.status },
+      });
     }
     if (input.lines !== undefined) {
-      if (input.lines.length === 0) throw new BusinessRuleError('A sales order must have at least one line.');
+      if (input.lines.length === 0) {
+        throw new BusinessRuleError('A sales order must have at least one line.', {
+          code: 'SALES_ORDER.AT_LEAST_ONE_LINE_REQUIRED',
+        });
+      }
       try {
         assertSingleCurrency(input.lines);
       } catch (err) {
-        throw new BusinessRuleError(err instanceof Error ? err.message : String(err));
+        const message = err instanceof Error ? err.message : String(err);
+        throw new BusinessRuleError(message, { code: 'SALES_ORDER.MULTIPLE_CURRENCIES', params: { reason: message } });
       }
     }
 
@@ -171,7 +189,7 @@ export class SalesOrdersService {
         discountPercentage: input.discountPercentage,
         discountFixedAmount: input.discountFixedAmount,
       });
-      if (!updated) throw new NotFoundError(`Sales order "${id}" not found.`);
+      if (!updated) throw entityNotFound('SALES_ORDER', id);
 
       let lines = await this.lines.listBySalesOrderId(trx, id);
       if (input.lines !== undefined) {
@@ -184,7 +202,8 @@ export class SalesOrdersService {
         try {
           return calculateSalesOrderTotal(updated, lines);
         } catch (err) {
-          throw new BusinessRuleError(err instanceof Error ? err.message : String(err));
+          const message = err instanceof Error ? err.message : String(err);
+          throw new BusinessRuleError(message, { code: 'SALES_ORDER.INVALID_DISCOUNT', params: { reason: message } });
         }
       })();
 
@@ -199,15 +218,19 @@ export class SalesOrdersService {
     to: SalesOrderStatus,
   ): Promise<SalesOrder> {
     const existing = await this.orders.findById(db, id);
-    if (!existing) throw new NotFoundError(`Sales order "${id}" not found.`);
+    if (!existing) throw entityNotFound('SALES_ORDER', id);
     if (!from.includes(existing.status)) {
       throw new BusinessRuleError(
         `Cannot move sales order "${id}" to "${to}" from its current status "${existing.status}" ` +
           `(expected one of: ${from.join(', ')}).`,
+        {
+          code: 'SALES_ORDER.INVALID_STATUS_TRANSITION',
+          params: { id, to, from: existing.status, expected: from.join(', ') },
+        },
       );
     }
     const updated = await this.orders.updateStatus(db, id, to);
-    if (!updated) throw new NotFoundError(`Sales order "${id}" not found.`);
+    if (!updated) throw entityNotFound('SALES_ORDER', id);
     return updated;
   }
 
@@ -221,9 +244,12 @@ export class SalesOrdersService {
 
   async delete(db: Kysely<TenantDatabase>, id: string): Promise<void> {
     const existing = await this.orders.findById(db, id);
-    if (!existing) throw new NotFoundError(`Sales order "${id}" not found.`);
+    if (!existing) throw entityNotFound('SALES_ORDER', id);
     if (existing.status !== 'draft' && existing.status !== 'cancelled') {
-      throw new BusinessRuleError(`Sales order "${id}" is "${existing.status}" and cannot be deleted.`);
+      throw new BusinessRuleError(`Sales order "${id}" is "${existing.status}" and cannot be deleted.`, {
+        code: 'SALES_ORDER.NOT_DELETABLE',
+        params: { id, status: existing.status },
+      });
     }
     await this.orders.delete(db, id);
   }

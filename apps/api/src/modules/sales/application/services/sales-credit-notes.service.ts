@@ -22,7 +22,8 @@ import {
   type SalesCreditNote,
   type SalesCreditNoteWithLines,
 } from '../../domain/sales-credit-note.entity';
-import { BusinessRuleError, NotFoundError } from '../errors';
+import { BusinessRuleError } from '../errors';
+import { entityNotFound } from '../../../../shared/errors/entity-errors';
 import { NumberingSequencesService } from '../../../settings/application/services/numbering-sequences.service';
 
 /**
@@ -54,7 +55,7 @@ export class SalesCreditNotesService {
 
   async getById(db: Kysely<TenantDatabase>, id: string): Promise<SalesCreditNoteWithLines> {
     const creditNote = await this.creditNotes.findById(db, id);
-    if (!creditNote) throw new NotFoundError(`Sales credit note "${id}" not found.`);
+    if (!creditNote) throw entityNotFound('SALES_CREDIT_NOTE', id);
     const lines = await this.lines.listBySalesCreditNoteId(db, id);
     return { ...creditNote, lines, totalAmount: calculateSalesCreditNoteTotal(lines) };
   }
@@ -79,10 +80,10 @@ export class SalesCreditNotesService {
     salesReturn: SalesReturnWithLines,
   ): Promise<SalesCreditNoteWithLines> {
     const delivery = await this.deliveries.findById(trx, salesReturn.deliveryId);
-    if (!delivery) throw new NotFoundError(`Delivery "${salesReturn.deliveryId}" not found.`);
+    if (!delivery) throw entityNotFound('DELIVERY', salesReturn.deliveryId);
 
     const order = await this.salesOrders.findById(trx, delivery.salesOrderId);
-    if (!order) throw new NotFoundError(`Sales order "${delivery.salesOrderId}" not found.`);
+    if (!order) throw entityNotFound('SALES_ORDER', delivery.salesOrderId);
 
     const deliveryLinesList = await this.deliveryLines.listByDeliveryId(trx, delivery.id);
     const deliveryLineById = new Map(deliveryLinesList.map((line) => [line.id, line]));
@@ -95,12 +96,20 @@ export class SalesCreditNotesService {
       if (!deliveryLine) {
         throw new BusinessRuleError(
           `Delivery line "${returnLine.deliveryLineId}" referenced by sales return line "${returnLine.id}" was not found.`,
+          {
+            code: 'SALES_CREDIT_NOTE.DELIVERY_LINE_NOT_FOUND',
+            params: { lineId: returnLine.deliveryLineId, returnLineId: returnLine.id },
+          },
         );
       }
       const orderLine = orderLineById.get(deliveryLine.salesOrderLineId);
       if (!orderLine) {
         throw new BusinessRuleError(
           `Sales order line "${deliveryLine.salesOrderLineId}" referenced by delivery line "${deliveryLine.id}" was not found.`,
+          {
+            code: 'SALES_CREDIT_NOTE.SALES_ORDER_LINE_NOT_FOUND',
+            params: { lineId: deliveryLine.salesOrderLineId, deliveryLineId: deliveryLine.id },
+          },
         );
       }
       return {
@@ -113,7 +122,9 @@ export class SalesCreditNotesService {
 
     const currency = lineInputs[0]?.unitPrice.currency;
     if (!currency) {
-      throw new BusinessRuleError('A sales credit note needs at least one line.');
+      throw new BusinessRuleError('A sales credit note needs at least one line.', {
+        code: 'SALES_CREDIT_NOTE.AT_LEAST_ONE_LINE_REQUIRED',
+      });
     }
 
     let allocated;
@@ -124,6 +135,7 @@ export class SalesCreditNotesService {
         throw new BusinessRuleError(
           'No numbering sequence configured for sales credit notes yet. ' +
             'Create one for document type "sales_credit_note" via Settings → Numbering Sequences first.',
+          { code: 'SALES_CREDIT_NOTE.NO_NUMBERING_SEQUENCE' },
         );
       }
       throw err;

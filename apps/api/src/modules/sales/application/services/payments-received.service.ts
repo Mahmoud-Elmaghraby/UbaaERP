@@ -25,7 +25,8 @@ import {
   type PaymentReceivedWithAllocations,
   type CreatePaymentReceivedInput,
 } from '../../domain/payment-received.entity';
-import { BusinessRuleError, NotFoundError, isPostgresForeignKeyViolation } from '../errors';
+import { BusinessRuleError, isPostgresForeignKeyViolation } from '../errors';
+import { entityNotFound } from '../../../../shared/errors/entity-errors';
 import { NumberingSequencesService } from '../../../settings/application/services/numbering-sequences.service';
 import { OutboxWriterService } from '../../../../shared/outbox/application/services/outbox-writer.service';
 
@@ -99,7 +100,7 @@ export class PaymentsReceivedService {
 
   async getById(db: Kysely<TenantDatabase>, id: string): Promise<PaymentReceivedWithAllocations> {
     const payment = await this.payments.findById(db, id);
-    if (!payment) throw new NotFoundError(`Payment "${id}" not found.`);
+    if (!payment) throw entityNotFound('PAYMENT', id);
     const allocations = await this.allocations.listByPaymentReceivedId(db, id);
     return { ...payment, allocations, unallocatedAmount: calculateUnallocatedAmount(payment.amount, allocations) };
   }
@@ -138,6 +139,10 @@ export class PaymentsReceivedService {
         throw new BusinessRuleError(
           `Allocation currency "${allocation.allocatedAmount.currency}" does not match the payment's ` +
             `own currency "${currency}" — this codebase has no multi-currency conversion.`,
+          {
+            code: 'PAYMENT.ALLOCATION_CURRENCY_MISMATCH',
+            params: { allocationCurrency: allocation.allocatedAmount.currency, paymentCurrency: currency },
+          },
         );
       }
       totalRequested = totalRequested.add(allocation.allocatedAmount);
@@ -146,15 +151,20 @@ export class PaymentsReceivedService {
       throw new BusinessRuleError(
         `Total allocated amount (${totalRequested.toDecimalString()}) exceeds the available amount to ` +
           `allocate (${ceiling.toDecimalString()}).`,
+        {
+          code: 'PAYMENT.ALLOCATION_EXCEEDS_AVAILABLE',
+          params: { requested: totalRequested.toDecimalString(), available: ceiling.toDecimalString() },
+        },
       );
     }
 
     for (const invoiceId of invoiceIds) {
       const invoice = await this.salesInvoices.findById(db, invoiceId);
-      if (!invoice) throw new NotFoundError(`Sales invoice "${invoiceId}" not found.`);
+      if (!invoice) throw entityNotFound('SALES_INVOICE', invoiceId);
       if (invoice.status !== 'posted') {
         throw new BusinessRuleError(
           `Sales invoice "${invoiceId}" is "${invoice.status}" — only a posted invoice can receive a payment.`,
+          { code: 'PAYMENT.INVOICE_NOT_POSTED', params: { id: invoiceId, status: invoice.status } },
         );
       }
 
@@ -162,6 +172,7 @@ export class PaymentsReceivedService {
       if (!order || order.customerId !== customerId) {
         throw new BusinessRuleError(
           `Sales invoice "${invoiceId}" does not belong to customer "${customerId}".`,
+          { code: 'PAYMENT.INVOICE_CUSTOMER_MISMATCH', params: { invoiceId, customerId } },
         );
       }
 
@@ -172,6 +183,10 @@ export class PaymentsReceivedService {
         throw new BusinessRuleError(
           `Allocation currency "${requested.currency}" does not match sales invoice "${invoiceId}"'s ` +
             `currency "${invoiceTotal.currency}".`,
+          {
+            code: 'PAYMENT.INVOICE_CURRENCY_MISMATCH',
+            params: { requestedCurrency: requested.currency, invoiceCurrency: invoiceTotal.currency },
+          },
         );
       }
 
@@ -182,6 +197,15 @@ export class PaymentsReceivedService {
           `Cannot allocate ${requested.toDecimalString()} to sales invoice "${invoiceId}" — only ` +
             `${outstanding.toDecimalString()} is still outstanding (total ${invoiceTotal.toDecimalString()}, ` +
             `already paid ${alreadyPaid.toDecimalString()}).`,
+          {
+            code: 'PAYMENT.ALLOCATION_EXCEEDS_OUTSTANDING',
+            params: {
+              requested: requested.toDecimalString(),
+              outstanding: outstanding.toDecimalString(),
+              total: invoiceTotal.toDecimalString(),
+              alreadyPaid: alreadyPaid.toDecimalString(),
+            },
+          },
         );
       }
     }
@@ -192,7 +216,7 @@ export class PaymentsReceivedService {
     input: CreatePaymentReceivedInput,
   ): Promise<PaymentReceivedWithAllocations> {
     const customer = await this.customers.findById(db, input.customerId);
-    if (!customer) throw new NotFoundError(`Customer "${input.customerId}" not found.`);
+    if (!customer) throw entityNotFound('CUSTOMER', input.customerId);
 
     const allocationInputs = input.allocations ?? [];
     await this.validateAllocations(db, input.customerId, input.amount.currency, input.amount, allocationInputs);
@@ -231,12 +255,15 @@ export class PaymentsReceivedService {
       });
     } catch (err) {
       if (isPostgresForeignKeyViolation(err)) {
-        throw new NotFoundError('The given customer or sales invoice does not exist.');
+        throw new BusinessRuleError('The given customer or sales invoice does not exist.', {
+          code: 'PAYMENT.CUSTOMER_OR_INVOICE_NOT_FOUND',
+        });
       }
       if (err instanceof Error && err.message.includes('No numbering sequence configured')) {
         throw new BusinessRuleError(
           'No numbering sequence configured for payments received yet. ' +
             'Create one for document type "payment_received" via Settings → Numbering Sequences first.',
+          { code: 'PAYMENT.NO_NUMBERING_SEQUENCE' },
         );
       }
       throw err;
@@ -259,10 +286,11 @@ export class PaymentsReceivedService {
     actorUserId: string | null,
   ): Promise<PaymentReceivedWithAllocations> {
     const existing = await this.payments.findById(db, id);
-    if (!existing) throw new NotFoundError(`Payment "${id}" not found.`);
+    if (!existing) throw entityNotFound('PAYMENT', id);
     if (existing.status !== 'draft') {
       throw new BusinessRuleError(
         `Cannot post payment "${id}" from its current status "${existing.status}" (expected "draft").`,
+        { code: 'PAYMENT.NOT_POSTABLE', params: { id, status: existing.status } },
       );
     }
 
@@ -277,7 +305,7 @@ export class PaymentsReceivedService {
 
     return withTransaction(db, async (trx) => {
       const updated = await this.payments.updateStatus(trx, id, 'posted');
-      if (!updated) throw new NotFoundError(`Payment "${id}" not found.`);
+      if (!updated) throw entityNotFound('PAYMENT', id);
 
       await this.outboxWriter.write(trx, 'sales.payment_received.posted', {
         schema,
@@ -319,15 +347,18 @@ export class PaymentsReceivedService {
     newAllocations: { salesInvoiceId: string; allocatedAmount: Money }[],
   ): Promise<PaymentReceivedWithAllocations> {
     if (newAllocations.length === 0) {
-      throw new BusinessRuleError('At least one allocation must be given.');
+      throw new BusinessRuleError('At least one allocation must be given.', {
+        code: 'PAYMENT.AT_LEAST_ONE_ALLOCATION_REQUIRED',
+      });
     }
 
     const existing = await this.payments.findById(db, id);
-    if (!existing) throw new NotFoundError(`Payment "${id}" not found.`);
+    if (!existing) throw entityNotFound('PAYMENT', id);
     if (existing.status !== 'posted') {
       throw new BusinessRuleError(
         `Cannot allocate payment "${id}" — only a posted payment has a confirmed remainder to allocate ` +
           `(current status "${existing.status}").`,
+        { code: 'PAYMENT.NOT_ALLOCATABLE', params: { id, status: existing.status } },
       );
     }
 
@@ -377,23 +408,27 @@ export class PaymentsReceivedService {
 
   async cancel(db: Kysely<TenantDatabase>, id: string): Promise<PaymentReceived> {
     const existing = await this.payments.findById(db, id);
-    if (!existing) throw new NotFoundError(`Payment "${id}" not found.`);
+    if (!existing) throw entityNotFound('PAYMENT', id);
     if (existing.status !== 'draft') {
       throw new BusinessRuleError(
         `Cannot cancel payment "${id}" from its current status "${existing.status}" (expected "draft") — ` +
           'a posted payment is a ledger-worthy fact; reversing one needs a real accounting reversal, not a plain cancel.',
+        { code: 'PAYMENT.NOT_CANCELLABLE', params: { id, status: existing.status } },
       );
     }
     const updated = await this.payments.updateStatus(db, id, 'cancelled');
-    if (!updated) throw new NotFoundError(`Payment "${id}" not found.`);
+    if (!updated) throw entityNotFound('PAYMENT', id);
     return updated;
   }
 
   async delete(db: Kysely<TenantDatabase>, id: string): Promise<void> {
     const existing = await this.payments.findById(db, id);
-    if (!existing) throw new NotFoundError(`Payment "${id}" not found.`);
+    if (!existing) throw entityNotFound('PAYMENT', id);
     if (existing.status !== 'draft' && existing.status !== 'cancelled') {
-      throw new BusinessRuleError(`Payment "${id}" is "${existing.status}" and cannot be deleted.`);
+      throw new BusinessRuleError(`Payment "${id}" is "${existing.status}" and cannot be deleted.`, {
+        code: 'PAYMENT.NOT_DELETABLE',
+        params: { id, status: existing.status },
+      });
     }
     await this.payments.delete(db, id);
   }

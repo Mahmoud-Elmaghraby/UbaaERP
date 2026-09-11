@@ -16,6 +16,7 @@ import type {
   CreateSalesReturnInput,
 } from '../../domain/sales-return.entity';
 import { BusinessRuleError, NotFoundError, isPostgresForeignKeyViolation } from '../errors';
+import { entityNotFound } from '../../../../shared/errors/entity-errors';
 import { NumberingSequencesService } from '../../../settings/application/services/numbering-sequences.service';
 import { OutboxWriterService } from '../../../../shared/outbox/application/services/outbox-writer.service';
 import { SalesCreditNotesService } from './sales-credit-notes.service';
@@ -73,22 +74,28 @@ export class SalesReturnsService {
 
   async getById(db: Kysely<TenantDatabase>, id: string): Promise<SalesReturnWithLines> {
     const salesReturn = await this.returns.findById(db, id);
-    if (!salesReturn) throw new NotFoundError(`Sales return "${id}" not found.`);
+    if (!salesReturn) throw entityNotFound('SALES_RETURN', id);
     const lines = await this.lines.listBySalesReturnId(db, id);
     return { ...salesReturn, lines };
   }
 
   async create(db: Kysely<TenantDatabase>, input: CreateSalesReturnInput): Promise<SalesReturnWithLines> {
     if (input.lines.length === 0) {
-      throw new BusinessRuleError('A sales return must have at least one line.');
+      throw new BusinessRuleError('A sales return must have at least one line.', {
+        code: 'SALES_RETURN.AT_LEAST_ONE_LINE_REQUIRED',
+      });
     }
 
     const delivery = await this.deliveries.findById(db, input.deliveryId);
-    if (!delivery) throw new NotFoundError(`Delivery "${input.deliveryId}" not found.`);
+    if (!delivery) throw entityNotFound('DELIVERY', input.deliveryId);
     if (delivery.status !== 'confirmed') {
       throw new BusinessRuleError(
         `Delivery "${input.deliveryId}" is "${delivery.status}" — only a confirmed delivery ` +
           '(one that actually shipped) can have anything returned against it.',
+        {
+          code: 'SALES_RETURN.DELIVERY_NOT_CONFIRMED',
+          params: { id: input.deliveryId, status: delivery.status },
+        },
       );
     }
 
@@ -98,6 +105,10 @@ export class SalesReturnsService {
       if (!deliveryLineById.has(line.deliveryLineId)) {
         throw new NotFoundError(
           `Delivery line "${line.deliveryLineId}" was not found on delivery "${delivery.id}".`,
+          {
+            code: 'SALES_RETURN.DELIVERY_LINE_NOT_FOUND',
+            params: { lineId: line.deliveryLineId, deliveryId: delivery.id },
+          },
         );
       }
     }
@@ -114,6 +125,16 @@ export class SalesReturnsService {
         throw new BusinessRuleError(
           `Cannot return ${line.quantityReturned} against delivery line "${line.deliveryLineId}" — ` +
             `only ${remaining} remaining returnable (delivered ${deliveryLine.quantityDelivered}, already returned ${returned}).`,
+          {
+            code: 'SALES_RETURN.QUANTITY_EXCEEDS_REMAINING',
+            params: {
+              lineId: line.deliveryLineId,
+              quantityReturned: line.quantityReturned,
+              remaining,
+              quantityDelivered: deliveryLine.quantityDelivered,
+              returned,
+            },
+          },
         );
       }
     }
@@ -148,12 +169,15 @@ export class SalesReturnsService {
       });
     } catch (err) {
       if (isPostgresForeignKeyViolation(err)) {
-        throw new NotFoundError('The given delivery or delivery line does not exist.');
+        throw new NotFoundError('The given delivery or delivery line does not exist.', {
+          code: 'SALES_RETURN.DELIVERY_OR_LINE_NOT_FOUND',
+        });
       }
       if (err instanceof Error && err.message.includes('No numbering sequence configured')) {
         throw new BusinessRuleError(
           'No numbering sequence configured for sales returns yet. ' +
             'Create one for document type "sales_return" via Settings → Numbering Sequences first.',
+          { code: 'SALES_RETURN.NO_NUMBERING_SEQUENCE' },
         );
       }
       throw err;
@@ -183,21 +207,22 @@ export class SalesReturnsService {
     actorUserId: string | null,
   ): Promise<SalesReturnConfirmation> {
     const existing = await this.returns.findById(db, id);
-    if (!existing) throw new NotFoundError(`Sales return "${id}" not found.`);
+    if (!existing) throw entityNotFound('SALES_RETURN', id);
     if (existing.status !== 'draft') {
       throw new BusinessRuleError(
         `Cannot confirm sales return "${id}" from its current status "${existing.status}" (expected "draft").`,
+        { code: 'SALES_RETURN.NOT_CONFIRMABLE', params: { id, status: existing.status } },
       );
     }
 
     return db.transaction().execute(async (trx) => {
       const updated = await this.returns.updateStatus(trx, id, 'confirmed');
-      if (!updated) throw new NotFoundError(`Sales return "${id}" not found.`);
+      if (!updated) throw entityNotFound('SALES_RETURN', id);
       const lines = await this.lines.listBySalesReturnId(trx, id);
 
       const delivery = await this.deliveries.findById(trx, updated.deliveryId);
       if (!delivery) {
-        throw new NotFoundError(`Delivery "${updated.deliveryId}" not found.`);
+        throw entityNotFound('DELIVERY', updated.deliveryId);
       }
 
       const returnWithLines = { ...updated, lines };
@@ -249,15 +274,19 @@ export class SalesReturnsService {
     to: SalesReturnStatus,
   ): Promise<SalesReturn> {
     const existing = await this.returns.findById(db, id);
-    if (!existing) throw new NotFoundError(`Sales return "${id}" not found.`);
+    if (!existing) throw entityNotFound('SALES_RETURN', id);
     if (!from.includes(existing.status)) {
       throw new BusinessRuleError(
         `Cannot move sales return "${id}" to "${to}" from its current status "${existing.status}" ` +
           `(expected one of: ${from.join(', ')}).`,
+        {
+          code: 'SALES_RETURN.INVALID_STATUS_TRANSITION',
+          params: { id, to, from: existing.status, expected: from.join(', ') },
+        },
       );
     }
     const updated = await this.returns.updateStatus(db, id, to);
-    if (!updated) throw new NotFoundError(`Sales return "${id}" not found.`);
+    if (!updated) throw entityNotFound('SALES_RETURN', id);
     return updated;
   }
 
@@ -267,9 +296,12 @@ export class SalesReturnsService {
 
   async delete(db: Kysely<TenantDatabase>, id: string): Promise<void> {
     const existing = await this.returns.findById(db, id);
-    if (!existing) throw new NotFoundError(`Sales return "${id}" not found.`);
+    if (!existing) throw entityNotFound('SALES_RETURN', id);
     if (existing.status !== 'draft' && existing.status !== 'cancelled') {
-      throw new BusinessRuleError(`Sales return "${id}" is "${existing.status}" and cannot be deleted.`);
+      throw new BusinessRuleError(`Sales return "${id}" is "${existing.status}" and cannot be deleted.`, {
+        code: 'SALES_RETURN.NOT_DELETABLE',
+        params: { id, status: existing.status },
+      });
     }
     await this.returns.delete(db, id);
   }

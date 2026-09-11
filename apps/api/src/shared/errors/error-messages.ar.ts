@@ -220,6 +220,125 @@ export const AR_MESSAGES: Record<string, string> = {
     'لا يمكن إلغاء فاتورة الشراء "{id}" من حالتها الحالية "{status}" (متوقع "مسودة") — الفاتورة المرحّلة مستند محاسبي نهائي؛ عكسها يتطلب قيدًا عكسيًا محاسبيًا حقيقيًا، لا إلغاءً بسيطًا.',
   'PURCHASE_INVOICE.NOT_DELETABLE': 'فاتورة الشراء "{id}" في حالة "{status}" ولا يمكن حذفها.',
 
+  // ---- Sales module ----
+  'CUSTOMER.DUPLICATE_CODE': 'يوجد عميل آخر بنفس الرمز "{value}" بالفعل.',
+  'CUSTOMER.CANNOT_DELETE_SYSTEM_DEFAULT': 'العميل "{name}" هو عميل "زائر" الافتراضي في النظام ولا يمكن حذفه.',
+  'ETA_CREDENTIALS.MISSING_REQUIRED_FIELDS': 'لا يمكن تفعيل الفوترة الإلكترونية (ETA): الحقول التالية ناقصة: {missing}.',
+  'QUOTATION.AT_LEAST_ONE_LINE_REQUIRED': 'يجب أن يحتوي عرض السعر على سطر واحد على الأقل.',
+  'QUOTATION.MULTIPLE_CURRENCIES': 'تعذّر إنشاء المستند: {reason}',
+  'QUOTATION.NO_NUMBERING_SEQUENCE':
+    'لا يوجد تسلسل ترقيم مُعد لعروض الأسعار بعد. يرجى إنشاء تسلسل لنوع المستند "quotation" من الإعدادات ← تسلسلات الترقيم أولاً.',
+  'QUOTATION.NOT_EDITABLE': 'عرض السعر "{id}" في حالة "{status}" ولم يعد قابلاً للتعديل.',
+  'QUOTATION.INVALID_STATUS_TRANSITION':
+    'لا يمكن نقل عرض السعر "{id}" إلى الحالة "{to}" من حالته الحالية "{from}" (الحالات المتوقعة: {expected}).',
+  'QUOTATION.NOT_DELETABLE': 'عرض السعر "{id}" في حالة "{status}" ولا يمكن حذفه.',
+  'SALES_ORDER.AMBIGUOUS_SOURCE':
+    'يجب تحديد إما عرض سعر مصدر (sourceQuotationId) أو عميل وسطور مباشرة — وليس كليهما معًا.',
+  'SALES_ORDER.SOURCE_QUOTATION_NOT_ACCEPTED':
+    'عرض السعر "{id}" في حالة "{status}"، وليس "مقبول" — لا يمكن إنشاء أمر بيع إلا من عرض سعر مقبول.',
+  'SALES_ORDER.MISSING_SOURCE': 'يجب تحديد عرض سعر مصدر، أو عميل مع سطر واحد على الأقل، لإنشاء أمر بيع.',
+  'SALES_ORDER.MULTIPLE_CURRENCIES': 'تعذّر إنشاء المستند: {reason}',
+  'SALES_ORDER.NO_NUMBERING_SEQUENCE':
+    'لا يوجد تسلسل ترقيم مُعد لأوامر البيع بعد. يرجى إنشاء تسلسل لنوع المستند "sales_order" من الإعدادات ← تسلسلات الترقيم أولاً.',
+  'SALES_ORDER.INVALID_DISCOUNT': 'تعذّر تطبيق الخصم: {reason}',
+  'SALES_ORDER.NOT_EDITABLE': 'أمر البيع "{id}" في حالة "{status}" ولم يعد قابلاً للتعديل.',
+  'SALES_ORDER.AT_LEAST_ONE_LINE_REQUIRED': 'يجب أن يحتوي أمر البيع على سطر واحد على الأقل.',
+  'SALES_ORDER.INVALID_STATUS_TRANSITION':
+    'لا يمكن نقل أمر البيع "{id}" إلى الحالة "{to}" من حالته الحالية "{from}" (الحالات المتوقعة: {expected}).',
+  'SALES_ORDER.NOT_DELETABLE': 'أمر البيع "{id}" في حالة "{status}" ولا يمكن حذفه.',
+  'SALES_RETURN.AT_LEAST_ONE_LINE_REQUIRED': 'يجب أن يحتوي مرتجع البيع على سطر واحد على الأقل.',
+  'SALES_RETURN.DELIVERY_NOT_CONFIRMED':
+    'إذن التسليم "{id}" في حالة "{status}" — لا يمكن إرجاع بضاعة إلا مقابل إذن تسليم مؤكد (تم شحنه فعليًا).',
+  'SALES_RETURN.DELIVERY_LINE_NOT_FOUND': 'سطر إذن التسليم "{lineId}" غير موجود ضمن إذن التسليم "{deliveryId}".',
+  'SALES_RETURN.QUANTITY_EXCEEDS_REMAINING':
+    'لا يمكن إرجاع {quantityReturned} مقابل سطر إذن التسليم "{lineId}" — المتبقي القابل للإرجاع {remaining} فقط (تم تسليم {quantityDelivered}، تم إرجاع {returned} سابقًا).',
+  'SALES_RETURN.DELIVERY_OR_LINE_NOT_FOUND': 'إذن التسليم أو سطره المحدد غير موجود.',
+  'SALES_RETURN.NO_NUMBERING_SEQUENCE':
+    'لا يوجد تسلسل ترقيم مُعد لمرتجعات البيع بعد. يرجى إنشاء تسلسل لنوع المستند "sales_return" من الإعدادات ← تسلسلات الترقيم أولاً.',
+  'SALES_RETURN.NOT_CONFIRMABLE': 'لا يمكن تأكيد مرتجع البيع "{id}" من حالته الحالية "{status}" (متوقع "مسودة").',
+  'SALES_RETURN.INVALID_STATUS_TRANSITION':
+    'لا يمكن نقل مرتجع البيع "{id}" إلى الحالة "{to}" من حالته الحالية "{from}" (الحالات المتوقعة: {expected}).',
+  'SALES_RETURN.NOT_DELETABLE': 'مرتجع البيع "{id}" في حالة "{status}" ولا يمكن حذفه.',
+  'DELIVERY.AT_LEAST_ONE_LINE_REQUIRED': 'يجب أن يحتوي إذن التسليم على سطر واحد على الأقل.',
+  'DELIVERY.SALES_ORDER_NOT_DELIVERABLE':
+    'أمر البيع "{id}" في حالة "{status}" — يمكن تسليم البضاعة فقط مقابل أمر بيع مؤكد (أو مُسلَّم جزئيًا).',
+  'DELIVERY.SALES_ORDER_LINE_NOT_FOUND': 'سطر أمر البيع "{lineId}" غير موجود ضمن أمر البيع "{salesOrderId}".',
+  'DELIVERY.QUANTITY_EXCEEDS_REMAINING':
+    'لا يمكن تسليم {quantityDelivered} مقابل سطر أمر البيع "{lineId}" — المتبقي القابل للتسليم {remaining} فقط (الكمية المطلوبة {ordered}، تم تسليم {delivered} سابقًا).',
+  'DELIVERY.SALES_ORDER_OR_LINE_OR_WAREHOUSE_NOT_FOUND': 'أمر البيع أو سطره أو المستودع المحدد غير موجود.',
+  'DELIVERY.NO_NUMBERING_SEQUENCE':
+    'لا يوجد تسلسل ترقيم مُعد لأذون التسليم بعد. يرجى إنشاء تسلسل لنوع المستند "delivery" من الإعدادات ← تسلسلات الترقيم أولاً.',
+  'DELIVERY.INVALID_STATUS_TRANSITION':
+    'لا يمكن نقل إذن التسليم "{id}" إلى الحالة "{to}" من حالته الحالية "{from}" (الحالات المتوقعة: {expected}).',
+  'DELIVERY.NOT_CONFIRMABLE': 'لا يمكن تأكيد إذن التسليم "{id}" من حالته الحالية "{status}" (متوقع "مسودة").',
+  'DELIVERY.NOT_DELETABLE': 'إذن التسليم "{id}" في حالة "{status}" ولا يمكن حذفه.',
+  'SALES_CREDIT_NOTE.DELIVERY_LINE_NOT_FOUND':
+    'سطر إذن التسليم "{lineId}" المرتبط بسطر مرتجع البيع "{returnLineId}" غير موجود.',
+  'SALES_CREDIT_NOTE.SALES_ORDER_LINE_NOT_FOUND':
+    'سطر أمر البيع "{lineId}" المرتبط بسطر إذن التسليم "{deliveryLineId}" غير موجود.',
+  'SALES_CREDIT_NOTE.AT_LEAST_ONE_LINE_REQUIRED': 'يجب أن يحتوي إشعار الدائن على سطر واحد على الأقل.',
+  'SALES_CREDIT_NOTE.NO_NUMBERING_SEQUENCE':
+    'لا يوجد تسلسل ترقيم مُعد لإشعارات الدائن بعد. يرجى إنشاء تسلسل لنوع المستند "sales_credit_note" من الإعدادات ← تسلسلات الترقيم أولاً.',
+  'PAYMENT.ALLOCATION_CURRENCY_MISMATCH':
+    'عملة التخصيص "{allocationCurrency}" لا تطابق عملة الدفعة نفسها "{paymentCurrency}" — لا يدعم هذا النظام تحويل العملات.',
+  'PAYMENT.ALLOCATION_EXCEEDS_AVAILABLE':
+    'إجمالي المبلغ المخصَّص ({requested}) يتجاوز المبلغ المتاح للتخصيص ({available}).',
+  'PAYMENT.INVOICE_NOT_POSTED': 'فاتورة البيع "{id}" في حالة "{status}" — يمكن استلام دفعة فقط مقابل فاتورة مرحّلة.',
+  'PAYMENT.INVOICE_CUSTOMER_MISMATCH': 'فاتورة البيع "{invoiceId}" لا تخص العميل "{customerId}".',
+  'PAYMENT.INVOICE_CURRENCY_MISMATCH': 'عملة التخصيص "{requestedCurrency}" لا تطابق عملة فاتورة البيع "{invoiceCurrency}".',
+  'PAYMENT.ALLOCATION_EXCEEDS_OUTSTANDING':
+    'لا يمكن تخصيص {requested} لفاتورة البيع — المتبقي المستحق {outstanding} فقط (الإجمالي {total}، تم سداد {alreadyPaid} سابقًا).',
+  'PAYMENT.CUSTOMER_OR_INVOICE_NOT_FOUND': 'العميل أو فاتورة البيع المحددة غير موجودة.',
+  'PAYMENT.NO_NUMBERING_SEQUENCE':
+    'لا يوجد تسلسل ترقيم مُعد للدفعات المستلمة بعد. يرجى إنشاء تسلسل لنوع المستند "payment_received" من الإعدادات ← تسلسلات الترقيم أولاً.',
+  'PAYMENT.NOT_POSTABLE': 'لا يمكن ترحيل الدفعة "{id}" من حالتها الحالية "{status}" (متوقع "مسودة").',
+  'PAYMENT.AT_LEAST_ONE_ALLOCATION_REQUIRED': 'يجب تحديد تخصيص واحد على الأقل.',
+  'PAYMENT.NOT_ALLOCATABLE':
+    'لا يمكن تخصيص الدفعة "{id}" — التخصيص متاح فقط للدفعات المرحّلة (الحالة الحالية "{status}").',
+  'PAYMENT.NOT_CANCELLABLE':
+    'لا يمكن إلغاء الدفعة "{id}" من حالتها الحالية "{status}" (متوقع "مسودة") — الدفعة المرحّلة مستند محاسبي نهائي؛ عكسها يتطلب قيدًا عكسيًا محاسبيًا حقيقيًا، لا إلغاءً بسيطًا.',
+  'PAYMENT.NOT_DELETABLE': 'الدفعة "{id}" في حالة "{status}" ولا يمكن حذفها.',
+  'POS_SESSION.CASHIER_ALREADY_HAS_OPEN_SESSION':
+    'هذا الكاشير لديه بالفعل جلسة نقطة بيع مفتوحة ("{sessionId}"، فُتحت في {openedAt}). يجب إغلاقها قبل فتح جلسة جديدة.',
+  'POS_SESSION.OPENING_CASH_NEGATIVE': 'لا يمكن أن يكون مبلغ النقدية الافتتاحي سالبًا.',
+  'POS_SESSION.WAREHOUSE_REQUIRED':
+    'يجب تحديد مستودع لفتح جلسة نقطة بيع (عملية البيع في المرحلة الثالثة تسحب المخزون منه).',
+  'POS_SESSION.NOT_CLOSABLE': 'لا يمكن إغلاق جلسة نقطة البيع "{id}" — حالتها الحالية "{status}" بالفعل.',
+  'POS_SESSION.COUNTED_CASH_NEGATIVE': 'لا يمكن أن يكون مبلغ النقدية المعدود سالبًا.',
+  'POS_SALE.AT_LEAST_ONE_LINE_REQUIRED': 'يجب أن تحتوي عملية البيع على سطر واحد على الأقل.',
+  'POS_SALE.AT_LEAST_ONE_TENDER_REQUIRED': 'يجب تحديد وسيلة دفع واحدة على الأقل لإتمام عملية البيع.',
+  'POS_SALE.SESSION_NOT_OPEN':
+    'جلسة نقطة البيع "{id}" في حالة "{status}" — يمكن إتمام عملية بيع فقط في جلسة مفتوحة.',
+  'POS_SALE.SESSION_MISSING_WAREHOUSE':
+    'جلسة نقطة البيع "{id}" ليس لها مستودع محدد ولا يمكن إتمام عملية بيع من خلالها. يرجى إغلاقها وفتح جلسة جديدة.',
+  'POS_SALE.MULTIPLE_CURRENCIES': 'تعذّر إتمام عملية البيع: {reason}',
+  'POS_SALE.INVALID_DISCOUNT': 'تعذّر تطبيق الخصم: {reason}',
+  'POS_SALE.TENDERED_TOTAL_MISMATCH': 'المبلغ المدفوع ({tendered}) لا يطابق إجمالي عملية البيع ({total}).',
+  'POS_SALE.NO_WALK_IN_CUSTOMER':
+    'لا يوجد عميل "زائر" افتراضي مُعد لهذا المستأجر. يرجى تشغيل أمر db:seed-walk-in-customer، أو تحديد معرّف عميل (customerId) صراحةً.',
+  'SALES_INVOICE.MISSING_DIRECT_SOURCE':
+    'يجب تحديد أمر بيع، أو عميل مع سطر مباشر واحد على الأقل، لإنشاء فاتورة بيع.',
+  'SALES_INVOICE.AMBIGUOUS_SOURCE': 'يجب تحديد إما أمر بيع وسطوره أو عميل وسطور مباشرة — وليس كليهما معًا.',
+  'SALES_INVOICE.AT_LEAST_ONE_LINE_REQUIRED': 'يجب أن تحتوي فاتورة البيع على سطر واحد على الأقل.',
+  'SALES_INVOICE.SALES_ORDERS_REQUIRED':
+    'ميزة أوامر البيع مفعّلة لهذا المستأجر — يجب إنشاء أمر بيع أولاً ثم إصدار الفاتورة عليه.',
+  'SALES_INVOICE.SALES_ORDER_NOT_INVOICEABLE':
+    'أمر البيع "{id}" في حالة "{status}" — يمكن إصدار فاتورة فقط لأمر بيع مؤكد.',
+  'SALES_INVOICE.SALES_ORDER_LINE_NOT_FOUND': 'سطر أمر البيع "{lineId}" غير موجود ضمن أمر البيع "{salesOrderId}".',
+  'SALES_INVOICE.QUANTITY_EXCEEDS_REMAINING':
+    'لا يمكن إصدار فاتورة بكمية {quantityInvoiced} مقابل سطر أمر البيع "{lineId}" — المتبقي القابل للفوترة {remaining} فقط (الكمية المطلوبة {ordered}، تم فوترة {invoiced} سابقًا).',
+  'SALES_INVOICE.MULTIPLE_CURRENCIES': 'تعذّر إنشاء المستند: {reason}',
+  'SALES_INVOICE.WAREHOUSE_REQUIRED':
+    'ميزة أذون التسليم معطّلة لهذا المستأجر، لذا يجب أن تسجّل هذه الفاتورة حركة المخزون التي كان سيسجلها إذن التسليم — يرجى تحديد المستودع (warehouseId).',
+  'SALES_INVOICE.SOURCE_NOT_FOUND': 'أمر البيع أو سطره أو العميل أو المستودع المحدد غير موجود.',
+  'SALES_INVOICE.NO_NUMBERING_SEQUENCE':
+    'لا يوجد تسلسل ترقيم مُعد لفواتير البيع بعد. يرجى إنشاء تسلسل لنوع المستند "sales_invoice" من الإعدادات ← تسلسلات الترقيم أولاً.',
+  'SALES_INVOICE.NOT_POSTABLE': 'لا يمكن ترحيل فاتورة البيع "{id}" من حالتها الحالية "{status}" (متوقع "مسودة").',
+  'SALES_INVOICE.NO_LINES': 'فاتورة البيع "{id}" لا تحتوي على أي سطور ولا يمكن ترحيلها.',
+  'SALES_INVOICE.NOT_CANCELLABLE':
+    'لا يمكن إلغاء فاتورة البيع "{id}" من حالتها الحالية "{status}" (متوقع "مسودة") — الفاتورة المرحّلة مستند محاسبي نهائي؛ عكسها يتطلب قيدًا عكسيًا محاسبيًا حقيقيًا، لا إلغاءً بسيطًا.',
+  'SALES_INVOICE.NOT_DELETABLE': 'فاتورة البيع "{id}" في حالة "{status}" ولا يمكن حذفها.',
+
   // ---- generic fallbacks ----
   'VALIDATION.INVALID_INPUT': 'البيانات المُدخلة غير صحيحة. يرجى مراجعة الحقول والمحاولة مرة أخرى.',
   'UNEXPECTED.INTERNAL_ERROR': 'حدث خطأ غير متوقع. يرجى المحاولة مرة أخرى أو التواصل مع الدعم الفني.',

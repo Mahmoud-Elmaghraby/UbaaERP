@@ -13,7 +13,8 @@ import {
   type CreateQuotationInput,
   type UpdateQuotationInput,
 } from '../../domain/quotation.entity';
-import { BusinessRuleError, NotFoundError } from '../errors';
+import { BusinessRuleError } from '../errors';
+import { entityNotFound } from '../../../../shared/errors/entity-errors';
 import { NumberingSequencesService } from '../../../settings/application/services/numbering-sequences.service';
 
 @Injectable()
@@ -31,23 +32,26 @@ export class QuotationsService {
 
   async getById(db: Kysely<TenantDatabase>, id: string): Promise<QuotationWithLines> {
     const quotation = await this.quotations.findById(db, id);
-    if (!quotation) throw new NotFoundError(`Quotation "${id}" not found.`);
+    if (!quotation) throw entityNotFound('QUOTATION', id);
     const lines = await this.lines.listByQuotationId(db, id);
     return { ...quotation, lines, totalAmount: calculateQuotationTotal(lines) };
   }
 
   async create(db: Kysely<TenantDatabase>, input: CreateQuotationInput): Promise<QuotationWithLines> {
     if (input.lines.length === 0) {
-      throw new BusinessRuleError('A quotation must have at least one line.');
+      throw new BusinessRuleError('A quotation must have at least one line.', {
+        code: 'QUOTATION.AT_LEAST_ONE_LINE_REQUIRED',
+      });
     }
     try {
       assertSingleCurrency(input.lines);
     } catch (err) {
-      throw new BusinessRuleError(err instanceof Error ? err.message : String(err));
+      const message = err instanceof Error ? err.message : String(err);
+      throw new BusinessRuleError(message, { code: 'QUOTATION.MULTIPLE_CURRENCIES', params: { reason: message } });
     }
 
     const customer = await this.customers.findById(db, input.customerId);
-    if (!customer) throw new NotFoundError(`Customer "${input.customerId}" not found.`);
+    if (!customer) throw entityNotFound('CUSTOMER', input.customerId);
 
     let allocated;
     try {
@@ -56,6 +60,7 @@ export class QuotationsService {
       throw new BusinessRuleError(
         'No numbering sequence configured for quotations yet. ' +
           'Create one for document type "quotation" via Settings → Numbering Sequences first.',
+        { code: 'QUOTATION.NO_NUMBERING_SEQUENCE' },
       );
     }
 
@@ -79,16 +84,24 @@ export class QuotationsService {
 
   async update(db: Kysely<TenantDatabase>, id: string, input: UpdateQuotationInput): Promise<QuotationWithLines> {
     const existing = await this.quotations.findById(db, id);
-    if (!existing) throw new NotFoundError(`Quotation "${id}" not found.`);
+    if (!existing) throw entityNotFound('QUOTATION', id);
     if (existing.status !== 'draft') {
-      throw new BusinessRuleError(`Quotation "${id}" is "${existing.status}" and can no longer be edited.`);
+      throw new BusinessRuleError(`Quotation "${id}" is "${existing.status}" and can no longer be edited.`, {
+        code: 'QUOTATION.NOT_EDITABLE',
+        params: { id, status: existing.status },
+      });
     }
     if (input.lines !== undefined) {
-      if (input.lines.length === 0) throw new BusinessRuleError('A quotation must have at least one line.');
+      if (input.lines.length === 0) {
+        throw new BusinessRuleError('A quotation must have at least one line.', {
+          code: 'QUOTATION.AT_LEAST_ONE_LINE_REQUIRED',
+        });
+      }
       try {
         assertSingleCurrency(input.lines);
       } catch (err) {
-        throw new BusinessRuleError(err instanceof Error ? err.message : String(err));
+        const message = err instanceof Error ? err.message : String(err);
+        throw new BusinessRuleError(message, { code: 'QUOTATION.MULTIPLE_CURRENCIES', params: { reason: message } });
       }
     }
 
@@ -98,7 +111,7 @@ export class QuotationsService {
         notes: input.notes,
         customFields: input.customFields,
       });
-      if (!updated) throw new NotFoundError(`Quotation "${id}" not found.`);
+      if (!updated) throw entityNotFound('QUOTATION', id);
 
       let lines = await this.lines.listByQuotationId(trx, id);
       if (input.lines !== undefined) {
@@ -118,15 +131,19 @@ export class QuotationsService {
     to: QuotationStatus,
   ): Promise<Quotation> {
     const existing = await this.quotations.findById(db, id);
-    if (!existing) throw new NotFoundError(`Quotation "${id}" not found.`);
+    if (!existing) throw entityNotFound('QUOTATION', id);
     if (!from.includes(existing.status)) {
       throw new BusinessRuleError(
         `Cannot move quotation "${id}" to "${to}" from its current status "${existing.status}" ` +
           `(expected one of: ${from.join(', ')}).`,
+        {
+          code: 'QUOTATION.INVALID_STATUS_TRANSITION',
+          params: { id, to, from: existing.status, expected: from.join(', ') },
+        },
       );
     }
     const updated = await this.quotations.updateStatus(db, id, to);
-    if (!updated) throw new NotFoundError(`Quotation "${id}" not found.`);
+    if (!updated) throw entityNotFound('QUOTATION', id);
     return updated;
   }
 
@@ -148,9 +165,12 @@ export class QuotationsService {
 
   async delete(db: Kysely<TenantDatabase>, id: string): Promise<void> {
     const existing = await this.quotations.findById(db, id);
-    if (!existing) throw new NotFoundError(`Quotation "${id}" not found.`);
+    if (!existing) throw entityNotFound('QUOTATION', id);
     if (existing.status !== 'draft' && existing.status !== 'cancelled') {
-      throw new BusinessRuleError(`Quotation "${id}" is "${existing.status}" and cannot be deleted.`);
+      throw new BusinessRuleError(`Quotation "${id}" is "${existing.status}" and cannot be deleted.`, {
+        code: 'QUOTATION.NOT_DELETABLE',
+        params: { id, status: existing.status },
+      });
     }
     await this.quotations.delete(db, id);
   }

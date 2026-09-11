@@ -16,6 +16,7 @@ import type {
   CreateDeliveryInput,
 } from '../../domain/delivery.entity';
 import { BusinessRuleError, NotFoundError, isPostgresForeignKeyViolation } from '../errors';
+import { entityNotFound } from '../../../../shared/errors/entity-errors';
 import { NumberingSequencesService } from '../../../settings/application/services/numbering-sequences.service';
 import { OutboxWriterService } from '../../../../shared/outbox/application/services/outbox-writer.service';
 
@@ -53,22 +54,28 @@ export class DeliveriesService {
 
   async getById(db: Kysely<TenantDatabase>, id: string): Promise<DeliveryWithLines> {
     const delivery = await this.deliveries.findById(db, id);
-    if (!delivery) throw new NotFoundError(`Delivery "${id}" not found.`);
+    if (!delivery) throw entityNotFound('DELIVERY', id);
     const lines = await this.lines.listByDeliveryId(db, id);
     return { ...delivery, lines };
   }
 
   async create(db: Kysely<TenantDatabase>, input: CreateDeliveryInput): Promise<DeliveryWithLines> {
     if (input.lines.length === 0) {
-      throw new BusinessRuleError('A delivery must have at least one line.');
+      throw new BusinessRuleError('A delivery must have at least one line.', {
+        code: 'DELIVERY.AT_LEAST_ONE_LINE_REQUIRED',
+      });
     }
 
     const order = await this.salesOrders.findById(db, input.salesOrderId);
-    if (!order) throw new NotFoundError(`Sales order "${input.salesOrderId}" not found.`);
+    if (!order) throw entityNotFound('SALES_ORDER', input.salesOrderId);
     if (order.status !== 'confirmed' && order.status !== 'partially_delivered') {
       throw new BusinessRuleError(
         `Sales order "${input.salesOrderId}" is "${order.status}" — goods can only be delivered against ` +
           'a confirmed (or already partially delivered) sales order.',
+        {
+          code: 'DELIVERY.SALES_ORDER_NOT_DELIVERABLE',
+          params: { id: input.salesOrderId, status: order.status },
+        },
       );
     }
 
@@ -78,6 +85,10 @@ export class DeliveriesService {
       if (!orderLineById.has(line.salesOrderLineId)) {
         throw new NotFoundError(
           `Sales order line "${line.salesOrderLineId}" was not found on sales order "${order.id}".`,
+          {
+            code: 'DELIVERY.SALES_ORDER_LINE_NOT_FOUND',
+            params: { lineId: line.salesOrderLineId, salesOrderId: order.id },
+          },
         );
       }
     }
@@ -94,6 +105,16 @@ export class DeliveriesService {
         throw new BusinessRuleError(
           `Cannot deliver ${line.quantityDelivered} against sales order line "${line.salesOrderLineId}" — ` +
             `only ${remaining} remaining (ordered ${orderLine.quantity}, already delivered ${delivered}).`,
+          {
+            code: 'DELIVERY.QUANTITY_EXCEEDS_REMAINING',
+            params: {
+              lineId: line.salesOrderLineId,
+              quantityDelivered: line.quantityDelivered,
+              remaining,
+              ordered: orderLine.quantity,
+              delivered,
+            },
+          },
         );
       }
     }
@@ -128,12 +149,15 @@ export class DeliveriesService {
       });
     } catch (err) {
       if (isPostgresForeignKeyViolation(err)) {
-        throw new NotFoundError('The given sales order, sales order line, or warehouse does not exist.');
+        throw new NotFoundError('The given sales order, sales order line, or warehouse does not exist.', {
+          code: 'DELIVERY.SALES_ORDER_OR_LINE_OR_WAREHOUSE_NOT_FOUND',
+        });
       }
       if (err instanceof Error && err.message.includes('No numbering sequence configured')) {
         throw new BusinessRuleError(
           'No numbering sequence configured for deliveries yet. ' +
             'Create one for document type "delivery" via Settings → Numbering Sequences first.',
+          { code: 'DELIVERY.NO_NUMBERING_SEQUENCE' },
         );
       }
       throw err;
@@ -147,15 +171,19 @@ export class DeliveriesService {
     to: DeliveryStatus,
   ): Promise<Delivery> {
     const existing = await this.deliveries.findById(db, id);
-    if (!existing) throw new NotFoundError(`Delivery "${id}" not found.`);
+    if (!existing) throw entityNotFound('DELIVERY', id);
     if (!from.includes(existing.status)) {
       throw new BusinessRuleError(
         `Cannot move delivery "${id}" to "${to}" from its current status "${existing.status}" ` +
           `(expected one of: ${from.join(', ')}).`,
+        {
+          code: 'DELIVERY.INVALID_STATUS_TRANSITION',
+          params: { id, to, from: existing.status, expected: from.join(', ') },
+        },
       );
     }
     const updated = await this.deliveries.updateStatus(db, id, to);
-    if (!updated) throw new NotFoundError(`Delivery "${id}" not found.`);
+    if (!updated) throw entityNotFound('DELIVERY', id);
     return updated;
   }
 
@@ -187,16 +215,17 @@ export class DeliveriesService {
     actorUserId: string | null,
   ): Promise<DeliveryWithLines> {
     const existing = await this.deliveries.findById(db, id);
-    if (!existing) throw new NotFoundError(`Delivery "${id}" not found.`);
+    if (!existing) throw entityNotFound('DELIVERY', id);
     if (existing.status !== 'draft') {
       throw new BusinessRuleError(
         `Cannot confirm delivery "${id}" from its current status "${existing.status}" (expected "draft").`,
+        { code: 'DELIVERY.NOT_CONFIRMABLE', params: { id, status: existing.status } },
       );
     }
 
     return withTransaction(db, async (trx) => {
       const updated = await this.deliveries.updateStatus(trx, id, 'confirmed');
-      if (!updated) throw new NotFoundError(`Delivery "${id}" not found.`);
+      if (!updated) throw entityNotFound('DELIVERY', id);
       const lines = await this.lines.listByDeliveryId(trx, id);
 
       const order = await this.salesOrders.findById(trx, updated.salesOrderId);
@@ -240,9 +269,12 @@ export class DeliveriesService {
 
   async delete(db: Kysely<TenantDatabase>, id: string): Promise<void> {
     const existing = await this.deliveries.findById(db, id);
-    if (!existing) throw new NotFoundError(`Delivery "${id}" not found.`);
+    if (!existing) throw entityNotFound('DELIVERY', id);
     if (existing.status !== 'draft' && existing.status !== 'cancelled') {
-      throw new BusinessRuleError(`Delivery "${id}" is "${existing.status}" and cannot be deleted.`);
+      throw new BusinessRuleError(`Delivery "${id}" is "${existing.status}" and cannot be deleted.`, {
+        code: 'DELIVERY.NOT_DELETABLE',
+        params: { id, status: existing.status },
+      });
     }
     await this.deliveries.delete(db, id);
   }

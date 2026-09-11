@@ -11,7 +11,8 @@ import {
   distributeOrderTotalAcrossLines,
 } from '../../domain/sales-order.entity';
 import type { PosCheckoutInput, PosCheckoutResult } from '../../domain/pos-sale.entity';
-import { BusinessRuleError, NotFoundError } from '../errors';
+import { BusinessRuleError } from '../errors';
+import { entityNotFound } from '../../../../shared/errors/entity-errors';
 import { SalesOrdersService } from './sales-orders.service';
 import { DeliveriesService } from './deliveries.service';
 import { SalesInvoicesService } from './sales-invoices.service';
@@ -77,16 +78,23 @@ export class PosSalesService {
     actorUserId: string | null,
   ): Promise<PosCheckoutResult> {
     if (input.lines.length === 0) {
-      throw new BusinessRuleError('A checkout must have at least one line.');
+      throw new BusinessRuleError('A checkout must have at least one line.', {
+        code: 'POS_SALE.AT_LEAST_ONE_LINE_REQUIRED',
+      });
     }
     if (input.tenders.length === 0) {
-      throw new BusinessRuleError('A checkout must have at least one tender (payment).');
+      throw new BusinessRuleError('A checkout must have at least one tender (payment).', {
+        code: 'POS_SALE.AT_LEAST_ONE_TENDER_REQUIRED',
+      });
     }
 
     const session = await this.posSessions.findById(db, posSessionId);
-    if (!session) throw new NotFoundError(`POS session "${posSessionId}" not found.`);
+    if (!session) throw entityNotFound('POS_SESSION', posSessionId);
     if (session.status !== 'open') {
-      throw new BusinessRuleError(`POS session "${posSessionId}" is "${session.status}" — only an open session can check out a sale.`);
+      throw new BusinessRuleError(
+        `POS session "${posSessionId}" is "${session.status}" — only an open session can check out a sale.`,
+        { code: 'POS_SALE.SESSION_NOT_OPEN', params: { id: posSessionId, status: session.status } },
+      );
     }
     if (!session.warehouseId) {
       // Guards against a session opened before migration 0064 (application-enforced-required going
@@ -94,20 +102,23 @@ export class PosSalesService {
       // itself stays nullable at the DB level).
       throw new BusinessRuleError(
         `POS session "${posSessionId}" has no warehouse set and cannot check out a sale. Close it and open a new one.`,
+        { code: 'POS_SALE.SESSION_MISSING_WAREHOUSE', params: { id: posSessionId } },
       );
     }
 
     try {
       assertSingleCurrency(input.lines);
     } catch (err) {
-      throw new BusinessRuleError(err instanceof Error ? err.message : String(err));
+      const message = err instanceof Error ? err.message : String(err);
+      throw new BusinessRuleError(message, { code: 'POS_SALE.MULTIPLE_CURRENCIES', params: { reason: message } });
     }
 
     let totalAmount: Money;
     try {
       totalAmount = calculateSalesOrderTotal(input, input.lines).totalAmount;
     } catch (err) {
-      throw new BusinessRuleError(err instanceof Error ? err.message : String(err));
+      const message = err instanceof Error ? err.message : String(err);
+      throw new BusinessRuleError(message, { code: 'POS_SALE.INVALID_DISCOUNT', params: { reason: message } });
     }
 
     const tenderedTotal = input.tenders.reduce((sum, tender) => sum.add(tender.amount), Money.zero(totalAmount.currency));
@@ -115,6 +126,10 @@ export class PosSalesService {
       throw new BusinessRuleError(
         `Tendered amount (${tenderedTotal.toDecimalString()}) does not match the sale total ` +
           `(${totalAmount.toDecimalString()}).`,
+        {
+          code: 'POS_SALE.TENDERED_TOTAL_MISMATCH',
+          params: { tendered: tenderedTotal.toDecimalString(), total: totalAmount.toDecimalString() },
+        },
       );
     }
 
@@ -200,6 +215,7 @@ export class PosSalesService {
     if (!walkIn) {
       throw new BusinessRuleError(
         'No Walk-in Customer is configured for this tenant. Run the db:seed-walk-in-customer command, or specify a customerId explicitly.',
+        { code: 'POS_SALE.NO_WALK_IN_CUSTOMER' },
       );
     }
     return walkIn.id;

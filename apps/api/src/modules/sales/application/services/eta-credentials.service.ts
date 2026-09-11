@@ -74,9 +74,10 @@ export class EtaCredentialsService {
     if (!taxRegistrationNumber) missing.push('taxRegistrationNumber');
 
     if (missing.length > 0) {
-      throw new BusinessRuleError(
-        `Cannot enable ETA e-invoicing: missing ${missing.join(', ')}.`,
-      );
+      throw new BusinessRuleError(`Cannot enable ETA e-invoicing: missing ${missing.join(', ')}.`, {
+        code: 'ETA_CREDENTIALS.MISSING_REQUIRED_FIELDS',
+        params: { missing: missing.join(', ') },
+      });
     }
   }
 }
