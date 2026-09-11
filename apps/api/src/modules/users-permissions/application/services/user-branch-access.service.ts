@@ -35,7 +35,9 @@ export class UserBranchAccessService {
       // constraint on user_branch_access.branch_id catches an invalid id
       // instead; this translates that into a clear error.
       if (isPostgresForeignKeyViolation(err)) {
-        throw new ConflictError('One or more branch IDs do not exist.');
+        throw new ConflictError('One or more branch IDs do not exist.', {
+          code: 'USER_BRANCH_ACCESS.INVALID_BRANCH_IDS',
+        });
       }
       throw err;
     }

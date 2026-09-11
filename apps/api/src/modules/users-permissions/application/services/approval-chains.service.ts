@@ -4,7 +4,8 @@ import type { TenantDatabase } from '../../../../database/tenant/kysely-client';
 import { APPROVAL_CHAIN_REPOSITORY, type ApprovalChainRepository } from '../ports/approval-chain.repository';
 import { USER_REPOSITORY, type UserRepository } from '../ports/user.repository';
 import { AUDIT_LOG_REPOSITORY, type AuditLogRepository } from '../ports/audit-log.repository';
-import { ConflictError, NotFoundError } from '../errors';
+import { ConflictError } from '../errors';
+import { entityNotFound } from '../../../../shared/errors/entity-errors';
 
 @Injectable()
 export class ApprovalChainsService {
@@ -25,14 +26,16 @@ export class ApprovalChainsService {
     actingUserId: string,
   ): Promise<void> {
     if (managerId === userId) {
-      throw new ConflictError('A user cannot be their own manager.');
+      throw new ConflictError('A user cannot be their own manager.', {
+        code: 'USER.CANNOT_BE_OWN_MANAGER',
+      });
     }
     const user = await this.users.findById(db, userId);
-    if (!user) throw new NotFoundError(`User "${userId}" not found.`);
+    if (!user) throw entityNotFound('USER', userId);
 
     if (managerId) {
       const manager = await this.users.findById(db, managerId);
-      if (!manager) throw new NotFoundError(`User "${managerId}" not found.`);
+      if (!manager) throw entityNotFound('USER', managerId);
     }
 
     await this.repository.setManager(db, userId, managerId);

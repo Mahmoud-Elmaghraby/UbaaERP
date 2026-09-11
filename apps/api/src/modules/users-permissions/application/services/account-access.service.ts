@@ -12,7 +12,8 @@ import { REFRESH_TOKEN_REPOSITORY, type RefreshTokenRepository } from '../ports/
 import { AUDIT_LOG_REPOSITORY, type AuditLogRepository } from '../ports/audit-log.repository';
 import { EMAIL_SENDER, type EmailSenderPort } from '../../../../shared/email/email-sender.port';
 import type { AccountActionTokenPurpose } from '../../domain/account-action-token.entity';
-import { AuthenticationError, NotFoundError } from '../errors';
+import { AuthenticationError } from '../errors';
+import { entityNotFound } from '../../../../shared/errors/entity-errors';
 
 const RESET_TOKEN_BYTES = 32;
 const PASSWORD_RESET_TTL_HOURS = 1;
@@ -96,7 +97,7 @@ export class AccountAccessService {
    */
   async sendInvite(db: Kysely<TenantDatabase>, userId: string, actingUserId: string): Promise<void> {
     const user = await this.users.findById(db, userId);
-    if (!user) throw new NotFoundError(`User "${userId}" not found.`);
+    if (!user) throw entityNotFound('USER', userId);
 
     const token = randomBytes(RESET_TOKEN_BYTES).toString('hex');
     const expiresAt = new Date(Date.now() + INVITE_TTL_DAYS * 24 * 60 * 60 * 1000);
@@ -131,7 +132,7 @@ export class AccountAccessService {
       (await this.tokens.findValidByHash(db, tokenHash, 'password_reset')) ??
       (await this.tokens.findValidByHash(db, tokenHash, 'invite'));
     if (!record) {
-      throw new AuthenticationError('Invalid or expired token.');
+      throw new AuthenticationError('Invalid or expired token.', { code: 'AUTH.INVALID_ACTION_TOKEN' });
     }
 
     const passwordHash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);

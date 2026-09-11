@@ -382,6 +382,24 @@ export const AR_MESSAGES: Record<string, string> = {
   'JOURNAL_ENTRY.AUTO_ALREADY_PROCESSED':
     'القيد المحاسبي "{entryNumber}" (المُنشأ تلقائيًا لـ {sourceReferenceType} "{sourceReferenceId}") في حالة "{status}" — لا يمكن ترحيله تلقائيًا مرة أخرى.',
 
+  // ---- Users & Permissions module ----
+  'USER.DUPLICATE_EMAIL': 'يوجد مستخدم آخر بنفس البريد الإلكتروني "{value}" بالفعل.',
+  'USER.PASSWORD_TOO_SHORT': 'يجب أن تتكون كلمة المرور من {minLength} أحرف على الأقل.',
+  'USER.CANNOT_DEACTIVATE_SELF': 'لا يمكنك إلغاء تفعيل حسابك الخاص.',
+  'USER.CURRENT_PASSWORD_INCORRECT': 'كلمة المرور الحالية غير صحيحة.',
+  'USER.CANNOT_BE_OWN_MANAGER': 'لا يمكن أن يكون المستخدم مديرًا لنفسه.',
+  'ROLE.DUPLICATE_NAME': 'يوجد دور آخر بنفس الاسم "{name}" بالفعل.',
+  'ROLE.CANNOT_DELETE_SYSTEM': '"{name}" دور نظامي ولا يمكن حذفه.',
+  'ROLE.STILL_ASSIGNED': 'الدور "{name}" لا يزال مُسندًا إلى مستخدم واحد أو أكثر ولا يمكن حذفه.',
+  'USER_BRANCH_ACCESS.INVALID_BRANCH_IDS': 'واحد أو أكثر من معرّفات الفروع غير موجود.',
+  'AUTH.INVALID_CREDENTIALS': 'البريد الإلكتروني أو كلمة المرور غير صحيحة.',
+  'AUTH.INVALID_MFA_SESSION': 'جلسة التحقق غير صالحة أو منتهية الصلاحية — يرجى تسجيل الدخول مرة أخرى.',
+  'AUTH.INVALID_VERIFICATION_CODE': 'رمز التحقق غير صحيح.',
+  'AUTH.INVALID_REFRESH_TOKEN': 'رمز تجديد الجلسة غير صالح أو منتهي الصلاحية.',
+  'AUTH.INVALID_ACTION_TOKEN': 'الرمز غير صالح أو منتهي الصلاحية.',
+  'TWO_FACTOR.ALREADY_ENABLED': 'التحقق بخطوتين مفعّل بالفعل لهذا الحساب.',
+  'TWO_FACTOR.SETUP_NOT_IN_PROGRESS': 'لا يوجد إعداد جارٍ للتحقق بخطوتين لهذا الحساب — يرجى بدء الإعداد أولاً.',
+
   // ---- generic fallbacks ----
   'VALIDATION.INVALID_INPUT': 'البيانات المُدخلة غير صحيحة. يرجى مراجعة الحقول والمحاولة مرة أخرى.',
   'UNEXPECTED.INTERNAL_ERROR': 'حدث خطأ غير متوقع. يرجى المحاولة مرة أخرى أو التواصل مع الدعم الفني.',

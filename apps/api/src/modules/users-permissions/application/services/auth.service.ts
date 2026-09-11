@@ -92,7 +92,7 @@ export class AuthService {
         entityId: user?.id ?? null,
         metadata: { email: normalizedEmail, reason: user ? 'inactive' : 'not_found' },
       });
-      throw new AuthenticationError('Invalid email or password.');
+      throw new AuthenticationError('Invalid email or password.', { code: 'AUTH.INVALID_CREDENTIALS' });
     }
     const matches = await bcrypt.compare(password, user.passwordHash);
     if (!matches) {
@@ -103,7 +103,7 @@ export class AuthService {
         entityId: user.id,
         metadata: { email: normalizedEmail, reason: 'wrong_password' },
       });
-      throw new AuthenticationError('Invalid email or password.');
+      throw new AuthenticationError('Invalid email or password.', { code: 'AUTH.INVALID_CREDENTIALS' });
     }
 
     if (user.totpEnabled) {
@@ -148,7 +148,9 @@ export class AuthService {
   ): Promise<AuthTokens> {
     const record = await this.actionTokens.findValidByHash(db, hashToken(challengeTokenPlain), 'mfa_challenge');
     if (!record) {
-      throw new AuthenticationError('Invalid or expired verification session — please log in again.');
+      throw new AuthenticationError('Invalid or expired verification session — please log in again.', {
+        code: 'AUTH.INVALID_MFA_SESSION',
+      });
     }
     // Single-use regardless of outcome: a challenge ticket that failed
     // one code attempt is not retried — the caller must go back through
@@ -159,7 +161,9 @@ export class AuthService {
 
     const user = await this.users.findById(db, record.userId);
     if (!user || !user.isActive) {
-      throw new AuthenticationError('Invalid or expired verification session — please log in again.');
+      throw new AuthenticationError('Invalid or expired verification session — please log in again.', {
+        code: 'AUTH.INVALID_MFA_SESSION',
+      });
     }
 
     const valid = await this.twoFactor.verifyLoginCode(db, user.id, code);
@@ -171,7 +175,7 @@ export class AuthService {
         entityId: user.id,
         metadata: { reason: 'invalid_2fa_code' },
       });
-      throw new AuthenticationError('Invalid verification code.');
+      throw new AuthenticationError('Invalid verification code.', { code: 'AUTH.INVALID_VERIFICATION_CODE' });
     }
 
     const tokens = await this.issueTokens(db, schema, user.id, user.roleId);
@@ -192,7 +196,7 @@ export class AuthService {
     const tokenHash = hashToken(refreshToken);
     const record = await this.refreshTokens.findByHash(db, tokenHash);
     if (!record || record.revokedAt || record.expiresAt < new Date()) {
-      throw new AuthenticationError('Invalid or expired refresh token.');
+      throw new AuthenticationError('Invalid or expired refresh token.', { code: 'AUTH.INVALID_REFRESH_TOKEN' });
     }
     // Rotation: each refresh token is single-use. Revoke it before
     // issuing a new pair, so a leaked/replayed token can't be reused.
@@ -200,7 +204,7 @@ export class AuthService {
 
     const user = await this.users.findById(db, record.userId);
     if (!user || !user.isActive) {
-      throw new AuthenticationError('Invalid or expired refresh token.');
+      throw new AuthenticationError('Invalid or expired refresh token.', { code: 'AUTH.INVALID_REFRESH_TOKEN' });
     }
 
     const tokens = await this.issueTokens(db, schema, user.id, user.roleId);

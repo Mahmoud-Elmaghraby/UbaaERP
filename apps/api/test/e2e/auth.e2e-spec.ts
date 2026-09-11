@@ -48,7 +48,9 @@ describe('Auth flow (e2e, real HTTP against a real Nest app)', () => {
       .set('x-tenant-schema', schema())
       .send({ email: 'nobody@example.com', password: 'whatever12' })
       .expect(401);
-    expect(response.body.message).toMatch(/invalid email or password/i);
+    // Asserted by stable error `code`, not the (now Arabic-localized)
+    // `message` text — see error-messages.ar.ts / DomainExceptionFilter.
+    expect(response.body.code).toBe('AUTH.INVALID_CREDENTIALS');
   });
 
   it('rejects a login request missing the x-tenant-schema header with 400', async () => {

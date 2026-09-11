@@ -8,7 +8,8 @@ import { BACKUP_CODE_REPOSITORY, type BackupCodeRepository } from '../ports/back
 import { AUDIT_LOG_REPOSITORY, type AuditLogRepository } from '../ports/audit-log.repository';
 import { SecretsEncryptionService } from '../../../../shared/crypto/secrets-encryption.service';
 import { TotpService } from './totp.service';
-import { AuthenticationError, ConflictError, NotFoundError } from '../errors';
+import { AuthenticationError, ConflictError } from '../errors';
+import { entityNotFound } from '../../../../shared/errors/entity-errors';
 
 const BACKUP_CODE_COUNT = 8;
 
@@ -73,7 +74,9 @@ export class TwoFactorService {
   ): Promise<{ secret: string; otpauthUri: string }> {
     const state = await this.users.getTotpState(db, userId);
     if (state.enabled) {
-      throw new ConflictError('Two-factor authentication is already enabled for this account.');
+      throw new ConflictError('Two-factor authentication is already enabled for this account.', {
+        code: 'TWO_FACTOR.ALREADY_ENABLED',
+      });
     }
 
     const secret = this.totp.generateSecret();
@@ -89,15 +92,19 @@ export class TwoFactorService {
   ): Promise<{ backupCodes: string[] }> {
     const state = await this.users.getTotpState(db, userId);
     if (state.enabled) {
-      throw new ConflictError('Two-factor authentication is already enabled for this account.');
+      throw new ConflictError('Two-factor authentication is already enabled for this account.', {
+        code: 'TWO_FACTOR.ALREADY_ENABLED',
+      });
     }
     if (!state.secretEncrypted) {
-      throw new ConflictError('No two-factor setup is in progress for this account — call setup first.');
+      throw new ConflictError('No two-factor setup is in progress for this account — call setup first.', {
+        code: 'TWO_FACTOR.SETUP_NOT_IN_PROGRESS',
+      });
     }
 
     const secret = this.secrets.decrypt(state.secretEncrypted);
     if (!this.totp.verifyCode(secret, code)) {
-      throw new AuthenticationError('Invalid verification code.');
+      throw new AuthenticationError('Invalid verification code.', { code: 'AUTH.INVALID_VERIFICATION_CODE' });
     }
 
     await this.users.enableTotp(db, userId);
@@ -125,13 +132,17 @@ export class TwoFactorService {
 
   async disable(db: Kysely<TenantDatabase>, userId: string, currentPassword: string): Promise<void> {
     const user = await this.users.findById(db, userId);
-    if (!user) throw new NotFoundError(`User "${userId}" not found.`);
+    if (!user) throw entityNotFound('USER', userId);
 
     const authRecord = await this.users.findByEmailForAuth(db, user.email);
-    if (!authRecord) throw new NotFoundError(`User "${userId}" not found.`);
+    if (!authRecord) throw entityNotFound('USER', userId);
 
     const matches = await bcrypt.compare(currentPassword, authRecord.passwordHash);
-    if (!matches) throw new ConflictError('Current password is incorrect.');
+    if (!matches) {
+      throw new ConflictError('Current password is incorrect.', {
+        code: 'USER.CURRENT_PASSWORD_INCORRECT',
+      });
+    }
 
     await this.users.disableTotp(db, userId);
     await this.backupCodes.deleteAllForUser(db, userId);

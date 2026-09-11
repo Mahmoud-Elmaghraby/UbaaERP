@@ -183,6 +183,8 @@ describe('Settings & Users CRUD (e2e, real HTTP)', () => {
       .set(...authHeader(login))
       .send({ isActive: false })
       .expect(409);
-    expect(response.body.message).toMatch(/cannot deactivate your own account/i);
+    // Asserted by stable error `code`, not the (now Arabic-localized)
+    // `message` text — see error-messages.ar.ts / DomainExceptionFilter.
+    expect(response.body.code).toBe('USER.CANNOT_DEACTIVATE_SELF');
   });
 });

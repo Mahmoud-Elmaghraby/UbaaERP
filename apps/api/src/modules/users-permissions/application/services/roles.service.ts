@@ -4,12 +4,8 @@ import type { TenantDatabase } from '../../../../database/tenant/kysely-client';
 import { ROLE_REPOSITORY, type RoleRepository } from '../ports/role.repository';
 import { AUDIT_LOG_REPOSITORY, type AuditLogRepository } from '../ports/audit-log.repository';
 import type { CreateRoleInput, Role, UpdateRoleInput } from '../../domain/role.entity';
-import {
-  ConflictError,
-  NotFoundError,
-  isPostgresForeignKeyViolation,
-  isPostgresUniqueViolation,
-} from '../errors';
+import { ConflictError, isPostgresForeignKeyViolation, isPostgresUniqueViolation } from '../errors';
+import { entityNotFound } from '../../../../shared/errors/entity-errors';
 
 @Injectable()
 export class RolesService {
@@ -24,7 +20,7 @@ export class RolesService {
 
   async getById(db: Kysely<TenantDatabase>, id: string): Promise<Role> {
     const role = await this.repository.findById(db, id);
-    if (!role) throw new NotFoundError(`Role "${id}" not found.`);
+    if (!role) throw entityNotFound('ROLE', id);
     return role;
   }
 
@@ -41,7 +37,10 @@ export class RolesService {
       return role;
     } catch (err) {
       if (isPostgresUniqueViolation(err)) {
-        throw new ConflictError(`A role named "${input.name}" already exists.`);
+        throw new ConflictError(`A role named "${input.name}" already exists.`, {
+          code: 'ROLE.DUPLICATE_NAME',
+          params: { name: input.name },
+        });
       }
       throw err;
     }
@@ -55,7 +54,7 @@ export class RolesService {
   ): Promise<Role> {
     try {
       const role = await this.repository.update(db, id, input);
-      if (!role) throw new NotFoundError(`Role "${id}" not found.`);
+      if (!role) throw entityNotFound('ROLE', id);
       await this.auditLogs.record(db, {
         userId: actingUserId,
         action: 'role.updated',
@@ -66,7 +65,10 @@ export class RolesService {
       return role;
     } catch (err) {
       if (isPostgresUniqueViolation(err)) {
-        throw new ConflictError(`A role named "${input.name}" already exists.`);
+        throw new ConflictError(`A role named "${input.name}" already exists.`, {
+          code: 'ROLE.DUPLICATE_NAME',
+          params: { name: input.name ?? '' },
+        });
       }
       throw err;
     }
@@ -74,18 +76,22 @@ export class RolesService {
 
   async delete(db: Kysely<TenantDatabase>, id: string, actingUserId: string): Promise<void> {
     const role = await this.repository.findById(db, id);
-    if (!role) throw new NotFoundError(`Role "${id}" not found.`);
+    if (!role) throw entityNotFound('ROLE', id);
     if (role.isSystem) {
-      throw new ConflictError(`"${role.name}" is a system role and cannot be deleted.`);
+      throw new ConflictError(`"${role.name}" is a system role and cannot be deleted.`, {
+        code: 'ROLE.CANNOT_DELETE_SYSTEM',
+        params: { name: role.name },
+      });
     }
 
     try {
       const deleted = await this.repository.delete(db, id);
-      if (!deleted) throw new NotFoundError(`Role "${id}" not found.`);
+      if (!deleted) throw entityNotFound('ROLE', id);
     } catch (err) {
       if (isPostgresForeignKeyViolation(err)) {
         throw new ConflictError(
           `Role "${role.name}" is still assigned to one or more users and cannot be deleted.`,
+          { code: 'ROLE.STILL_ASSIGNED', params: { name: role.name } },
         );
       }
       throw err;

@@ -7,7 +7,8 @@ import { ROLE_REPOSITORY, type RoleRepository } from '../ports/role.repository';
 import { AUDIT_LOG_REPOSITORY, type AuditLogRepository } from '../ports/audit-log.repository';
 import { REFRESH_TOKEN_REPOSITORY, type RefreshTokenRepository } from '../ports/refresh-token.repository';
 import type { CreateUserInput, UpdateUserInput, User } from '../../domain/user.entity';
-import { ConflictError, NotFoundError, isPostgresUniqueViolation } from '../errors';
+import { ConflictError, isPostgresUniqueViolation } from '../errors';
+import { duplicateEntity, entityNotFound } from '../../../../shared/errors/entity-errors';
 
 const BCRYPT_ROUNDS = 12;
 const MIN_PASSWORD_LENGTH = 8;
@@ -27,20 +28,23 @@ export class UsersService {
 
   async getById(db: Kysely<TenantDatabase>, id: string): Promise<User> {
     const user = await this.repository.findById(db, id);
-    if (!user) throw new NotFoundError(`User "${id}" not found.`);
+    if (!user) throw entityNotFound('USER', id);
     return user;
   }
 
   async create(db: Kysely<TenantDatabase>, input: CreateUserInput, actingUserId: string): Promise<User> {
     if (input.password.length < MIN_PASSWORD_LENGTH) {
-      throw new ConflictError(`Password must be at least ${MIN_PASSWORD_LENGTH} characters.`);
+      throw new ConflictError(`Password must be at least ${MIN_PASSWORD_LENGTH} characters.`, {
+        code: 'USER.PASSWORD_TOO_SHORT',
+        params: { minLength: MIN_PASSWORD_LENGTH },
+      });
     }
     // roleId is validated here (not left to the DB's FK constraint)
     // because RoleRepository lives in this same module — no cross-module
     // boundary crossed, unlike branch_id validation (see
     // UserBranchAccessService's comment on that trade-off).
     const role = await this.roles.findById(db, input.roleId);
-    if (!role) throw new NotFoundError(`Role "${input.roleId}" not found.`);
+    if (!role) throw entityNotFound('ROLE', input.roleId);
 
     const email = input.email.trim().toLowerCase();
     const passwordHash = await bcrypt.hash(input.password, BCRYPT_ROUNDS);
@@ -63,7 +67,7 @@ export class UsersService {
       return user;
     } catch (err) {
       if (isPostgresUniqueViolation(err)) {
-        throw new ConflictError(`A user with email "${email}" already exists.`);
+        throw duplicateEntity('USER', 'email', email);
       }
       throw err;
     }
@@ -77,14 +81,16 @@ export class UsersService {
   ): Promise<User> {
     if (input.roleId !== undefined) {
       const role = await this.roles.findById(db, input.roleId);
-      if (!role) throw new NotFoundError(`Role "${input.roleId}" not found.`);
+      if (!role) throw entityNotFound('ROLE', input.roleId);
     }
     if (input.isActive === false && id === actingUserId) {
-      throw new ConflictError('You cannot deactivate your own account.');
+      throw new ConflictError('You cannot deactivate your own account.', {
+        code: 'USER.CANNOT_DEACTIVATE_SELF',
+      });
     }
 
     const user = await this.repository.update(db, id, input);
-    if (!user) throw new NotFoundError(`User "${id}" not found.`);
+    if (!user) throw entityNotFound('USER', id);
 
     await this.auditLogs.record(db, {
       userId: actingUserId,
@@ -126,7 +132,7 @@ export class UsersService {
    */
   async revokeSessions(db: Kysely<TenantDatabase>, targetUserId: string, actingUserId: string): Promise<void> {
     const user = await this.repository.findById(db, targetUserId);
-    if (!user) throw new NotFoundError(`User "${targetUserId}" not found.`);
+    if (!user) throw entityNotFound('USER', targetUserId);
 
     await this.refreshTokens.revokeAllForUser(db, targetUserId);
     await this.auditLogs.record(db, {
@@ -145,16 +151,23 @@ export class UsersService {
     newPassword: string,
   ): Promise<void> {
     if (newPassword.length < MIN_PASSWORD_LENGTH) {
-      throw new ConflictError(`Password must be at least ${MIN_PASSWORD_LENGTH} characters.`);
+      throw new ConflictError(`Password must be at least ${MIN_PASSWORD_LENGTH} characters.`, {
+        code: 'USER.PASSWORD_TOO_SHORT',
+        params: { minLength: MIN_PASSWORD_LENGTH },
+      });
     }
     const user = await this.repository.findById(db, userId);
-    if (!user) throw new NotFoundError(`User "${userId}" not found.`);
+    if (!user) throw entityNotFound('USER', userId);
 
     const authRecord = await this.repository.findByEmailForAuth(db, user.email);
-    if (!authRecord) throw new NotFoundError(`User "${userId}" not found.`);
+    if (!authRecord) throw entityNotFound('USER', userId);
 
     const matches = await bcrypt.compare(currentPassword, authRecord.passwordHash);
-    if (!matches) throw new ConflictError('Current password is incorrect.');
+    if (!matches) {
+      throw new ConflictError('Current password is incorrect.', {
+        code: 'USER.CURRENT_PASSWORD_INCORRECT',
+      });
+    }
 
     const passwordHash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
     await this.repository.updatePasswordHash(db, userId, passwordHash);
