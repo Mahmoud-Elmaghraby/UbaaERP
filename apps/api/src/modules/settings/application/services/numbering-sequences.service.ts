@@ -11,7 +11,8 @@ import type {
   NumberingSequence,
   UpdateNumberingSequenceInput,
 } from '../../domain/numbering-sequence.entity';
-import { ConflictError, NotFoundError, isPostgresUniqueViolation } from '../errors';
+import { ConflictError, isPostgresUniqueViolation } from '../errors';
+import { entityNotFound } from '../../../../shared/errors/entity-errors';
 
 @Injectable()
 export class NumberingSequencesService {
@@ -25,7 +26,7 @@ export class NumberingSequencesService {
 
   async getById(db: Kysely<TenantDatabase>, id: string): Promise<NumberingSequence> {
     const sequence = await this.repository.findById(db, id);
-    if (!sequence) throw new NotFoundError(`Numbering sequence "${id}" not found.`);
+    if (!sequence) throw entityNotFound('NUMBERING_SEQUENCE', id);
     return sequence;
   }
 
@@ -41,6 +42,7 @@ export class NumberingSequencesService {
           `A numbering sequence for document type "${input.documentType}"` +
             (input.branchId ? ` and this branch` : ' (tenant-wide)') +
             ' already exists.',
+          { code: 'NUMBERING_SEQUENCE.DUPLICATE', params: { documentType: input.documentType } },
         );
       }
       throw err;
@@ -53,13 +55,13 @@ export class NumberingSequencesService {
     input: UpdateNumberingSequenceInput,
   ): Promise<NumberingSequence> {
     const updated = await this.repository.update(db, id, input);
-    if (!updated) throw new NotFoundError(`Numbering sequence "${id}" not found.`);
+    if (!updated) throw entityNotFound('NUMBERING_SEQUENCE', id);
     return updated;
   }
 
   async delete(db: Kysely<TenantDatabase>, id: string): Promise<void> {
     const deleted = await this.repository.delete(db, id);
-    if (!deleted) throw new NotFoundError(`Numbering sequence "${id}" not found.`);
+    if (!deleted) throw entityNotFound('NUMBERING_SEQUENCE', id);
   }
 
   /** Used by later modules (Sales, Purchases, ...) to number a new document. */

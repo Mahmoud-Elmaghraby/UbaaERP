@@ -13,6 +13,7 @@ import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import { NestFactory } from '@nestjs/core';
 import { DomainExceptionFilter } from './shared/errors/domain-exception.filter';
+import { UnexpectedExceptionFilter } from './shared/errors/unexpected-exception.filter';
 import { validateEnv } from './shared/config/env.validation';
 
 async function bootstrap() {
@@ -31,7 +32,12 @@ async function bootstrap() {
   const { AppModule } = await import('./app.module');
 
   const app = await NestFactory.create(AppModule);
-  app.useGlobalFilters(new DomainExceptionFilter());
+  // Order matters: Nest tries global filters in the order passed here and
+  // stops at the first whose @Catch() types match. DomainExceptionFilter's
+  // specific domain-error classes are checked first; UnexpectedExceptionFilter
+  // (a bare @Catch()) is the last-resort net for everything else — see its
+  // own header comment for why that used to reach the client unexplained.
+  app.useGlobalFilters(new DomainExceptionFilter(), new UnexpectedExceptionFilter());
   // helmet() sets the standard set of security response headers (HSTS,
   // X-Content-Type-Options, X-Frame-Options, a conservative default CSP,
   // etc.) that were previously entirely absent from every response.

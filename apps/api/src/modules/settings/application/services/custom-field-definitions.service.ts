@@ -10,7 +10,8 @@ import type {
   CustomFieldDefinition,
   UpdateCustomFieldDefinitionInput,
 } from '../../domain/custom-field-definition.entity';
-import { ConflictError, NotFoundError, isPostgresUniqueViolation } from '../errors';
+import { ConflictError, isPostgresUniqueViolation } from '../errors';
+import { entityNotFound } from '../../../../shared/errors/entity-errors';
 
 /**
  * Backend half of CLAUDE.md §7 (custom fields). This module only defines
@@ -33,7 +34,7 @@ export class CustomFieldDefinitionsService {
 
   async getById(db: Kysely<TenantDatabase>, id: string): Promise<CustomFieldDefinition> {
     const definition = await this.repository.findById(db, id);
-    if (!definition) throw new NotFoundError(`Custom field definition "${id}" not found.`);
+    if (!definition) throw entityNotFound('CUSTOM_FIELD_DEFINITION', id);
     return definition;
   }
 
@@ -47,6 +48,10 @@ export class CustomFieldDefinitionsService {
       if (isPostgresUniqueViolation(err)) {
         throw new ConflictError(
           `A custom field "${input.fieldKey}" already exists for entity type "${input.entityType}".`,
+          {
+            code: 'CUSTOM_FIELD_DEFINITION.DUPLICATE_FIELD_KEY',
+            params: { fieldKey: input.fieldKey, entityType: input.entityType },
+          },
         );
       }
       throw err;
@@ -59,12 +64,12 @@ export class CustomFieldDefinitionsService {
     input: UpdateCustomFieldDefinitionInput,
   ): Promise<CustomFieldDefinition> {
     const updated = await this.repository.update(db, id, input);
-    if (!updated) throw new NotFoundError(`Custom field definition "${id}" not found.`);
+    if (!updated) throw entityNotFound('CUSTOM_FIELD_DEFINITION', id);
     return updated;
   }
 
   async delete(db: Kysely<TenantDatabase>, id: string): Promise<void> {
     const deleted = await this.repository.delete(db, id);
-    if (!deleted) throw new NotFoundError(`Custom field definition "${id}" not found.`);
+    if (!deleted) throw entityNotFound('CUSTOM_FIELD_DEFINITION', id);
   }
 }

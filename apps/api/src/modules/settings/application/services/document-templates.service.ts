@@ -10,7 +10,8 @@ import type {
   DocumentTemplate,
   UpdateDocumentTemplateInput,
 } from '../../domain/document-template.entity';
-import { ConflictError, NotFoundError, isPostgresUniqueViolation } from '../errors';
+import { ConflictError, isPostgresUniqueViolation } from '../errors';
+import { entityNotFound } from '../../../../shared/errors/entity-errors';
 
 @Injectable()
 export class DocumentTemplatesService {
@@ -24,7 +25,7 @@ export class DocumentTemplatesService {
 
   async getById(db: Kysely<TenantDatabase>, id: string): Promise<DocumentTemplate> {
     const template = await this.repository.findById(db, id);
-    if (!template) throw new NotFoundError(`Document template "${id}" not found.`);
+    if (!template) throw entityNotFound('DOCUMENT_TEMPLATE', id);
     return template;
   }
 
@@ -39,6 +40,10 @@ export class DocumentTemplatesService {
         throw new ConflictError(
           `A default template already exists for document type "${input.documentType}". ` +
             'Unset the current default before setting a new one.',
+          {
+            code: 'DOCUMENT_TEMPLATE.DUPLICATE_DEFAULT_ON_CREATE',
+            params: { documentType: input.documentType },
+          },
         );
       }
       throw err;
@@ -52,13 +57,13 @@ export class DocumentTemplatesService {
   ): Promise<DocumentTemplate> {
     try {
       const updated = await this.repository.update(db, id, input);
-      if (!updated) throw new NotFoundError(`Document template "${id}" not found.`);
+      if (!updated) throw entityNotFound('DOCUMENT_TEMPLATE', id);
       return updated;
     } catch (err) {
       if (isPostgresUniqueViolation(err)) {
-        throw new ConflictError(
-          'Another template is already the default for this document type.',
-        );
+        throw new ConflictError('Another template is already the default for this document type.', {
+          code: 'DOCUMENT_TEMPLATE.DUPLICATE_DEFAULT_ON_UPDATE',
+        });
       }
       throw err;
     }
@@ -66,6 +71,6 @@ export class DocumentTemplatesService {
 
   async delete(db: Kysely<TenantDatabase>, id: string): Promise<void> {
     const deleted = await this.repository.delete(db, id);
-    if (!deleted) throw new NotFoundError(`Document template "${id}" not found.`);
+    if (!deleted) throw entityNotFound('DOCUMENT_TEMPLATE', id);
   }
 }

@@ -54,7 +54,10 @@ export class FeatureTogglesService {
     enabled: boolean,
   ): Promise<FeatureToggleView> {
     if (!ALL_FEATURE_KEYS.includes(featureKey as FeatureKey)) {
-      throw new BusinessRuleError(`Unknown feature key "${featureKey}".`);
+      throw new BusinessRuleError(`Unknown feature key "${featureKey}".`, {
+        code: 'FEATURE_TOGGLES.UNKNOWN_FEATURE_KEY',
+        params: { featureKey },
+      });
     }
 
     const grantedKeys = await this.plans.resolveFeatureKeysForSchema(schema);
@@ -64,9 +67,10 @@ export class FeatureTogglesService {
     // their plan actually includes it. Rejecting this clearly here beats
     // silently accepting a toggle that would never take effect.
     if (enabled && !grantedKeys.includes(featureKey as FeatureKey)) {
-      throw new BusinessRuleError(
-        `Cannot enable "${featureKey}" — this tenant's plan does not include it.`,
-      );
+      throw new BusinessRuleError(`Cannot enable "${featureKey}" — this tenant's plan does not include it.`, {
+        code: 'FEATURE_TOGGLES.NOT_GRANTED_BY_PLAN',
+        params: { featureKey },
+      });
     }
 
     const row = await this.toggles.setEnabled(db, featureKey, enabled);
