@@ -22,7 +22,8 @@ import type {
   TransferStockInput,
   TransferStockResult,
 } from '../../domain/stock-movement.entity';
-import { BusinessRuleError, NotFoundError } from '../errors';
+import { BusinessRuleError } from '../errors';
+import { entityNotFound } from '../../../../shared/errors/entity-errors';
 
 interface IncomingParams {
   productVariantId: string;
@@ -122,13 +123,15 @@ export class StockMovementsService {
     reorderPoint: number | null,
   ): Promise<StockLevel> {
     const updated = await this.stockLevels.setReorderPoint(db, stockLevelId, reorderPoint);
-    if (!updated) throw new NotFoundError(`Stock level "${stockLevelId}" not found.`);
+    if (!updated) throw entityNotFound('STOCK_LEVEL', stockLevelId);
     return updated;
   }
 
   async recordMovement(db: Kysely<TenantDatabase>, input: RecordStockMovementInput): Promise<StockMovement> {
     if (!Number.isFinite(input.quantity) || input.quantity <= 0) {
-      throw new BusinessRuleError('Stock movement quantity must be a positive number.');
+      throw new BusinessRuleError('Stock movement quantity must be a positive number.', {
+        code: 'STOCK_MOVEMENT.QUANTITY_MUST_BE_POSITIVE',
+      });
     }
 
     return db.transaction().execute(async (trx) => {
@@ -144,7 +147,9 @@ export class StockMovementsService {
       switch (input.movementType) {
         case 'in':
           if (!unitCost) {
-            throw new BusinessRuleError('An incoming ("in") stock movement requires a unit cost.');
+            throw new BusinessRuleError('An incoming ("in") stock movement requires a unit cost.', {
+              code: 'STOCK_MOVEMENT.INCOMING_REQUIRES_UNIT_COST',
+            });
           }
           return this.applyIncoming(trx, { ...input, movementType: 'in', quantity, unitCost, product });
         case 'adjustment_increase':
@@ -154,7 +159,10 @@ export class StockMovementsService {
           return this.applyOutgoing(trx, { ...input, movementType: input.movementType, quantity, product });
         default: {
           const exhaustiveCheck: never = input.movementType;
-          throw new BusinessRuleError(`Unsupported stock movement type "${exhaustiveCheck as string}".`);
+          throw new BusinessRuleError(`Unsupported stock movement type "${exhaustiveCheck as string}".`, {
+            code: 'STOCK_MOVEMENT.UNSUPPORTED_TYPE',
+            params: { type: exhaustiveCheck as string },
+          });
         }
       }
     });
@@ -162,9 +170,9 @@ export class StockMovementsService {
 
   private async resolveProduct(trx: Kysely<TenantDatabase>, productVariantId: string): Promise<Product> {
     const variant = await this.productVariants.findById(trx, productVariantId);
-    if (!variant) throw new NotFoundError(`Product variant "${productVariantId}" not found.`);
+    if (!variant) throw entityNotFound('PRODUCT_VARIANT', productVariantId);
     const product = await this.products.findById(trx, variant.productId);
-    if (!product) throw new NotFoundError(`Product "${variant.productId}" not found.`);
+    if (!product) throw entityNotFound('PRODUCT', variant.productId);
     return product;
   }
 
@@ -194,10 +202,14 @@ export class StockMovementsService {
 
   async transferStock(db: Kysely<TenantDatabase>, input: TransferStockInput): Promise<TransferStockResult> {
     if (!Number.isFinite(input.quantity) || input.quantity <= 0) {
-      throw new BusinessRuleError('Stock transfer quantity must be a positive number.');
+      throw new BusinessRuleError('Stock transfer quantity must be a positive number.', {
+        code: 'STOCK_MOVEMENT.TRANSFER_QUANTITY_MUST_BE_POSITIVE',
+      });
     }
     if (input.fromLocationId === input.toLocationId) {
-      throw new BusinessRuleError('Cannot transfer stock to the same location.');
+      throw new BusinessRuleError('Cannot transfer stock to the same location.', {
+        code: 'STOCK_MOVEMENT.TRANSFER_SAME_LOCATION',
+      });
     }
 
     return db.transaction().execute(async (trx) => {
@@ -205,6 +217,7 @@ export class StockMovementsService {
       if (product.trackingType !== 'none' && !input.lotId) {
         throw new BusinessRuleError(
           'Transferring a lot/serial-tracked product requires specifying which lot (lotId) to transfer.',
+          { code: 'STOCK_MOVEMENT.TRANSFER_REQUIRES_LOT_ID' },
         );
       }
 
@@ -243,7 +256,7 @@ export class StockMovementsService {
 
   private async resolveWarehouseId(trx: Kysely<TenantDatabase>, locationId: string): Promise<string> {
     const location = await this.locations.findById(trx, locationId);
-    if (!location) throw new NotFoundError(`Warehouse location "${locationId}" not found.`);
+    if (!location) throw entityNotFound('WAREHOUSE_LOCATION', locationId);
     return location.warehouseId;
   }
 
@@ -256,6 +269,7 @@ export class StockMovementsService {
       if (!current) {
         throw new BusinessRuleError(
           'A unit cost is required: this variant has no existing stock at this location to fall back on.',
+          { code: 'STOCK_MOVEMENT.UNIT_COST_REQUIRED_NO_EXISTING_STOCK' },
         );
       }
       unitCost = current.averageCost;
@@ -263,6 +277,10 @@ export class StockMovementsService {
     if (current && current.averageCost.currency !== unitCost.currency) {
       throw new BusinessRuleError(
         `Currency mismatch: existing stock is valued in "${current.averageCost.currency}", movement uses "${unitCost.currency}". Multi-currency valuation is not supported.`,
+        {
+          code: 'STOCK_MOVEMENT.CURRENCY_MISMATCH',
+          params: { existing: current.averageCost.currency, used: unitCost.currency },
+        },
       );
     }
 
@@ -308,7 +326,10 @@ export class StockMovementsService {
     if (params.product.trackingType === 'none') return null;
 
     if (params.product.trackingType === 'serial' && params.quantity !== 1) {
-      throw new BusinessRuleError('Serial-tracked products must be received exactly one unit (quantity = 1) per serial number.');
+      throw new BusinessRuleError(
+        'Serial-tracked products must be received exactly one unit (quantity = 1) per serial number.',
+        { code: 'STOCK_MOVEMENT.SERIAL_RECEIVE_QTY_MUST_BE_ONE' },
+      );
     }
 
     let stockLotId: string;
@@ -316,13 +337,18 @@ export class StockMovementsService {
       if (!params.lotId) {
         throw new BusinessRuleError(
           'Transferring a lot/serial-tracked product requires specifying which lot (lotId) to transfer.',
+          { code: 'STOCK_MOVEMENT.TRANSFER_REQUIRES_LOT_ID' },
         );
       }
       stockLotId = params.lotId;
     } else {
       const trackingLabel = params.product.trackingType === 'serial' ? 'serial number' : 'lot number';
+      const trackingLabelAr = params.product.trackingType === 'serial' ? 'رقم تسلسلي' : 'رقم دفعة';
       if (!params.lotNumber) {
-        throw new BusinessRuleError(`This product is ${params.product.trackingType}-tracked: a ${trackingLabel} is required.`);
+        throw new BusinessRuleError(
+          `This product is ${params.product.trackingType}-tracked: a ${trackingLabel} is required.`,
+          { code: 'STOCK_MOVEMENT.TRACKING_LABEL_REQUIRED', params: { trackingLabel: trackingLabelAr } },
+        );
       }
       const existingLot = await this.stockLots.findByVariantAndLotNumber(trx, params.productVariantId, params.lotNumber);
       const lot =
@@ -354,6 +380,7 @@ export class StockMovementsService {
       const available = current?.quantityOnHand ?? 0;
       throw new BusinessRuleError(
         `Insufficient stock: requested ${params.quantity}, only ${available} available at this location.`,
+        { code: 'STOCK_MOVEMENT.INSUFFICIENT_STOCK', params: { requested: params.quantity, available } },
       );
     }
 
@@ -410,7 +437,10 @@ export class StockMovementsService {
     if (params.product.trackingType === 'none') return { stockLotId: null, multiLotConsumptions: [] };
 
     if (params.product.trackingType === 'serial' && params.quantity !== 1) {
-      throw new BusinessRuleError('Serial-tracked products must be issued exactly one unit (quantity = 1) per movement.');
+      throw new BusinessRuleError(
+        'Serial-tracked products must be issued exactly one unit (quantity = 1) per movement.',
+        { code: 'STOCK_MOVEMENT.SERIAL_ISSUE_QTY_MUST_BE_ONE' },
+      );
     }
 
     if (params.lotId) {
@@ -419,6 +449,7 @@ export class StockMovementsService {
         const available = level?.quantityOnHand ?? 0;
         throw new BusinessRuleError(
           `Insufficient stock in the selected lot: requested ${params.quantity}, only ${available} available at this location.`,
+          { code: 'STOCK_MOVEMENT.INSUFFICIENT_LOT_STOCK', params: { requested: params.quantity, available } },
         );
       }
       await this.stockLots.upsertLevel(trx, {
@@ -435,6 +466,10 @@ export class StockMovementsService {
     if (totalAvailable < params.quantity) {
       throw new BusinessRuleError(
         `Insufficient lot-tracked stock: requested ${params.quantity}, only ${totalAvailable} available across all lots at this location.`,
+        {
+          code: 'STOCK_MOVEMENT.INSUFFICIENT_LOT_TRACKED_STOCK',
+          params: { requested: params.quantity, available: totalAvailable },
+        },
       );
     }
 

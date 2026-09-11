@@ -66,10 +66,20 @@ export type EntityKey = keyof typeof ENTITY_LABELS;
  * message) — `message` is now log-only, and the single Arabic message per
  * entity already reads correctly for both cases.
  */
-export function entityNotFound(entity: EntityKey, id: string): NotFoundError {
-  return new NotFoundError(`${ENTITY_LABELS[entity]} "${id}" not found.`, {
+/**
+ * `id` accepts `undefined`/`null` for the same reason `duplicateEntity`'s
+ * `value` does below: a caller is often referencing an *optional* input
+ * field (e.g. an UpdateXInput's foreign key) even though a real
+ * not-found here always means something was actually provided. Harmless
+ * either way — NOT_FOUND messages never interpolate the id (see file
+ * header): a missing id just becomes an empty `""` in the log-only
+ * English `message`.
+ */
+export function entityNotFound(entity: EntityKey, id: string | null | undefined): NotFoundError {
+  const shown = id ?? '';
+  return new NotFoundError(`${ENTITY_LABELS[entity]} "${shown}" not found.`, {
     code: `${entity}.NOT_FOUND`,
-    params: { id },
+    params: { id: shown },
   });
 }
 

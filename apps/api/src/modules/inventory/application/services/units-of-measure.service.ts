@@ -8,7 +8,8 @@ import {
   type CreateUnitOfMeasureInput,
   type UpdateUnitOfMeasureInput,
 } from '../../domain/unit-of-measure.entity';
-import { BusinessRuleError, ConflictError, NotFoundError, isPostgresUniqueViolation } from '../errors';
+import { BusinessRuleError, ConflictError, isPostgresUniqueViolation } from '../errors';
+import { entityNotFound } from '../../../../shared/errors/entity-errors';
 
 @Injectable()
 export class UnitsOfMeasureService {
@@ -20,7 +21,7 @@ export class UnitsOfMeasureService {
 
   async getById(db: Kysely<TenantDatabase>, id: string): Promise<UnitOfMeasure> {
     const unit = await this.repository.findById(db, id);
-    if (!unit) throw new NotFoundError(`Unit of measure "${id}" not found.`);
+    if (!unit) throw entityNotFound('UNIT_OF_MEASURE', id);
     return unit;
   }
 
@@ -35,15 +36,18 @@ export class UnitsOfMeasureService {
     selfId?: string,
   ): Promise<void> {
     if (baseUnitId === selfId) {
-      throw new BusinessRuleError('A unit of measure cannot be its own base unit.');
+      throw new BusinessRuleError('A unit of measure cannot be its own base unit.', {
+        code: 'UNIT_OF_MEASURE.CANNOT_BE_OWN_BASE_UNIT',
+      });
     }
     const baseUnit = await this.repository.findById(db, baseUnitId);
     if (!baseUnit) {
-      throw new NotFoundError(`Unit of measure "${baseUnitId}" not found.`);
+      throw entityNotFound('UNIT_OF_MEASURE', baseUnitId);
     }
     if (baseUnit.baseUnitId !== null) {
       throw new BusinessRuleError(
         `"${baseUnit.name}" is itself converted from another unit and cannot be used as a base unit (conversion chains are not supported).`,
+        { code: 'UNIT_OF_MEASURE.BASE_UNIT_ITSELF_DERIVED', params: { name: baseUnit.name } },
       );
     }
   }
@@ -56,7 +60,10 @@ export class UnitsOfMeasureService {
       return await this.repository.create(db, input);
     } catch (err) {
       if (isPostgresUniqueViolation(err)) {
-        throw new ConflictError(`A unit of measure named "${input.name}" already exists.`);
+        throw new ConflictError(`A unit of measure named "${input.name}" already exists.`, {
+          code: 'UNIT_OF_MEASURE.DUPLICATE_NAME',
+          params: { name: input.name },
+        });
       }
       throw err;
     }
@@ -68,11 +75,14 @@ export class UnitsOfMeasureService {
     }
     try {
       const updated = await this.repository.update(db, id, input);
-      if (!updated) throw new NotFoundError(`Unit of measure "${id}" not found.`);
+      if (!updated) throw entityNotFound('UNIT_OF_MEASURE', id);
       return updated;
     } catch (err) {
       if (isPostgresUniqueViolation(err)) {
-        throw new ConflictError(`A unit of measure named "${input.name}" already exists.`);
+        throw new ConflictError(`A unit of measure named "${input.name}" already exists.`, {
+          code: 'UNIT_OF_MEASURE.DUPLICATE_NAME',
+          params: { name: input.name ?? '' },
+        });
       }
       throw err;
     }
@@ -80,7 +90,7 @@ export class UnitsOfMeasureService {
 
   async delete(db: Kysely<TenantDatabase>, id: string): Promise<void> {
     const deleted = await this.repository.delete(db, id);
-    if (!deleted) throw new NotFoundError(`Unit of measure "${id}" not found.`);
+    if (!deleted) throw entityNotFound('UNIT_OF_MEASURE', id);
   }
 
   async convert(db: Kysely<TenantDatabase>, fromUnitId: string, toUnitId: string, quantity: number): Promise<number> {
@@ -88,7 +98,11 @@ export class UnitsOfMeasureService {
     try {
       return convertUnitQuantity(fromUnit, toUnit, quantity);
     } catch (err) {
-      throw new BusinessRuleError(err instanceof Error ? err.message : String(err));
+      const message = err instanceof Error ? err.message : String(err);
+      throw new BusinessRuleError(message, {
+        code: 'UNIT_OF_MEASURE.CONVERSION_FAILED',
+        params: { reason: message },
+      });
     }
   }
 }

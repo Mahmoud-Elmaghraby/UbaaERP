@@ -12,12 +12,8 @@ import {
   DEFAULT_LOCATION_NAME,
   type WarehouseLocation,
 } from '../../domain/warehouse-location.entity';
-import {
-  ConflictError,
-  NotFoundError,
-  isPostgresForeignKeyViolation,
-  isPostgresUniqueViolation,
-} from '../errors';
+import { ConflictError, isPostgresForeignKeyViolation, isPostgresUniqueViolation } from '../errors';
+import { duplicateEntity, entityNotFound } from '../../../../shared/errors/entity-errors';
 
 export interface WarehouseWithDefaultLocation extends Warehouse {
   defaultLocation: WarehouseLocation;
@@ -36,7 +32,7 @@ export class WarehousesService {
 
   async getById(db: Kysely<TenantDatabase>, id: string): Promise<Warehouse> {
     const warehouse = await this.repository.findById(db, id);
-    if (!warehouse) throw new NotFoundError(`Warehouse "${id}" not found.`);
+    if (!warehouse) throw entityNotFound('WAREHOUSE', id);
     return warehouse;
   }
 
@@ -61,10 +57,10 @@ export class WarehousesService {
       });
     } catch (err) {
       if (isPostgresUniqueViolation(err)) {
-        throw new ConflictError(`A warehouse with code "${input.code}" already exists.`);
+        throw duplicateEntity('WAREHOUSE', 'code', input.code);
       }
       if (isPostgresForeignKeyViolation(err)) {
-        throw new NotFoundError(`Branch "${input.branchId}" not found.`);
+        throw entityNotFound('BRANCH', input.branchId);
       }
       throw err;
     }
@@ -73,14 +69,14 @@ export class WarehousesService {
   async update(db: Kysely<TenantDatabase>, id: string, input: UpdateWarehouseInput): Promise<Warehouse> {
     try {
       const updated = await this.repository.update(db, id, input);
-      if (!updated) throw new NotFoundError(`Warehouse "${id}" not found.`);
+      if (!updated) throw entityNotFound('WAREHOUSE', id);
       return updated;
     } catch (err) {
       if (isPostgresUniqueViolation(err)) {
-        throw new ConflictError(`A warehouse with code "${input.code}" already exists.`);
+        throw duplicateEntity('WAREHOUSE', 'code', input.code);
       }
       if (isPostgresForeignKeyViolation(err)) {
-        throw new NotFoundError(`Branch "${input.branchId}" not found.`);
+        throw entityNotFound('BRANCH', input.branchId);
       }
       throw err;
     }
@@ -88,7 +84,7 @@ export class WarehousesService {
 
   async delete(db: Kysely<TenantDatabase>, id: string): Promise<void> {
     const deleted = await this.repository.delete(db, id);
-    if (!deleted) throw new NotFoundError(`Warehouse "${id}" not found.`);
+    if (!deleted) throw entityNotFound('WAREHOUSE', id);
   }
 
   listLocations(db: Kysely<TenantDatabase>, warehouseId: string): Promise<WarehouseLocation[]> {
@@ -105,7 +101,10 @@ export class WarehousesService {
       return await this.locations.create(db, { warehouseId, ...input });
     } catch (err) {
       if (isPostgresUniqueViolation(err)) {
-        throw new ConflictError(`A location with code "${input.code}" already exists in this warehouse.`);
+        throw new ConflictError(`A location with code "${input.code}" already exists in this warehouse.`, {
+          code: 'WAREHOUSE_LOCATION.DUPLICATE_CODE_IN_WAREHOUSE',
+          params: { code: input.code },
+        });
       }
       throw err;
     }
@@ -118,11 +117,14 @@ export class WarehousesService {
   ): Promise<WarehouseLocation> {
     try {
       const updated = await this.locations.update(db, locationId, input);
-      if (!updated) throw new NotFoundError(`Warehouse location "${locationId}" not found.`);
+      if (!updated) throw entityNotFound('WAREHOUSE_LOCATION', locationId);
       return updated;
     } catch (err) {
       if (isPostgresUniqueViolation(err)) {
-        throw new ConflictError(`A location with code "${input.code}" already exists in this warehouse.`);
+        throw new ConflictError(`A location with code "${input.code}" already exists in this warehouse.`, {
+          code: 'WAREHOUSE_LOCATION.DUPLICATE_CODE_IN_WAREHOUSE',
+          params: { code: input.code ?? '' },
+        });
       }
       throw err;
     }
@@ -131,10 +133,12 @@ export class WarehousesService {
   async deleteLocation(db: Kysely<TenantDatabase>, locationId: string): Promise<void> {
     try {
       const deleted = await this.locations.delete(db, locationId);
-      if (!deleted) throw new NotFoundError(`Warehouse location "${locationId}" not found.`);
+      if (!deleted) throw entityNotFound('WAREHOUSE_LOCATION', locationId);
     } catch (err) {
       if (isPostgresForeignKeyViolation(err)) {
-        throw new ConflictError('Cannot delete a location that still has stock recorded against it.');
+        throw new ConflictError('Cannot delete a location that still has stock recorded against it.', {
+          code: 'WAREHOUSE_LOCATION.HAS_STOCK',
+        });
       }
       throw err;
     }

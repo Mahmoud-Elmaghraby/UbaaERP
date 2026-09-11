@@ -72,6 +72,57 @@ export const AR_MESSAGES: Record<string, string> = {
   'FEATURE_TOGGLES.NOT_GRANTED_BY_PLAN':
     'لا يمكن تفعيل ميزة "{featureKey}" — باقة الاشتراك الحالية لا تشمل هذه الميزة.',
 
+  // ---- Inventory module ----
+  'PRODUCT.DUPLICATE_CODE_OR_VARIANT_SKU':
+    'يوجد منتج آخر بنفس الرمز "{code}" (أو رمز الوحدة الافتراضي) بالفعل.',
+  'PRODUCT.DUPLICATE_CODE': 'يوجد منتج آخر بنفس الرمز "{value}" بالفعل.',
+  'PRODUCT_VARIANT.DUPLICATE_SKU': 'يوجد نوع منتج آخر بنفس رمز الصنف (SKU) "{value}" بالفعل.',
+  'WAREHOUSE.DUPLICATE_CODE': 'يوجد مستودع آخر بنفس الرمز "{value}" بالفعل.',
+  'WAREHOUSE_LOCATION.DUPLICATE_CODE_IN_WAREHOUSE':
+    'يوجد موقع تخزين آخر بنفس الرمز "{code}" داخل هذا المستودع بالفعل.',
+  'WAREHOUSE_LOCATION.HAS_STOCK': 'لا يمكن حذف موقع تخزين يحتوي على مخزون مسجل.',
+  'UNIT_OF_MEASURE.DUPLICATE_NAME': 'توجد وحدة قياس أخرى بنفس الاسم "{name}" بالفعل.',
+  'UNIT_OF_MEASURE.CANNOT_BE_OWN_BASE_UNIT': 'لا يمكن أن تكون وحدة القياس هي الوحدة الأساسية لنفسها.',
+  'UNIT_OF_MEASURE.BASE_UNIT_ITSELF_DERIVED':
+    'الوحدة "{name}" مشتقة من وحدة أخرى، ولا يمكن استخدامها كوحدة أساسية (سلاسل التحويل المتعددة غير مدعومة).',
+  'UNIT_OF_MEASURE.CONVERSION_FAILED': 'تعذّر تحويل الكمية بين وحدتي القياس: {reason}',
+  'LANDED_COST.TOTAL_MUST_BE_POSITIVE': 'يجب أن يكون إجمالي التكلفة الإضافية (Landed Cost) مبلغًا موجبًا.',
+  'LANDED_COST.AT_LEAST_ONE_MOVEMENT_REQUIRED':
+    'يجب اختيار حركة مخزون واحدة على الأقل لتوزيع التكلفة الإضافية عليها.',
+  'LANDED_COST.DUPLICATE_MOVEMENT_IDS':
+    'لا يمكن تكرار نفس حركة المخزون أكثر من مرة في عملية توزيع واحدة للتكلفة الإضافية.',
+  'LANDED_COST.NO_STOCK_ON_HAND':
+    'لا يمكن تطبيق التكلفة الإضافية على هذه الحركة: لا يوجد مخزون متاح حاليًا في هذا الموقع (تم استهلاكه بالكامل).',
+  'LANDED_COST.MOVEMENT_NOT_INCOMING':
+    'لا يمكن تطبيق التكلفة الإضافية إلا على حركات مخزون "وارد"؛ الحركة المحددة من نوع "{movementType}".',
+  'LANDED_COST.MOVEMENT_MISSING_UNIT_COST':
+    'حركة المخزون المحددة لا تحتوي على تكلفة وحدة مسجلة لاستخدامها في توزيع التكلفة الإضافية.',
+  'LANDED_COST.ZERO_TOTAL_WEIGHT': 'لا يمكن توزيع التكلفة الإضافية على حركات مجموع كمياتها/قيمتها يساوي صفرًا.',
+  'LANDED_COST.TOTAL_TOO_SMALL_TO_SPLIT':
+    'إجمالي التكلفة الإضافية صغير جدًا بحيث لا يمكن توزيعه على جميع الحركات المحددة — يجب أن يحصل كل سطر على مبلغ موجب.',
+  'STOCK_MOVEMENT.QUANTITY_MUST_BE_POSITIVE': 'يجب أن تكون كمية حركة المخزون رقمًا موجبًا.',
+  'STOCK_MOVEMENT.INCOMING_REQUIRES_UNIT_COST': 'حركة المخزون الواردة تتطلب تحديد تكلفة الوحدة.',
+  'STOCK_MOVEMENT.UNSUPPORTED_TYPE': 'نوع حركة المخزون "{type}" غير مدعوم.',
+  'STOCK_MOVEMENT.TRANSFER_QUANTITY_MUST_BE_POSITIVE': 'يجب أن تكون كمية تحويل المخزون رقمًا موجبًا.',
+  'STOCK_MOVEMENT.TRANSFER_SAME_LOCATION': 'لا يمكن تحويل المخزون إلى نفس الموقع.',
+  'STOCK_MOVEMENT.TRANSFER_REQUIRES_LOT_ID':
+    'تحويل منتج يخضع لتتبع الدُفعات/الأرقام التسلسلية يتطلب تحديد الدُفعة (lotId) المراد تحويلها.',
+  'STOCK_MOVEMENT.UNIT_COST_REQUIRED_NO_EXISTING_STOCK':
+    'تحديد تكلفة الوحدة مطلوب: لا يوجد مخزون سابق لهذا الصنف في هذا الموقع للاعتماد عليه.',
+  'STOCK_MOVEMENT.CURRENCY_MISMATCH':
+    'تعارض في العملة: المخزون الحالي مُقيَّم بعملة "{existing}"، بينما الحركة تستخدم عملة "{used}". التقييم متعدد العملات غير مدعوم.',
+  'STOCK_MOVEMENT.SERIAL_RECEIVE_QTY_MUST_BE_ONE':
+    'المنتجات ذات التتبع بالرقم التسلسلي يجب استلامها بكمية واحدة فقط (=1) لكل رقم تسلسلي.',
+  'STOCK_MOVEMENT.TRACKING_LABEL_REQUIRED': 'هذا المنتج يخضع للتتبع، ويجب إدخال {trackingLabel}.',
+  'STOCK_MOVEMENT.INSUFFICIENT_STOCK':
+    'المخزون غير كافٍ: الكمية المطلوبة {requested}، والمتاح في هذا الموقع {available} فقط.',
+  'STOCK_MOVEMENT.SERIAL_ISSUE_QTY_MUST_BE_ONE':
+    'المنتجات ذات التتبع بالرقم التسلسلي يجب صرفها بكمية واحدة فقط (=1) لكل حركة.',
+  'STOCK_MOVEMENT.INSUFFICIENT_LOT_STOCK':
+    'المخزون غير كافٍ في الدُفعة المحددة: الكمية المطلوبة {requested}، والمتاح في هذا الموقع {available} فقط.',
+  'STOCK_MOVEMENT.INSUFFICIENT_LOT_TRACKED_STOCK':
+    'المخزون غير كافٍ عبر جميع الدُفعات: الكمية المطلوبة {requested}، والمتاح في هذا الموقع {available} فقط عبر كل الدُفعات.',
+
   // ---- generic fallbacks ----
   'VALIDATION.INVALID_INPUT': 'البيانات المُدخلة غير صحيحة. يرجى مراجعة الحقول والمحاولة مرة أخرى.',
   'UNEXPECTED.INTERNAL_ERROR': 'حدث خطأ غير متوقع. يرجى المحاولة مرة أخرى أو التواصل مع الدعم الفني.',

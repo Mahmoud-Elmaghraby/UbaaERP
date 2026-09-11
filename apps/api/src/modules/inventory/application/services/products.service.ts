@@ -5,12 +5,8 @@ import { PRODUCT_REPOSITORY, type ProductRepository } from '../ports/product.rep
 import { PRODUCT_VARIANT_REPOSITORY, type ProductVariantRepository } from '../ports/product-variant.repository';
 import type { Product, CreateProductInput, UpdateProductInput } from '../../domain/product.entity';
 import type { ProductVariant } from '../../domain/product-variant.entity';
-import {
-  ConflictError,
-  NotFoundError,
-  isPostgresForeignKeyViolation,
-  isPostgresUniqueViolation,
-} from '../errors';
+import { ConflictError, isPostgresForeignKeyViolation, isPostgresUniqueViolation } from '../errors';
+import { duplicateEntity, entityNotFound } from '../../../../shared/errors/entity-errors';
 
 export interface ProductWithVariants extends Product {
   variants: ProductVariant[];
@@ -29,7 +25,7 @@ export class ProductsService {
 
   async getById(db: Kysely<TenantDatabase>, id: string): Promise<ProductWithVariants> {
     const product = await this.products.findById(db, id);
-    if (!product) throw new NotFoundError(`Product "${id}" not found.`);
+    if (!product) throw entityNotFound('PRODUCT', id);
     const variants = await this.variants.listByProductId(db, id);
     return { ...product, variants };
   }
@@ -60,10 +56,11 @@ export class ProductsService {
       if (isPostgresUniqueViolation(err)) {
         throw new ConflictError(
           `A product with code "${input.code}" (or its default variant SKU) already exists.`,
+          { code: 'PRODUCT.DUPLICATE_CODE_OR_VARIANT_SKU', params: { code: input.code } },
         );
       }
       if (isPostgresForeignKeyViolation(err)) {
-        throw new NotFoundError(`Unit of measure "${input.unitOfMeasureId}" not found.`);
+        throw entityNotFound('UNIT_OF_MEASURE', input.unitOfMeasureId);
       }
       throw err;
     }
@@ -72,14 +69,14 @@ export class ProductsService {
   async update(db: Kysely<TenantDatabase>, id: string, input: UpdateProductInput): Promise<Product> {
     try {
       const updated = await this.products.update(db, id, input);
-      if (!updated) throw new NotFoundError(`Product "${id}" not found.`);
+      if (!updated) throw entityNotFound('PRODUCT', id);
       return updated;
     } catch (err) {
       if (isPostgresUniqueViolation(err)) {
-        throw new ConflictError(`A product with code "${input.code}" already exists.`);
+        throw duplicateEntity('PRODUCT', 'code', input.code);
       }
       if (isPostgresForeignKeyViolation(err)) {
-        throw new NotFoundError(`Unit of measure "${input.unitOfMeasureId}" not found.`);
+        throw entityNotFound('UNIT_OF_MEASURE', input.unitOfMeasureId);
       }
       throw err;
     }
@@ -87,7 +84,7 @@ export class ProductsService {
 
   async delete(db: Kysely<TenantDatabase>, id: string): Promise<void> {
     const deleted = await this.products.delete(db, id);
-    if (!deleted) throw new NotFoundError(`Product "${id}" not found.`);
+    if (!deleted) throw entityNotFound('PRODUCT', id);
   }
 
   async addVariant(
@@ -100,7 +97,7 @@ export class ProductsService {
       return await this.variants.create(db, { productId, ...input });
     } catch (err) {
       if (isPostgresUniqueViolation(err)) {
-        throw new ConflictError(`A variant with SKU "${input.sku}" already exists.`);
+        throw duplicateEntity('PRODUCT_VARIANT', 'sku', input.sku);
       }
       throw err;
     }

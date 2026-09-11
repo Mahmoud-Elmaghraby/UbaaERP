@@ -12,7 +12,8 @@ import type {
   LandedCostAllocationMethod,
   ApplyLandedCostInput,
 } from '../../domain/landed-cost.entity';
-import { BusinessRuleError, NotFoundError } from '../errors';
+import { BusinessRuleError } from '../errors';
+import { entityNotFound } from '../../../../shared/errors/entity-errors';
 
 /**
  * Landed Cost (master doc §17 competitor research; approved 2026-08-28).
@@ -38,19 +39,25 @@ export class LandedCostsService {
 
   async getById(db: Kysely<TenantDatabase>, id: string): Promise<LandedCost> {
     const landedCost = await this.landedCosts.findById(db, id);
-    if (!landedCost) throw new NotFoundError(`Landed cost "${id}" not found.`);
+    if (!landedCost) throw entityNotFound('LANDED_COST', id);
     return landedCost;
   }
 
   async apply(db: Kysely<TenantDatabase>, input: ApplyLandedCostInput): Promise<LandedCost> {
     if (!input.totalCost.isPositive()) {
-      throw new BusinessRuleError('Landed cost total must be a positive amount.');
+      throw new BusinessRuleError('Landed cost total must be a positive amount.', {
+        code: 'LANDED_COST.TOTAL_MUST_BE_POSITIVE',
+      });
     }
     if (input.stockMovementIds.length === 0) {
-      throw new BusinessRuleError('At least one stock movement must be selected for landed cost allocation.');
+      throw new BusinessRuleError('At least one stock movement must be selected for landed cost allocation.', {
+        code: 'LANDED_COST.AT_LEAST_ONE_MOVEMENT_REQUIRED',
+      });
     }
     if (new Set(input.stockMovementIds).size !== input.stockMovementIds.length) {
-      throw new BusinessRuleError('Duplicate stock movement ids are not allowed in a single landed cost allocation.');
+      throw new BusinessRuleError('Duplicate stock movement ids are not allowed in a single landed cost allocation.', {
+        code: 'LANDED_COST.DUPLICATE_MOVEMENT_IDS',
+      });
     }
 
     return db.transaction().execute(async (trx) => {
@@ -84,6 +91,7 @@ export class LandedCostsService {
           throw new BusinessRuleError(
             `Cannot apply a landed cost to movement "${movement.id}": no stock is currently on hand at this ` +
               'location (it has already been fully consumed, so there is nothing left to revalue).',
+            { code: 'LANDED_COST.NO_STOCK_ON_HAND', params: { movementId: movement.id } },
           );
         }
 
@@ -118,14 +126,18 @@ export class LandedCostsService {
 
   private async fetchEligibleMovement(trx: Kysely<TenantDatabase>, id: string): Promise<StockMovement> {
     const movement = await this.movements.findById(trx, id);
-    if (!movement) throw new NotFoundError(`Stock movement "${id}" not found.`);
+    if (!movement) throw entityNotFound('STOCK_MOVEMENT', id);
     if (movement.movementType !== 'in') {
       throw new BusinessRuleError(
         `Landed cost can only be applied to incoming ("in") stock movements; movement "${id}" is "${movement.movementType}".`,
+        { code: 'LANDED_COST.MOVEMENT_NOT_INCOMING', params: { id, movementType: movement.movementType } },
       );
     }
     if (!movement.unitCost) {
-      throw new BusinessRuleError(`Stock movement "${id}" has no recorded unit cost to weight the allocation by.`);
+      throw new BusinessRuleError(
+        `Stock movement "${id}" has no recorded unit cost to weight the allocation by.`,
+        { code: 'LANDED_COST.MOVEMENT_MISSING_UNIT_COST', params: { id } },
+      );
     }
     return movement;
   }
@@ -144,6 +156,7 @@ export class LandedCostsService {
     if (totalWeight <= 0) {
       throw new BusinessRuleError(
         'Cannot allocate a landed cost across movements whose combined quantity/value is zero.',
+        { code: 'LANDED_COST.ZERO_TOTAL_WEIGHT' },
       );
     }
 
@@ -163,6 +176,7 @@ export class LandedCostsService {
     if (shares.some((share) => share <= 0n)) {
       throw new BusinessRuleError(
         'The landed cost total is too small to split across all selected movements — each line must receive a positive amount.',
+        { code: 'LANDED_COST.TOTAL_TOO_SMALL_TO_SPLIT' },
       );
     }
 
