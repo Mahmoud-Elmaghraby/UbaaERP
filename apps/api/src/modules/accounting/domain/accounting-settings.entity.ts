@@ -15,6 +15,12 @@
  * Stage 1, claude/sales-pos-research.md) follow the exact same
  * pattern as the pair above: cashAccountId auto-populates from the
  * default template's code '111', cashOverShortAccountId never does.
+ *
+ * exchangeGainLossAccountId (migration 0073 — multi-currency Phase 1,
+ * claude/multi-currency-strategy.md) follows the same never-auto-
+ * populated treatment as purchaseExpenseAccountId/
+ * cashOverShortAccountId; unused until Phase 4 wires realized
+ * exchange gain/loss posting on foreign-currency invoice settlement.
  */
 export interface AccountingSettings {
   id: string;
@@ -27,6 +33,7 @@ export interface AccountingSettings {
   purchaseExpenseAccountId: string | null;
   cashAccountId: string | null;
   cashOverShortAccountId: string | null;
+  exchangeGainLossAccountId: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -41,4 +48,5 @@ export interface UpdateAccountingSettingsInput {
   purchaseExpenseAccountId?: string | null;
   cashAccountId?: string | null;
   cashOverShortAccountId?: string | null;
+  exchangeGainLossAccountId?: string | null;
 }

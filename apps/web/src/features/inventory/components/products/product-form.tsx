@@ -27,6 +27,7 @@ import {
   toast,
 } from '@erp-platform/ui';
 
+import { AttachmentsPanel } from '../../../attachments/components/attachments-panel';
 import { useCustomFieldDefinitions } from '../../../settings/queries';
 import { useCreateProduct, useUpdateProduct } from '../../api/products/queries';
 import { ApiError } from '../../../../lib/api-client';
@@ -389,6 +390,8 @@ export function EditProductForm({ product, onDone }: { product: ProductDto; onDo
           {t('common.save')}
         </Button>
       </form>
+
+      <AttachmentsPanel entityType="product" entityId={product.id} />
     </Form>
   );
 }

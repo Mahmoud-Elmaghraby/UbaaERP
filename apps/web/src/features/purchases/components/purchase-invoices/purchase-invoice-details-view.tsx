@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import type { PurchaseInvoiceWithLinesDto } from '@erp-platform/contracts';
 import { Badge, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@erp-platform/ui';
 
+import { AttachmentsPanel } from '../../../attachments/components/attachments-panel';
 import { usePurchaseOrders } from '../../api/purchase-orders/queries';
 import { useVariantIndex } from '../../hooks/purchase-invoices/use-variant-index';
 import { formatMoney } from '../../../../lib/money';
@@ -89,6 +90,8 @@ export function PurchaseInvoiceDetailsView({ invoice }: { invoice: PurchaseInvoi
           ) : null}
         </TableBody>
       </Table>
+
+      <AttachmentsPanel entityType="purchase_invoice" entityId={invoice.id} />
     </div>
   );
 }

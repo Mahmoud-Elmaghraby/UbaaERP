@@ -4,16 +4,19 @@ import {
   trialBalanceReportSchema,
   incomeStatementReportSchema,
   balanceSheetReportSchema,
+  cashFlowReportSchema,
   type GeneralLedgerReportDto,
   type TrialBalanceReportDto,
   type IncomeStatementReportDto,
   type BalanceSheetReportDto,
+  type CashFlowReportDto,
 } from '@erp-platform/contracts';
 import type {
   GeneralLedgerReport,
   TrialBalanceReport,
   IncomeStatementReport,
   BalanceSheetReport,
+  CashFlowReport,
 } from '../domain/accounting-report.entity';
 import { TenantConnectionManager } from '../../../shared/tenancy/tenant-connection-manager';
 import { CurrentTenantSchema } from '../../../shared/auth/current-tenant-schema.decorator';
@@ -75,6 +78,17 @@ function balanceSheetToDto(report: BalanceSheetReport): BalanceSheetReportDto {
     assetRows: report.assetRows.map((row) => ({ ...row, amount: moneyToDto(row.amount) })),
     liabilityRows: report.liabilityRows.map((row) => ({ ...row, amount: moneyToDto(row.amount) })),
     equityRows: report.equityRows.map((row) => ({ ...row, amount: moneyToDto(row.amount) })),
+  });
+}
+
+function cashFlowToDto(report: CashFlowReport): CashFlowReportDto {
+  return cashFlowReportSchema.parse({
+    ...report,
+    netIncome: moneyToDto(report.netIncome),
+    netCashFromOperations: moneyToDto(report.netCashFromOperations),
+    openingCash: moneyToDto(report.openingCash),
+    closingCash: moneyToDto(report.closingCash),
+    adjustments: report.adjustments.map((row) => ({ ...row, changeAmount: moneyToDto(row.changeAmount) })),
   });
 }
 
@@ -152,5 +166,19 @@ export class AccountingReportsController {
     const db = this.connections.getClient(schema);
     const report = await this.service.balanceSheet(db, asOfDate);
     return balanceSheetToDto(report);
+  }
+
+  @Get('cash-flow-statement')
+  async cashFlowStatement(
+    @CurrentTenantSchema() schema: string,
+    @Query('fromDate') fromDate?: string,
+    @Query('toDate') toDate?: string,
+  ): Promise<CashFlowReportDto> {
+    if (!fromDate || !toDate) {
+      throw new BadRequestException('Query parameters "fromDate" and "toDate" are required.');
+    }
+    const db = this.connections.getClient(schema);
+    const report = await this.service.cashFlowStatement(db, fromDate, toDate);
+    return cashFlowToDto(report);
   }
 }

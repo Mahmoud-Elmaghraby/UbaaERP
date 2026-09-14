@@ -130,3 +130,55 @@ export const apiPost = <T>(path: string, body?: unknown, options?: RequestOption
 export const apiPatch = <T>(path: string, body?: unknown) =>
   apiFetch<T>(path, { method: 'PATCH', body });
 export const apiDelete = <T>(path: string) => apiFetch<T>(path, { method: 'DELETE' });
+
+/**
+ * multipart/form-data upload (used by the Attachments feature's
+ * POST /attachments). Deliberately separate from apiFetch: that function
+ * always JSON.stringifies its body and forces Content-Type: application/json,
+ * neither of which works for FormData — the browser must set its own
+ * Content-Type (with the multipart boundary) when a FormData body is sent, so
+ * we don't set that header ourselves here at all. Mirrors apiFetch's own
+ * network-failure wrapping and single-retry-after-refresh 401 handling.
+ */
+async function doUpload<T>(path: string, formData: FormData, retried: boolean): Promise<T> {
+  const { tenantSchema, accessToken } = useAuthStore.getState();
+  const headers: Record<string, string> = {};
+  if (tenantSchema) {
+    headers['x-tenant-schema'] = tenantSchema;
+  }
+  if (accessToken) {
+    headers.Authorization = `Bearer ${accessToken}`;
+  }
+
+  let response: Response;
+  try {
+    response = await fetch(`${BASE_URL}${path}`, {
+      method: 'POST',
+      headers,
+      body: formData,
+      credentials: 'include',
+    });
+  } catch {
+    throw new ApiError('تعذر الاتصال بالخادم — تحقق من تشغيل الـ API وإعدادات CORS', 0, null);
+  }
+
+  if (response.status === 401 && !retried) {
+    const refreshed = await refreshSession();
+    if (refreshed) {
+      return doUpload<T>(path, formData, true);
+    }
+  }
+
+  if (!response.ok) {
+    const errorBody = await parseBody(response);
+    const message =
+      (errorBody && typeof errorBody === 'object' && 'message' in errorBody
+        ? String((errorBody as { message: unknown }).message)
+        : null) ?? `طلب فشل بالحالة ${response.status}`;
+    throw new ApiError(message, response.status, errorBody);
+  }
+
+  return (await parseBody(response)) as T;
+}
+
+export const apiUpload = <T>(path: string, formData: FormData) => doUpload<T>(path, formData, false);

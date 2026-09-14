@@ -87,13 +87,15 @@ export class GoodsReceiptsController {
   }
 
   /**
-   * The one-way door: confirms the receipt (GoodsReceiptsService also
-   * recomputes the parent PO's status in the same DB transaction), then
-   * publishes the integration event Inventory's GoodsReceiptStockListener
-   * consumes to actually increase stock (CLAUDE.md §2.6 — never a direct
-   * call from Purchases into Inventory). The event is published only
-   * after the DB transaction has committed, same as every other
-   * confirm/select action in this module.
+   * The one-way door — and, like DeliveriesController.confirm(), the one
+   * action in this controller that does NOT call this.events.publish().
+   * Confirming writes the 'purchases.goods_receipt.confirmed' integration
+   * event to the Outbox inside GoodsReceiptsService.confirm() itself,
+   * atomically with the status flip and the parent PO's status recompute
+   * (CLAUDE.md §2.7). OutboxDispatcherService is what actually puts the
+   * event on the Event Bus, on its own schedule, for
+   * Inventory's GoodsReceiptStockListener to consume (CLAUDE.md §2.6 —
+   * never a direct call from Purchases into Inventory).
    */
   @Post(':id/confirm')
   async confirm(
@@ -102,21 +104,7 @@ export class GoodsReceiptsController {
     @Param('id') id: string,
   ): Promise<GoodsReceiptWithLinesDto> {
     const db = this.connections.getClient(schema);
-    const receipt = await this.service.confirm(db, id);
-    this.events.publish('goods_receipt', 'confirmed', {
-      schema,
-      entityId: receipt.id,
-      actorUserId: user.sub,
-      metadata: {
-        purchaseOrderId: receipt.purchaseOrderId,
-        warehouseId: receipt.warehouseId,
-        lines: receipt.lines.map((line) => ({
-          productVariantId: line.productVariantId,
-          quantity: line.quantityReceived,
-          unitCost: moneyToDto(line.unitCost),
-        })),
-      },
-    });
+    const receipt = await this.service.confirm(db, id, schema, user.sub);
     return receiptWithLinesToDto(receipt);
   }
 

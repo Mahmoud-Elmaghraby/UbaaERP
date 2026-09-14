@@ -79,15 +79,22 @@ import { PurchasesEventPublisher } from './infrastructure/events/purchases-event
  *     invoicing path (supplierId + directLines) usable only when
  *     PURCHASES_PURCHASE_ORDERS is disabled, plus independent Goods
  *     Receipt auto-creation when PURCHASES_GOODS_RECEIPTS is disabled —
- *     see PurchaseInvoicesService's own class comment, including the one
- *     deliberate asymmetry with Sales (GoodsReceiptsService.confirm()
- *     isn't Outbox-backed, so create() replicates the controller's
- *     publish() call for the event Inventory's stock listener needs).
+ *     see PurchaseInvoicesService's own class comment.
+ *  9. GoodsReceiptsService → Outbox symmetry (closed,
+ *     claude/next-steps-backlog.md item 2) — confirm() now writes
+ *     'purchases.goods_receipt.confirmed' to the Outbox in the same
+ *     transaction as the status flip, mirroring DeliveriesService on the
+ *     Sales side, instead of relying on GoodsReceiptsController to
+ *     publish it post-commit. This removed the one asymmetry the
+ *     invoice-takeover orchestrator (item 8) previously had to work
+ *     around by replicating the controller's publish() call itself.
  *
- * Imports SettingsModule for NumberingSequencesService only (exported
- * narrowly there) — see PurchaseRequisitionsService's class comment for
- * why this cross-module dependency is treated as foundational/platform,
- * not a business-module-to-business-module call.
+ * Imports SettingsModule for NumberingSequencesService and (since
+ * 2026-09-13, the multi-currency tenant-vs-line-currency gate —
+ * claude/multi-currency-strategy.md §9) TenantSettingsService, both
+ * exported narrowly there — see PurchaseRequisitionsService's class
+ * comment for why this cross-module dependency is treated as
+ * foundational/platform, not a business-module-to-business-module call.
  *
  * TenantConnectionManager comes from the global TenancyModule — not
  * re-provided here, same as every other business module.

@@ -113,3 +113,27 @@ export const balanceSheetReportSchema = z.object({
   isBalanced: z.boolean(),
 });
 export type BalanceSheetReportDto = z.infer<typeof balanceSheetReportSchema>;
+
+// --- قائمة التدفقات النقدية (Cash Flow Statement, indirect method) ---
+export const cashFlowRowSchema = z.object({
+  accountId: z.string().uuid(),
+  accountCode: z.string(),
+  accountName: z.string(),
+  /** Already the account's cash EFFECT for the period, not its raw balance change. */
+  changeAmount: moneySchema,
+});
+export type CashFlowRowDto = z.infer<typeof cashFlowRowSchema>;
+
+export const cashFlowReportSchema = z.object({
+  fromDate: isoDate,
+  toDate: isoDate,
+  currency: z.string(),
+  netIncome: moneySchema,
+  adjustments: z.array(cashFlowRowSchema),
+  netCashFromOperations: moneySchema,
+  openingCash: moneySchema,
+  closingCash: moneySchema,
+  /** True when netIncome + sum(adjustments) equals closingCash - openingCash. */
+  isConsistent: z.boolean(),
+});
+export type CashFlowReportDto = z.infer<typeof cashFlowReportSchema>;

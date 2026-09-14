@@ -41,4 +41,3 @@ Egyptian e-invoicing (ETA) has no purchase-side/buyer obligation — it applies 
 ## Status
 
 Research approved 2026-08-29: **RFQ/supplier-quotation** and **purchase returns/debit notes** are now part of this sprint's Purchases entity design, added to the master doc's baseline list (`suppliers`, `purchase_requisitions`, RFQ, supplier quotations, `purchase_orders`, `goods_receipts`, purchase returns/debit notes, `purchase_invoices`). Everything under "Secondary findings" stays deferred/background, not approved.
-</content>

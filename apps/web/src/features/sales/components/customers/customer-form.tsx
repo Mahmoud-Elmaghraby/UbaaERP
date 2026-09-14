@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useTranslation } from 'react-i18next';
@@ -31,11 +31,26 @@ import {
   Skeleton,
   Textarea,
   toast,
+  useHasFeature,
 } from '@erp-platform/ui';
 
-import { useCustomFieldDefinitions } from '../../../settings/queries';
+import { AttachmentsPanel } from '../../../attachments/components/attachments-panel';
+import { useCustomFieldDefinitions, useTenantSettings } from '../../../settings/queries';
 import { useCreateCustomer, useUpdateCustomer } from '../../api/customers/queries';
 import { ApiError } from '../../../../lib/api-client';
+
+/**
+ * Feature key from apps/api's FEATURE_KEYS.MULTI_CURRENCY (shared/plans/
+ * feature-catalog.ts) — passed as a plain string, same convention
+ * permission keys already use with useHasPermission()/<Can>. When off
+ * (the default for a new tenant — see that key's own comment), a
+ * customer's defaultCurrency can only ever be the tenant's own currency:
+ * that field is what every Sales document derives its own currency from
+ * (QuotationLineItemsEditor's own comment), so locking it here is what
+ * actually keeps a foreign currency out of Sales documents when the
+ * tenant hasn't turned Multi-Currency on.
+ */
+const MULTI_CURRENCY_FEATURE_KEY = 'multi_currency';
 
 const CUSTOMER_ENTITY_TYPE = 'customer';
 
@@ -47,6 +62,8 @@ export function CreateCustomerForm({ onDone }: { onDone: () => void }) {
   const createCustomer = useCreateCustomer();
   const { data: definitions, isLoading: definitionsLoading } =
     useCustomFieldDefinitions(CUSTOMER_ENTITY_TYPE);
+  const multiCurrencyEnabled = useHasFeature(MULTI_CURRENCY_FEATURE_KEY);
+  const { data: tenantSettings } = useTenantSettings();
 
   const formSchema = useMemo(() => {
     const staticSchema = createCustomerSchema.omit({ customFields: true });
@@ -75,6 +92,17 @@ export function CreateCustomerForm({ onDone }: { onDone: () => void }) {
       customFields: {},
     },
   });
+
+  // Multi-currency gate (claude/multi-currency-strategy.md §9): when the
+  // tenant hasn't turned Multi-Currency on, a NEW customer's defaultCurrency
+  // is forced to the tenant's own currency as soon as it's known — the input
+  // below is also disabled, but this keeps the actually-submitted value
+  // correct even before the field is touched.
+  useEffect(() => {
+    if (!multiCurrencyEnabled && tenantSettings) {
+      form.setValue('defaultCurrency', tenantSettings.currencyCode);
+    }
+  }, [multiCurrencyEnabled, tenantSettings, form]);
 
   async function onSubmit(values: CreateCustomerDto) {
     try {
@@ -213,8 +241,17 @@ export function CreateCustomerForm({ onDone }: { onDone: () => void }) {
             <FormItem>
               <FormLabel>{t('sales.customers.defaultCurrency')}</FormLabel>
               <FormControl>
-                <Input {...field} placeholder="SAR" maxLength={3} className="uppercase" />
+                <Input
+                  {...field}
+                  disabled={!multiCurrencyEnabled}
+                  placeholder="SAR"
+                  maxLength={3}
+                  className="uppercase"
+                />
               </FormControl>
+              {!multiCurrencyEnabled ? (
+                <p className="text-xs text-muted-foreground">{t('sales.customers.multiCurrencyDisabledHint')}</p>
+              ) : null}
               <FormMessage />
             </FormItem>
           )}
@@ -287,6 +324,12 @@ export function EditCustomerForm({ customer, onDone }: { customer: CustomerDto; 
   const updateCustomer = useUpdateCustomer();
   const { data: definitions, isLoading: definitionsLoading } =
     useCustomFieldDefinitions(CUSTOMER_ENTITY_TYPE);
+  // Unlike the Create form, an existing customer keeps whatever
+  // defaultCurrency it already has when Multi-Currency is off — the field
+  // is just made read-only here, never force-overwritten, so an unrelated
+  // edit (e.g. fixing a phone number) can never silently change a foreign
+  // customer's currency as a side effect.
+  const multiCurrencyEnabled = useHasFeature(MULTI_CURRENCY_FEATURE_KEY);
 
   const formSchema = useMemo(() => {
     const staticSchema = updateCustomerSchema.omit({ customFields: true });
@@ -449,8 +492,18 @@ export function EditCustomerForm({ customer, onDone }: { customer: CustomerDto; 
             <FormItem>
               <FormLabel>{t('sales.customers.defaultCurrency')}</FormLabel>
               <FormControl>
-                <Input {...field} value={field.value ?? ''} placeholder="SAR" maxLength={3} className="uppercase" />
+                <Input
+                  {...field}
+                  value={field.value ?? ''}
+                  disabled={!multiCurrencyEnabled}
+                  placeholder="SAR"
+                  maxLength={3}
+                  className="uppercase"
+                />
               </FormControl>
+              {!multiCurrencyEnabled ? (
+                <p className="text-xs text-muted-foreground">{t('sales.customers.multiCurrencyDisabledHint')}</p>
+              ) : null}
               <FormMessage />
             </FormItem>
           )}
@@ -514,6 +567,8 @@ export function EditCustomerForm({ customer, onDone }: { customer: CustomerDto; 
           {t('common.save')}
         </Button>
       </form>
+
+      <AttachmentsPanel entityType="customer" entityId={customer.id} />
     </Form>
   );
 }

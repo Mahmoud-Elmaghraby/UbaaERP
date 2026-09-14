@@ -15,6 +15,7 @@ import { InventoryModule } from './modules/inventory/inventory.module';
 import { PurchasesModule } from './modules/purchases/purchases.module';
 import { SalesModule } from './modules/sales/sales.module';
 import { AccountingModule } from './modules/accounting/accounting.module';
+import { AttachmentsModule } from './modules/attachments/attachments.module';
 
 /**
  * Root application module for the ERP API.
@@ -35,6 +36,11 @@ import { AccountingModule } from './modules/accounting/accounting.module';
  * the first genuinely financial event (purchase invoice posting).
  * SecretsEncryptionModule is wired globally starting from Sales — its
  * first consumer is ETA e-invoice credential storage (CLAUDE.md §8).
+ *
+ * AttachmentsModule (claude/attachments-strategy.md, 2026-09-12) is a
+ * shared cross-cutting feature, not owned by any single business
+ * module — registered here directly, same level as the business
+ * modules, rather than imported into one of them.
  */
 @Module({
   imports: [
@@ -57,6 +63,7 @@ import { AccountingModule } from './modules/accounting/accounting.module';
     PurchasesModule,
     SalesModule,
     AccountingModule,
+    AttachmentsModule,
   ],
   controllers: [HealthController],
   providers: [],

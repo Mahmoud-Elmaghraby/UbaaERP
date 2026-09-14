@@ -10,6 +10,9 @@ function toDomain(row: Selectable<TenantSettingsTable>): TenantSettings {
   return {
     id: row.id,
     currencyCode: row.currency_code,
+    companyName: row.company_name,
+    address: row.address,
+    taxRegistrationNumber: row.tax_registration_number,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -40,11 +43,24 @@ export class KyselyTenantSettingsRepository implements TenantSettingsRepository 
 
   async update(db: Kysely<TenantDatabase>, input: UpdateTenantSettingsInput): Promise<TenantSettings> {
     const settings = await this.getOrCreate(db);
-    if (input.currencyCode === undefined) return settings;
+    const hasChanges =
+      input.currencyCode !== undefined ||
+      input.companyName !== undefined ||
+      input.address !== undefined ||
+      input.taxRegistrationNumber !== undefined;
+    if (!hasChanges) return settings;
 
     const updated = await db
       .updateTable('tenant_settings')
-      .set({ currency_code: input.currencyCode, updated_at: sql`now()` })
+      .set({
+        ...(input.currencyCode !== undefined ? { currency_code: input.currencyCode } : {}),
+        ...(input.companyName !== undefined ? { company_name: input.companyName } : {}),
+        ...(input.address !== undefined ? { address: input.address } : {}),
+        ...(input.taxRegistrationNumber !== undefined
+          ? { tax_registration_number: input.taxRegistrationNumber }
+          : {}),
+        updated_at: sql`now()`,
+      })
       .where('id', '=', settings.id)
       .returningAll()
       .executeTakeFirstOrThrow();

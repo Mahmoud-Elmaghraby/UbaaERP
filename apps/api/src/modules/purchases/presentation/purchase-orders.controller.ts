@@ -73,10 +73,14 @@ export class PurchaseOrdersController {
     @Body(new ZodValidationPipe(createPurchaseOrderSchema)) body: CreatePurchaseOrderDto,
   ): Promise<PurchaseOrderWithLinesDto> {
     const db = this.connections.getClient(schema);
-    const order = await this.service.create(db, {
-      ...body,
-      lines: body.lines?.map((line) => ({ ...line, unitPrice: moneyFromDto(line.unitPrice) })),
-    });
+    const order = await this.service.create(
+      db,
+      {
+        ...body,
+        lines: body.lines?.map((line) => ({ ...line, unitPrice: moneyFromDto(line.unitPrice) })),
+      },
+      schema,
+    );
     this.events.publish('purchase_order', 'created', { schema, entityId: order.id, actorUserId: user.sub });
     return orderWithLinesToDto(order);
   }
@@ -89,10 +93,15 @@ export class PurchaseOrdersController {
     @Body(new ZodValidationPipe(updatePurchaseOrderSchema)) body: UpdatePurchaseOrderDto,
   ): Promise<PurchaseOrderWithLinesDto> {
     const db = this.connections.getClient(schema);
-    const order = await this.service.update(db, id, {
-      ...body,
-      lines: body.lines?.map((line) => ({ ...line, unitPrice: moneyFromDto(line.unitPrice) })),
-    });
+    const order = await this.service.update(
+      db,
+      id,
+      {
+        ...body,
+        lines: body.lines?.map((line) => ({ ...line, unitPrice: moneyFromDto(line.unitPrice) })),
+      },
+      schema,
+    );
     this.events.publish('purchase_order', 'updated', { schema, entityId: id, actorUserId: user.sub });
     return orderWithLinesToDto(order);
   }

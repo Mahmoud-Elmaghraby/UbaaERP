@@ -29,6 +29,7 @@ export * from './components/ui/form';
 export * from './components/ui/toaster';
 
 export * from './can/permissions-context';
+export * from './can/features-context';
 export * from './can/can';
 
 export * from './dynamic-form/build-custom-fields-schema';

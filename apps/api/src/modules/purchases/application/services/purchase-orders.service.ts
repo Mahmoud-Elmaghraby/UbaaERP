@@ -28,6 +28,10 @@ import {
 import { BusinessRuleError } from '../errors';
 import { entityNotFound } from '../../../../shared/errors/entity-errors';
 import { NumberingSequencesService } from '../../../settings/application/services/numbering-sequences.service';
+import { TenantSettingsService } from '../../../settings/application/services/tenant-settings.service';
+import { FeatureAvailabilityService } from '../../../../shared/plans/feature-availability.service';
+import { FEATURE_KEYS } from '../../../../shared/plans/feature-catalog';
+import { assertCurrencyAllowedForTenant } from '../../../../shared/plans/currency-gate';
 
 @Injectable()
 export class PurchaseOrdersService {
@@ -38,7 +42,26 @@ export class PurchaseOrdersService {
     @Inject(SUPPLIER_QUOTATION_REPOSITORY) private readonly quotations: SupplierQuotationRepository,
     @Inject(SUPPLIER_QUOTATION_LINE_REPOSITORY) private readonly quotationLines: SupplierQuotationLineRepository,
     private readonly numberingSequences: NumberingSequencesService,
+    private readonly tenantSettings: TenantSettingsService,
+    private readonly featureAvailability: FeatureAvailabilityService,
   ) {}
+
+  /** Shared by create()/update() — see currency-gate.ts's own comment. */
+  private async assertCurrencyAllowed(
+    db: Kysely<TenantDatabase>,
+    schema: string,
+    lineCurrency: string,
+    errorCode: string,
+  ): Promise<void> {
+    const tenantCurrency = (await this.tenantSettings.get(db)).currencyCode;
+    const multiCurrencyEnabled = await this.featureAvailability.isEnabled(db, schema, FEATURE_KEYS.MULTI_CURRENCY);
+    try {
+      assertCurrencyAllowedForTenant(lineCurrency, tenantCurrency, multiCurrencyEnabled);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      throw new BusinessRuleError(message, { code: errorCode, params: { currency: lineCurrency, tenantCurrency } });
+    }
+  }
 
   list(db: Kysely<TenantDatabase>): Promise<PurchaseOrder[]> {
     return this.orders.list(db);
@@ -102,7 +125,11 @@ export class PurchaseOrdersService {
     return { supplierId: input.supplierId, lines: input.lines };
   }
 
-  async create(db: Kysely<TenantDatabase>, input: CreatePurchaseOrderInput): Promise<PurchaseOrderWithLines> {
+  async create(
+    db: Kysely<TenantDatabase>,
+    input: CreatePurchaseOrderInput,
+    schema: string,
+  ): Promise<PurchaseOrderWithLines> {
     const { supplierId, lines } = await this.resolveSupplierAndLines(db, input);
     try {
       assertSingleCurrency(lines);
@@ -113,6 +140,12 @@ export class PurchaseOrdersService {
         params: { reason: message },
       });
     }
+    await this.assertCurrencyAllowed(
+      db,
+      schema,
+      lines[0]!.unitPrice.currency,
+      'PURCHASE_ORDER.MULTI_CURRENCY_DISABLED',
+    );
 
     let allocated;
     try {
@@ -148,6 +181,7 @@ export class PurchaseOrdersService {
     db: Kysely<TenantDatabase>,
     id: string,
     input: UpdatePurchaseOrderInput,
+    schema: string,
   ): Promise<PurchaseOrderWithLines> {
     const existing = await this.orders.findById(db, id);
     if (!existing) throw entityNotFound('PURCHASE_ORDER', id);
@@ -172,6 +206,12 @@ export class PurchaseOrdersService {
           params: { reason: message },
         });
       }
+      await this.assertCurrencyAllowed(
+        db,
+        schema,
+        input.lines[0]!.unitPrice.currency,
+        'PURCHASE_ORDER.MULTI_CURRENCY_DISABLED',
+      );
     }
 
     return db.transaction().execute(async (trx) => {

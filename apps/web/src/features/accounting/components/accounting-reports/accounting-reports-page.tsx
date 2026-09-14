@@ -6,6 +6,7 @@ import { GeneralLedgerReport } from './general-ledger-report';
 import { TrialBalanceReport } from './trial-balance-report';
 import { IncomeStatementReport } from './income-statement-report';
 import { BalanceSheetReport } from './balance-sheet-report';
+import { CashFlowReport } from './cash-flow-report';
 
 /**
  * All four reports (دفتر الأستاذ / ميزان المراجعة / قائمة الدخل / الميزانية العمومية)
@@ -29,6 +30,7 @@ export function AccountingReportsPage() {
             <TabsTrigger value="trial-balance">{t('accounting.reports.trialBalance')}</TabsTrigger>
             <TabsTrigger value="income-statement">{t('accounting.reports.incomeStatement')}</TabsTrigger>
             <TabsTrigger value="balance-sheet">{t('accounting.reports.balanceSheet')}</TabsTrigger>
+            <TabsTrigger value="cash-flow">{t('accounting.reports.cashFlow')}</TabsTrigger>
           </TabsList>
         </div>
         <TabsContent value="general-ledger">
@@ -42,6 +44,9 @@ export function AccountingReportsPage() {
         </TabsContent>
         <TabsContent value="balance-sheet">
           <BalanceSheetReport />
+        </TabsContent>
+        <TabsContent value="cash-flow">
+          <CashFlowReport />
         </TabsContent>
       </Tabs>
     </div>

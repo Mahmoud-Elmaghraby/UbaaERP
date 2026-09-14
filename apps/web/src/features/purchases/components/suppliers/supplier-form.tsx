@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useTranslation } from 'react-i18next';
@@ -26,13 +26,18 @@ import {
   Skeleton,
   Textarea,
   toast,
+  useHasFeature,
 } from '@erp-platform/ui';
 
-import { useCustomFieldDefinitions } from '../../../settings/queries';
+import { AttachmentsPanel } from '../../../attachments/components/attachments-panel';
+import { useCustomFieldDefinitions, useTenantSettings } from '../../../settings/queries';
 import { useCreateSupplier, useUpdateSupplier } from '../../api/suppliers/queries';
 import { ApiError } from '../../../../lib/api-client';
 
 const SUPPLIER_ENTITY_TYPE = 'supplier';
+
+/** See customer-form.tsx's identical constant for the full rationale. */
+const MULTI_CURRENCY_FEATURE_KEY = 'multi_currency';
 
 /** Same dynamic-custom-fields pattern as Inventory's WarehouseForm (CLAUDE.md §7). */
 export function CreateSupplierForm({ onDone }: { onDone: () => void }) {
@@ -40,6 +45,8 @@ export function CreateSupplierForm({ onDone }: { onDone: () => void }) {
   const createSupplier = useCreateSupplier();
   const { data: definitions, isLoading: definitionsLoading } =
     useCustomFieldDefinitions(SUPPLIER_ENTITY_TYPE);
+  const multiCurrencyEnabled = useHasFeature(MULTI_CURRENCY_FEATURE_KEY);
+  const { data: tenantSettings } = useTenantSettings();
 
   const formSchema = useMemo(() => {
     const staticSchema = createSupplierSchema.omit({ customFields: true });
@@ -67,6 +74,14 @@ export function CreateSupplierForm({ onDone }: { onDone: () => void }) {
       customFields: {},
     },
   });
+
+  // Multi-currency gate — see CreateCustomerForm's identical effect for
+  // the full rationale.
+  useEffect(() => {
+    if (!multiCurrencyEnabled && tenantSettings) {
+      form.setValue('defaultCurrency', tenantSettings.currencyCode);
+    }
+  }, [multiCurrencyEnabled, tenantSettings, form]);
 
   async function onSubmit(values: CreateSupplierDto) {
     try {
@@ -184,8 +199,17 @@ export function CreateSupplierForm({ onDone }: { onDone: () => void }) {
             <FormItem>
               <FormLabel>{t('purchases.suppliers.defaultCurrency')}</FormLabel>
               <FormControl>
-                <Input {...field} placeholder="SAR" maxLength={3} className="uppercase" />
+                <Input
+                  {...field}
+                  disabled={!multiCurrencyEnabled}
+                  placeholder="SAR"
+                  maxLength={3}
+                  className="uppercase"
+                />
               </FormControl>
+              {!multiCurrencyEnabled ? (
+                <p className="text-xs text-muted-foreground">{t('purchases.suppliers.multiCurrencyDisabledHint')}</p>
+              ) : null}
               <FormMessage />
             </FormItem>
           )}
@@ -258,6 +282,10 @@ export function EditSupplierForm({ supplier, onDone }: { supplier: SupplierDto; 
   const updateSupplier = useUpdateSupplier();
   const { data: definitions, isLoading: definitionsLoading } =
     useCustomFieldDefinitions(SUPPLIER_ENTITY_TYPE);
+  // See EditCustomerForm's identical comment: read-only here, never
+  // force-overwritten, so an existing foreign-currency supplier's
+  // currency never changes as a side effect of an unrelated edit.
+  const multiCurrencyEnabled = useHasFeature(MULTI_CURRENCY_FEATURE_KEY);
 
   const formSchema = useMemo(() => {
     const staticSchema = updateSupplierSchema.omit({ customFields: true });
@@ -398,8 +426,18 @@ export function EditSupplierForm({ supplier, onDone }: { supplier: SupplierDto; 
             <FormItem>
               <FormLabel>{t('purchases.suppliers.defaultCurrency')}</FormLabel>
               <FormControl>
-                <Input {...field} value={field.value ?? ''} placeholder="SAR" maxLength={3} className="uppercase" />
+                <Input
+                  {...field}
+                  value={field.value ?? ''}
+                  disabled={!multiCurrencyEnabled}
+                  placeholder="SAR"
+                  maxLength={3}
+                  className="uppercase"
+                />
               </FormControl>
+              {!multiCurrencyEnabled ? (
+                <p className="text-xs text-muted-foreground">{t('purchases.suppliers.multiCurrencyDisabledHint')}</p>
+              ) : null}
               <FormMessage />
             </FormItem>
           )}
@@ -463,6 +501,8 @@ export function EditSupplierForm({ supplier, onDone }: { supplier: SupplierDto; 
           {t('common.save')}
         </Button>
       </form>
+
+      <AttachmentsPanel entityType="supplier" entityId={supplier.id} />
     </Form>
   );
 }

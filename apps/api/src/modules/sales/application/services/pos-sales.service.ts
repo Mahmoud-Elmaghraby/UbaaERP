@@ -136,23 +136,27 @@ export class PosSalesService {
     const customerId = input.customerId ?? (await this.resolveWalkInCustomerId(db));
 
     return withTransaction(db, async (trx) => {
-      const order = await this.salesOrders.create(trx, {
-        customerId,
-        lines: input.lines.map((line) => ({
-          productVariantId: line.productVariantId,
-          quantity: line.quantity,
-          unitPrice: line.unitPrice,
-          discountType: line.discountType ?? null,
-          discountPercentage: line.discountPercentage ?? null,
-          discountFixedAmount: line.discountFixedAmount ?? null,
-          notes: line.notes ?? null,
-        })),
-        discountType: input.discountType ?? null,
-        discountPercentage: input.discountPercentage ?? null,
-        discountFixedAmount: input.discountFixedAmount ?? null,
-        notes: input.notes ?? null,
-        customFields: {},
-      });
+      const order = await this.salesOrders.create(
+        trx,
+        {
+          customerId,
+          lines: input.lines.map((line) => ({
+            productVariantId: line.productVariantId,
+            quantity: line.quantity,
+            unitPrice: line.unitPrice,
+            discountType: line.discountType ?? null,
+            discountPercentage: line.discountPercentage ?? null,
+            discountFixedAmount: line.discountFixedAmount ?? null,
+            notes: line.notes ?? null,
+          })),
+          discountType: input.discountType ?? null,
+          discountPercentage: input.discountPercentage ?? null,
+          discountFixedAmount: input.discountFixedAmount ?? null,
+          notes: input.notes ?? null,
+          customFields: {},
+        },
+        schema,
+      );
       await this.salesOrders.confirm(trx, order.id);
 
       const delivery = await this.deliveries.create(trx, {

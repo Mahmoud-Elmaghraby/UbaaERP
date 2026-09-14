@@ -28,9 +28,11 @@ import type { SalesOrderLine } from '../../domain/sales-order.entity';
 import { BusinessRuleError, isPostgresForeignKeyViolation } from '../errors';
 import { entityNotFound } from '../../../../shared/errors/entity-errors';
 import { NumberingSequencesService } from '../../../settings/application/services/numbering-sequences.service';
+import { TenantSettingsService } from '../../../settings/application/services/tenant-settings.service';
 import { OutboxWriterService } from '../../../../shared/outbox/application/services/outbox-writer.service';
 import { FeatureAvailabilityService } from '../../../../shared/plans/feature-availability.service';
 import { FEATURE_KEYS } from '../../../../shared/plans/feature-catalog';
+import { assertCurrencyAllowedForTenant } from '../../../../shared/plans/currency-gate';
 import { SalesOrdersService } from './sales-orders.service';
 import { DeliveriesService } from './deliveries.service';
 
@@ -101,6 +103,7 @@ export class SalesInvoicesService {
     @Inject(SALES_ORDER_LINE_REPOSITORY) private readonly salesOrderLines: SalesOrderLineRepository,
     @Inject(DELIVERY_LINE_REPOSITORY) private readonly deliveryLines: DeliveryLineRepository,
     private readonly numberingSequences: NumberingSequencesService,
+    private readonly tenantSettings: TenantSettingsService,
     private readonly outboxWriter: OutboxWriterService,
     private readonly featureAvailability: FeatureAvailabilityService,
     private readonly salesOrdersService: SalesOrdersService,
@@ -169,16 +172,20 @@ export class SalesInvoicesService {
             );
           }
 
-          const order = await this.salesOrdersService.create(trx, {
-            customerId: input.customerId!,
-            lines: input.directLines!.map((line) => ({
-              productVariantId: line.productVariantId,
-              quantity: line.quantity,
-              unitPrice: line.unitPrice,
-              notes: line.notes ?? null,
-            })),
-            customFields: {},
-          });
+          const order = await this.salesOrdersService.create(
+            trx,
+            {
+              customerId: input.customerId!,
+              lines: input.directLines!.map((line) => ({
+                productVariantId: line.productVariantId,
+                quantity: line.quantity,
+                unitPrice: line.unitPrice,
+                notes: line.notes ?? null,
+              })),
+              customFields: {},
+            },
+            schema,
+          );
           await this.salesOrdersService.confirm(trx, order.id);
 
           orderId = order.id;
@@ -253,6 +260,29 @@ export class SalesInvoicesService {
         } catch (err) {
           const message = err instanceof Error ? err.message : String(err);
           throw new BusinessRuleError(message, { code: 'SALES_INVOICE.MULTIPLE_CURRENCIES', params: { reason: message } });
+        }
+
+        // Multi-currency gate (claude/multi-currency-strategy.md §9): a
+        // line's currency can still differ from the tenant's own here even
+        // though the source sales order already passed this same check at
+        // its own creation — an existing-order invoice can override a
+        // line's unitPrice (see resolvedLines above), so this is re-checked
+        // against the FINAL resolved lines, not assumed from the order.
+        const invoiceCurrency = resolvedLines[0]!.unitPrice.currency;
+        const tenantCurrency = (await this.tenantSettings.get(trx)).currencyCode;
+        const multiCurrencyEnabled = await this.featureAvailability.isEnabled(
+          trx,
+          schema,
+          FEATURE_KEYS.MULTI_CURRENCY,
+        );
+        try {
+          assertCurrencyAllowedForTenant(invoiceCurrency, tenantCurrency, multiCurrencyEnabled);
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          throw new BusinessRuleError(message, {
+            code: 'SALES_INVOICE.MULTI_CURRENCY_DISABLED',
+            params: { currency: invoiceCurrency, tenantCurrency },
+          });
         }
 
         const deliveriesEnabled = await this.featureAvailability.isEnabled(

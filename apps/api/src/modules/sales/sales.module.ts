@@ -158,8 +158,10 @@ import { SalesEventPublisher } from './infrastructure/events/sales-event-publish
  *      Purchase Invoice) is a deliberately separate, not-yet-started
  *      follow-up pass.
  *
- * Imports SettingsModule for NumberingSequencesService only (exported
- * narrowly there) — same treatment as PurchasesModule; see
+ * Imports SettingsModule for NumberingSequencesService and (since
+ * 2026-09-13, the multi-currency tenant-vs-line-currency gate —
+ * claude/multi-currency-strategy.md §9) TenantSettingsService, both
+ * exported narrowly there — same treatment as PurchasesModule; see
  * PurchaseRequisitionsService's class comment for why this cross-module
  * dependency is foundational/platform, not business-module-to-business-
  * module.

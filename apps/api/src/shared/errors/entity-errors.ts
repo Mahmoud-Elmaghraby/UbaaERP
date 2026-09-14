@@ -31,6 +31,7 @@ export const ENTITY_LABELS = {
   JOURNAL_ENTRY: 'Journal entry',
   JOURNAL_ENTRY_LINE: 'Journal entry line',
   COST_CENTER: 'Cost center',
+  EXCHANGE_RATE: 'Exchange rate',
   ACCOUNTING_PERIOD: 'Accounting period',
   PURCHASE_REQUISITION: 'Purchase requisition',
   PURCHASE_ORDER: 'Purchase order',
@@ -55,6 +56,7 @@ export const ENTITY_LABELS = {
   TAX_RULE: 'Tax rule',
   USER: 'User',
   ROLE: 'Role',
+  ATTACHMENT: 'Attachment',
 } as const;
 
 export type EntityKey = keyof typeof ENTITY_LABELS;

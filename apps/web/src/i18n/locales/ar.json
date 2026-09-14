@@ -137,6 +137,10 @@
       "customFields": "حقول إضافية"
     },
     "general": {
+      "title": "الإعدادات العامة",
+      "companyName": "اسم الشركة",
+      "address": "العنوان",
+      "taxRegistrationNumber": "الرقم الضريبي",
       "currency": "العملة",
       "currencyCode": "رمز العملة",
       "currencyCodeHint": "رمز العملة الدولي المكوّن من 3 أحرف، مثل EGP",
@@ -197,6 +201,7 @@
       "noAccess": "تحتاج صلاحية إدارة الإعدادات للوصول لهذا التبويب",
       "features": {
         "accounting": "المحاسبة",
+        "multi_currency": "تعدد العملات",
         "sales": {
           "quotations": "عروض أسعار المبيعات",
           "sales_orders": "أوامر البيع",
@@ -428,6 +433,7 @@
       "address": "العنوان",
       "taxNumber": "الرقم الضريبي",
       "defaultCurrency": "العملة الافتراضية",
+      "multiCurrencyDisabledHint": "هذا الحقل مقفول لأن تعدد العملات غير مفعّل لهذا المستأجر — يمكن تفعيله من الإعدادات ← الموديولات.",
       "paymentTermsDays": "مدة السداد (أيام)",
       "notes": "ملاحظات",
       "customFields": "حقول إضافية",
@@ -736,6 +742,7 @@
       "address": "العنوان",
       "taxNumber": "الرقم الضريبي",
       "defaultCurrency": "العملة الافتراضية",
+      "multiCurrencyDisabledHint": "هذا الحقل مقفول لأن تعدد العملات غير مفعّل لهذا المستأجر — يمكن تفعيله من الإعدادات ← الموديولات.",
       "paymentTermsDays": "مدة السداد (أيام)",
       "notes": "ملاحظات",
       "customFields": "حقول إضافية",
@@ -1212,7 +1219,15 @@
       "generalLedger": "دفتر الأستاذ",
       "trialBalance": "ميزان المراجعة",
       "incomeStatement": "قائمة الدخل",
-      "balanceSheet": "الميزانية العمومية"
+      "balanceSheet": "الميزانية العمومية",
+      "cashFlow": "التدفقات النقدية",
+      "cashFlowNote": "قائمة مبسطة بالطريقة غير المباشرة (نشاط تشغيلي فقط) — تُشتق بالكامل من حسابات النقدية والبنوك المُعرَّفة بالفعل في إعدادات المحاسبة والحسابات البنكية، من غير تصنيف استثماري/تمويلي منفصل لكل حساب حتى الآن.",
+      "operatingAdjustments": "صافي الدخل والتعديلات التشغيلية",
+      "netCashFromOperations": "صافي التدفق النقدي من النشاط التشغيلي",
+      "openingCash": "رصيد النقدية الافتتاحي",
+      "closingCash": "رصيد النقدية الختامي",
+      "consistent": "متسقة مع حركة النقدية الفعلية",
+      "inconsistent": "غير متسقة — يستحق المراجعة"
     },
     "settings": {
       "title": "ربط الحسابات الافتراضية",
@@ -1297,7 +1312,8 @@
       "submit": "فتح الجلسة",
       "amountError": "قيمة مبلغ النقدية الافتتاحي غير صحيحة",
       "success": "تم فتح الجلسة بنجاح",
-      "error": "تعذّر فتح الجلسة"
+      "error": "تعذّر فتح الجلسة",
+      "currencyHint": "يتم تحديد العملة تلقائياً من إعدادات المنشأة (الإعدادات العامة) ولا يمكن تعديلها هنا."
     },
     "closeSession": {
       "trigger": "إغلاق الجلسة",
@@ -1357,5 +1373,43 @@
       "generatedAt": "تم إنشاء التقرير في",
       "refresh": "تحديث"
     }
+  },
+  "attachments": {
+    "title": "المرفقات",
+    "upload": "رفع ملف",
+    "uploading": "جارٍ الرفع...",
+    "noAttachments": "لا توجد مرفقات",
+    "fileName": "اسم الملف",
+    "size": "الحجم",
+    "uploadedAt": "تاريخ الرفع",
+    "download": "تحميل",
+    "delete": "حذف",
+    "deleteConfirm": "هل أنت متأكد من حذف هذا المرفق؟",
+    "deleteSuccess": "تم حذف المرفق بنجاح",
+    "deleteError": "تعذّر حذف المرفق",
+    "uploadSuccess": "تم رفع الملف بنجاح",
+    "uploadError": "تعذّر رفع الملف",
+    "downloadError": "تعذّر تحميل الملف",
+    "fileTooLarge": "حجم الملف يتجاوز الحد الأقصى المسموح به (10 ميجابايت)",
+    "invalidFileType": "نوع الملف غير مدعوم. الأنواع المسموح بها: PDF، JPEG، PNG، WEBP",
+    "allowedTypesHint": "الملفات المسموح بها: PDF، JPEG، PNG، WEBP (بحد أقصى 10 ميجابايت)"
+  },
+  "validation": {
+    "required": "هذا الحقل مطلوب",
+    "invalidType": "نوع القيمة غير صحيح",
+    "tooShort": "يجب ألا يقل هذا الحقل عن {{minLength}} حرف",
+    "tooLong": "يجب ألا يزيد هذا الحقل عن {{maxLength}} حرف",
+    "tooFewItems": "يجب اختيار {{minItems}} عنصر على الأقل",
+    "tooManyItems": "الحد الأقصى {{maxItems}} عنصر",
+    "numberTooSmall": "يجب ألا تقل القيمة عن {{min}}",
+    "numberTooBig": "يجب ألا تتجاوز القيمة عن {{max}}",
+    "invalidEmail": "يرجى إدخال بريد إلكتروني صحيح",
+    "invalidUrl": "يرجى إدخال رابط صحيح",
+    "invalidUuid": "يرجى اختيار قيمة صحيحة",
+    "invalidString": "قيمة غير صحيحة",
+    "invalidEnum": "يرجى اختيار قيمة من القائمة",
+    "invalidDate": "تاريخ غير صحيح",
+    "notMultipleOf": "يجب أن تكون القيمة من مضاعفات {{multipleOf}}",
+    "default": "قيمة غير صحيحة"
   }
 }

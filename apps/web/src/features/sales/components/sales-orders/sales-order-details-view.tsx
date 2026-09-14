@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import type { SalesOrderWithLinesDto } from '@erp-platform/contracts';
 import { Badge, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@erp-platform/ui';
 
+import { AttachmentsPanel } from '../../../attachments/components/attachments-panel';
 import { useCustomers } from '../../api/customers/queries';
 import { useVariantIndex } from '../../hooks/sales-orders/use-variant-index';
 import { formatMoney } from '../../../../lib/money';
@@ -101,6 +102,8 @@ export function SalesOrderDetailsView({ order }: { order: SalesOrderWithLinesDto
           ) : null}
         </TableBody>
       </Table>
+
+      <AttachmentsPanel entityType="sales_order" entityId={order.id} />
     </div>
   );
 }

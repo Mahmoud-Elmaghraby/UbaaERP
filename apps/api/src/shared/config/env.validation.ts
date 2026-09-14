@@ -50,6 +50,18 @@ const envSchema = z.object({
   // checked here if present, so an intentionally-unset key in an
   // environment that hasn't needed it yet doesn't fail boot.
   SECRETS_ENCRYPTION_KEY: z.string().min(1).optional(),
+
+  // Lazily required (only once the first attachment is uploaded) — the
+  // MinIO client factory (attachments/infrastructure/storage/minio-client.provider.ts)
+  // applies the same local-dev defaults as docker-compose.yml's own MinIO
+  // service if these are unset. Checked here only for *shape*, same
+  // reasoning as JWT_ACCESS_TTL above.
+  MINIO_ENDPOINT: z.string().min(1).optional(),
+  MINIO_PORT: z.string().regex(/^\d+$/, 'MINIO_PORT must be a positive integer.').optional(),
+  MINIO_USE_SSL: z.enum(['true', 'false']).optional(),
+  MINIO_ACCESS_KEY: z.string().min(1).optional(),
+  MINIO_SECRET_KEY: z.string().min(1).optional(),
+  MINIO_ATTACHMENTS_BUCKET: z.string().min(1).optional(),
 });
 
 export type ValidatedEnv = z.infer<typeof envSchema>;

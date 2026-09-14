@@ -5,9 +5,11 @@ import { z } from 'zod';
  * 6/7 and 3). See migration 0052's own comment for the original four
  * fields, and migration 0054's for revenueAccountId/
  * accountsPayableAccountId/purchaseExpenseAccountId (Sales/Purchases
- * invoice auto-posting), and migration 0061's for cashAccountId/
- * cashOverShortAccountId (POS feature Stage 1) — a true singleton,
- * GET+PATCH only, same shape as tenantSettingsSchema.
+ * invoice auto-posting), migration 0061's for cashAccountId/
+ * cashOverShortAccountId (POS feature Stage 1), and migration 0073's for
+ * exchangeGainLossAccountId (multi-currency Phase 1,
+ * claude/multi-currency-strategy.md) — a true singleton, GET+PATCH only,
+ * same shape as tenantSettingsSchema.
  */
 export const accountingSettingsSchema = z.object({
   id: z.string().uuid(),
@@ -20,6 +22,7 @@ export const accountingSettingsSchema = z.object({
   purchaseExpenseAccountId: z.string().uuid().nullable(),
   cashAccountId: z.string().uuid().nullable(),
   cashOverShortAccountId: z.string().uuid().nullable(),
+  exchangeGainLossAccountId: z.string().uuid().nullable(),
   createdAt: z.coerce.date(),
   updatedAt: z.coerce.date(),
 });
@@ -35,5 +38,6 @@ export const updateAccountingSettingsSchema = z.object({
   purchaseExpenseAccountId: z.string().uuid().nullable().optional(),
   cashAccountId: z.string().uuid().nullable().optional(),
   cashOverShortAccountId: z.string().uuid().nullable().optional(),
+  exchangeGainLossAccountId: z.string().uuid().nullable().optional(),
 });
 export type UpdateAccountingSettingsDto = z.infer<typeof updateAccountingSettingsSchema>;

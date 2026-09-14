@@ -25,16 +25,16 @@ import {
   type CreatePurchaseInvoiceInput,
 } from '../../domain/purchase-invoice.entity';
 import type { PurchaseOrderLine } from '../../domain/purchase-order.entity';
-import type { GoodsReceiptWithLines } from '../../domain/goods-receipt.entity';
 import { BusinessRuleError, NotFoundError, isPostgresForeignKeyViolation } from '../errors';
 import { entityNotFound } from '../../../../shared/errors/entity-errors';
 import { NumberingSequencesService } from '../../../settings/application/services/numbering-sequences.service';
+import { TenantSettingsService } from '../../../settings/application/services/tenant-settings.service';
 import { OutboxWriterService } from '../../../../shared/outbox/application/services/outbox-writer.service';
 import { FeatureAvailabilityService } from '../../../../shared/plans/feature-availability.service';
 import { FEATURE_KEYS } from '../../../../shared/plans/feature-catalog';
+import { assertCurrencyAllowedForTenant } from '../../../../shared/plans/currency-gate';
 import { PurchaseOrdersService } from './purchase-orders.service';
 import { GoodsReceiptsService } from './goods-receipts.service';
-import { PurchasesEventPublisher } from '../../infrastructure/events/purchases-event-publisher';
 
 /**
  * Purchase Invoices (master doc §10, step 3 — Purchases, Stage 7). This
@@ -97,23 +97,20 @@ import { PurchasesEventPublisher } from '../../infrastructure/events/purchases-e
  *   today, but the guard costs nothing and protects against any
  *   pre-existing receipts on the PO regardless).
  *
- * One deliberate asymmetry with the Sales side: DeliveriesService.confirm()
- * already writes 'sales.delivery.confirmed' to the Outbox itself (needed
- * for COGS auto-posting), so SalesInvoicesService.create() gets that
- * event for free just by calling it. GoodsReceiptsService.confirm() has
- * NOT been upgraded that way — it still relies on GoodsReceiptsController
- * to publish 'purchases.goods_receipt.confirmed' on the plain Event Bus
- * *after* its own transaction commits (see that controller's comment).
- * Calling goodsReceipts.confirm() directly from here would therefore
- * silently skip the one event Inventory's GoodsReceiptStockListener needs
- * to actually increase stock — a receipt marked "confirmed" in the DB
- * that never moves stock. Rather than changing GoodsReceiptsService's
- * established Event-Bus-not-Outbox design for every existing caller (a
- * bigger, separate decision), create() replicates exactly what the
- * controller would have published, once this call's own transaction has
- * actually committed (ownsTransaction — false only for a hypothetical
- * future nested caller, which does not exist today; see the
- * `withTransaction` usage below).
+ * Outbox symmetry with the Sales side (claude/next-steps-backlog.md item
+ * 2, closed): DeliveriesService.confirm() writes 'sales.delivery.confirmed'
+ * to the Outbox itself (needed for COGS auto-posting), so
+ * SalesInvoicesService.create() gets that event for free just by calling
+ * it. GoodsReceiptsService.confirm() now does the exact same thing —
+ * calling goodsReceipts.confirm(trx, ..., schema, actorUserId) here folds
+ * its Outbox write into this method's own transaction (withTransaction
+ * reuses the already-open `trx` rather than nesting), so the auto-created
+ * receipt's event is guaranteed to reach Inventory's
+ * GoodsReceiptStockListener whenever — and only when — the invoice itself
+ * actually commits. No separate publish() call is needed here any more;
+ * this used to replicate GoodsReceiptsController's post-commit publish()
+ * manually (see git history), which was the one asymmetry left between
+ * this orchestrator and its Sales sibling.
  */
 @Injectable()
 export class PurchaseInvoicesService {
@@ -124,11 +121,11 @@ export class PurchaseInvoicesService {
     @Inject(PURCHASE_ORDER_LINE_REPOSITORY) private readonly purchaseOrderLines: PurchaseOrderLineRepository,
     @Inject(GOODS_RECEIPT_LINE_REPOSITORY) private readonly goodsReceiptLines: GoodsReceiptLineRepository,
     private readonly numberingSequences: NumberingSequencesService,
+    private readonly tenantSettings: TenantSettingsService,
     private readonly outboxWriter: OutboxWriterService,
     private readonly featureAvailability: FeatureAvailabilityService,
     private readonly purchaseOrdersService: PurchaseOrdersService,
     private readonly goodsReceiptsService: GoodsReceiptsService,
-    private readonly events: PurchasesEventPublisher,
   ) {}
 
   list(db: Kysely<TenantDatabase>): Promise<PurchaseInvoice[]> {
@@ -181,14 +178,6 @@ export class PurchaseInvoicesService {
       notes: string | null | undefined;
     }
 
-    // See class comment: only the call that actually opens (and, on success,
-    // commits) the outer transaction is safe to publish the goods-receipt
-    // event after the fact. No caller passes an already-open `trx` today, so
-    // this is always true in practice — kept explicit for the same reason
-    // `withTransaction` itself exists.
-    const ownsTransaction = !db.isTransaction;
-    let autoConfirmedReceipt: GoodsReceiptWithLines | null = null;
-
     let result: PurchaseInvoiceWithLines;
     try {
       result = await withTransaction(db, async (trx) => {
@@ -209,16 +198,20 @@ export class PurchaseInvoicesService {
             );
           }
 
-          const order = await this.purchaseOrdersService.create(trx, {
-            supplierId: input.supplierId!,
-            lines: input.directLines!.map((line) => ({
-              productVariantId: line.productVariantId,
-              quantity: line.quantityInvoiced,
-              unitPrice: line.unitPrice,
-              notes: line.notes ?? null,
-            })),
-            customFields: {},
-          });
+          const order = await this.purchaseOrdersService.create(
+            trx,
+            {
+              supplierId: input.supplierId!,
+              lines: input.directLines!.map((line) => ({
+                productVariantId: line.productVariantId,
+                quantity: line.quantityInvoiced,
+                unitPrice: line.unitPrice,
+                notes: line.notes ?? null,
+              })),
+              customFields: {},
+            },
+            schema,
+          );
           await this.purchaseOrdersService.confirm(trx, order.id);
 
           poId = order.id;
@@ -301,6 +294,26 @@ export class PurchaseInvoicesService {
           });
         }
 
+        // Multi-currency gate (claude/multi-currency-strategy.md §9) — see
+        // SalesInvoicesService.create()'s identical comment for why this is
+        // re-checked here even though the source PO already passed it.
+        const invoiceCurrency = resolvedLines[0]!.unitPrice.currency;
+        const tenantCurrency = (await this.tenantSettings.get(trx)).currencyCode;
+        const multiCurrencyEnabled = await this.featureAvailability.isEnabled(
+          trx,
+          schema,
+          FEATURE_KEYS.MULTI_CURRENCY,
+        );
+        try {
+          assertCurrencyAllowedForTenant(invoiceCurrency, tenantCurrency, multiCurrencyEnabled);
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          throw new BusinessRuleError(message, {
+            code: 'PURCHASE_INVOICE.MULTI_CURRENCY_DISABLED',
+            params: { currency: invoiceCurrency, tenantCurrency },
+          });
+        }
+
         const goodsReceiptsEnabled = await this.featureAvailability.isEnabled(
           trx,
           schema,
@@ -344,7 +357,7 @@ export class PurchaseInvoicesService {
               lines: linesToReceive.map((line) => ({ ...line, notes: null })),
               customFields: {},
             });
-            autoConfirmedReceipt = await this.goodsReceiptsService.confirm(trx, receipt.id);
+            await this.goodsReceiptsService.confirm(trx, receipt.id, schema, actorUserId);
           }
         }
 
@@ -392,24 +405,6 @@ export class PurchaseInvoicesService {
         );
       }
       throw err;
-    }
-
-    if (ownsTransaction && autoConfirmedReceipt) {
-      const receipt: GoodsReceiptWithLines = autoConfirmedReceipt;
-      this.events.publish('goods_receipt', 'confirmed', {
-        schema,
-        entityId: receipt.id,
-        actorUserId,
-        metadata: {
-          purchaseOrderId: receipt.purchaseOrderId,
-          warehouseId: receipt.warehouseId,
-          lines: receipt.lines.map((line) => ({
-            productVariantId: line.productVariantId,
-            quantity: line.quantityReceived,
-            unitCost: { amountMinorUnits: line.unitCost.toMinorUnits().toString(), currency: line.unitCost.currency },
-          })),
-        },
-      });
     }
 
     return result;

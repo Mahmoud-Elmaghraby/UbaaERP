@@ -1,9 +1,14 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
+import type { Kysely } from 'kysely';
+import { Money } from '@erp-platform/shared-kernel';
+import type { TenantDatabase } from '../../../../database/tenant/kysely-client';
 import { TenantConnectionManager } from '../../../../shared/tenancy/tenant-connection-manager';
 import type { DomainEventPayload } from '../../../../shared/events/domain-event';
+import { TenantSettingsService } from '../../../settings/application/services/tenant-settings.service';
 import { JournalEntriesService } from '../../application/services/journal-entries.service';
 import { AccountingSettingsService } from '../../application/services/accounting-settings.service';
+import { CurrencyConversionService } from '../../application/services/currency-conversion.service';
 import { BusinessRuleError } from '../../application/errors';
 import type { CreateJournalEntryLineInput } from '../../domain/journal-entry.entity';
 
@@ -30,7 +35,14 @@ interface SalesCreditNoteIssuedMetadata {
   totalAmount: { amountMinorUnits: string; currency: string };
 }
 
-/** Shared shape of SalesInvoicesService.post()'s and PurchaseInvoicesService.post()'s outbox metadata — only totalAmount is actually needed here. */
+/**
+ * Shared shape of SalesInvoicesService.post()'s and
+ * PurchaseInvoicesService.post()'s outbox metadata — only totalAmount is
+ * actually needed here. `totalAmount.currency` is the invoice's own
+ * currency (Customer/Supplier.defaultCurrency at the time it was
+ * created — see currency-gate.ts) and is NOT assumed to already equal
+ * the tenant's ledger currency; see convertToTenantCurrency() below.
+ */
 interface InvoicePostedMetadata {
   totalAmount: { amountMinorUnits: string; currency: string };
 }
@@ -71,6 +83,24 @@ interface PosSessionClosedMetadata {
  * throw this until a tenant admin configures purchaseExpenseAccountId
  * by hand — see AccountingSettings' own comment on why that one field
  * is never auto-populated.
+ *
+ * Multi-currency Phase 3 (claude/multi-currency-strategy.md §1's
+ * critical finding, closed here): the three handlers whose source
+ * amount can legitimately carry a currency other than the tenant's own
+ * (sales/purchase invoice posting, and a sales credit note issued
+ * against a foreign-currency invoice) now route through
+ * convertToTenantCurrency() before building any journal line, instead
+ * of feeding the raw source-document amount straight into
+ * debit/creditAmountMinorUnits as if it were already the tenant's
+ * currency. The other three handlers (stock consumption/restoration,
+ * POS cash variance) are deliberately left untouched — their source
+ * amounts are inventory cost basis and physical cash, never a document
+ * currency a customer/supplier chose, so they were never exposed to
+ * this bug (see convertToTenantCurrency()'s own comment for the one
+ * currently-open question this doesn't cover: whether a foreign-
+ * currency Purchase Order/Invoice could itself skew Inventory's
+ * weighted-average cost basis before it ever reaches this class —
+ * flagged, not fixed, in claude/next-steps-backlog.md).
  */
 @Injectable()
 export class AccountingAutoPostingListeners {
@@ -80,7 +110,56 @@ export class AccountingAutoPostingListeners {
     private readonly connections: TenantConnectionManager,
     private readonly journalEntries: JournalEntriesService,
     private readonly accountingSettings: AccountingSettingsService,
+    private readonly tenantSettings: TenantSettingsService,
+    private readonly currencyConversion: CurrencyConversionService,
   ) {}
+
+  /**
+   * Converts a source document's amount into the tenant's own ledger
+   * currency before it's used in any journal line — the fix for this
+   * class's own long-flagged critical bug (claude/multi-currency-
+   * strategy.md §1): previously every handler fed a source amount
+   * straight into debit/creditAmountMinorUnits assuming it was already
+   * in the tenant's currency, silently mis-posting any foreign-currency
+   * invoice at face value with no conversion and no error.
+   *
+   * For the overwhelming majority of tenants (multi-currency left off,
+   * per its own default — see currency-gate.ts) `amount.currency`
+   * already equals the tenant's currency, and CurrencyConversionService
+   * .convert() short-circuits to a no-op (rate "1") in that case — this
+   * call is safe to make unconditionally rather than branching on
+   * whether the currencies already match.
+   *
+   * `asOfDate` is deliberately the source event's own occurredAt date
+   * (the same date already used for the journal entry itself), not
+   * "today" — this is what locks the conversion to the moment the
+   * source document was actually posted, matching SAP B1/Wafeq's own
+   * documented behavior (strategy doc §3.1/§3.2), even if the Outbox
+   * dispatcher happens to process this event somewhat later. When no
+   * rate covers that date, this throws EXCHANGE_RATE.NOT_AVAILABLE
+   * (via CurrencyConversionService) and propagates exactly like a
+   * missing account mapping does elsewhere in this class — a visible,
+   * retry-then-fail-loud outcome, never a silent guess.
+   */
+  private async convertToTenantCurrency(
+    db: Kysely<TenantDatabase>,
+    amount: { amountMinorUnits: string; currency: string },
+    asOfDate: string,
+  ): Promise<{ amountMinorUnits: string; tenantCurrency: string; wasConverted: boolean }> {
+    const tenantSettings = await this.tenantSettings.get(db);
+    const sourceAmount = Money.fromMinorUnits(BigInt(amount.amountMinorUnits), amount.currency);
+    const { convertedAmount } = await this.currencyConversion.convert(
+      db,
+      sourceAmount,
+      tenantSettings.currencyCode,
+      asOfDate,
+    );
+    return {
+      amountMinorUnits: convertedAmount.toMinorUnits().toString(),
+      tenantCurrency: tenantSettings.currencyCode,
+      wasConverted: amount.currency !== tenantSettings.currencyCode,
+    };
+  }
 
   /** COGS recognition: debit COGS, credit Inventory. */
   @OnEvent('inventory.stock_consumption.recorded')
@@ -184,22 +263,32 @@ export class AccountingAutoPostingListeners {
       );
     }
 
+    const entryDate = payload.occurredAt.toISOString().slice(0, 10);
+    const { amountMinorUnits, tenantCurrency, wasConverted } = await this.convertToTenantCurrency(
+      db,
+      metadata.totalAmount,
+      entryDate,
+    );
+
     const lines: CreateJournalEntryLineInput[] = [
       {
         accountId: settings.salesReturnsContraAccountId,
-        debitAmountMinorUnits: metadata.totalAmount.amountMinorUnits,
+        debitAmountMinorUnits: amountMinorUnits,
         creditAmountMinorUnits: '0',
       },
       {
         accountId: settings.accountsReceivableAccountId,
         debitAmountMinorUnits: '0',
-        creditAmountMinorUnits: metadata.totalAmount.amountMinorUnits,
+        creditAmountMinorUnits: amountMinorUnits,
       },
     ];
 
     await this.journalEntries.createAuto(db, {
-      entryDate: payload.occurredAt.toISOString().slice(0, 10),
-      description: `Sales credit note revenue reversal — sales return ${metadata.salesReturnId}`,
+      entryDate,
+      description: wasConverted
+        ? `Sales credit note revenue reversal — sales return ${metadata.salesReturnId} ` +
+          `(${metadata.totalAmount.currency} converted to ${tenantCurrency})`
+        : `Sales credit note revenue reversal — sales return ${metadata.salesReturnId}`,
       lines,
       sourceReferenceType: 'sales_credit_note',
       sourceReferenceId: payload.entityId,
@@ -232,22 +321,31 @@ export class AccountingAutoPostingListeners {
       );
     }
 
+    const entryDate = payload.occurredAt.toISOString().slice(0, 10);
+    const { amountMinorUnits, tenantCurrency, wasConverted } = await this.convertToTenantCurrency(
+      db,
+      metadata.totalAmount,
+      entryDate,
+    );
+
     const lines: CreateJournalEntryLineInput[] = [
       {
         accountId: settings.accountsReceivableAccountId,
-        debitAmountMinorUnits: metadata.totalAmount.amountMinorUnits,
+        debitAmountMinorUnits: amountMinorUnits,
         creditAmountMinorUnits: '0',
       },
       {
         accountId: settings.revenueAccountId,
         debitAmountMinorUnits: '0',
-        creditAmountMinorUnits: metadata.totalAmount.amountMinorUnits,
+        creditAmountMinorUnits: amountMinorUnits,
       },
     ];
 
     await this.journalEntries.createAuto(db, {
-      entryDate: payload.occurredAt.toISOString().slice(0, 10),
-      description: `Sales invoice revenue — invoice ${payload.entityId}`,
+      entryDate,
+      description: wasConverted
+        ? `Sales invoice revenue — invoice ${payload.entityId} (${metadata.totalAmount.currency} converted to ${tenantCurrency})`
+        : `Sales invoice revenue — invoice ${payload.entityId}`,
       lines,
       sourceReferenceType: 'sales_invoice',
       sourceReferenceId: payload.entityId,
@@ -283,22 +381,31 @@ export class AccountingAutoPostingListeners {
       );
     }
 
+    const entryDate = payload.occurredAt.toISOString().slice(0, 10);
+    const { amountMinorUnits, tenantCurrency, wasConverted } = await this.convertToTenantCurrency(
+      db,
+      metadata.totalAmount,
+      entryDate,
+    );
+
     const lines: CreateJournalEntryLineInput[] = [
       {
         accountId: settings.purchaseExpenseAccountId,
-        debitAmountMinorUnits: metadata.totalAmount.amountMinorUnits,
+        debitAmountMinorUnits: amountMinorUnits,
         creditAmountMinorUnits: '0',
       },
       {
         accountId: settings.accountsPayableAccountId,
         debitAmountMinorUnits: '0',
-        creditAmountMinorUnits: metadata.totalAmount.amountMinorUnits,
+        creditAmountMinorUnits: amountMinorUnits,
       },
     ];
 
     await this.journalEntries.createAuto(db, {
-      entryDate: payload.occurredAt.toISOString().slice(0, 10),
-      description: `Purchase invoice expense — invoice ${payload.entityId}`,
+      entryDate,
+      description: wasConverted
+        ? `Purchase invoice expense — invoice ${payload.entityId} (${metadata.totalAmount.currency} converted to ${tenantCurrency})`
+        : `Purchase invoice expense — invoice ${payload.entityId}`,
       lines,
       sourceReferenceType: 'purchase_invoice',
       sourceReferenceId: payload.entityId,

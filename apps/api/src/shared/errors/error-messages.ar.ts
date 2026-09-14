@@ -155,6 +155,8 @@ export const AR_MESSAGES: Record<string, string> = {
     'عرض سعر المورد "{id}" في حالة "{status}"، وليس "مختار" — لا يمكن إنشاء أمر شراء إلا من عرض سعر تم اختياره.',
   'PURCHASE_ORDER.MISSING_SOURCE': 'يجب تحديد عرض سعر مصدر، أو مورّد مع سطر واحد على الأقل، لإنشاء أمر شراء.',
   'PURCHASE_ORDER.MULTIPLE_CURRENCIES': 'تعذّر إنشاء المستند: {reason}',
+  'PURCHASE_ORDER.MULTI_CURRENCY_DISABLED':
+    'لا يمكن استخدام عملة "{currency}" لأن عملة هذا المستأجر هي "{tenantCurrency}" — يجب تفعيل تعدد العملات من الإعدادات ← الموديولات أولًا.',
   'PURCHASE_ORDER.NO_NUMBERING_SEQUENCE':
     'لا يوجد تسلسل ترقيم مُعد لأوامر الشراء بعد. يرجى إنشاء تسلسل لنوع المستند "purchase_order" من الإعدادات ← تسلسلات الترقيم أولاً.',
   'PURCHASE_ORDER.NOT_EDITABLE': 'أمر الشراء "{id}" في حالة "{status}" ولم يعد قابلاً للتعديل.',
@@ -209,6 +211,8 @@ export const AR_MESSAGES: Record<string, string> = {
   'PURCHASE_INVOICE.QUANTITY_EXCEEDS_REMAINING':
     'لا يمكن إصدار فاتورة بكمية {quantityInvoiced} مقابل سطر أمر الشراء "{lineId}" — المتبقي القابل للفوترة {remaining} فقط (الكمية المطلوبة {ordered}، تم فوترة {invoiced} سابقًا).',
   'PURCHASE_INVOICE.MULTIPLE_CURRENCIES': 'تعذّر إنشاء المستند: {reason}',
+  'PURCHASE_INVOICE.MULTI_CURRENCY_DISABLED':
+    'لا يمكن استخدام عملة "{currency}" لأن عملة هذا المستأجر هي "{tenantCurrency}" — يجب تفعيل تعدد العملات من الإعدادات ← الموديولات أولًا.',
   'PURCHASE_INVOICE.WAREHOUSE_REQUIRED':
     'ميزة أذون استلام البضاعة معطّلة لهذا المستأجر، لذا يجب أن تسجّل هذه الفاتورة حركة المخزون التي كان سيسجلها إذن الاستلام — يرجى تحديد المستودع (warehouseId).',
   'PURCHASE_INVOICE.SOURCE_NOT_FOUND': 'أمر الشراء أو سطره أو المورّد أو المستودع المحدد غير موجود.',
@@ -226,6 +230,8 @@ export const AR_MESSAGES: Record<string, string> = {
   'ETA_CREDENTIALS.MISSING_REQUIRED_FIELDS': 'لا يمكن تفعيل الفوترة الإلكترونية (ETA): الحقول التالية ناقصة: {missing}.',
   'QUOTATION.AT_LEAST_ONE_LINE_REQUIRED': 'يجب أن يحتوي عرض السعر على سطر واحد على الأقل.',
   'QUOTATION.MULTIPLE_CURRENCIES': 'تعذّر إنشاء المستند: {reason}',
+  'QUOTATION.MULTI_CURRENCY_DISABLED':
+    'لا يمكن استخدام عملة "{currency}" لأن عملة هذا المستأجر هي "{tenantCurrency}" — يجب تفعيل تعدد العملات من الإعدادات ← الموديولات أولًا.',
   'QUOTATION.NO_NUMBERING_SEQUENCE':
     'لا يوجد تسلسل ترقيم مُعد لعروض الأسعار بعد. يرجى إنشاء تسلسل لنوع المستند "quotation" من الإعدادات ← تسلسلات الترقيم أولاً.',
   'QUOTATION.NOT_EDITABLE': 'عرض السعر "{id}" في حالة "{status}" ولم يعد قابلاً للتعديل.',
@@ -238,6 +244,8 @@ export const AR_MESSAGES: Record<string, string> = {
     'عرض السعر "{id}" في حالة "{status}"، وليس "مقبول" — لا يمكن إنشاء أمر بيع إلا من عرض سعر مقبول.',
   'SALES_ORDER.MISSING_SOURCE': 'يجب تحديد عرض سعر مصدر، أو عميل مع سطر واحد على الأقل، لإنشاء أمر بيع.',
   'SALES_ORDER.MULTIPLE_CURRENCIES': 'تعذّر إنشاء المستند: {reason}',
+  'SALES_ORDER.MULTI_CURRENCY_DISABLED':
+    'لا يمكن استخدام عملة "{currency}" لأن عملة هذا المستأجر هي "{tenantCurrency}" — يجب تفعيل تعدد العملات من الإعدادات ← الموديولات أولًا.',
   'SALES_ORDER.NO_NUMBERING_SEQUENCE':
     'لا يوجد تسلسل ترقيم مُعد لأوامر البيع بعد. يرجى إنشاء تسلسل لنوع المستند "sales_order" من الإعدادات ← تسلسلات الترقيم أولاً.',
   'SALES_ORDER.INVALID_DISCOUNT': 'تعذّر تطبيق الخصم: {reason}',
@@ -328,6 +336,8 @@ export const AR_MESSAGES: Record<string, string> = {
   'SALES_INVOICE.QUANTITY_EXCEEDS_REMAINING':
     'لا يمكن إصدار فاتورة بكمية {quantityInvoiced} مقابل سطر أمر البيع "{lineId}" — المتبقي القابل للفوترة {remaining} فقط (الكمية المطلوبة {ordered}، تم فوترة {invoiced} سابقًا).',
   'SALES_INVOICE.MULTIPLE_CURRENCIES': 'تعذّر إنشاء المستند: {reason}',
+  'SALES_INVOICE.MULTI_CURRENCY_DISABLED':
+    'لا يمكن استخدام عملة "{currency}" لأن عملة هذا المستأجر هي "{tenantCurrency}" — يجب تفعيل تعدد العملات من الإعدادات ← الموديولات أولًا.',
   'SALES_INVOICE.WAREHOUSE_REQUIRED':
     'ميزة أذون التسليم معطّلة لهذا المستأجر، لذا يجب أن تسجّل هذه الفاتورة حركة المخزون التي كان سيسجلها إذن التسليم — يرجى تحديد المستودع (warehouseId).',
   'SALES_INVOICE.SOURCE_NOT_FOUND': 'أمر البيع أو سطره أو العميل أو المستودع المحدد غير موجود.',
@@ -381,6 +391,13 @@ export const AR_MESSAGES: Record<string, string> = {
   'JOURNAL_ENTRY.NOT_DELETABLE': 'القيد المحاسبي "{entryNumber}" في حالة "{status}" ولا يمكن حذفه.',
   'JOURNAL_ENTRY.AUTO_ALREADY_PROCESSED':
     'القيد المحاسبي "{entryNumber}" (المُنشأ تلقائيًا لـ {sourceReferenceType} "{sourceReferenceId}") في حالة "{status}" — لا يمكن ترحيله تلقائيًا مرة أخرى.',
+  'EXCHANGE_RATE.NOT_FOUND': 'سعر الصرف غير موجود.',
+  'EXCHANGE_RATE.INVALID_CURRENCY_CODE': 'يجب أن يتكون رمز العملة من ثلاثة أحرف إنجليزية كبيرة وفق معيار ISO 4217.',
+  'EXCHANGE_RATE.SAME_CURRENCY': 'لا يمكن أن يكون لعملة سعر صرف مقابل نفسها.',
+  'EXCHANGE_RATE.RATE_NOT_POSITIVE': 'يجب أن يكون سعر الصرف رقمًا موجبًا.',
+  'EXCHANGE_RATE.DUPLICATE_FOR_DATE': 'يوجد بالفعل سعر صرف من {from} إلى {to} بتاريخ {date}.',
+  'EXCHANGE_RATE.NOT_AVAILABLE': 'لا يوجد سعر صرف متاح لتحويل {from} إلى {to} بتاريخ {date}.',
+  'EXCHANGE_RATE.MULTI_CURRENCY_DISABLED': 'تعدد العملات غير مفعّل لهذا المستأجر — يجب تفعيله من الإعدادات ← الموديولات أولًا.',
 
   // ---- Users & Permissions module ----
   'USER.DUPLICATE_EMAIL': 'يوجد مستخدم آخر بنفس البريد الإلكتروني "{value}" بالفعل.',

@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import type {
   BalanceSheetReportDto,
+  CashFlowReportDto,
   GeneralLedgerReportDto,
   IncomeStatementReportDto,
   TrialBalanceReportDto,
@@ -62,5 +63,17 @@ export function useBalanceSheetReport(asOfDate: string | undefined) {
     queryFn: () =>
       apiGet<BalanceSheetReportDto>(`/accounting-reports/balance-sheet?asOfDate=${asOfDate}`),
     enabled: Boolean(asOfDate),
+  });
+}
+
+export function useCashFlowReport(params: { fromDate: string | undefined; toDate: string | undefined }) {
+  const { fromDate, toDate } = params;
+  return useQuery({
+    queryKey: ['accounting-reports', 'cash-flow-statement', fromDate, toDate],
+    queryFn: () =>
+      apiGet<CashFlowReportDto>(
+        `/accounting-reports/cash-flow-statement?fromDate=${fromDate}&toDate=${toDate}`,
+      ),
+    enabled: Boolean(fromDate) && Boolean(toDate),
   });
 }

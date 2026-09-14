@@ -87,3 +87,36 @@ export interface BalanceSheetReport {
   totalEquity: Money;
   isBalanced: boolean;
 }
+
+export interface CashFlowRow {
+  accountId: string;
+  accountCode: string;
+  accountName: string;
+  /** Already flipped to its cash EFFECT, not the raw balance change — see AccountingReportsService.cashFlowStatement(). */
+  changeAmount: Money;
+}
+
+/**
+ * قائمة التدفقات النقدية — indirect method, single "operating activities"
+ * section. See AccountingReportsService.cashFlowStatement() for the full
+ * reasoning: this platform has no chart-of-accounts field yet classifying
+ * an account as operating/investing/financing, so a traditional
+ * three-section statement isn't honestly derivable from today's data —
+ * building one would mean inventing a new domain concept, which this
+ * report deliberately avoids (see claude/competitive-differentiation-strategy.md,
+ * 2026-09-12, which flagged this as "likely derivable from existing GL
+ * data" only for the simpler reconciliation shape below).
+ */
+export interface CashFlowReport {
+  fromDate: string;
+  toDate: string;
+  currency: string;
+  netIncome: Money;
+  /** Every non-cash asset/liability/equity account whose balance moved during the period, signed by its cash EFFECT (an asset increase is a use of cash, shown negative). */
+  adjustments: CashFlowRow[];
+  netCashFromOperations: Money;
+  openingCash: Money;
+  closingCash: Money;
+  /** netIncome + sum(adjustments) should equal closingCash - openingCash — false flags a real inconsistency worth investigating, same spirit as TrialBalanceReport.isBalanced. */
+  isConsistent: boolean;
+}

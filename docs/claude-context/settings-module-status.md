@@ -151,4 +151,3 @@ The user raised expanding scope into vertical-specific industry support (real es
 - `cmd.exe` drive-switching gotcha: `cd M:\Projects\erp-platform` from a `C:\...` prompt does NOT switch drives — use `cd /d M:\Projects\erp-platform`.
 - `git config --global --add safe.directory M:/Projects/erp-platform` is required and already set.
 - On Windows, prefer `powershell -Command "..."` over `cmd.exe`'s `curl` for JSON POST testing.
-</content>

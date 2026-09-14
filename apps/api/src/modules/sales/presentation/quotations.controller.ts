@@ -73,10 +73,14 @@ export class QuotationsController {
     @Body(new ZodValidationPipe(createQuotationSchema)) body: CreateQuotationDto,
   ): Promise<QuotationWithLinesDto> {
     const db = this.connections.getClient(schema);
-    const quotation = await this.service.create(db, {
-      ...body,
-      lines: body.lines.map((line) => ({ ...line, unitPrice: moneyFromDto(line.unitPrice) })),
-    });
+    const quotation = await this.service.create(
+      db,
+      {
+        ...body,
+        lines: body.lines.map((line) => ({ ...line, unitPrice: moneyFromDto(line.unitPrice) })),
+      },
+      schema,
+    );
     this.events.publish('quotation', 'created', { schema, entityId: quotation.id, actorUserId: user.sub });
     return quotationWithLinesToDto(quotation);
   }
@@ -89,10 +93,15 @@ export class QuotationsController {
     @Body(new ZodValidationPipe(updateQuotationSchema)) body: UpdateQuotationDto,
   ): Promise<QuotationWithLinesDto> {
     const db = this.connections.getClient(schema);
-    const quotation = await this.service.update(db, id, {
-      ...body,
-      lines: body.lines?.map((line) => ({ ...line, unitPrice: moneyFromDto(line.unitPrice) })),
-    });
+    const quotation = await this.service.update(
+      db,
+      id,
+      {
+        ...body,
+        lines: body.lines?.map((line) => ({ ...line, unitPrice: moneyFromDto(line.unitPrice) })),
+      },
+      schema,
+    );
     this.events.publish('quotation', 'updated', { schema, entityId: id, actorUserId: user.sub });
     return quotationWithLinesToDto(quotation);
   }

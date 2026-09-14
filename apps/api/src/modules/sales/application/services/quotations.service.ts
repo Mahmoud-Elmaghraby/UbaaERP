@@ -16,6 +16,10 @@ import {
 import { BusinessRuleError } from '../errors';
 import { entityNotFound } from '../../../../shared/errors/entity-errors';
 import { NumberingSequencesService } from '../../../settings/application/services/numbering-sequences.service';
+import { TenantSettingsService } from '../../../settings/application/services/tenant-settings.service';
+import { FeatureAvailabilityService } from '../../../../shared/plans/feature-availability.service';
+import { FEATURE_KEYS } from '../../../../shared/plans/feature-catalog';
+import { assertCurrencyAllowedForTenant } from '../../../../shared/plans/currency-gate';
 
 @Injectable()
 export class QuotationsService {
@@ -24,7 +28,26 @@ export class QuotationsService {
     @Inject(QUOTATION_LINE_REPOSITORY) private readonly lines: QuotationLineRepository,
     @Inject(CUSTOMER_REPOSITORY) private readonly customers: CustomerRepository,
     private readonly numberingSequences: NumberingSequencesService,
+    private readonly tenantSettings: TenantSettingsService,
+    private readonly featureAvailability: FeatureAvailabilityService,
   ) {}
+
+  /** Shared by create()/update() — see currency-gate.ts's own comment. */
+  private async assertCurrencyAllowed(
+    db: Kysely<TenantDatabase>,
+    schema: string,
+    lineCurrency: string,
+    errorCode: string,
+  ): Promise<void> {
+    const tenantCurrency = (await this.tenantSettings.get(db)).currencyCode;
+    const multiCurrencyEnabled = await this.featureAvailability.isEnabled(db, schema, FEATURE_KEYS.MULTI_CURRENCY);
+    try {
+      assertCurrencyAllowedForTenant(lineCurrency, tenantCurrency, multiCurrencyEnabled);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      throw new BusinessRuleError(message, { code: errorCode, params: { currency: lineCurrency, tenantCurrency } });
+    }
+  }
 
   list(db: Kysely<TenantDatabase>): Promise<Quotation[]> {
     return this.quotations.list(db);
@@ -37,7 +60,11 @@ export class QuotationsService {
     return { ...quotation, lines, totalAmount: calculateQuotationTotal(lines) };
   }
 
-  async create(db: Kysely<TenantDatabase>, input: CreateQuotationInput): Promise<QuotationWithLines> {
+  async create(
+    db: Kysely<TenantDatabase>,
+    input: CreateQuotationInput,
+    schema: string,
+  ): Promise<QuotationWithLines> {
     if (input.lines.length === 0) {
       throw new BusinessRuleError('A quotation must have at least one line.', {
         code: 'QUOTATION.AT_LEAST_ONE_LINE_REQUIRED',
@@ -49,6 +76,12 @@ export class QuotationsService {
       const message = err instanceof Error ? err.message : String(err);
       throw new BusinessRuleError(message, { code: 'QUOTATION.MULTIPLE_CURRENCIES', params: { reason: message } });
     }
+    await this.assertCurrencyAllowed(
+      db,
+      schema,
+      input.lines[0]!.unitPrice.currency,
+      'QUOTATION.MULTI_CURRENCY_DISABLED',
+    );
 
     const customer = await this.customers.findById(db, input.customerId);
     if (!customer) throw entityNotFound('CUSTOMER', input.customerId);
@@ -82,7 +115,12 @@ export class QuotationsService {
     });
   }
 
-  async update(db: Kysely<TenantDatabase>, id: string, input: UpdateQuotationInput): Promise<QuotationWithLines> {
+  async update(
+    db: Kysely<TenantDatabase>,
+    id: string,
+    input: UpdateQuotationInput,
+    schema: string,
+  ): Promise<QuotationWithLines> {
     const existing = await this.quotations.findById(db, id);
     if (!existing) throw entityNotFound('QUOTATION', id);
     if (existing.status !== 'draft') {
@@ -103,6 +141,12 @@ export class QuotationsService {
         const message = err instanceof Error ? err.message : String(err);
         throw new BusinessRuleError(message, { code: 'QUOTATION.MULTIPLE_CURRENCIES', params: { reason: message } });
       }
+      await this.assertCurrencyAllowed(
+        db,
+        schema,
+        input.lines[0]!.unitPrice.currency,
+        'QUOTATION.MULTI_CURRENCY_DISABLED',
+      );
     }
 
     return db.transaction().execute(async (trx) => {

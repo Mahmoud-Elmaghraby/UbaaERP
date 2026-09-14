@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import type { PurchaseOrderWithLinesDto } from '@erp-platform/contracts';
 import { Badge, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@erp-platform/ui';
 
+import { AttachmentsPanel } from '../../../attachments/components/attachments-panel';
 import { useSuppliers } from '../../api/suppliers/queries';
 import { useVariantIndex } from '../../hooks/purchase-orders/use-variant-index';
 import { formatMoney } from '../../../../lib/money';
@@ -80,6 +81,8 @@ export function PurchaseOrderDetailsView({ order }: { order: PurchaseOrderWithLi
           ) : null}
         </TableBody>
       </Table>
+
+      <AttachmentsPanel entityType="purchase_order" entityId={order.id} />
     </div>
   );
 }

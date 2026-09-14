@@ -10,6 +10,8 @@ import {
 } from '../ports/journal-entry-line.repository';
 import { ACCOUNTING_PERIOD_REPOSITORY, type AccountingPeriodRepository } from '../ports/accounting-period.repository';
 import { FISCAL_YEAR_REPOSITORY, type FiscalYearRepository } from '../ports/fiscal-year.repository';
+import { ACCOUNTING_SETTINGS_REPOSITORY, type AccountingSettingsRepository } from '../ports/accounting-settings.repository';
+import { BANK_ACCOUNT_REPOSITORY, type BankAccountRepository } from '../ports/bank-account.repository';
 import type { ChartOfAccount } from '../../domain/chart-of-account.entity';
 import type {
   GeneralLedgerReport,
@@ -19,6 +21,8 @@ import type {
   IncomeStatementReport,
   IncomeStatementRow,
   BalanceSheetReport,
+  CashFlowReport,
+  CashFlowRow,
 } from '../../domain/accounting-report.entity';
 import { entityNotFound } from '../../../../shared/errors/entity-errors';
 import { TenantSettingsService } from '../../../settings/application/services/tenant-settings.service';
@@ -50,6 +54,8 @@ export class AccountingReportsService {
     @Inject(JOURNAL_ENTRY_LINE_REPOSITORY) private readonly journalEntryLines: JournalEntryLineRepository,
     @Inject(ACCOUNTING_PERIOD_REPOSITORY) private readonly accountingPeriods: AccountingPeriodRepository,
     @Inject(FISCAL_YEAR_REPOSITORY) private readonly fiscalYears: FiscalYearRepository,
+    @Inject(ACCOUNTING_SETTINGS_REPOSITORY) private readonly accountingSettings: AccountingSettingsRepository,
+    @Inject(BANK_ACCOUNT_REPOSITORY) private readonly bankAccounts: BankAccountRepository,
     private readonly tenantSettings: TenantSettingsService,
   ) {}
 
@@ -243,6 +249,113 @@ export class AccountingReportsService {
       currentYearEarnings,
       totalEquity,
       isBalanced: assets.total.equals(liabilities.total.add(totalEquity)),
+    };
+  }
+
+  /**
+   * قائمة التدفقات النقدية — indirect method, "operating activities" only.
+   * See CashFlowReport's own doc comment for why this is one section, not
+   * three: this platform has no operating/investing/financing
+   * classification on chart_of_accounts, and adding one is a real new
+   * domain concept, not a quick report — deliberately out of scope here.
+   *
+   * "Cash and cash equivalents" is taken from data that already exists,
+   * rather than a new "is this a cash account" flag: AccountingSettings'
+   * own designated cashAccountId (Stage 6, used for POS Cash Over/Short)
+   * plus every active BankAccount's linked GL account (Stage 5) — exactly
+   * the accounts a tenant has told this platform represent cash on hand
+   * or in a bank.
+   *
+   * Every non-cash asset/liability/equity account's balance MOVEMENT
+   * during the period (not its cumulative balance) is its own cash
+   * adjustment line: an increase in a non-cash asset consumes cash
+   * (negated), while an increase in a liability or equity balance is a
+   * source of cash (kept as-is) — the standard indirect-method sign
+   * flip, applied per categoryCanonicalSide(). netIncome plus every
+   * adjustment should reconcile exactly to the change in cash balances
+   * over the same period; isConsistent checks that independently
+   * computed opening/closing cash agree, the same "compute two ways and
+   * assert" discipline as TrialBalanceReport.isBalanced.
+   */
+  async cashFlowStatement(db: Kysely<TenantDatabase>, fromDate: string, toDate: string): Promise<CashFlowReport> {
+    const currency = (await this.tenantSettings.get(db)).currencyCode;
+
+    const settings = await this.accountingSettings.getOrCreate(db);
+    const activeBankAccounts = await this.bankAccounts.list(db, { isActive: true });
+    const cashAccountIds = Array.from(
+      new Set(
+        [settings.cashAccountId, ...activeBankAccounts.map((b) => b.chartOfAccountId)].filter(
+          (id): id is string => id !== null,
+        ),
+      ),
+    );
+
+    const netIncome = (await this.incomeStatement(db, fromDate, toDate)).netIncome;
+
+    const allAccounts = await this.accounts.list(db);
+    const nonCashAccounts = allAccounts.filter(
+      (a) =>
+        !a.isGroup &&
+        (a.accountType === 'asset' || a.accountType === 'liability' || a.accountType === 'equity') &&
+        !cashAccountIds.includes(a.id),
+    );
+    const periodSums = await this.journalEntryLines.sumPostedByAccounts(
+      db,
+      nonCashAccounts.map((a) => a.id),
+      fromDate,
+      toDate,
+    );
+
+    const adjustments: CashFlowRow[] = [];
+    let netCashFromOperations = netIncome;
+    for (const account of nonCashAccounts) {
+      const totals = periodSums[account.id];
+      if (!totals) continue;
+      const { debit, credit } = this.moneyFromTotals(totals, currency);
+      const side = categoryCanonicalSide(account.accountType);
+      const change = side === 'debit' ? debit.subtract(credit) : credit.subtract(debit);
+      if (change.isZero()) continue;
+      // Asset increase -> use of cash (flip sign). Liability/equity
+      // increase -> source of cash (keep as-is).
+      const cashEffect = account.accountType === 'asset' ? Money.zero(currency).subtract(change) : change;
+      adjustments.push({
+        accountId: account.id,
+        accountCode: account.code,
+        accountName: account.name,
+        changeAmount: cashEffect,
+      });
+      netCashFromOperations = netCashFromOperations.add(cashEffect);
+    }
+    adjustments.sort((a, b) => a.accountCode.localeCompare(b.accountCode));
+
+    let openingCash = Money.zero(currency);
+    for (const id of cashAccountIds) {
+      const totals = await this.journalEntryLines.sumPostedByAccountBefore(db, id, fromDate);
+      const { debit, credit } = this.moneyFromTotals(totals, currency);
+      openingCash = openingCash.add(debit.subtract(credit));
+    }
+
+    let closingCash = Money.zero(currency);
+    if (cashAccountIds.length > 0) {
+      const closingSums = await this.journalEntryLines.sumPostedByAccounts(db, cashAccountIds, undefined, toDate);
+      for (const id of cashAccountIds) {
+        const totals = closingSums[id];
+        if (!totals) continue;
+        const { debit, credit } = this.moneyFromTotals(totals, currency);
+        closingCash = closingCash.add(debit.subtract(credit));
+      }
+    }
+
+    return {
+      fromDate,
+      toDate,
+      currency,
+      netIncome,
+      adjustments,
+      netCashFromOperations,
+      openingCash,
+      closingCash,
+      isConsistent: netCashFromOperations.equals(closingCash.subtract(openingCash)),
     };
   }
 }

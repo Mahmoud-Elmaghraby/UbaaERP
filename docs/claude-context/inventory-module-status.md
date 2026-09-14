@@ -80,4 +80,3 @@ Migrations `0015`–`0021`: `units_of_measure`, `warehouses`, `products`, `produ
 4. **`git commit`** — nothing committed yet; held pending the user's explicit go-ahead.
 
 Inventory backend + frontend are both feature-complete and verified. The two remaining open items (MinIO product-image upload, and the commit) are the only things standing between "Inventory done" and moving fully on to Purchases per the master doc's fixed build order.
-</content>

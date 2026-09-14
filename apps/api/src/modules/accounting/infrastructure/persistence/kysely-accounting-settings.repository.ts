@@ -17,6 +17,7 @@ function toDomain(row: Selectable<AccountingSettingsTable>): AccountingSettings 
     purchaseExpenseAccountId: row.purchase_expense_account_id,
     cashAccountId: row.cash_account_id,
     cashOverShortAccountId: row.cash_over_short_account_id,
+    exchangeGainLossAccountId: row.exchange_gain_loss_account_id,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -69,6 +70,7 @@ export class KyselyAccountingSettingsRepository implements AccountingSettingsRep
           purchase_expense_account_id: null,
           cash_account_id: accountIdByCode.get(DEFAULT_CODES.cash_account_id) ?? null,
           cash_over_short_account_id: null,
+          exchange_gain_loss_account_id: null,
         })
         .returningAll()
         .executeTakeFirstOrThrow();
@@ -107,6 +109,9 @@ export class KyselyAccountingSettingsRepository implements AccountingSettingsRep
         ...(input.cashAccountId !== undefined ? { cash_account_id: input.cashAccountId } : {}),
         ...(input.cashOverShortAccountId !== undefined
           ? { cash_over_short_account_id: input.cashOverShortAccountId }
+          : {}),
+        ...(input.exchangeGainLossAccountId !== undefined
+          ? { exchange_gain_loss_account_id: input.exchangeGainLossAccountId }
           : {}),
         updated_at: new Date(),
       })

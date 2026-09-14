@@ -12,6 +12,7 @@ import {
   CardTitle,
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -29,6 +30,7 @@ import {
 
 import { useWarehouses } from '../../../inventory/api/warehouses/queries';
 import { useOpenPosSession } from '../../api/pos/queries';
+import { useTenantSettings } from '../../../settings/queries';
 import { ApiError } from '../../../../lib/api-client';
 import { decimalToMinorUnits } from '../../../../lib/money';
 
@@ -41,6 +43,10 @@ import { decimalToMinorUnits } from '../../../../lib/money';
  * currency" concept yet — is also what every cart line and tender in this session is
  * priced/collected in (same "first decision fixes the currency for everything
  * downstream" pattern as Quotations/Purchase Orders' manual create path).
+ * The session's currency is always the tenant's own configured currency
+ * (tenant_settings.currencyCode, Settings → General) — there is no
+ * multi-currency ledger anywhere in the platform, so this field is derived
+ * and read-only rather than cashier-editable free text.
  */
 type OpenSessionFormValues = {
   warehouseId: string;
@@ -52,6 +58,7 @@ type OpenSessionFormValues = {
 export function OpenSessionForm() {
   const { t } = useTranslation();
   const { data: warehouses, isLoading: warehousesLoading } = useWarehouses();
+  const { data: tenantSettings, isLoading: tenantSettingsLoading } = useTenantSettings();
   const openSession = useOpenPosSession();
 
   const formSchema = z.object({
@@ -66,7 +73,7 @@ export function OpenSessionForm() {
     defaultValues: {
       warehouseId: warehouses?.[0]?.id ?? '',
       openingCashAmount: '',
-      currency: 'SAR',
+      currency: tenantSettings?.currencyCode ?? '',
       notes: '',
     },
   });
@@ -103,7 +110,7 @@ export function OpenSessionForm() {
     }
   }
 
-  if (warehousesLoading) {
+  if (warehousesLoading || tenantSettingsLoading) {
     return <Skeleton className="h-64 w-full" />;
   }
 
@@ -161,14 +168,9 @@ export function OpenSessionForm() {
                   <FormItem>
                     <FormLabel>{t('pos.openSession.currency')}</FormLabel>
                     <FormControl>
-                      <Input
-                        {...field}
-                        maxLength={3}
-                        className="uppercase"
-                        placeholder="SAR"
-                        onChange={(e) => field.onChange(e.target.value.toUpperCase())}
-                      />
+                      <Input {...field} disabled readOnly className="uppercase" />
                     </FormControl>
+                    <FormDescription>{t('pos.openSession.currencyHint')}</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}

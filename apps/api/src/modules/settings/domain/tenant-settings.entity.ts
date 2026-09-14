@@ -6,10 +6,16 @@
 export interface TenantSettings {
   id: string;
   currencyCode: string;
+  companyName: string | null;
+  address: string | null;
+  taxRegistrationNumber: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
 
 export interface UpdateTenantSettingsInput {
   currencyCode?: string;
+  companyName?: string | null;
+  address?: string | null;
+  taxRegistrationNumber?: string | null;
 }

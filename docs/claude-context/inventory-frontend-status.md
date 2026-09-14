@@ -32,11 +32,9 @@ The user is not happy with either the current visual design or the navigation/fi
 
 **Next action**: waiting on the user's reaction to the mockup (keep it as-is, adjust colors/layout, or reject the direction) before touching any real file in `apps/web`. Once approved, the plan is to apply the new IA + visual system + file structure to Inventory first (already built, so this becomes a restructuring pass, not new-feature work), then carry the same conventions into Purchases from the start rather than doing Purchases in the old pattern and restructuring it too later.
 
-**Note added by a later session (2026-08-28/29):** this redesign discussion was superseded in practice — Purchases and every module after it were built using the route-per-entity, per-entity-folder pattern described above (confirmed live in the repo). Whether the visual-theme half of this proposal (teal accent, IBM Plex Sans Arabic headings) was ever actually applied has not been separately re-confirmed; treat the navigation/file-structure half as adopted, and the visual-theme half as unconfirmed unless checked directly against the live `tailwind.config.cjs`/`index.css`.
-
 ## Critical environment note (for any future session continuing this repo)
 
-This session reaches the repo (`M:\Projects\erp-platform`) only through the Cowork device bridge (`device_bash` → a Linux VM with the repo mounted). **`tsc`/`eslint`/`jest`/`pnpm build` cannot be run from this session** — the repo's `node_modules` uses Windows NTFS junctions, broken over the Linux VM bridge. All verification for this module was done by the user running commands natively on Windows and pasting results back for this session to fix in a tight loop. This pattern should be reused for any future module. **Note from a later session:** this NTFS-junction limitation was later confirmed to no longer block everything — see `claude/accounting-module-status.md`'s "Verification status" section, where `pnpm typecheck`/`lint`/`build`/`test` were all run live by the user on their own machine and passed cleanly. The device-bridge session itself still cannot run these commands directly (no `pnpm`/`node@24`/`docker` on the bridge VM) — but the workaround has always been "the user runs it on their own machine," which continues to work fine.
+This session reaches the repo (`M:\Projects\erp-platform`) only through the Cowork device bridge (`device_bash` → a Linux VM with the repo mounted). **`tsc`/`eslint`/`jest`/`pnpm build` cannot be run from this session** — the repo's `node_modules` uses Windows NTFS junctions, broken over the Linux VM bridge. All verification for this module was done by the user running commands natively on Windows and pasting results back for this session to fix in a tight loop. This pattern should be reused for any future module.
 
 ## Task list — final state (Tasks #12–20, pre-redesign)
 
@@ -119,6 +117,3 @@ List + create/edit + per-row dropdown. `BranchField` uses a `__none__` sentinel.
 ## Next step
 
 **Waiting on the user's decision on the redesign proposal** (see "Visual/structural redesign" above) before doing anything else — not Purchases yet, and not further Inventory polish, since a restructure would touch the same files a Purchases build would otherwise copy the pattern from. Also still need to confirm with the user whether the `inventory.manage` permission fix (migration `0028`) actually resolved the missing sidebar link, since that was never explicitly confirmed before the conversation moved to the redesign discussion.
-
-**Note added by a later session:** per `claude/purchases-module-status.md`, this doc was confirmed stale during the Purchases frontend research pass — the route-per-entity/per-entity-folder redesign is actually already live in the repo. Purchases and every module built after it followed that pattern from the start.
-</content>

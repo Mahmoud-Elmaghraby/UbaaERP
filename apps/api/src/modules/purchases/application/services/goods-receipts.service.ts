@@ -1,6 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import type { Kysely } from 'kysely';
 import type { TenantDatabase } from '../../../../database/tenant/kysely-client';
+import { withTransaction } from '../../../../database/tenant/transaction.util';
 import { GOODS_RECEIPT_REPOSITORY, type GoodsReceiptRepository } from '../ports/goods-receipt.repository';
 import {
   GOODS_RECEIPT_LINE_REPOSITORY,
@@ -20,6 +21,7 @@ import type {
 import { BusinessRuleError, NotFoundError, isPostgresForeignKeyViolation } from '../errors';
 import { entityNotFound } from '../../../../shared/errors/entity-errors';
 import { NumberingSequencesService } from '../../../settings/application/services/numbering-sequences.service';
+import { OutboxWriterService } from '../../../../shared/outbox/application/services/outbox-writer.service';
 
 /**
  * Records physical receipt of goods against a purchase order (master doc
@@ -28,12 +30,26 @@ import { NumberingSequencesService } from '../../../settings/application/service
  * Two-step by design, like every other document in this module:
  * create() persists a 'draft' receipt and validates it against what the
  * PO still has outstanding, but has NO side effect on stock yet.
- * confirm() is the one-way door that (a) publishes
- * 'purchases.goods_receipt.confirmed' on the Event Bus — Inventory's
- * GoodsReceiptStockListener is what actually increases stock, never a
- * direct call from here (CLAUDE.md §2.6) — and (b) recomputes the parent
- * PO's status (partially_received / fully_received) from total received
- * quantity across every confirmed receipt.
+ * confirm() is the one-way door that (a) writes
+ * 'purchases.goods_receipt.confirmed' to the Outbox (CLAUDE.md §2.7), in
+ * the SAME transaction as the status flip — Inventory's
+ * GoodsReceiptStockListener is what actually increases stock once
+ * OutboxDispatcherService relays the event, never a direct call from here
+ * (CLAUDE.md §2.6) — and (b) recomputes the parent PO's status
+ * (partially_received / fully_received) from total received quantity
+ * across every confirmed receipt.
+ *
+ * Outbox symmetry (claude/next-steps-backlog.md item 2): this used to
+ * rely on GoodsReceiptsController publishing the event on the plain Event
+ * Bus after the transaction committed — the one asymmetry left over from
+ * before Purchase Invoices' invoice-takeover orchestrator needed to call
+ * confirm() directly (bypassing the controller), which PurchaseInvoicesService
+ * had to work around by replicating the controller's publish() call itself.
+ * Moving the write into confirm()'s own transaction (mirroring
+ * DeliveriesService.confirm(), Sales' structurally-identical sibling)
+ * removes both the asymmetry and the workaround: any caller of confirm()
+ * now gets the event for free, atomically, with no risk of a receipt
+ * marked "confirmed" that silently never told Inventory.
  *
  * No update() — a wrong draft is cancelled/deleted and recreated rather
  * than edited in place; keeps this stage's scope tight (see
@@ -47,6 +63,7 @@ export class GoodsReceiptsService {
     @Inject(PURCHASE_ORDER_REPOSITORY) private readonly purchaseOrders: PurchaseOrderRepository,
     @Inject(PURCHASE_ORDER_LINE_REPOSITORY) private readonly purchaseOrderLines: PurchaseOrderLineRepository,
     private readonly numberingSequences: NumberingSequencesService,
+    private readonly outboxWriter: OutboxWriterService,
   ) {}
 
   list(db: Kysely<TenantDatabase>): Promise<GoodsReceipt[]> {
@@ -194,16 +211,23 @@ export class GoodsReceiptsService {
   }
 
   /**
-   * The one-way door: marks the receipt confirmed and recomputes the
-   * parent PO's status from total received quantity across every
-   * confirmed receipt (including this one). Both writes happen in one
-   * transaction so the PO status can never disagree with what's actually
-   * been confirmed. Publishing the Event Bus integration event that
-   * actually moves stock is the caller's job (the controller — see
-   * PurchasesEventPublisher usage on every other stage's confirm/select
-   * action), using the lines this method returns.
+   * The one-way door: marks the receipt confirmed, recomputes the parent
+   * PO's status from total received quantity across every confirmed
+   * receipt (including this one), and writes the
+   * 'purchases.goods_receipt.confirmed' integration event to the Outbox —
+   * all in the SAME transaction, so the PO status, the outbox record, and
+   * the status flip can never disagree with each other or be silently
+   * lost. `withTransaction` means a caller that already has an open `trx`
+   * (the Purchase Invoices invoice-takeover orchestrator) gets this event
+   * folded into its own atomic unit of work instead of opening a nested
+   * transaction — see PurchaseInvoicesService.create()'s own comment.
    */
-  async confirm(db: Kysely<TenantDatabase>, id: string): Promise<GoodsReceiptWithLines> {
+  async confirm(
+    db: Kysely<TenantDatabase>,
+    id: string,
+    schema: string,
+    actorUserId: string | null,
+  ): Promise<GoodsReceiptWithLines> {
     const existing = await this.receipts.findById(db, id);
     if (!existing) throw entityNotFound('GOODS_RECEIPT', id);
     if (existing.status !== 'draft') {
@@ -213,7 +237,7 @@ export class GoodsReceiptsService {
       );
     }
 
-    return db.transaction().execute(async (trx) => {
+    return withTransaction(db, async (trx) => {
       const updated = await this.receipts.updateStatus(trx, id, 'confirmed');
       if (!updated) throw entityNotFound('GOODS_RECEIPT', id);
       const lines = await this.lines.listByGoodsReceiptId(trx, id);
@@ -231,6 +255,24 @@ export class GoodsReceiptsService {
           await this.purchaseOrders.updateStatus(trx, po.id, newPoStatus);
         }
       }
+
+      await this.outboxWriter.write(trx, 'purchases.goods_receipt.confirmed', {
+        schema,
+        entityType: 'goods_receipt',
+        entityId: updated.id,
+        action: 'confirmed',
+        actorUserId,
+        metadata: {
+          purchaseOrderId: updated.purchaseOrderId,
+          warehouseId: updated.warehouseId,
+          lines: lines.map((line) => ({
+            productVariantId: line.productVariantId,
+            quantity: line.quantityReceived,
+            unitCost: { amountMinorUnits: line.unitCost.toMinorUnits().toString(), currency: line.unitCost.currency },
+          })),
+        },
+        occurredAt: new Date(),
+      });
 
       return { ...updated, lines };
     });

@@ -8,3 +8,4 @@ export * from './inventory';
 export * from './purchases';
 export * from './sales';
 export * from './accounting';
+export * from './attachments';

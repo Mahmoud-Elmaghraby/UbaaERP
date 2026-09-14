@@ -26,6 +26,9 @@ export interface TenantSettingsTable {
   id: string;
   singleton: boolean;
   currency_code: string;
+  company_name: string | null;
+  address: string | null;
+  tax_registration_number: string | null;
   created_at: Generated<Date>;
   updated_at: Generated<Date>;
 }
@@ -728,6 +731,27 @@ export interface PurchaseInvoiceLinesTable {
   created_at: Generated<Date>;
 }
 
+/**
+ * attachments (claude/attachments-strategy.md, confirmed 2026-09-12).
+ * entity_type/entity_id form a polymorphic reference to a row in one of
+ * several other tables (whichever entity_type names) — deliberately NOT
+ * a real FK, since a single column pair can't target more than one
+ * table; the whitelist itself is enforced both here at the app layer
+ * (ATTACHMENT_ENTITY_TYPES) and as a DB CHECK constraint in migration
+ * 0071. uploaded_by IS a real FK to users (never polymorphic).
+ */
+export interface AttachmentsTable {
+  id: string;
+  entity_type: string;
+  entity_id: string;
+  file_name: string;
+  storage_key: string;
+  mime_type: string;
+  size_bytes: number;
+  uploaded_by: string;
+  created_at: Generated<Date>;
+}
+
 export interface TenantDatabase {
   schema_migrations: SchemaMigrationsTable;
   tenant_settings: TenantSettingsTable;
@@ -801,6 +825,8 @@ export interface TenantDatabase {
   bank_accounts: BankAccountsTable;
   pos_sessions: PosSessionsTable;
   tenant_feature_toggles: TenantFeatureTogglesTable;
+  attachments: AttachmentsTable;
+  exchange_rates: ExchangeRatesTable;
 }
 
 const SCHEMA_NAME_PATTERN = /^[a-z][a-z0-9_]*$/;
@@ -927,8 +953,25 @@ export interface AccountingSettingsTable {
   cash_account_id: string | null;
   /** Migration 0061 — POS feature Stage 1. Never auto-populated, same reasoning as purchase_expense_account_id. */
   cash_over_short_account_id: string | null;
+  /** Migration 0073 — multi-currency Phase 1 (claude/multi-currency-strategy.md). Never auto-populated, same reasoning as purchase_expense_account_id; unused until Phase 4 wires realized gain/loss posting. */
+  exchange_gain_loss_account_id: string | null;
   created_at: Generated<Date>;
   updated_at: Generated<Date>;
+}
+
+/**
+ * exchange_rates (migration 0072 — multi-currency Phase 1, see
+ * claude/multi-currency-strategy.md). Append-only quote ledger — see
+ * that migration's comment for why there's no update/delete.
+ */
+export interface ExchangeRatesTable {
+  id: string;
+  from_currency: string;
+  to_currency: string;
+  rate: string;
+  rate_date: string;
+  source: string;
+  created_at: Generated<Date>;
 }
 
 export interface PosSessionsTable {

@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import type { SalesInvoiceWithLinesDto } from '@erp-platform/contracts';
 import { Badge, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@erp-platform/ui';
 
+import { AttachmentsPanel } from '../../../attachments/components/attachments-panel';
 import { useSalesOrders } from '../../api/sales-orders/queries';
 import { useVariantIndex } from '../../hooks/sales-invoices/use-variant-index';
 import { formatMoney } from '../../../../lib/money';
@@ -85,6 +86,8 @@ export function SalesInvoiceDetailsView({ invoice }: { invoice: SalesInvoiceWith
           ) : null}
         </TableBody>
       </Table>
+
+      <AttachmentsPanel entityType="sales_invoice" entityId={invoice.id} />
     </div>
   );
 }

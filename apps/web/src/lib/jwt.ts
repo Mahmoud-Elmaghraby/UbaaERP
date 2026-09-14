@@ -10,6 +10,10 @@ export interface DecodedAccessToken {
   schema: string;
   roleId: string;
   permissions: string[];
+  /** Layer 1 (Plan ceiling) feature keys — see PlanFeatureGuard's own comment. */
+  features: string[];
+  /** Layer 2 (tenant self-service) feature keys turned off — see PlanFeatureGuard's own comment. */
+  disabledFeatures: string[];
   iat?: number;
   exp?: number;
 }

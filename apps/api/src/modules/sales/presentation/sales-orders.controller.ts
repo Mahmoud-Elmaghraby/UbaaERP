@@ -82,15 +82,19 @@ export class SalesOrdersController {
     @Body(new ZodValidationPipe(createSalesOrderSchema)) body: CreateSalesOrderDto,
   ): Promise<SalesOrderWithLinesDto> {
     const db = this.connections.getClient(schema);
-    const order = await this.service.create(db, {
-      ...body,
-      discountFixedAmount: body.discountFixedAmount ? moneyFromDto(body.discountFixedAmount) : body.discountFixedAmount,
-      lines: body.lines?.map((line) => ({
-        ...line,
-        unitPrice: moneyFromDto(line.unitPrice),
-        discountFixedAmount: line.discountFixedAmount ? moneyFromDto(line.discountFixedAmount) : line.discountFixedAmount,
-      })),
-    });
+    const order = await this.service.create(
+      db,
+      {
+        ...body,
+        discountFixedAmount: body.discountFixedAmount ? moneyFromDto(body.discountFixedAmount) : body.discountFixedAmount,
+        lines: body.lines?.map((line) => ({
+          ...line,
+          unitPrice: moneyFromDto(line.unitPrice),
+          discountFixedAmount: line.discountFixedAmount ? moneyFromDto(line.discountFixedAmount) : line.discountFixedAmount,
+        })),
+      },
+      schema,
+    );
     this.events.publish('sales_order', 'created', { schema, entityId: order.id, actorUserId: user.sub });
     return orderWithLinesToDto(order);
   }
@@ -103,15 +107,20 @@ export class SalesOrdersController {
     @Body(new ZodValidationPipe(updateSalesOrderSchema)) body: UpdateSalesOrderDto,
   ): Promise<SalesOrderWithLinesDto> {
     const db = this.connections.getClient(schema);
-    const order = await this.service.update(db, id, {
-      ...body,
-      discountFixedAmount: body.discountFixedAmount ? moneyFromDto(body.discountFixedAmount) : body.discountFixedAmount,
-      lines: body.lines?.map((line) => ({
-        ...line,
-        unitPrice: moneyFromDto(line.unitPrice),
-        discountFixedAmount: line.discountFixedAmount ? moneyFromDto(line.discountFixedAmount) : line.discountFixedAmount,
-      })),
-    });
+    const order = await this.service.update(
+      db,
+      id,
+      {
+        ...body,
+        discountFixedAmount: body.discountFixedAmount ? moneyFromDto(body.discountFixedAmount) : body.discountFixedAmount,
+        lines: body.lines?.map((line) => ({
+          ...line,
+          unitPrice: moneyFromDto(line.unitPrice),
+          discountFixedAmount: line.discountFixedAmount ? moneyFromDto(line.discountFixedAmount) : line.discountFixedAmount,
+        })),
+      },
+      schema,
+    );
     this.events.publish('sales_order', 'updated', { schema, entityId: id, actorUserId: user.sub });
     return orderWithLinesToDto(order);
   }

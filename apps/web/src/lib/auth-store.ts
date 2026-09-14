@@ -25,6 +25,10 @@ interface AuthState {
   accessToken: string | null;
   user: AuthUser | null;
   permissions: string[];
+  /** Layer 1 (Plan ceiling) feature keys — see FeaturesProvider's own comment. */
+  features: string[];
+  /** Layer 2 (tenant self-service) feature keys turned off. */
+  disabledFeatures: string[];
   setTenantSchema: (schema: string) => void;
   setSession: (tokens: AuthTokensDto) => void;
   clearSession: () => void;
@@ -48,6 +52,8 @@ export const useAuthStore = create<AuthState>()(
       accessToken: null,
       user: null,
       permissions: [],
+      features: [],
+      disabledFeatures: [],
       setTenantSchema: (schema) => set({ tenantSchema: schema }),
       setSession: (tokens) => {
         const decoded = decodeAccessToken(tokens.accessToken);
@@ -55,9 +61,12 @@ export const useAuthStore = create<AuthState>()(
           accessToken: tokens.accessToken,
           user: tokens.user,
           permissions: decoded?.permissions ?? [],
+          features: decoded?.features ?? [],
+          disabledFeatures: decoded?.disabledFeatures ?? [],
         });
       },
-      clearSession: () => set({ accessToken: null, user: null, permissions: [] }),
+      clearSession: () =>
+        set({ accessToken: null, user: null, permissions: [], features: [], disabledFeatures: [] }),
     }),
     {
       name: 'erp-auth',
@@ -66,6 +75,8 @@ export const useAuthStore = create<AuthState>()(
         accessToken: state.accessToken,
         user: state.user,
         permissions: state.permissions,
+        features: state.features,
+        disabledFeatures: state.disabledFeatures,
       }),
     },
   ),

@@ -8,6 +8,8 @@ import { JOURNAL_ENTRY_LINE_REPOSITORY } from './application/ports/journal-entry
 import { ACCOUNTING_SETTINGS_REPOSITORY } from './application/ports/accounting-settings.repository';
 import { COST_CENTER_REPOSITORY } from './application/ports/cost-center.repository';
 import { BANK_ACCOUNT_REPOSITORY } from './application/ports/bank-account.repository';
+import { EXCHANGE_RATE_REPOSITORY } from './application/ports/exchange-rate.repository';
+import { EXCHANGE_RATE_PROVIDER } from './application/ports/exchange-rate-provider';
 
 import { KyselyChartOfAccountRepository } from './infrastructure/persistence/kysely-chart-of-account.repository';
 import { KyselyFiscalYearRepository } from './infrastructure/persistence/kysely-fiscal-year.repository';
@@ -17,6 +19,8 @@ import { KyselyJournalEntryLineRepository } from './infrastructure/persistence/k
 import { KyselyAccountingSettingsRepository } from './infrastructure/persistence/kysely-accounting-settings.repository';
 import { KyselyCostCenterRepository } from './infrastructure/persistence/kysely-cost-center.repository';
 import { KyselyBankAccountRepository } from './infrastructure/persistence/kysely-bank-account.repository';
+import { KyselyExchangeRateRepository } from './infrastructure/persistence/kysely-exchange-rate.repository';
+import { FrankfurterExchangeRateProvider } from './infrastructure/external/frankfurter-exchange-rate.provider';
 
 import { ChartOfAccountsService } from './application/services/chart-of-accounts.service';
 import { FiscalYearsService } from './application/services/fiscal-years.service';
@@ -26,6 +30,9 @@ import { AccountingReportsService } from './application/services/accounting-repo
 import { AccountingSettingsService } from './application/services/accounting-settings.service';
 import { CostCentersService } from './application/services/cost-centers.service';
 import { BankAccountsService } from './application/services/bank-accounts.service';
+import { ExchangeRatesService } from './application/services/exchange-rates.service';
+import { ExchangeRateSyncService } from './application/services/exchange-rate-sync.service';
+import { CurrencyConversionService } from './application/services/currency-conversion.service';
 
 import { ChartOfAccountsController } from './presentation/chart-of-accounts.controller';
 import { FiscalYearsController } from './presentation/fiscal-years.controller';
@@ -35,6 +42,7 @@ import { AccountingReportsController } from './presentation/accounting-reports.c
 import { AccountingSettingsController } from './presentation/accounting-settings.controller';
 import { CostCentersController } from './presentation/cost-centers.controller';
 import { BankAccountsController } from './presentation/bank-accounts.controller';
+import { ExchangeRatesController } from './presentation/exchange-rates.controller';
 
 import { AccountingEventPublisher } from './infrastructure/events/accounting-event-publisher';
 import { AccountingAutoPostingListeners } from './infrastructure/events/accounting-auto-posting.listeners';
@@ -103,6 +111,58 @@ import { AccountingAutoPostingListeners } from './infrastructure/events/accounti
  *     (auto-populated from the default template, code '111') and
  *     cashOverShortAccountId (not auto-populated — no generic template
  *     leaf for it, same treatment as purchaseExpenseAccountId).
+ *  7. Multi-currency Phase 1 (done) — see claude/multi-currency-strategy.md
+ *     for the full research, confirmed scope decisions, and phase plan.
+ *     Infrastructure only, no behavioral change: ExchangeRatesController/
+ *     Service (manual rate entry only; migration 0072's exchange_rates is
+ *     an append-only quote ledger, no update/delete) and
+ *     CurrencyConversionService (converts a Money value using the most
+ *     recent applicable rate — built and unit-testable, but not called
+ *     from anywhere yet). AccountingSettings (migration 0073) gained
+ *     exchangeGainLossAccountId (not auto-populated, same treatment as
+ *     purchaseExpenseAccountId).
+ *  7b. Multi-currency Phase 2 (done, this pass) — live-rate sync.
+ *     ExchangeRatesController gained POST /exchange-rates/sync:
+ *     ExchangeRateSyncService asks the injected ExchangeRateProvider
+ *     (FrankfurterExchangeRateProvider — frankfurter.dev v2, see that
+ *     class's own comment for why v2 and not the originally-confirmed
+ *     v1/frankfurter.app, which turned out not to support EGP at all —
+ *     strategy doc §3.7) for today's rate per requested currency against
+ *     the tenant's own base currency, and writes it straight into
+ *     exchange_rates with source='api' via the repository, bypassing
+ *     ExchangeRatesService's human-input validation. No scheduler is
+ *     wired up (no @nestjs/schedule dependency in this project, and
+ *     adding one wasn't justified for this pass) — sync is on-demand for
+ *     now, safely re-callable (a same-day duplicate comes back as
+ *     status: 'already_up_to_date', not an error). A provider failure or
+ *     an unsupported currency never throws — it comes back as status:
+ *     'unavailable', leaving CurrencyConversionService's own
+ *     EXCHANGE_RATE.NOT_AVAILABLE error and the manual-entry endpoint as
+ *     the fallback, exactly as decided in the strategy doc's §5.
+ *  7c. Multi-currency Phase 3 (done, this pass) — the critical finding
+ *     from claude/multi-currency-strategy.md §1 is now actually fixed,
+ *     not just diagnosed. AccountingAutoPostingListeners gained
+ *     convertToTenantCurrency() (see that method's own comment) and
+ *     its three handlers whose source amount can legitimately be a
+ *     foreign currency — sales/purchase invoice posting and a sales
+ *     credit note issued against a foreign-currency invoice — now
+ *     route through CurrencyConversionService before building any
+ *     journal line, using the source event's own date to look up the
+ *     rate (locking the conversion to the moment the document was
+ *     posted, not whenever the Outbox dispatcher happens to process
+ *     it). For the default (multi-currency off) tenant this is a
+ *     provable no-op: the conversion call short-circuits to rate "1"
+ *     whenever the source currency already equals the tenant's own.
+ *     Deliberately NOT touched: the stock-consumption/restoration and
+ *     POS-variance handlers (their source amounts were never a
+ *     document currency in the first place) and Phase 4/5 (realized
+ *     gain/loss at settlement, periodic unrealized revaluation) — both
+ *     remain separate, later items per the strategy doc's own phase
+ *     plan. A related, NOT-yet-investigated question surfaced while
+ *     scoping this pass: whether a foreign-currency Purchase Order
+ *     could itself skew Inventory's weighted-average cost basis before
+ *     it ever reaches this class — flagged in
+ *     claude/next-steps-backlog.md, not fixed here.
  *
  * SettingsModule is imported for NumberingSequencesService (numbered
  * "JE-0001"-style entryNumbers) and TenantSettingsService (the tenant's
@@ -132,6 +192,7 @@ import { AccountingAutoPostingListeners } from './infrastructure/events/accounti
     AccountingSettingsController,
     CostCentersController,
     BankAccountsController,
+    ExchangeRatesController,
   ],
   providers: [
     { provide: CHART_OF_ACCOUNT_REPOSITORY, useClass: KyselyChartOfAccountRepository },
@@ -142,6 +203,8 @@ import { AccountingAutoPostingListeners } from './infrastructure/events/accounti
     { provide: ACCOUNTING_SETTINGS_REPOSITORY, useClass: KyselyAccountingSettingsRepository },
     { provide: COST_CENTER_REPOSITORY, useClass: KyselyCostCenterRepository },
     { provide: BANK_ACCOUNT_REPOSITORY, useClass: KyselyBankAccountRepository },
+    { provide: EXCHANGE_RATE_REPOSITORY, useClass: KyselyExchangeRateRepository },
+    { provide: EXCHANGE_RATE_PROVIDER, useClass: FrankfurterExchangeRateProvider },
     ChartOfAccountsService,
     FiscalYearsService,
     AccountingPeriodsService,
@@ -150,6 +213,9 @@ import { AccountingAutoPostingListeners } from './infrastructure/events/accounti
     AccountingSettingsService,
     CostCentersService,
     BankAccountsService,
+    ExchangeRatesService,
+    ExchangeRateSyncService,
+    CurrencyConversionService,
     AccountingEventPublisher,
     AccountingAutoPostingListeners,
   ],
@@ -162,6 +228,9 @@ import { AccountingAutoPostingListeners } from './infrastructure/events/accounti
     AccountingSettingsService,
     CostCentersService,
     BankAccountsService,
+    ExchangeRatesService,
+    ExchangeRateSyncService,
+    CurrencyConversionService,
   ],
 })
 export class AccountingModule {}
