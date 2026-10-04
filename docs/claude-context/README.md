@@ -52,3 +52,7 @@ What's still open — see `next-steps-backlog.md` for full detail on each:
 ## Environment note for whoever picks this up next
 
 If continuing via a Claude session with a device-bridge/remote-shell connection to this machine rather than direct native access: that bridge has, at various points in this project's history, been unable to run `pnpm`/`node@24`/`docker` directly (and as of this refresh, `device_bash` itself has been down due to a Windows-update Plan9-drive-share issue — file operations went through `device_stage_files`/`device_commit_files` instead). Treat native verification (`pnpm typecheck`/`lint`/`build`/`test`) as something that needs to be run by the user, natively, in their own terminal, with output pasted back for diagnosis, unless a fresh session confirms the bridge is healthy again. This has been the working pattern for the whole project and is documented in more detail in `settings-module-status.md`'s "Environment notes" section.
+
+## Post-refresh addendum
+
+See **`session-handoff-2026-10-04.md`** — git state (commit `4a5c3e5` pushed; the many 'modified' files on Windows are line-ending noise only), how to run the app locally on this Windows machine (tenant `demo`, Vite port 5173 blocked, use `--port 8080`), and tooling caveats.
