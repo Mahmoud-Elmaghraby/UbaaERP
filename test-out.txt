@@ -1,0 +1,314 @@
+
+> erp-platform@0.0.0 test M:\Projects\erp-platform
+> turbo run test
+
+
+   • Packages in scope: @erp-platform/contracts, @erp-platform/shared-kernel, @erp-platform/ui, api, desktop, web
+   • Running test in 6 packages
+   • Remote caching disabled
+
+@erp-platform/shared-kernel:test: cache hit, replaying logs e9293bd7699ef12d
+@erp-platform/shared-kernel:build: cache hit, replaying logs 641fed32cf91051e
+@erp-platform/shared-kernel:test: 
+@erp-platform/shared-kernel:test: > @erp-platform/shared-kernel@0.0.0 test M:\Projects\erp-platform\libs\shared-kernel
+@erp-platform/shared-kernel:test: > jest --config jest.config.js
+@erp-platform/shared-kernel:test: 
+@erp-platform/shared-kernel:test: PASS shared-kernel src/money/money.spec.ts
+@erp-platform/shared-kernel:test:   Money
+@erp-platform/shared-kernel:test:     √ constructs from minor units and round-trips a decimal string (2 ms)
+@erp-platform/shared-kernel:test:     √ rejects a fractional minor-units amount (would mean a hidden float) (26 ms)
+@erp-platform/shared-kernel:test:     √ rejects a currency code that is not three uppercase letters (2 ms)
+@erp-platform/shared-kernel:test:     √ adds and subtracts amounts in the same currency (1 ms)
+@erp-platform/shared-kernel:test:     √ throws when combining different currencies (1 ms)
+@erp-platform/shared-kernel:test:     √ multiplies a unit cost by a received quantity (rounding to the nearest minor unit) (1 ms)
+@erp-platform/shared-kernel:test:     √ divides a total stock value by a quantity on hand for weighted-average unit cost (1 ms)
+@erp-platform/shared-kernel:test:     √ rejects dividing by zero
+@erp-platform/shared-kernel:test:     √ compares and reports sign correctly
+@erp-platform/shared-kernel:test:     √ equals compares both amount and currency (1 ms)
+@erp-platform/shared-kernel:test: 
+@erp-platform/shared-kernel:test: Test Suites: 1 passed, 1 total
+@erp-platform/shared-kernel:test: Tests:       10 passed, 10 total
+@erp-platform/shared-kernel:test: Snapshots:   0 total
+@erp-platform/shared-kernel:test: Time:        3.874 s
+@erp-platform/shared-kernel:test: Ran all test suites.
+@erp-platform/shared-kernel:build: 
+@erp-platform/shared-kernel:build: > @erp-platform/shared-kernel@0.0.0 build M:\Projects\erp-platform\libs\shared-kernel
+@erp-platform/shared-kernel:build: > tsc -p tsconfig.json
+@erp-platform/shared-kernel:build: 
+@erp-platform/contracts:test: cache hit, replaying logs d2b8ba6b9e4b4236
+@erp-platform/contracts:test: 
+@erp-platform/contracts:test: > @erp-platform/contracts@0.0.0 test M:\Projects\erp-platform\libs\contracts
+@erp-platform/contracts:test: > echo "no tests yet" && exit 0
+@erp-platform/contracts:test: 
+@erp-platform/contracts:test: "no tests yet" 
+desktop:test: cache hit, replaying logs 4578b8c07869c0a7
+desktop:test: 
+desktop:test: > desktop@0.0.0 test M:\Projects\erp-platform\apps\desktop
+desktop:test: > echo "no tests yet" && exit 0
+desktop:test: 
+desktop:test: "no tests yet" 
+@erp-platform/contracts:build: cache hit, replaying logs b6f508449e4ad658
+@erp-platform/contracts:build: 
+@erp-platform/contracts:build: > @erp-platform/contracts@0.0.0 build M:\Projects\erp-platform\libs\contracts
+@erp-platform/contracts:build: > tsc -p tsconfig.json && tsc -p tsconfig.esm.json
+@erp-platform/contracts:build: 
+api:test: cache miss, executing c18fc24db580efc8
+@erp-platform/ui:test: cache hit, replaying logs 8d43d9df7985b97b
+@erp-platform/ui:test: 
+@erp-platform/ui:test: > @erp-platform/ui@0.0.0 test M:\Projects\erp-platform\libs\ui
+@erp-platform/ui:test: > echo "no tests yet" && exit 0
+@erp-platform/ui:test: 
+@erp-platform/ui:test: "no tests yet" 
+@erp-platform/ui:build: cache hit, replaying logs 4ec4ee9891aba37e
+@erp-platform/ui:build: 
+@erp-platform/ui:build: > @erp-platform/ui@0.0.0 build M:\Projects\erp-platform\libs\ui
+@erp-platform/ui:build: > tsc -p tsconfig.json
+@erp-platform/ui:build: 
+web:test: cache hit, replaying logs 32ca40f903cefa82
+web:test: 
+web:test: > web@0.0.0 test M:\Projects\erp-platform\apps\web
+web:test: > echo "no tests yet" && exit 0
+web:test: 
+web:test: "no tests yet" 
+api:test: 
+api:test: > api@0.0.0 test M:\Projects\erp-platform\apps\api
+api:test: > jest --config jest.config.js
+api:test: 
+api:test: [provisioning] created tenant record "test_e2e_8e47964bc6" (096fa2c7-798a-44af-9658-6153892339f8)
+api:test: [provisioning] created schema "test_e2e_8e47964bc6", applying migrations...
+api:test: [migration-runner] tenant "test_e2e_8e47964bc6" (096fa2c7-798a-44af-9658-6153892339f8): applied "0001_create_tenant_settings"
+api:test: [migration-runner] tenant "test_e2e_8e47964bc6" (096fa2c7-798a-44af-9658-6153892339f8): applied "0002_create_branches"
+api:test: [migration-runner] tenant "test_e2e_8e47964bc6" (096fa2c7-798a-44af-9658-6153892339f8): applied "0003_create_numbering_sequences"
+api:test: [migration-runner] tenant "test_e2e_8e47964bc6" (096fa2c7-798a-44af-9658-6153892339f8): applied "0004_create_document_templates"
+api:test: [migration-runner] tenant "test_e2e_8e47964bc6" (096fa2c7-798a-44af-9658-6153892339f8): applied "0005_create_tax_rules"
+api:test: [migration-runner] tenant "test_e2e_8e47964bc6" (096fa2c7-798a-44af-9658-6153892339f8): applied "0006_create_custom_field_definitions"
+api:test: [migration-runner] tenant "test_e2e_8e47964bc6" (096fa2c7-798a-44af-9658-6153892339f8): applied "0007_create_permissions"
+api:test: [migration-runner] tenant "test_e2e_8e47964bc6" (096fa2c7-798a-44af-9658-6153892339f8): applied "0008_create_roles"
+api:test: [migration-runner] tenant "test_e2e_8e47964bc6" (096fa2c7-798a-44af-9658-6153892339f8): applied "0009_create_role_permissions"
+api:test: [migration-runner] tenant "test_e2e_8e47964bc6" (096fa2c7-798a-44af-9658-6153892339f8): applied "0010_create_users"
+api:test: [migration-runner] tenant "test_e2e_8e47964bc6" (096fa2c7-798a-44af-9658-6153892339f8): applied "0011_create_user_branch_access"
+api:test: [migration-runner] tenant "test_e2e_8e47964bc6" (096fa2c7-798a-44af-9658-6153892339f8): applied "0012_create_approval_chains"
+api:test: [migration-runner] tenant "test_e2e_8e47964bc6" (096fa2c7-798a-44af-9658-6153892339f8): applied "0013_create_audit_logs"
+api:test: [migration-runner] tenant "test_e2e_8e47964bc6" (096fa2c7-798a-44af-9658-6153892339f8): applied "0014_create_refresh_tokens"
+api:test: [migration-runner] tenant "test_e2e_8e47964bc6" (096fa2c7-798a-44af-9658-6153892339f8): applied "0015_create_units_of_measure"
+api:test: [migration-runner] tenant "test_e2e_8e47964bc6" (096fa2c7-798a-44af-9658-6153892339f8): applied "0016_create_warehouses"
+api:test: [migration-runner] tenant "test_e2e_8e47964bc6" (096fa2c7-798a-44af-9658-6153892339f8): applied "0017_create_products"
+api:test: [migration-runner] tenant "test_e2e_8e47964bc6" (096fa2c7-798a-44af-9658-6153892339f8): applied "0018_create_product_variants"
+api:test: [migration-runner] tenant "test_e2e_8e47964bc6" (096fa2c7-798a-44af-9658-6153892339f8): applied "0019_create_stock_levels"
+api:test: [migration-runner] tenant "test_e2e_8e47964bc6" (096fa2c7-798a-44af-9658-6153892339f8): applied "0020_create_stock_movements"
+api:test: [migration-runner] tenant "test_e2e_8e47964bc6" (096fa2c7-798a-44af-9658-6153892339f8): applied "0021_seed_inventory_permission"
+api:test: [migration-runner] tenant "test_e2e_8e47964bc6" (096fa2c7-798a-44af-9658-6153892339f8): applied "0022_add_branch_id_to_warehouses"
+api:test: [migration-runner] tenant "test_e2e_8e47964bc6" (096fa2c7-798a-44af-9658-6153892339f8): applied "0023_create_warehouse_locations"
+api:test: [migration-runner] tenant "test_e2e_8e47964bc6" (096fa2c7-798a-44af-9658-6153892339f8): applied "0024_add_location_to_stock"
+api:test: [migration-runner] tenant "test_e2e_8e47964bc6" (096fa2c7-798a-44af-9658-6153892339f8): applied "0025_add_conversion_to_units_of_measure"
+api:test: [migration-runner] tenant "test_e2e_8e47964bc6" (096fa2c7-798a-44af-9658-6153892339f8): applied "0026_create_landed_costs"
+api:test: [migration-runner] tenant "test_e2e_8e47964bc6" (096fa2c7-798a-44af-9658-6153892339f8): applied "0027_create_stock_lots"
+api:test: [migration-runner] tenant "test_e2e_8e47964bc6" (096fa2c7-798a-44af-9658-6153892339f8): applied "0028_grant_missing_permissions_to_owner"
+api:test: [migration-runner] tenant "test_e2e_8e47964bc6" (096fa2c7-798a-44af-9658-6153892339f8): applied "0029_create_suppliers"
+api:test: [migration-runner] tenant "test_e2e_8e47964bc6" (096fa2c7-798a-44af-9658-6153892339f8): applied "0030_create_purchase_requisitions"
+api:test: [migration-runner] tenant "test_e2e_8e47964bc6" (096fa2c7-798a-44af-9658-6153892339f8): applied "0031_create_rfq_and_supplier_quotations"
+api:test: [migration-runner] tenant "test_e2e_8e47964bc6" (096fa2c7-798a-44af-9658-6153892339f8): applied "0032_create_purchase_orders"
+api:test: [migration-runner] tenant "test_e2e_8e47964bc6" (096fa2c7-798a-44af-9658-6153892339f8): applied "0034_add_purchase_order_receipt_statuses"
+api:test: [migration-runner] tenant "test_e2e_8e47964bc6" (096fa2c7-798a-44af-9658-6153892339f8): applied "0035_create_goods_receipts"
+api:test: [migration-runner] tenant "test_e2e_8e47964bc6" (096fa2c7-798a-44af-9658-6153892339f8): applied "0036_create_purchase_returns"
+api:test: [migration-runner] tenant "test_e2e_8e47964bc6" (096fa2c7-798a-44af-9658-6153892339f8): applied "0037_create_outbox_events"
+api:test: [migration-runner] tenant "test_e2e_8e47964bc6" (096fa2c7-798a-44af-9658-6153892339f8): applied "0038_create_purchase_invoices"
+api:test: [migration-runner] tenant "test_e2e_8e47964bc6" (096fa2c7-798a-44af-9658-6153892339f8): applied "0039_create_customers"
+api:test: [migration-runner] tenant "test_e2e_8e47964bc6" (096fa2c7-798a-44af-9658-6153892339f8): applied "0040_create_eta_credentials"
+api:test: [migration-runner] tenant "test_e2e_8e47964bc6" (096fa2c7-798a-44af-9658-6153892339f8): applied "0041_create_quotations"
+api:test: [migration-runner] tenant "test_e2e_8e47964bc6" (096fa2c7-798a-44af-9658-6153892339f8): applied "0042_create_sales_orders"
+api:test: [migration-runner] tenant "test_e2e_8e47964bc6" (096fa2c7-798a-44af-9658-6153892339f8): applied "0043_add_sales_order_delivery_statuses"
+api:test: [migration-runner] tenant "test_e2e_8e47964bc6" (096fa2c7-798a-44af-9658-6153892339f8): applied "0044_create_deliveries"
+api:test: [migration-runner] tenant "test_e2e_8e47964bc6" (096fa2c7-798a-44af-9658-6153892339f8): applied "0045_create_sales_invoices"
+api:test: [migration-runner] tenant "test_e2e_8e47964bc6" (096fa2c7-798a-44af-9658-6153892339f8): applied "0046_create_payments_received"
+api:test: [migration-runner] tenant "test_e2e_8e47964bc6" (096fa2c7-798a-44af-9658-6153892339f8): applied "0047_create_sales_returns"
+api:test: [migration-runner] tenant "test_e2e_8e47964bc6" (096fa2c7-798a-44af-9658-6153892339f8): applied "0048_create_chart_of_accounts"
+api:test: [migration-runner] tenant "test_e2e_8e47964bc6" (096fa2c7-798a-44af-9658-6153892339f8): applied "0049_create_fiscal_years"
+api:test: [migration-runner] tenant "test_e2e_8e47964bc6" (096fa2c7-798a-44af-9658-6153892339f8): applied "0050_create_journal_entries"
+api:test: [migration-runner] tenant "test_e2e_8e47964bc6" (096fa2c7-798a-44af-9658-6153892339f8): applied "0051_add_journal_entry_source_reference"
+api:test: [migration-runner] tenant "test_e2e_8e47964bc6" (096fa2c7-798a-44af-9658-6153892339f8): applied "0052_create_accounting_settings"
+api:test: [migration-runner] tenant "test_e2e_8e47964bc6" (096fa2c7-798a-44af-9658-6153892339f8): applied "0053_create_sales_credit_notes"
+api:test: [migration-runner] tenant "test_e2e_8e47964bc6" (096fa2c7-798a-44af-9658-6153892339f8): applied "0054_add_invoice_posting_accounts"
+api:test: [migration-runner] tenant "test_e2e_8e47964bc6" (096fa2c7-798a-44af-9658-6153892339f8): applied "0055_create_cost_centers"
+api:test: [migration-runner] tenant "test_e2e_8e47964bc6" (096fa2c7-798a-44af-9658-6153892339f8): applied "0056_add_cost_center_to_journal_entry_lines"
+api:test: [migration-runner] tenant "test_e2e_8e47964bc6" (096fa2c7-798a-44af-9658-6153892339f8): applied "0057_add_reconciliation_to_journal_entry_lines"
+api:test: [migration-runner] tenant "test_e2e_8e47964bc6" (096fa2c7-798a-44af-9658-6153892339f8): applied "0058_create_bank_accounts"
+api:test: [migration-runner] tenant "test_e2e_8e47964bc6" (096fa2c7-798a-44af-9658-6153892339f8): applied "0059_create_pos_sessions"
+api:test: [migration-runner] tenant "test_e2e_8e47964bc6" (096fa2c7-798a-44af-9658-6153892339f8): applied "0060_add_pos_session_id_to_payments_received"
+api:test: [migration-runner] tenant "test_e2e_8e47964bc6" (096fa2c7-798a-44af-9658-6153892339f8): applied "0061_add_cash_accounts_to_accounting_settings"
+api:test: [migration-runner] tenant "test_e2e_8e47964bc6" (096fa2c7-798a-44af-9658-6153892339f8): applied "0062_add_discounts_to_sales_orders"
+api:test: [migration-runner] tenant "test_e2e_8e47964bc6" (096fa2c7-798a-44af-9658-6153892339f8): applied "0063_add_is_system_default_to_customers"
+api:test: [migration-runner] tenant "test_e2e_8e47964bc6" (096fa2c7-798a-44af-9658-6153892339f8): applied "0064_add_warehouse_to_pos_sessions"
+api:test: [migration-runner] tenant "test_e2e_8e47964bc6" (096fa2c7-798a-44af-9658-6153892339f8): applied "0065_create_account_action_tokens"
+api:test: [migration-runner] tenant "test_e2e_8e47964bc6" (096fa2c7-798a-44af-9658-6153892339f8): applied "0066_add_totp_to_users"
+api:test: [migration-runner] tenant "test_e2e_8e47964bc6" (096fa2c7-798a-44af-9658-6153892339f8): applied "0067_create_user_backup_codes"
+api:test: [migration-runner] tenant "test_e2e_8e47964bc6" (096fa2c7-798a-44af-9658-6153892339f8): applied "0068_widen_account_action_tokens_purpose"
+api:test: [migration-runner] tenant "test_e2e_8e47964bc6" (096fa2c7-798a-44af-9658-6153892339f8): applied "0069_create_tenant_feature_toggles"
+api:test: [provisioning] seeded Owner user "owner@e2e-test.local" for "test_e2e_8e47964bc6"
+api:test: [provisioning] seeded Walk-in Customer for "test_e2e_8e47964bc6"
+api:test: [provisioning] tenant "test_e2e_8e47964bc6" (096fa2c7-798a-44af-9658-6153892339f8) fully provisioned
+api:test: [provisioning] created tenant record "test_integration_47909e700e" (9304cc9c-a67e-461a-aa25-07483830b749)
+api:test: [provisioning] created schema "test_integration_47909e700e", applying migrations...
+api:test: [migration-runner] tenant "test_integration_47909e700e" (9304cc9c-a67e-461a-aa25-07483830b749): applied "0001_create_tenant_settings"
+api:test: [migration-runner] tenant "test_integration_47909e700e" (9304cc9c-a67e-461a-aa25-07483830b749): applied "0002_create_branches"
+api:test: [migration-runner] tenant "test_integration_47909e700e" (9304cc9c-a67e-461a-aa25-07483830b749): applied "0003_create_numbering_sequences"
+api:test: [migration-runner] tenant "test_integration_47909e700e" (9304cc9c-a67e-461a-aa25-07483830b749): applied "0004_create_document_templates"
+api:test: [migration-runner] tenant "test_integration_47909e700e" (9304cc9c-a67e-461a-aa25-07483830b749): applied "0005_create_tax_rules"
+api:test: [migration-runner] tenant "test_integration_47909e700e" (9304cc9c-a67e-461a-aa25-07483830b749): applied "0006_create_custom_field_definitions"
+api:test: [migration-runner] tenant "test_integration_47909e700e" (9304cc9c-a67e-461a-aa25-07483830b749): applied "0007_create_permissions"
+api:test: [migration-runner] tenant "test_integration_47909e700e" (9304cc9c-a67e-461a-aa25-07483830b749): applied "0008_create_roles"
+api:test: [migration-runner] tenant "test_integration_47909e700e" (9304cc9c-a67e-461a-aa25-07483830b749): applied "0009_create_role_permissions"
+api:test: [migration-runner] tenant "test_integration_47909e700e" (9304cc9c-a67e-461a-aa25-07483830b749): applied "0010_create_users"
+api:test: [migration-runner] tenant "test_integration_47909e700e" (9304cc9c-a67e-461a-aa25-07483830b749): applied "0011_create_user_branch_access"
+api:test: [migration-runner] tenant "test_integration_47909e700e" (9304cc9c-a67e-461a-aa25-07483830b749): applied "0012_create_approval_chains"
+api:test: [migration-runner] tenant "test_integration_47909e700e" (9304cc9c-a67e-461a-aa25-07483830b749): applied "0013_create_audit_logs"
+api:test: [migration-runner] tenant "test_integration_47909e700e" (9304cc9c-a67e-461a-aa25-07483830b749): applied "0014_create_refresh_tokens"
+api:test: [migration-runner] tenant "test_integration_47909e700e" (9304cc9c-a67e-461a-aa25-07483830b749): applied "0015_create_units_of_measure"
+api:test: [migration-runner] tenant "test_integration_47909e700e" (9304cc9c-a67e-461a-aa25-07483830b749): applied "0016_create_warehouses"
+api:test: [migration-runner] tenant "test_integration_47909e700e" (9304cc9c-a67e-461a-aa25-07483830b749): applied "0017_create_products"
+api:test: [migration-runner] tenant "test_integration_47909e700e" (9304cc9c-a67e-461a-aa25-07483830b749): applied "0018_create_product_variants"
+api:test: [migration-runner] tenant "test_integration_47909e700e" (9304cc9c-a67e-461a-aa25-07483830b749): applied "0019_create_stock_levels"
+api:test: [migration-runner] tenant "test_integration_47909e700e" (9304cc9c-a67e-461a-aa25-07483830b749): applied "0020_create_stock_movements"
+api:test: [migration-runner] tenant "test_integration_47909e700e" (9304cc9c-a67e-461a-aa25-07483830b749): applied "0021_seed_inventory_permission"
+api:test: [migration-runner] tenant "test_integration_47909e700e" (9304cc9c-a67e-461a-aa25-07483830b749): applied "0022_add_branch_id_to_warehouses"
+api:test: [migration-runner] tenant "test_integration_47909e700e" (9304cc9c-a67e-461a-aa25-07483830b749): applied "0023_create_warehouse_locations"
+api:test: [migration-runner] tenant "test_integration_47909e700e" (9304cc9c-a67e-461a-aa25-07483830b749): applied "0024_add_location_to_stock"
+api:test: [migration-runner] tenant "test_integration_47909e700e" (9304cc9c-a67e-461a-aa25-07483830b749): applied "0025_add_conversion_to_units_of_measure"
+api:test: [migration-runner] tenant "test_integration_47909e700e" (9304cc9c-a67e-461a-aa25-07483830b749): applied "0026_create_landed_costs"
+api:test: [migration-runner] tenant "test_integration_47909e700e" (9304cc9c-a67e-461a-aa25-07483830b749): applied "0027_create_stock_lots"
+api:test: [migration-runner] tenant "test_integration_47909e700e" (9304cc9c-a67e-461a-aa25-07483830b749): applied "0028_grant_missing_permissions_to_owner"
+api:test: [migration-runner] tenant "test_integration_47909e700e" (9304cc9c-a67e-461a-aa25-07483830b749): applied "0029_create_suppliers"
+api:test: [migration-runner] tenant "test_integration_47909e700e" (9304cc9c-a67e-461a-aa25-07483830b749): applied "0030_create_purchase_requisitions"
+api:test: [migration-runner] tenant "test_integration_47909e700e" (9304cc9c-a67e-461a-aa25-07483830b749): applied "0031_create_rfq_and_supplier_quotations"
+api:test: [migration-runner] tenant "test_integration_47909e700e" (9304cc9c-a67e-461a-aa25-07483830b749): applied "0032_create_purchase_orders"
+api:test: [migration-runner] tenant "test_integration_47909e700e" (9304cc9c-a67e-461a-aa25-07483830b749): applied "0034_add_purchase_order_receipt_statuses"
+api:test: [migration-runner] tenant "test_integration_47909e700e" (9304cc9c-a67e-461a-aa25-07483830b749): applied "0035_create_goods_receipts"
+api:test: [migration-runner] tenant "test_integration_47909e700e" (9304cc9c-a67e-461a-aa25-07483830b749): applied "0036_create_purchase_returns"
+api:test: [migration-runner] tenant "test_integration_47909e700e" (9304cc9c-a67e-461a-aa25-07483830b749): applied "0037_create_outbox_events"
+api:test: [migration-runner] tenant "test_integration_47909e700e" (9304cc9c-a67e-461a-aa25-07483830b749): applied "0038_create_purchase_invoices"
+api:test: [migration-runner] tenant "test_integration_47909e700e" (9304cc9c-a67e-461a-aa25-07483830b749): applied "0039_create_customers"
+api:test: [migration-runner] tenant "test_integration_47909e700e" (9304cc9c-a67e-461a-aa25-07483830b749): applied "0040_create_eta_credentials"
+api:test: [migration-runner] tenant "test_integration_47909e700e" (9304cc9c-a67e-461a-aa25-07483830b749): applied "0041_create_quotations"
+api:test: [migration-runner] tenant "test_integration_47909e700e" (9304cc9c-a67e-461a-aa25-07483830b749): applied "0042_create_sales_orders"
+api:test: [migration-runner] tenant "test_integration_47909e700e" (9304cc9c-a67e-461a-aa25-07483830b749): applied "0043_add_sales_order_delivery_statuses"
+api:test: [migration-runner] tenant "test_integration_47909e700e" (9304cc9c-a67e-461a-aa25-07483830b749): applied "0044_create_deliveries"
+api:test: [migration-runner] tenant "test_integration_47909e700e" (9304cc9c-a67e-461a-aa25-07483830b749): applied "0045_create_sales_invoices"
+api:test: [migration-runner] tenant "test_integration_47909e700e" (9304cc9c-a67e-461a-aa25-07483830b749): applied "0046_create_payments_received"
+api:test: [migration-runner] tenant "test_integration_47909e700e" (9304cc9c-a67e-461a-aa25-07483830b749): applied "0047_create_sales_returns"
+api:test: [migration-runner] tenant "test_integration_47909e700e" (9304cc9c-a67e-461a-aa25-07483830b749): applied "0048_create_chart_of_accounts"
+api:test: [migration-runner] tenant "test_integration_47909e700e" (9304cc9c-a67e-461a-aa25-07483830b749): applied "0049_create_fiscal_years"
+api:test: [migration-runner] tenant "test_integration_47909e700e" (9304cc9c-a67e-461a-aa25-07483830b749): applied "0050_create_journal_entries"
+api:test: [migration-runner] tenant "test_integration_47909e700e" (9304cc9c-a67e-461a-aa25-07483830b749): applied "0051_add_journal_entry_source_reference"
+api:test: [migration-runner] tenant "test_integration_47909e700e" (9304cc9c-a67e-461a-aa25-07483830b749): applied "0052_create_accounting_settings"
+api:test: [migration-runner] tenant "test_integration_47909e700e" (9304cc9c-a67e-461a-aa25-07483830b749): applied "0053_create_sales_credit_notes"
+api:test: [migration-runner] tenant "test_integration_47909e700e" (9304cc9c-a67e-461a-aa25-07483830b749): applied "0054_add_invoice_posting_accounts"
+api:test: [migration-runner] tenant "test_integration_47909e700e" (9304cc9c-a67e-461a-aa25-07483830b749): applied "0055_create_cost_centers"
+api:test: [migration-runner] tenant "test_integration_47909e700e" (9304cc9c-a67e-461a-aa25-07483830b749): applied "0056_add_cost_center_to_journal_entry_lines"
+api:test: [migration-runner] tenant "test_integration_47909e700e" (9304cc9c-a67e-461a-aa25-07483830b749): applied "0057_add_reconciliation_to_journal_entry_lines"
+api:test: [migration-runner] tenant "test_integration_47909e700e" (9304cc9c-a67e-461a-aa25-07483830b749): applied "0058_create_bank_accounts"
+api:test: [migration-runner] tenant "test_integration_47909e700e" (9304cc9c-a67e-461a-aa25-07483830b749): applied "0059_create_pos_sessions"
+api:test: [migration-runner] tenant "test_integration_47909e700e" (9304cc9c-a67e-461a-aa25-07483830b749): applied "0060_add_pos_session_id_to_payments_received"
+api:test: [migration-runner] tenant "test_integration_47909e700e" (9304cc9c-a67e-461a-aa25-07483830b749): applied "0061_add_cash_accounts_to_accounting_settings"
+api:test: [migration-runner] tenant "test_integration_47909e700e" (9304cc9c-a67e-461a-aa25-07483830b749): applied "0062_add_discounts_to_sales_orders"
+api:test: [migration-runner] tenant "test_integration_47909e700e" (9304cc9c-a67e-461a-aa25-07483830b749): applied "0063_add_is_system_default_to_customers"
+api:test: [migration-runner] tenant "test_integration_47909e700e" (9304cc9c-a67e-461a-aa25-07483830b749): applied "0064_add_warehouse_to_pos_sessions"
+api:test: [migration-runner] tenant "test_integration_47909e700e" (9304cc9c-a67e-461a-aa25-07483830b749): applied "0065_create_account_action_tokens"
+api:test: [migration-runner] tenant "test_integration_47909e700e" (9304cc9c-a67e-461a-aa25-07483830b749): applied "0066_add_totp_to_users"
+api:test: [migration-runner] tenant "test_integration_47909e700e" (9304cc9c-a67e-461a-aa25-07483830b749): applied "0067_create_user_backup_codes"
+api:test: [migration-runner] tenant "test_integration_47909e700e" (9304cc9c-a67e-461a-aa25-07483830b749): applied "0068_widen_account_action_tokens_purpose"
+api:test: [migration-runner] tenant "test_integration_47909e700e" (9304cc9c-a67e-461a-aa25-07483830b749): applied "0069_create_tenant_feature_toggles"
+api:test: [provisioning] seeded Walk-in Customer for "test_integration_47909e700e"
+api:test: [provisioning] tenant "test_integration_47909e700e" (9304cc9c-a67e-461a-aa25-07483830b749) fully provisioned
+api:test: PASS integration test/integration/numbering-sequences.repository.int-spec.ts
+api:test: PASS unit src/modules/settings/application/services/feature-toggles.service.spec.ts
+api:test: FAIL integration test/integration/branches.repository.int-spec.ts
+api:test:   ● KyselyBranchRepository (integration, real Postgres) › update() applies a partial patch and bumps updated_at, leaving other fields untouched
+api:test: 
+api:test:     expect(received).toBeGreaterThanOrEqual(expected)
+api:test: 
+api:test:     Expected: >= 1789080620920
+api:test:     Received:    1789080620918
+api:test: 
+api:test:     [0m [90m 56 |[39m     expect(updated[33m?[39m[33m.[39mname)[33m.[39mtoBe([32m'New Name'[39m)[33m;[39m
+api:test:      [90m 57 |[39m     expect(updated[33m?[39m[33m.[39mcode)[33m.[39mtoBe(created[33m.[39mcode)[33m;[39m [90m// untouched[39m
+api:test:     [31m[1m>[22m[39m[90m 58 |[39m     expect(updated[33m?[39m[33m.[39mupdatedAt[33m.[39mgetTime())[33m.[39mtoBeGreaterThanOrEqual(created[33m.[39mupdatedAt[33m.[39mgetTime())[33m;[39m
+api:test:      [90m    |[39m                                          [31m[1m^[22m[39m
+api:test:      [90m 59 |[39m   })[33m;[39m
+api:test:      [90m 60 |[39m
+api:test:      [90m 61 |[39m   it([32m'update() persists a JSON custom_fields patch and round-trips it correctly'[39m[33m,[39m [36masync[39m () [33m=>[39m {[0m
+api:test: 
+api:test:       at Object.<anonymous> (test/integration/branches.repository.int-spec.ts:58:42)
+api:test: 
+api:test: PASS integration test/integration/user-branch-access.repository.int-spec.ts
+api:test: PASS integration test/integration/users.repository.int-spec.ts
+api:test: PASS unit src/modules/users-permissions/application/services/two-factor.service.spec.ts
+api:test: PASS unit src/modules/users-permissions/application/services/auth.service.spec.ts
+api:test: PASS unit src/modules/inventory/application/services/stock-movements.service.spec.ts
+api:test: PASS unit src/modules/users-permissions/application/services/users.service.spec.ts
+api:test: PASS unit src/modules/settings/application/services/tenant-settings.service.spec.ts
+api:test: PASS unit src/modules/users-permissions/application/services/audit-logs.service.spec.ts
+api:test: PASS integration test/integration/audit-logs.repository.int-spec.ts
+api:test: PASS integration test/integration/roles.repository.int-spec.ts
+api:test: PASS integration test/integration/custom-field-definitions.repository.int-spec.ts
+api:test: PASS unit src/modules/users-permissions/application/services/user-branch-access.service.spec.ts
+api:test: PASS integration test/integration/document-templates.repository.int-spec.ts
+api:test: PASS e2e test/e2e/auth.e2e-spec.ts (12.252 s)
+api:test: PASS unit src/modules/inventory/application/services/warehouses.service.spec.ts
+api:test: PASS integration test/integration/tax-rules.repository.int-spec.ts
+api:test: PASS unit src/modules/users-permissions/application/services/roles.service.spec.ts
+api:test: PASS e2e test/e2e/settings-and-users-crud.e2e-spec.ts (13.034 s)
+api:test: PASS unit src/shared/config/env.validation.spec.ts
+api:test: PASS integration test/integration/refresh-tokens.repository.int-spec.ts
+api:test: PASS unit src/modules/users-permissions/application/services/approval-chains.service.spec.ts
+api:test: PASS unit src/modules/users-permissions/application/services/account-access.service.spec.ts
+api:test: PASS unit src/modules/inventory/application/services/products.service.spec.ts
+api:test: PASS unit src/modules/settings/application/services/numbering-sequences.service.spec.ts
+api:test: PASS integration test/integration/permissions.repository.int-spec.ts
+api:test: PASS integration test/integration/tenant-settings.repository.int-spec.ts
+api:test: PASS unit src/modules/settings/application/services/custom-field-definitions.service.spec.ts
+api:test: PASS unit src/modules/users-permissions/application/services/totp.service.spec.ts
+api:test: PASS unit src/modules/inventory/application/services/landed-costs.service.spec.ts
+api:test: PASS unit src/modules/inventory/application/services/units-of-measure.service.spec.ts
+api:test: PASS unit src/modules/settings/application/services/document-templates.service.spec.ts
+api:test: PASS unit src/modules/users-permissions/application/services/permissions.service.spec.ts
+api:test: PASS unit src/modules/settings/application/services/tax-rules.service.spec.ts
+api:test: PASS unit src/modules/settings/application/services/branches.service.spec.ts
+api:test: PASS integration test/integration/approval-chains.repository.int-spec.ts
+api:test: PASS e2e test/e2e/permissions-enforcement.e2e-spec.ts (17.459 s)
+api:test: A worker process has failed to exit gracefully and has been force exited. This is likely caused by tests leaking due to improper teardown. Try running with --detectOpenHandles to find leaks. Active timers can also cause this, ensure that .unref() was called on them.
+api:test: 
+api:test: Summary of all failing tests
+api:test: FAIL test/integration/branches.repository.int-spec.ts
+api:test:   ● KyselyBranchRepository (integration, real Postgres) › update() applies a partial patch and bumps updated_at, leaving other fields untouched
+api:test: 
+api:test:     expect(received).toBeGreaterThanOrEqual(expected)
+api:test: 
+api:test:     Expected: >= 1789080620920
+api:test:     Received:    1789080620918
+api:test: 
+api:test:     [0m [90m 56 |[39m     expect(updated[33m?[39m[33m.[39mname)[33m.[39mtoBe([32m'New Name'[39m)[33m;[39m
+api:test:      [90m 57 |[39m     expect(updated[33m?[39m[33m.[39mcode)[33m.[39mtoBe(created[33m.[39mcode)[33m;[39m [90m// untouched[39m
+api:test:     [31m[1m>[22m[39m[90m 58 |[39m     expect(updated[33m?[39m[33m.[39mupdatedAt[33m.[39mgetTime())[33m.[39mtoBeGreaterThanOrEqual(created[33m.[39mupdatedAt[33m.[39mgetTime())[33m;[39m
+api:test:      [90m    |[39m                                          [31m[1m^[22m[39m
+api:test:      [90m 59 |[39m   })[33m;[39m
+api:test:      [90m 60 |[39m
+api:test:      [90m 61 |[39m   it([32m'update() persists a JSON custom_fields patch and round-trips it correctly'[39m[33m,[39m [36masync[39m () [33m=>[39m {[0m
+api:test: 
+api:test:       at Object.<anonymous> (test/integration/branches.repository.int-spec.ts:58:42)
+api:test: 
+api:test: 
+api:test: Test Suites: 1 failed, 38 passed, 39 total
+api:test: Tests:       1 failed, 364 passed, 365 total
+api:test: Snapshots:   0 total
+api:test: Time:        18.986 s, estimated 60 s
+api:test: Ran all test suites in 3 projects.
+api:test:  ELIFECYCLE  Test failed. See above for more details.
+api#test:  ERROR  command (M:\Projects\erp-platform\apps\api) C:\nvm4w\nodejs\pnpm.CMD run test exited (1)
+
+ Tasks:    8 successful, 9 total
+Cached:    8 cached, 9 total
+  Time:    28.125s 
+Failed:    api#test
+
+ ERROR  run failed: command  exited (1)
+ ELIFECYCLE  Test failed. See above for more details.

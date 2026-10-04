@@ -6,11 +6,6 @@ import { useTranslation } from 'react-i18next';
 import { resetPasswordSchema, type ResetPasswordDto } from '@erp-platform/contracts';
 import {
   Button,
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
   Form,
   FormControl,
   FormField,
@@ -20,6 +15,7 @@ import {
   Input,
 } from '@erp-platform/ui';
 
+import { AuthLayout } from './auth-layout';
 import { apiPost, ApiError } from '../../lib/api-client';
 
 /**
@@ -56,54 +52,42 @@ export function ResetPasswordPage() {
 
   if (!token) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-muted/30 p-4">
-        <Card className="w-full max-w-sm">
-          <CardHeader className="items-center text-center">
-            <CardTitle>{t('auth.resetPasswordTitle')}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-destructive">{t('auth.resetPasswordMissingToken')}</p>
-            <Link to="/forgot-password" className="mt-4 block text-center text-sm text-muted-foreground hover:underline">
-              {t('auth.forgotPasswordTitle')}
-            </Link>
-          </CardContent>
-        </Card>
-      </div>
+      <AuthLayout title={t('auth.resetPasswordTitle')}>
+        <p className="text-sm text-destructive">{t('auth.resetPasswordMissingToken')}</p>
+        <Link
+          to="/forgot-password"
+          className="mt-4 block text-center text-sm text-muted-foreground hover:underline"
+        >
+          {t('auth.forgotPasswordTitle')}
+        </Link>
+      </AuthLayout>
     );
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-muted/30 p-4">
-      <Card className="w-full max-w-sm">
-        <CardHeader className="items-center text-center">
-          <CardTitle>{t('auth.resetPasswordTitle')}</CardTitle>
-          <CardDescription>{t('auth.resetPasswordSubtitle')}</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-4">
-              <input type="hidden" {...form.register('token')} />
-              <FormField
-                control={form.control}
-                name="newPassword"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t('auth.newPassword')}</FormLabel>
-                    <FormControl>
-                      <Input type="password" autoComplete="new-password" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              {formError ? <p className="text-sm font-medium text-destructive">{formError}</p> : null}
-              <Button type="submit" disabled={submitting} className="mt-2">
-                {submitting ? t('auth.submitting') : t('auth.resetPasswordSubmit')}
-              </Button>
-            </form>
-          </Form>
-        </CardContent>
-      </Card>
-    </div>
+    <AuthLayout title={t('auth.resetPasswordTitle')} description={t('auth.resetPasswordSubtitle')}>
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-4">
+          <input type="hidden" {...form.register('token')} />
+          <FormField
+            control={form.control}
+            name="newPassword"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>{t('auth.newPassword')}</FormLabel>
+                <FormControl>
+                  <Input type="password" autoComplete="new-password" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          {formError ? <p className="text-sm font-medium text-destructive">{formError}</p> : null}
+          <Button type="submit" disabled={submitting} className="mt-2">
+            {submitting ? t('auth.submitting') : t('auth.resetPasswordSubmit')}
+          </Button>
+        </form>
+      </Form>
+    </AuthLayout>
   );
 }

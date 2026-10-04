@@ -1,0 +1,4 @@
+
+> erp-platform@0.0.0 lint M:\Projects\erp-platform
+> eslint . --ext .ts,.tsx
+

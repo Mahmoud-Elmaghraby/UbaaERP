@@ -28,6 +28,7 @@ import {
   TableHeader,
   TableRow,
   toast,
+  PageHeader,
 } from '@erp-platform/ui';
 
 import { useCreateRole, usePermissions, useRoles, useUpdateRole } from './queries';
@@ -44,7 +45,7 @@ export function RolesPage() {
     <div className="grid gap-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold">{t('roles.title')}</h1>
+          <PageHeader title={t('roles.title')} />
           <p className="text-sm text-muted-foreground">{t('roles.subtitle')}</p>
         </div>
         <Can permission="roles.manage">

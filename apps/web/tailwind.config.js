@@ -1,4 +1,9 @@
 /** @type {import('tailwindcss').Config} */
+
+// كل الألوان تُقرأ من متغيرات CSS في src/index.css (نظام التصميم)، فتغيير لون
+// الهوية وقت التشغيل (ThemeProvider) ينعكس على كل الأصناف تلقائيًا.
+const hsl = (name) => `hsl(var(--${name}))`;
+
 module.exports = {
   darkMode: ['class'],
   content: [
@@ -16,56 +21,82 @@ module.exports = {
     },
     extend: {
       colors: {
-        border: 'hsl(var(--border))',
-        input: 'hsl(var(--input))',
-        ring: 'hsl(var(--ring))',
-        background: 'hsl(var(--background))',
-        foreground: 'hsl(var(--foreground))',
+        border: hsl('border'),
+        input: hsl('input'),
+        ring: hsl('ring'),
+        background: hsl('background'),
+        foreground: hsl('foreground'),
+        subtle: hsl('subtle'),
         primary: {
-          DEFAULT: 'hsl(var(--primary))',
-          foreground: 'hsl(var(--primary-foreground))',
+          DEFAULT: hsl('primary'),
+          foreground: hsl('primary-foreground'),
+        },
+        brand: {
+          50: hsl('brand-50'),
+          100: hsl('brand-100'),
+          200: hsl('brand-200'),
+          300: hsl('brand-300'),
+          400: hsl('brand-400'),
+          500: hsl('brand-500'),
+          600: hsl('brand-600'),
+          700: hsl('brand-700'),
+          800: hsl('brand-800'),
+          900: hsl('brand-900'),
         },
         secondary: {
-          DEFAULT: 'hsl(var(--secondary))',
-          foreground: 'hsl(var(--secondary-foreground))',
+          DEFAULT: hsl('secondary'),
+          foreground: hsl('secondary-foreground'),
         },
         destructive: {
-          DEFAULT: 'hsl(var(--destructive))',
-          foreground: 'hsl(var(--destructive-foreground))',
+          DEFAULT: hsl('destructive'),
+          foreground: hsl('destructive-foreground'),
         },
+        success: { DEFAULT: hsl('success'), soft: hsl('success-soft') },
+        warning: { DEFAULT: hsl('warning'), soft: hsl('warning-soft') },
+        info: { DEFAULT: hsl('info'), soft: hsl('info-soft') },
+        danger: { DEFAULT: hsl('danger'), soft: hsl('danger-soft') },
         muted: {
-          DEFAULT: 'hsl(var(--muted))',
-          foreground: 'hsl(var(--muted-foreground))',
+          DEFAULT: hsl('muted'),
+          foreground: hsl('muted-foreground'),
         },
         accent: {
-          DEFAULT: 'hsl(var(--accent))',
-          foreground: 'hsl(var(--accent-foreground))',
+          DEFAULT: hsl('accent'),
+          foreground: hsl('accent-foreground'),
         },
         popover: {
-          DEFAULT: 'hsl(var(--popover))',
-          foreground: 'hsl(var(--popover-foreground))',
+          DEFAULT: hsl('popover'),
+          foreground: hsl('popover-foreground'),
         },
         card: {
-          DEFAULT: 'hsl(var(--card))',
-          foreground: 'hsl(var(--card-foreground))',
+          DEFAULT: hsl('card'),
+          foreground: hsl('card-foreground'),
         },
         sidebar: {
-          DEFAULT: 'hsl(var(--sidebar-background))',
-          foreground: 'hsl(var(--sidebar-foreground))',
-          mutedForeground: 'hsl(var(--sidebar-muted-foreground))',
-          accent: 'hsl(var(--sidebar-accent))',
-          accentForeground: 'hsl(var(--sidebar-accent-foreground))',
-          border: 'hsl(var(--sidebar-border))',
+          DEFAULT: hsl('sidebar-background'),
+          foreground: hsl('sidebar-foreground'),
+          mutedForeground: hsl('sidebar-muted-foreground'),
+          accent: hsl('sidebar-accent'),
+          accentForeground: hsl('sidebar-accent-foreground'),
+          border: hsl('sidebar-border'),
         },
       },
       borderRadius: {
+        xl: 'calc(var(--radius) + 4px)',
         lg: 'var(--radius)',
         md: 'calc(var(--radius) - 2px)',
         sm: 'calc(var(--radius) - 4px)',
       },
       fontFamily: {
-        sans: ['"Cairo"', 'system-ui', 'sans-serif'],
-        display: ['"IBM Plex Sans Arabic"', '"Cairo"', 'system-ui', 'sans-serif'],
+        // خط واحد للنظام كله (قرار 2026-10-04): IBM Plex Sans Arabic.
+        sans: ['"IBM Plex Sans Arabic"', 'system-ui', 'sans-serif'],
+        display: ['"IBM Plex Sans Arabic"', 'system-ui', 'sans-serif'],
+      },
+      boxShadow: {
+        card: '0 1px 2px 0 rgb(16 24 40 / 0.04)',
+        overlay: '0 12px 32px -4px rgb(16 24 40 / 0.14), 0 4px 8px -2px rgb(16 24 40 / 0.06)',
+      },
+      height: {
+        row: 'var(--row-h)',
       },
       keyframes: {
         'accordion-down': {

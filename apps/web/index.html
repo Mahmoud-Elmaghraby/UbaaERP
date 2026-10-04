@@ -7,10 +7,20 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=IBM+Plex+Sans+Arabic:wght@500;600;700&display=swap"
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap"
       rel="stylesheet"
     />
     <title>أصول</title>
+    <script>
+      // يطبّق تفضيلات المظهر المحفوظة (الوضع الداكن/الكثافة) قبل أول رسم لتجنّب الوميض.
+      // المصدر الحقيقي: apps/web/src/app/theme/ui-preferences-store.ts
+      try {
+        var p = JSON.parse(localStorage.getItem('erp-ui-preferences') || '{}').state || {};
+        var dark = p.mode === 'dark' || (p.mode === 'system' && matchMedia('(prefers-color-scheme: dark)').matches);
+        if (dark) document.documentElement.classList.add('dark');
+        if (p.density === 'compact') document.documentElement.setAttribute('data-density', 'compact');
+      } catch (e) {}
+    </script>
   </head>
   <body>
     <div id="root"></div>

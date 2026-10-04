@@ -1,12 +1,13 @@
 import { useTranslation } from 'react-i18next';
 
 import { BankAccountsTab } from './bank-accounts-tab';
+import { PageHeader } from '@erp-platform/ui';
 
 export function BankAccountsPage() {
   const { t } = useTranslation();
   return (
     <div className="grid gap-6">
-      <h1 className="text-2xl font-semibold">{t('accounting.tabs.bankAccounts')}</h1>
+      <PageHeader title={t('accounting.tabs.bankAccounts')} />
       <BankAccountsTab />
     </div>
   );

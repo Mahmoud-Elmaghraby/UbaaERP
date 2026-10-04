@@ -1,12 +1,13 @@
 import { useTranslation } from 'react-i18next';
 
 import { FiscalYearsTab } from './fiscal-years-tab';
+import { PageHeader } from '@erp-platform/ui';
 
 export function FiscalYearsPage() {
   const { t } = useTranslation();
   return (
     <div className="grid gap-6">
-      <h1 className="text-2xl font-semibold">{t('accounting.tabs.fiscalYears')}</h1>
+      <PageHeader title={t('accounting.tabs.fiscalYears')} />
       <FiscalYearsTab />
     </div>
   );

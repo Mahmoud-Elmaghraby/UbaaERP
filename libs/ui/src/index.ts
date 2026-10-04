@@ -27,6 +27,12 @@ export * from './components/ui/select';
 export * from './components/ui/dropdown-menu';
 export * from './components/ui/form';
 export * from './components/ui/toaster';
+export * from './components/ui/page-header';
+export * from './components/ui/empty-state';
+
+// Radix direction context — apps wrap the tree in <DirectionProvider dir="rtl"> so every
+// Radix primitive (Tabs, Select, DropdownMenu…) lays out right-to-left.
+export { DirectionProvider } from '@radix-ui/react-direction';
 
 export * from './can/permissions-context';
 export * from './can/features-context';

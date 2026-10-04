@@ -24,6 +24,7 @@ import {
   SelectValue,
   Skeleton,
   toast,
+  PageHeader,
 } from '@erp-platform/ui';
 
 import { useAccountingSettings, useUpdateAccountingSettings } from '../../api/accounting-settings/queries';
@@ -99,7 +100,7 @@ export function AccountingSettingsPage() {
 
   return (
     <div className="grid gap-6">
-      <h1 className="text-2xl font-semibold">{t('accounting.tabs.settings')}</h1>
+      <PageHeader title={t('accounting.tabs.settings')} />
 
       <Card className="max-w-2xl">
         <CardHeader>

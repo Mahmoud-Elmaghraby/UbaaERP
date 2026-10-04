@@ -10,6 +10,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
+  PageHeader,
 } from '@erp-platform/ui';
 
 import { useAuditLogs, type AuditLogFilters } from './queries';
@@ -23,7 +24,7 @@ export function AuditLogsPage() {
   return (
     <div className="grid gap-6">
       <div>
-        <h1 className="text-2xl font-semibold">{t('auditLogs.title')}</h1>
+        <PageHeader title={t('auditLogs.title')} />
         <p className="text-sm text-muted-foreground">{t('auditLogs.subtitle')}</p>
       </div>
 

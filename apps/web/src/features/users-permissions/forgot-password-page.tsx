@@ -6,11 +6,6 @@ import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
   Button,
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
   Form,
   FormControl,
   FormField,
@@ -20,6 +15,7 @@ import {
   Input,
 } from '@erp-platform/ui';
 
+import { AuthLayout } from './auth-layout';
 import { apiPost, ApiError } from '../../lib/api-client';
 import { useAuthStore } from '../../lib/auth-store';
 
@@ -64,56 +60,48 @@ export function ForgotPasswordPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-muted/30 p-4">
-      <Card className="w-full max-w-sm">
-        <CardHeader className="items-center text-center">
-          <CardTitle>{t('auth.forgotPasswordTitle')}</CardTitle>
-          <CardDescription>{t('auth.forgotPasswordSubtitle')}</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {done ? (
-            <p className="text-sm text-muted-foreground">{t('auth.forgotPasswordSent')}</p>
-          ) : (
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-4">
-                <FormField
-                  control={form.control}
-                  name="tenantSchema"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{t('auth.tenantSchema')}</FormLabel>
-                      <FormControl>
-                        <Input placeholder={t('auth.tenantSchemaPlaceholder')} {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="email"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{t('auth.email')}</FormLabel>
-                      <FormControl>
-                        <Input type="email" autoComplete="username" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                {formError ? <p className="text-sm font-medium text-destructive">{formError}</p> : null}
-                <Button type="submit" disabled={submitting} className="mt-2">
-                  {submitting ? t('auth.submitting') : t('auth.forgotPasswordSubmit')}
-                </Button>
-              </form>
-            </Form>
-          )}
-          <Link to="/login" className="mt-4 block text-center text-sm text-muted-foreground hover:underline">
-            {t('auth.backToLogin')}
-          </Link>
-        </CardContent>
-      </Card>
-    </div>
+    <AuthLayout title={t('auth.forgotPasswordTitle')} description={t('auth.forgotPasswordSubtitle')}>
+      {done ? (
+        <p className="text-sm text-muted-foreground">{t('auth.forgotPasswordSent')}</p>
+      ) : (
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-4">
+            <FormField
+              control={form.control}
+              name="tenantSchema"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t('auth.tenantSchema')}</FormLabel>
+                  <FormControl>
+                    <Input placeholder={t('auth.tenantSchemaPlaceholder')} {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="email"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t('auth.email')}</FormLabel>
+                  <FormControl>
+                    <Input type="email" autoComplete="username" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            {formError ? <p className="text-sm font-medium text-destructive">{formError}</p> : null}
+            <Button type="submit" disabled={submitting} className="mt-2">
+              {submitting ? t('auth.submitting') : t('auth.forgotPasswordSubmit')}
+            </Button>
+          </form>
+        </Form>
+      )}
+      <Link to="/login" className="mt-4 block text-center text-sm text-muted-foreground hover:underline">
+        {t('auth.backToLogin')}
+      </Link>
+    </AuthLayout>
   );
 }

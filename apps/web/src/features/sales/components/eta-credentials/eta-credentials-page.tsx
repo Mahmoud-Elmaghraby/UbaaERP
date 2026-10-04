@@ -28,6 +28,7 @@ import {
   SelectValue,
   Skeleton,
   toast,
+  PageHeader,
 } from '@erp-platform/ui';
 
 import { useEtaCredentials, useUpdateEtaCredentials } from '../../api/eta-credentials/queries';
@@ -105,7 +106,7 @@ export function EtaCredentialsPage() {
 
   return (
     <div className="grid gap-6">
-      <h1 className="text-2xl font-semibold">{t('sales.tabs.etaCredentials')}</h1>
+      <PageHeader title={t('sales.tabs.etaCredentials')} />
 
       <Card>
         <CardHeader>

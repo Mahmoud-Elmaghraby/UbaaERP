@@ -16,6 +16,7 @@ import {
   FormMessage,
   Input,
   toast,
+  PageHeader,
 } from '@erp-platform/ui';
 
 import { useAuthStore } from '../../lib/auth-store';
@@ -30,7 +31,7 @@ export function ProfilePage() {
   return (
     <div className="grid gap-6">
       <div>
-        <h1 className="text-2xl font-semibold">{t('profile.title')}</h1>
+        <PageHeader title={t('profile.title')} />
         <p className="text-sm text-muted-foreground">{user?.fullName} — {user?.email}</p>
       </div>
 

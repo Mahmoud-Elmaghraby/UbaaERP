@@ -32,6 +32,7 @@ import {
   TableHeader,
   TableRow,
   toast,
+  PageHeader,
 } from '@erp-platform/ui';
 
 import { useCreateUser, useRoles, useSendUserInvite, useUsers } from './queries';
@@ -49,7 +50,7 @@ export function UsersPage() {
     <div className="grid gap-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold">{t('users.title')}</h1>
+          <PageHeader title={t('users.title')} />
           <p className="text-sm text-muted-foreground">{t('users.subtitle')}</p>
         </div>
         <Can permission="users.manage">

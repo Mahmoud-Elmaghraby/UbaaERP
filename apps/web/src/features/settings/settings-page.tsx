@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@erp-platform/ui';
+import { Tabs, TabsContent, TabsList, TabsTrigger, PageHeader } from '@erp-platform/ui';
 
 import { BranchesTab } from './branches-tab';
 import { GeneralTab } from './general-tab';
@@ -13,7 +13,7 @@ export function SettingsPage() {
 
   return (
     <div className="grid gap-6">
-      <h1 className="text-2xl font-semibold">{t('settings.title')}</h1>
+      <PageHeader title={t('settings.title')} />
 
       <Tabs defaultValue="branches">
         <TabsList>

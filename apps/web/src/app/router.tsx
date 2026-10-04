@@ -1,7 +1,9 @@
-import { Navigate, createBrowserRouter } from 'react-router-dom';
+import { createBrowserRouter } from 'react-router-dom';
 
 import { ProtectedRoute } from './protected-route';
 import { AppShell } from './layout/app-shell';
+import { HomePage } from './pages/home-page';
+import { NotFoundPage, RouteErrorPage } from './pages/route-error-page';
 import { LoginPage } from '../features/users-permissions/login-page';
 import { ForgotPasswordPage } from '../features/users-permissions/forgot-password-page';
 import { ResetPasswordPage } from '../features/users-permissions/reset-password-page';
@@ -16,7 +18,7 @@ import { salesRoutes } from '../features/sales/routes';
 import { accountingRoutes } from '../features/accounting/routes';
 
 export const router = createBrowserRouter([
-  { path: '/login', element: <LoginPage /> },
+  { path: '/login', element: <LoginPage />, errorElement: <RouteErrorPage /> },
   { path: '/forgot-password', element: <ForgotPasswordPage /> },
   { path: '/reset-password', element: <ResetPasswordPage /> },
   {
@@ -27,16 +29,24 @@ export const router = createBrowserRouter([
       </ProtectedRoute>
     ),
     children: [
-      { index: true, element: <Navigate to="/settings" replace /> },
-      { path: 'settings', element: <SettingsPage /> },
-      ...inventoryRoutes,
-      ...purchasesRoutes,
-      ...salesRoutes,
-      ...accountingRoutes,
-      { path: 'users', element: <UsersPage /> },
-      { path: 'roles', element: <RolesPage /> },
-      { path: 'audit-logs', element: <AuditLogsPage /> },
-      { path: 'profile', element: <ProfilePage /> },
+      {
+        // Pathless wrapper so a crashing page renders RouteErrorPage *inside* the
+        // shell (sidebar and top bar stay usable) instead of replacing the whole app.
+        errorElement: <RouteErrorPage />,
+        children: [
+          { index: true, element: <HomePage /> },
+          { path: 'settings', element: <SettingsPage /> },
+          ...inventoryRoutes,
+          ...purchasesRoutes,
+          ...salesRoutes,
+          ...accountingRoutes,
+          { path: 'users', element: <UsersPage /> },
+          { path: 'roles', element: <RolesPage /> },
+          { path: 'audit-logs', element: <AuditLogsPage /> },
+          { path: 'profile', element: <ProfilePage /> },
+          { path: '*', element: <NotFoundPage /> },
+        ],
+      },
     ],
   },
 ]);

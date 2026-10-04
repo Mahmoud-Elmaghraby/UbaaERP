@@ -7,11 +7,6 @@ import { useTranslation } from 'react-i18next';
 import type { AuthTokensDto, LoginResponseDto } from '@erp-platform/contracts';
 import {
   Button,
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
   Form,
   FormControl,
   FormField,
@@ -21,6 +16,7 @@ import {
   Input,
 } from '@erp-platform/ui';
 
+import { AuthLayout } from './auth-layout';
 import { apiPost, ApiError } from '../../lib/api-client';
 import { useAuthStore } from '../../lib/auth-store';
 
@@ -118,110 +114,97 @@ export function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-muted/30 p-4">
-      <Card className="w-full max-w-sm">
-        <CardHeader className="items-center text-center">
-          <span className="mb-2 flex h-12 w-12 items-center justify-center rounded-lg bg-primary text-xl font-bold text-primary-foreground">
-            أ
-          </span>
-          <p className="text-sm font-semibold tracking-tight text-muted-foreground">
-            {t('app.name')}
-          </p>
-          <CardTitle>{challengeToken ? t('auth.twoFactorTitle') : t('auth.loginTitle')}</CardTitle>
-          <CardDescription>
-            {challengeToken ? t('auth.twoFactorSubtitle') : t('auth.loginSubtitle')}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {challengeToken ? (
-            <Form {...twoFactorForm}>
-              <form onSubmit={twoFactorForm.handleSubmit(onSubmitTwoFactor)} className="grid gap-4">
-                <FormField
-                  control={twoFactorForm.control}
-                  name="code"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{t('auth.twoFactorCode')}</FormLabel>
-                      <FormControl>
-                        <Input
-                          autoComplete="one-time-code"
-                          autoFocus
-                          placeholder={t('auth.twoFactorCodePlaceholder')}
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                {formError ? <p className="text-sm font-medium text-destructive">{formError}</p> : null}
-                <Button type="submit" disabled={submitting} className="mt-2">
-                  {submitting ? t('auth.submitting') : t('auth.submit')}
-                </Button>
-                <Button type="button" variant="ghost" onClick={backToCredentials}>
-                  {t('auth.backToLogin')}
-                </Button>
-              </form>
-            </Form>
-          ) : (
-            <>
-              <Form {...credentialsForm}>
-                <form onSubmit={credentialsForm.handleSubmit(onSubmitCredentials)} className="grid gap-4">
-                  <FormField
-                    control={credentialsForm.control}
-                    name="tenantSchema"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>{t('auth.tenantSchema')}</FormLabel>
-                        <FormControl>
-                          <Input placeholder={t('auth.tenantSchemaPlaceholder')} {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={credentialsForm.control}
-                    name="email"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>{t('auth.email')}</FormLabel>
-                        <FormControl>
-                          <Input type="email" autoComplete="username" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={credentialsForm.control}
-                    name="password"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>{t('auth.password')}</FormLabel>
-                        <FormControl>
-                          <Input type="password" autoComplete="current-password" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  {formError ? <p className="text-sm font-medium text-destructive">{formError}</p> : null}
-                  <Button type="submit" disabled={submitting} className="mt-2">
-                    {submitting ? t('auth.submitting') : t('auth.submit')}
-                  </Button>
-                </form>
-              </Form>
-              <Link
-                to="/forgot-password"
-                className="mt-4 block text-center text-sm text-muted-foreground hover:underline"
-              >
-                {t('auth.forgotPasswordLink')}
-              </Link>
-            </>
-          )}
-        </CardContent>
-      </Card>
-    </div>
+    <AuthLayout
+      title={challengeToken ? t('auth.twoFactorTitle') : t('auth.loginTitle')}
+      description={challengeToken ? t('auth.twoFactorSubtitle') : t('auth.loginSubtitle')}
+    >
+      {challengeToken ? (
+        <Form {...twoFactorForm}>
+          <form onSubmit={twoFactorForm.handleSubmit(onSubmitTwoFactor)} className="grid gap-4">
+            <FormField
+              control={twoFactorForm.control}
+              name="code"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t('auth.twoFactorCode')}</FormLabel>
+                  <FormControl>
+                    <Input
+                      autoComplete="one-time-code"
+                      autoFocus
+                      placeholder={t('auth.twoFactorCodePlaceholder')}
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            {formError ? <p className="text-sm font-medium text-destructive">{formError}</p> : null}
+            <Button type="submit" disabled={submitting} className="mt-2">
+              {submitting ? t('auth.submitting') : t('auth.submit')}
+            </Button>
+            <Button type="button" variant="ghost" onClick={backToCredentials}>
+              {t('auth.backToLogin')}
+            </Button>
+          </form>
+        </Form>
+      ) : (
+        <>
+          <Form {...credentialsForm}>
+            <form onSubmit={credentialsForm.handleSubmit(onSubmitCredentials)} className="grid gap-4">
+              <FormField
+                control={credentialsForm.control}
+                name="tenantSchema"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t('auth.tenantSchema')}</FormLabel>
+                    <FormControl>
+                      <Input placeholder={t('auth.tenantSchemaPlaceholder')} {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={credentialsForm.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t('auth.email')}</FormLabel>
+                    <FormControl>
+                      <Input type="email" autoComplete="username" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={credentialsForm.control}
+                name="password"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t('auth.password')}</FormLabel>
+                    <FormControl>
+                      <Input type="password" autoComplete="current-password" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              {formError ? <p className="text-sm font-medium text-destructive">{formError}</p> : null}
+              <Button type="submit" disabled={submitting} className="mt-2">
+                {submitting ? t('auth.submitting') : t('auth.submit')}
+              </Button>
+            </form>
+          </Form>
+          <Link
+            to="/forgot-password"
+            className="mt-4 block text-center text-sm text-muted-foreground hover:underline"
+          >
+            {t('auth.forgotPasswordLink')}
+          </Link>
+        </>
+      )}
+    </AuthLayout>
   );
 }

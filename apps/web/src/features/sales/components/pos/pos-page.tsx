@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { Badge, Skeleton } from '@erp-platform/ui';
+import { Badge, Skeleton, PageHeader } from '@erp-platform/ui';
 
 import { useCurrentPosSession } from '../../api/pos/queries';
 import { CloseSessionDialog } from './close-session-dialog';
@@ -25,7 +25,7 @@ export function PosPage() {
   if (!session) {
     return (
       <div className="grid gap-4">
-        <h1 className="text-2xl font-semibold">{t('nav.pos')}</h1>
+        <PageHeader title={t('nav.pos')} />
         <OpenSessionForm />
       </div>
     );
@@ -35,7 +35,7 @@ export function PosPage() {
     <div className="grid gap-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
-          <h1 className="text-2xl font-semibold">{t('nav.pos')}</h1>
+          <PageHeader title={t('nav.pos')} />
           <Badge>{t('pos.session.open')}</Badge>
         </div>
         <div className="flex items-center gap-2">

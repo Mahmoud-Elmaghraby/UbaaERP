@@ -4,7 +4,7 @@ import { cn } from '../../lib/cn';
 
 const Table = React.forwardRef<HTMLTableElement, React.HTMLAttributes<HTMLTableElement>>(
   ({ className, ...props }, ref) => (
-    <div className="relative w-full overflow-auto">
+    <div className="scrollbar-thin relative w-full overflow-auto">
       <table ref={ref} className={cn('w-full caption-bottom text-sm', className)} {...props} />
     </div>
   ),
@@ -13,7 +13,7 @@ Table.displayName = 'Table';
 
 const TableHeader = React.forwardRef<HTMLTableSectionElement, React.HTMLAttributes<HTMLTableSectionElement>>(
   ({ className, ...props }, ref) => (
-    <thead ref={ref} className={cn('[&_tr]:border-b', className)} {...props} />
+    <thead ref={ref} className={cn('bg-subtle [&_tr]:border-b', className)} {...props} />
   ),
 );
 TableHeader.displayName = 'TableHeader';
@@ -40,7 +40,7 @@ const TableRow = React.forwardRef<HTMLTableRowElement, React.HTMLAttributes<HTML
   ({ className, ...props }, ref) => (
     <tr
       ref={ref}
-      className={cn('border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted', className)}
+      className={cn('border-b border-border/70 transition-colors hover:bg-subtle data-[state=selected]:bg-accent/60', className)}
       {...props}
     />
   ),
@@ -52,7 +52,7 @@ const TableHead = React.forwardRef<HTMLTableCellElement, React.ThHTMLAttributes<
     <th
       ref={ref}
       className={cn(
-        'h-10 px-2 text-start align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pe-0',
+        'h-10 whitespace-nowrap px-[var(--cell-px)] text-start align-middle text-[13px] font-medium text-secondary-foreground [&:has([role=checkbox])]:pe-0',
         className,
       )}
       {...props}
@@ -65,7 +65,7 @@ const TableCell = React.forwardRef<HTMLTableCellElement, React.TdHTMLAttributes<
   ({ className, ...props }, ref) => (
     <td
       ref={ref}
-      className={cn('p-2 align-middle [&:has([role=checkbox])]:pe-0', className)}
+      className={cn('h-[var(--row-h)] px-[var(--cell-px)] py-1.5 align-middle [&:has([role=checkbox])]:pe-0', className)}
       {...props}
     />
   ),

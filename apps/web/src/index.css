@@ -2,92 +2,123 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * Design tokens — نظام التصميم (claude/ui-redesign-plan.md).
+ *
+ * كل ألوان الهوية (primary / ring / accent / sidebar-accent / brand-*) مشتقة
+ * من لون أساسي واحد. القيم هنا هي الافتراضية (الأخضر #0E6B5C) فقط حتى لا
+ * يظهر وميض قبل تحميل JS؛ ThemeProvider (apps/web/src/app/theme) يعيد
+ * حسابها وقت التشغيل من لون الهوية المختار، فتغيير لون واحد يعيد تلوين
+ * النظام كله. الألوان المحايدة رمادية باردة ثابتة لا تتغير مع الهوية.
+ */
 @layer base {
   :root {
-    /* خلفية باردة بميل أخضر-رمادي خفيف (وليست رمادي/أبيض خالص) — جزء من
-       هوية الـ teal/emerald الجديدة. */
-    --background: 150 16% 97%;
-    --foreground: 168 25% 13%;
+    --background: 220 14% 97%;
+    --foreground: 211 28% 13%;
 
     --card: 0 0% 100%;
-    --card-foreground: 168 25% 13%;
-
+    --card-foreground: 211 28% 13%;
     --popover: 0 0% 100%;
-    --popover-foreground: 168 25% 13%;
+    --popover-foreground: 211 28% 13%;
 
-    /* Teal/emerald — اللون الأساسي الجديد للبراند (يحل محل الأزرق الداكن
-       والذهبي معًا)، مطابق لقيمة الموكاب #0e6b5c. */
+    /* الهوية — يعاد حسابها من ThemeProvider */
     --primary: 170 77% 24%;
     --primary-foreground: 0 0% 100%;
-
-    --secondary: 150 14% 94%;
-    --secondary-foreground: 168 25% 18%;
-
-    --muted: 150 12% 95%;
-    --muted-foreground: 168 10% 40%;
-
-    --accent: 160 30% 92%;
-    --accent-foreground: 170 60% 18%;
-
-    --destructive: 0 68% 48%;
-    --destructive-foreground: 210 40% 98%;
-
-    --border: 160 15% 88%;
-    --input: 160 15% 88%;
     --ring: 170 77% 24%;
+    --accent: 168 33% 93%;
+    --accent-foreground: 170 77% 18%;
+    --brand-50: 165 40% 96%;
+    --brand-100: 167 35% 89%;
+    --brand-200: 168 33% 77%;
+    --brand-300: 169 32% 61%;
+    --brand-400: 170 35% 43%;
+    --brand-500: 170 77% 24%;
+    --brand-600: 170 77% 21%;
+    --brand-700: 170 77% 17%;
+    --brand-800: 170 77% 13%;
+    --brand-900: 170 77% 9%;
 
-    --radius: 0.6rem;
+    /* محايد */
+    --secondary: 216 15% 94%;
+    --secondary-foreground: 216 14% 24%;
+    --muted: 216 15% 94%;
+    --muted-foreground: 215 9% 46%;
+    --subtle: 220 14% 98%;
+    --border: 214 12% 90%;
+    --input: 216 11% 85%;
 
-    /* Sidebar — لوحة فاتحة متمايزة عن خلفية المحتوى بحد فاصل رفيع، بدل
-       اللوح الداكن (navy) السابق. التمييز البصري بين الشريط الجانبي
-       والمحتوى بقي، لكن عبر درجة فاتحة أنظف بدل التباين الداكن/الفاتح. */
+    /* حالات */
+    --destructive: 4 76% 40%;
+    --destructive-foreground: 0 0% 100%;
+    --success: 142 60% 25%;
+    --success-soft: 138 40% 94%;
+    --warning: 30 86% 30%;
+    --warning-soft: 38 83% 94%;
+    --info: 219 70% 39%;
+    --info-soft: 218 67% 95%;
+    --danger: 4 76% 40%;
+    --danger-soft: 5 82% 95%;
+
+    --radius: 0.5rem;
+
+    /* الشريط الجانبي */
     --sidebar-background: 0 0% 100%;
-    --sidebar-foreground: 168 25% 15%;
-    --sidebar-muted-foreground: 168 10% 45%;
-    --sidebar-accent: 160 45% 94%;
-    --sidebar-accent-foreground: 170 77% 20%;
-    --sidebar-border: 160 15% 90%;
+    --sidebar-foreground: 211 28% 13%;
+    --sidebar-muted-foreground: 216 14% 34%;
+    --sidebar-accent: 168 33% 93%;
+    --sidebar-accent-foreground: 170 77% 18%;
+    --sidebar-border: 214 12% 90%;
+
+    /* كثافة الجداول — يغيّرها data-density على <html> */
+    --row-h: 3rem;
+    --cell-px: 1rem;
   }
 
-  /* رموز الوضع الداكن — معرّفة الآن رغم عدم وجود مفتاح تبديل بعد في الواجهة
-     (التبديل نفسه غير مطلوب حاليًا)، حتى تكون جاهزة فور إضافته لاحقًا،
-     ومتوافقة مع darkMode: ['class'] في tailwind.config.js. */
+  :root[data-density='compact'] {
+    --row-h: 2.25rem;
+    --cell-px: 0.75rem;
+  }
+
   .dark {
-    --background: 170 15% 8%;
-    --foreground: 150 15% 92%;
+    --background: 216 20% 8%;
+    --foreground: 214 20% 92%;
 
-    --card: 170 15% 11%;
-    --card-foreground: 150 15% 92%;
+    --card: 216 18% 11%;
+    --card-foreground: 214 20% 92%;
+    --popover: 216 18% 12%;
+    --popover-foreground: 214 20% 92%;
 
-    --popover: 170 15% 11%;
-    --popover-foreground: 150 15% 92%;
+    --primary: 167 58% 45%;
+    --primary-foreground: 170 60% 8%;
+    --ring: 167 58% 45%;
+    --accent: 170 25% 17%;
+    --accent-foreground: 167 58% 70%;
 
-    /* Teal/emerald الأفتح، مطابق لقيمة الموكاب #35c9a8 — أوضح على خلفية داكنة. */
-    --primary: 167 58% 50%;
-    --primary-foreground: 170 60% 12%;
+    --secondary: 216 15% 16%;
+    --secondary-foreground: 214 20% 88%;
+    --muted: 216 15% 16%;
+    --muted-foreground: 215 12% 62%;
+    --subtle: 216 18% 10%;
+    --border: 216 14% 20%;
+    --input: 216 14% 26%;
 
-    --secondary: 170 12% 16%;
-    --secondary-foreground: 150 15% 90%;
+    --destructive: 4 70% 52%;
+    --destructive-foreground: 0 0% 100%;
+    --success: 142 50% 55%;
+    --success-soft: 142 30% 15%;
+    --warning: 35 85% 60%;
+    --warning-soft: 35 40% 15%;
+    --info: 217 80% 68%;
+    --info-soft: 218 40% 17%;
+    --danger: 4 75% 65%;
+    --danger-soft: 4 40% 17%;
 
-    --muted: 170 12% 16%;
-    --muted-foreground: 160 10% 60%;
-
-    --accent: 170 20% 20%;
-    --accent-foreground: 150 15% 92%;
-
-    --destructive: 0 62% 42%;
-    --destructive-foreground: 210 40% 98%;
-
-    --border: 170 12% 20%;
-    --input: 170 12% 20%;
-    --ring: 167 58% 50%;
-
-    --sidebar-background: 170 18% 10%;
-    --sidebar-foreground: 150 15% 90%;
-    --sidebar-muted-foreground: 160 10% 55%;
-    --sidebar-accent: 170 25% 18%;
-    --sidebar-accent-foreground: 167 58% 60%;
-    --sidebar-border: 170 12% 18%;
+    --sidebar-background: 216 20% 9%;
+    --sidebar-foreground: 214 20% 92%;
+    --sidebar-muted-foreground: 215 12% 66%;
+    --sidebar-accent: 170 25% 17%;
+    --sidebar-accent-foreground: 167 58% 72%;
+    --sidebar-border: 216 14% 18%;
   }
 }
 
@@ -96,18 +127,38 @@
     @apply border-border;
   }
 
-  body {
-    @apply bg-background text-foreground;
-    font-feature-settings:
-      'rlig' 1,
-      'calt' 1;
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 
-  /* عناوين الصفحات (h1-h3) تستخدم خط العرض IBM Plex Sans Arabic بدل خط
-     المتن Cairo، عبر قاعدة عامة واحدة بدل تعديل كل صفحة على حدة. */
+  body {
+    @apply bg-background text-sm text-foreground;
+    line-height: 1.6;
+  }
+
   h1,
   h2,
   h3 {
-    @apply font-display;
+    @apply font-semibold tracking-tight;
+    line-height: 1.35;
+  }
+
+  /* المبالغ والأرقام في الجداول تصطف عموديًا */
+  td,
+  th,
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+
+  ::selection {
+    background: hsl(var(--brand-200));
+  }
+}
+
+@layer utilities {
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--border)) transparent;
   }
 }

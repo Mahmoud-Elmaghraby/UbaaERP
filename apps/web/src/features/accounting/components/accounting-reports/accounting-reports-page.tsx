@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@erp-platform/ui';
+import { Tabs, TabsContent, TabsList, TabsTrigger, PageHeader } from '@erp-platform/ui';
 
 import { GeneralLedgerReport } from './general-ledger-report';
 import { TrialBalanceReport } from './trial-balance-report';
@@ -21,7 +21,7 @@ export function AccountingReportsPage() {
 
   return (
     <div className="grid gap-6">
-      <h1 className="text-2xl font-semibold">{t('accounting.tabs.reports')}</h1>
+      <PageHeader title={t('accounting.tabs.reports')} />
 
       <Tabs value={activeView} onValueChange={setActiveView}>
         <div className="overflow-x-auto">

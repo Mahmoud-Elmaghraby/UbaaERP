@@ -1,0 +1,60 @@
+
+> erp-platform@0.0.0 typecheck M:\Projects\erp-platform
+> turbo run typecheck
+
+• turbo 2.10.11
+
+   • Packages in scope: @erp-platform/contracts, @erp-platform/shared-kernel, @erp-platform/ui, api, desktop, web
+   • Running typecheck in 6 packages
+   • Remote caching disabled
+
+@erp-platform/contracts:typecheck: cache miss, executing 87258363048efd72
+@erp-platform/contracts:build: cache miss, executing b6f508449e4ad658
+@erp-platform/shared-kernel:build: cache hit, replaying logs 641fed32cf91051e
+@erp-platform/shared-kernel:typecheck: cache hit, replaying logs 95c6b30d5d91ada7
+@erp-platform/shared-kernel:build: 
+@erp-platform/shared-kernel:build: > @erp-platform/shared-kernel@0.0.0 build M:\Projects\erp-platform\libs\shared-kernel
+@erp-platform/shared-kernel:build: > tsc -p tsconfig.json
+@erp-platform/shared-kernel:build: 
+@erp-platform/shared-kernel:typecheck: 
+@erp-platform/shared-kernel:typecheck: > @erp-platform/shared-kernel@0.0.0 typecheck M:\Projects\erp-platform\libs\shared-kernel
+@erp-platform/shared-kernel:typecheck: > tsc --noEmit
+@erp-platform/shared-kernel:typecheck: 
+desktop:typecheck: cache hit, replaying logs a7f16b81e898c2db
+desktop:typecheck: 
+desktop:typecheck: > desktop@0.0.0 typecheck M:\Projects\erp-platform\apps\desktop
+desktop:typecheck: > tsc --noEmit
+desktop:typecheck: 
+@erp-platform/contracts:typecheck: 
+@erp-platform/contracts:typecheck: > @erp-platform/contracts@0.0.0 typecheck M:\Projects\erp-platform\libs\contracts
+@erp-platform/contracts:typecheck: > tsc --noEmit
+@erp-platform/contracts:typecheck: 
+@erp-platform/contracts:build: 
+@erp-platform/contracts:build: > @erp-platform/contracts@0.0.0 build M:\Projects\erp-platform\libs\contracts
+@erp-platform/contracts:build: > tsc -p tsconfig.json && tsc -p tsconfig.esm.json
+@erp-platform/contracts:build: 
+api:typecheck: cache miss, executing b5d3d80a4fdccf40
+@erp-platform/ui:typecheck: cache miss, executing 0f5c1e06a56ca572
+@erp-platform/ui:build: cache miss, executing 4ec4ee9891aba37e
+api:typecheck: 
+api:typecheck: > api@0.0.0 typecheck M:\Projects\erp-platform\apps\api
+api:typecheck: > tsc --noEmit
+api:typecheck: 
+@erp-platform/ui:typecheck: 
+@erp-platform/ui:typecheck: > @erp-platform/ui@0.0.0 typecheck M:\Projects\erp-platform\libs\ui
+@erp-platform/ui:typecheck: > tsc --noEmit
+@erp-platform/ui:typecheck: 
+@erp-platform/ui:build: 
+@erp-platform/ui:build: > @erp-platform/ui@0.0.0 build M:\Projects\erp-platform\libs\ui
+@erp-platform/ui:build: > tsc -p tsconfig.json
+@erp-platform/ui:build: 
+web:typecheck: cache miss, executing ecffe89f65acd8cc
+web:typecheck: 
+web:typecheck: > web@0.0.0 typecheck M:\Projects\erp-platform\apps\web
+web:typecheck: > tsc --noEmit
+web:typecheck: 
+
+ Tasks:    9 successful, 9 total
+Cached:    3 cached, 9 total
+  Time:    1m21.748s 
+
