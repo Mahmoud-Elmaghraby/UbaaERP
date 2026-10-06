@@ -15,6 +15,7 @@ import { useWarehouses } from '../../../inventory/api/warehouses/queries';
 import { useSalesOrders } from '../../api/sales-orders/queries';
 import { useVariantIndex } from '../../hooks/deliveries/use-variant-index';
 import { DELIVERY_STATUS_VARIANT, deliveryStatusLabelKey } from './delivery-status';
+import { LotsSummary } from '../../../../components/document/lot-entry';
 
 /** Read-only header + lines, same shape as every other Sales/Purchases entity's details
  * view. No Money column — deliveries carry no unit cost. */
@@ -78,6 +79,7 @@ export function DeliveryDetailsView({ delivery }: { delivery: DeliveryWithLinesD
               <TableCell>
                 {variantIndex.get(line.productVariantId)?.productName ?? '—'} (
                 {variantIndex.get(line.productVariantId)?.sku ?? '—'})
+                <LotsSummary lots={line.lots ?? []} />
               </TableCell>
               <TableCell>{line.quantityDelivered}</TableCell>
               <TableCell>{line.notes ?? '—'}</TableCell>

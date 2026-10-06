@@ -16,6 +16,7 @@ import { usePurchaseOrders } from '../../api/purchase-orders/queries';
 import { useVariantIndex } from '../../hooks/goods-receipts/use-variant-index';
 import { formatMoney } from '../../../../lib/money';
 import { GOODS_RECEIPT_STATUS_VARIANT, goodsReceiptStatusLabelKey } from './goods-receipt-status';
+import { LotsSummary } from '../../../../components/document/lot-entry';
 
 /** Read-only header + lines, same shape as every other Purchases entity's details view. */
 export function GoodsReceiptDetailsView({ receipt }: { receipt: GoodsReceiptWithLinesDto }) {
@@ -79,6 +80,7 @@ export function GoodsReceiptDetailsView({ receipt }: { receipt: GoodsReceiptWith
               <TableCell>
                 {variantIndex.get(line.productVariantId)?.productName ?? '—'} (
                 {variantIndex.get(line.productVariantId)?.sku ?? '—'})
+                <LotsSummary lots={line.lots ?? []} />
               </TableCell>
               <TableCell>{line.quantityReceived}</TableCell>
               <TableCell>

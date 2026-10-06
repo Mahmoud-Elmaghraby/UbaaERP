@@ -10,6 +10,8 @@ import type {
 import type {
   StockLotRepository,
   AvailableLotLevel,
+  ExpiringLotRow,
+  LotQuantityMoved,
 } from '../../application/ports/stock-lot.repository';
 import type {
   StockLot,
@@ -171,8 +173,9 @@ export class KyselyStockLotRepository implements StockLotRepository {
     db: Kysely<TenantDatabase>,
     productVariantId: string,
     locationId: string,
+    options: { excludeExpired?: boolean } = {},
   ): Promise<AvailableLotLevel[]> {
-    const rows = await db
+    let query = db
       .selectFrom('stock_lot_levels')
       .innerJoin('stock_lots', 'stock_lots.id', 'stock_lot_levels.stock_lot_id')
       .select([
@@ -183,7 +186,13 @@ export class KyselyStockLotRepository implements StockLotRepository {
       ])
       .where('stock_lots.product_variant_id', '=', productVariantId)
       .where('stock_lot_levels.location_id', '=', locationId)
-      .where('stock_lot_levels.quantity_on_hand', '>', '0')
+      .where('stock_lot_levels.quantity_on_hand', '>', '0');
+    if (options.excludeExpired) {
+      query = query.where((eb) =>
+        eb.or([eb('stock_lots.expiry_date', 'is', null), eb('stock_lots.expiry_date', '>=', sql<Date>`CURRENT_DATE`)]),
+      );
+    }
+    const rows = await query
       .orderBy('stock_lots.expiry_date', 'asc')
       .orderBy('stock_lots.created_at', 'asc')
       .execute();
@@ -193,6 +202,106 @@ export class KyselyStockLotRepository implements StockLotRepository {
       lotNumber: row.lot_number,
       expiryDate: row.expiry_date,
       quantityAvailable: Number(row.quantity_on_hand),
+    }));
+  }
+
+  async isExpired(db: Kysely<TenantDatabase>, stockLotId: string): Promise<boolean> {
+    const row = await db
+      .selectFrom('stock_lots')
+      .select(sql<boolean>`expiry_date IS NOT NULL AND expiry_date < CURRENT_DATE`.as('expired'))
+      .where('id', '=', stockLotId)
+      .executeTakeFirst();
+    return row?.expired === true;
+  }
+
+  async lotsMovedByReference(
+    db: Kysely<TenantDatabase>,
+    referenceType: string,
+    referenceId: string,
+    productVariantId: string,
+  ): Promise<LotQuantityMoved[]> {
+    // A movement either names its single lot (stock_lot_id) or, when FIFO
+    // spanned several lots, leaves it NULL and lists them in
+    // stock_lot_consumptions — both shapes are summed per lot here.
+    const result = await sql<{
+      stock_lot_id: string;
+      lot_number: string;
+      expiry_date: Date | null;
+      quantity: string;
+      first_moved: Date;
+    }>`
+      SELECT l.id AS stock_lot_id, l.lot_number, l.expiry_date, SUM(x.quantity) AS quantity, MIN(x.created_at) AS first_moved
+      FROM (
+        SELECT m.stock_lot_id, m.quantity, m.created_at
+          FROM stock_movements m
+         WHERE m.reference_type = ${referenceType} AND m.reference_id = ${referenceId}
+           AND m.product_variant_id = ${productVariantId} AND m.stock_lot_id IS NOT NULL
+        UNION ALL
+        SELECT c.stock_lot_id, c.quantity, m.created_at
+          FROM stock_lot_consumptions c
+          JOIN stock_movements m ON m.id = c.stock_movement_id
+         WHERE m.reference_type = ${referenceType} AND m.reference_id = ${referenceId}
+           AND m.product_variant_id = ${productVariantId}
+      ) x
+      JOIN stock_lots l ON l.id = x.stock_lot_id
+      GROUP BY l.id, l.lot_number, l.expiry_date
+      ORDER BY first_moved, l.lot_number
+    `.execute(db);
+    return result.rows.map((row) => ({
+      stockLotId: row.stock_lot_id,
+      lotNumber: row.lot_number,
+      expiryDate: row.expiry_date,
+      quantity: Number(row.quantity),
+    }));
+  }
+
+  async listExpiring(db: Kysely<TenantDatabase>, untilDate: string): Promise<ExpiringLotRow[]> {
+    const rows = await db
+      .selectFrom('stock_lot_levels')
+      .innerJoin('stock_lots', 'stock_lots.id', 'stock_lot_levels.stock_lot_id')
+      .innerJoin('product_variants', 'product_variants.id', 'stock_lots.product_variant_id')
+      .innerJoin('products', 'products.id', 'product_variants.product_id')
+      .innerJoin('warehouses', 'warehouses.id', 'stock_lot_levels.warehouse_id')
+      .select([
+        'stock_lots.id as stock_lot_id',
+        'stock_lots.lot_number as lot_number',
+        'stock_lots.expiry_date as expiry_date',
+        'stock_lots.unit_cost_amount as unit_cost_amount',
+        'stock_lots.unit_cost_currency as unit_cost_currency',
+        'product_variants.id as product_variant_id',
+        'product_variants.sku as sku',
+        'products.name as product_name',
+        'products.code as product_code',
+        'warehouses.id as warehouse_id',
+        'warehouses.name as warehouse_name',
+        sql<string>`SUM(stock_lot_levels.quantity_on_hand)`.as('quantity_on_hand'),
+      ])
+      .where('stock_lots.expiry_date', 'is not', null)
+      .where('stock_lots.expiry_date', '<=', sql<Date>`${untilDate}::date`)
+      .where('stock_lot_levels.quantity_on_hand', '>', '0')
+      .groupBy([
+        'stock_lots.id',
+        'product_variants.id',
+        'products.name',
+        'products.code',
+        'warehouses.id',
+        'warehouses.name',
+      ])
+      .orderBy('stock_lots.expiry_date', 'asc')
+      .orderBy('products.name', 'asc')
+      .execute();
+    return rows.map((row) => ({
+      stockLotId: row.stock_lot_id,
+      lotNumber: row.lot_number,
+      expiryDate: row.expiry_date as Date,
+      productVariantId: row.product_variant_id,
+      productName: row.product_name,
+      productCode: row.product_code,
+      sku: row.sku,
+      warehouseId: row.warehouse_id,
+      warehouseName: row.warehouse_name,
+      quantityOnHand: Number(row.quantity_on_hand),
+      unitCost: { amountMinorUnits: String(row.unit_cost_amount), currency: row.unit_cost_currency },
     }));
   }
 

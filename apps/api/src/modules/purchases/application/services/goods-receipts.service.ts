@@ -17,7 +17,9 @@ import type {
   GoodsReceiptWithLines,
   GoodsReceiptStatus,
   CreateGoodsReceiptInput,
+  ReceiptLot,
 } from '../../domain/goods-receipt.entity';
+import { PRODUCT_TRACKING_READER, type ProductTrackingReader } from '../ports/product-tracking.reader';
 import { BusinessRuleError, NotFoundError, isPostgresForeignKeyViolation } from '../errors';
 import { entityNotFound } from '../../../../shared/errors/entity-errors';
 import { NumberingSequencesService } from '../../../settings/application/services/numbering-sequences.service';
@@ -64,6 +66,7 @@ export class GoodsReceiptsService {
     @Inject(PURCHASE_ORDER_LINE_REPOSITORY) private readonly purchaseOrderLines: PurchaseOrderLineRepository,
     private readonly numberingSequences: NumberingSequencesService,
     private readonly outboxWriter: OutboxWriterService,
+    @Inject(PRODUCT_TRACKING_READER) private readonly tracking: ProductTrackingReader,
   ) {}
 
   list(db: Kysely<TenantDatabase>): Promise<GoodsReceipt[]> {
@@ -141,8 +144,24 @@ export class GoodsReceiptsService {
       }
     }
 
+    const trackingByVariant = await this.tracking.trackingTypes(
+      db,
+      input.lines.map((line) => poLineById.get(line.purchaseOrderLineId)!.productVariantId),
+    );
+    const lotsByIndex = input.lines.map((line) =>
+      normalizeReceiptLots(
+        line.lots ?? [],
+        line.quantityReceived,
+        trackingByVariant.get(poLineById.get(line.purchaseOrderLineId)!.productVariantId) ?? 'none',
+        line.purchaseOrderLineId,
+      ),
+    );
+
     try {
-      return await db.transaction().execute(async (trx) => {
+      // withTransaction, not db.transaction(): PurchaseInvoicesService calls
+      // this with its own open trx when Goods Receipts is disabled, and
+      // Kysely throws on Transaction.transaction().
+      return await withTransaction(db, async (trx) => {
         const allocated = await this.numberingSequences.allocateNext(trx, 'goods_receipt', null);
 
         const receipt = await this.receipts.create(trx, {
@@ -155,7 +174,7 @@ export class GoodsReceiptsService {
         });
 
         const createdLines = [];
-        for (const line of input.lines) {
+        for (const [index, line] of input.lines.entries()) {
           const poLine = poLineById.get(line.purchaseOrderLineId)!;
           createdLines.push(
             await this.lines.create(trx, receipt.id, {
@@ -164,6 +183,7 @@ export class GoodsReceiptsService {
               quantityReceived: line.quantityReceived,
               unitCost: line.unitCost ?? poLine.unitPrice,
               notes: line.notes ?? null,
+              lots: lotsByIndex[index]!,
             }),
           );
         }
@@ -269,6 +289,7 @@ export class GoodsReceiptsService {
             productVariantId: line.productVariantId,
             quantity: line.quantityReceived,
             unitCost: { amountMinorUnits: line.unitCost.toMinorUnits().toString(), currency: line.unitCost.currency },
+            lots: line.lots,
           })),
         },
         occurredAt: new Date(),
@@ -293,4 +314,89 @@ export class GoodsReceiptsService {
     }
     await this.receipts.delete(db, id);
   }
+}
+
+const QUANTITY_EPSILON = 1e-6;
+
+/**
+ * Validates and normalizes the lot split of one receipt line:
+ *  - lot/serial-tracked items MUST carry lots whose quantities add up to the
+ *    received quantity (otherwise Inventory could not record the movement —
+ *    audit finding C2);
+ *  - serial-tracked items: one unit per serial number;
+ *  - untracked items must not carry lots (they would be silently ignored).
+ * Lot numbers are trimmed; the same lot number twice on one line is merged
+ * only if the expiry dates agree.
+ */
+export function normalizeReceiptLots(
+  lots: ReceiptLot[],
+  quantityReceived: number,
+  trackingType: 'none' | 'lot' | 'serial',
+  lineRef: string,
+): ReceiptLot[] {
+  if (trackingType === 'none') {
+    if (lots.length > 0) {
+      throw new BusinessRuleError('This item is not lot/serial-tracked, so its line must not carry lots.', {
+        code: 'GOODS_RECEIPT.LOTS_NOT_TRACKED',
+        params: { lineId: lineRef },
+      });
+    }
+    return [];
+  }
+  if (lots.length === 0) {
+    throw new BusinessRuleError(
+      `Line "${lineRef}" is ${trackingType}-tracked — enter the ${trackingType === 'serial' ? 'serial numbers' : 'lot numbers'} received.`,
+      {
+        code: trackingType === 'serial' ? 'GOODS_RECEIPT.SERIALS_REQUIRED' : 'GOODS_RECEIPT.LOTS_REQUIRED',
+        params: { lineId: lineRef },
+      },
+    );
+  }
+  const merged = new Map<string, ReceiptLot>();
+  for (const lot of lots) {
+    const lotNumber = lot.lotNumber.trim();
+    if (!lotNumber || !(lot.quantity > 0)) {
+      throw new BusinessRuleError('Every lot needs a number and a quantity greater than zero.', {
+        code: 'GOODS_RECEIPT.INVALID_LOT',
+        params: { lineId: lineRef },
+      });
+    }
+    if (trackingType === 'serial' && lot.quantity !== 1) {
+      throw new BusinessRuleError(`Serial "${lotNumber}" must have a quantity of exactly 1.`, {
+        code: 'GOODS_RECEIPT.SERIAL_QUANTITY_MUST_BE_ONE',
+        params: { lineId: lineRef, lotNumber },
+      });
+    }
+    const expiryDate = lot.expiryDate || null;
+    const existing = merged.get(lotNumber);
+    if (existing) {
+      if (trackingType === 'serial') {
+        throw new BusinessRuleError(`Serial "${lotNumber}" is entered twice.`, {
+          code: 'GOODS_RECEIPT.DUPLICATE_SERIAL',
+          params: { lineId: lineRef, lotNumber },
+        });
+      }
+      if (existing.expiryDate !== expiryDate) {
+        throw new BusinessRuleError(`Lot "${lotNumber}" is entered twice with different expiry dates.`, {
+          code: 'GOODS_RECEIPT.LOT_EXPIRY_CONFLICT',
+          params: { lineId: lineRef, lotNumber },
+        });
+      }
+      existing.quantity += lot.quantity;
+    } else {
+      merged.set(lotNumber, { lotNumber, expiryDate, quantity: lot.quantity });
+    }
+  }
+  const result = [...merged.values()];
+  const total = result.reduce((sum, lot) => sum + lot.quantity, 0);
+  if (Math.abs(total - quantityReceived) > QUANTITY_EPSILON) {
+    throw new BusinessRuleError(
+      `The lots on line "${lineRef}" add up to ${total}, but the received quantity is ${quantityReceived}.`,
+      {
+        code: 'GOODS_RECEIPT.LOTS_QUANTITY_MISMATCH',
+        params: { lineId: lineRef, total, quantity: quantityReceived },
+      },
+    );
+  }
+  return result;
 }

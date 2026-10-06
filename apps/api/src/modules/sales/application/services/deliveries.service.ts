@@ -14,6 +14,7 @@ import type {
   DeliveryWithLines,
   DeliveryStatus,
   CreateDeliveryInput,
+  DeliveryLot,
 } from '../../domain/delivery.entity';
 import { BusinessRuleError, NotFoundError, isPostgresForeignKeyViolation } from '../errors';
 import { entityNotFound } from '../../../../shared/errors/entity-errors';
@@ -141,6 +142,7 @@ export class DeliveriesService {
               productVariantId: orderLine.productVariantId,
               quantityDelivered: line.quantityDelivered,
               notes: line.notes ?? null,
+              lots: normalizeDeliveryLots(line.lots ?? [], line.quantityDelivered, line.salesOrderLineId),
             }),
           );
         }
@@ -254,6 +256,7 @@ export class DeliveriesService {
           lines: lines.map((line) => ({
             productVariantId: line.productVariantId,
             quantity: line.quantityDelivered,
+            lots: line.lots,
           })),
         },
         occurredAt: new Date(),
@@ -278,4 +281,33 @@ export class DeliveriesService {
     }
     await this.deliveries.delete(db, id);
   }
+}
+
+/**
+ * Picked lots are optional; when given they must add up to the delivered
+ * quantity. Whether each lot exists, has stock and is unexpired is
+ * Inventory's call when the delivery is confirmed.
+ */
+export function normalizeDeliveryLots(lots: DeliveryLot[], quantity: number, lineRef: string): DeliveryLot[] {
+  if (lots.length === 0) return [];
+  const merged = new Map<string, number>();
+  for (const lot of lots) {
+    const lotNumber = lot.lotNumber.trim();
+    if (!lotNumber || !(lot.quantity > 0)) {
+      throw new BusinessRuleError('Every picked lot needs a number and a quantity greater than zero.', {
+        code: 'DELIVERY.INVALID_LOT',
+        params: { lineId: lineRef },
+      });
+    }
+    merged.set(lotNumber, (merged.get(lotNumber) ?? 0) + lot.quantity);
+  }
+  const result = [...merged].map(([lotNumber, qty]) => ({ lotNumber, quantity: qty }));
+  const total = result.reduce((sum, lot) => sum + lot.quantity, 0);
+  if (Math.abs(total - quantity) > 1e-6) {
+    throw new BusinessRuleError(`The picked lots add up to ${total}, but the delivered quantity is ${quantity}.`, {
+      code: 'DELIVERY.LOTS_QUANTITY_MISMATCH',
+      params: { lineId: lineRef, total, quantity },
+    });
+  }
+  return result;
 }

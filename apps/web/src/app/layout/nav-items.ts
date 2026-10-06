@@ -96,6 +96,7 @@ export const NAV_GROUPS: NavGroup[] = [
           { to: '/inventory/warehouses', labelKey: 'inventory.tabs.warehouses' },
           { to: '/inventory/units-of-measure', labelKey: 'inventory.tabs.unitsOfMeasure' },
           { to: '/inventory/stock', labelKey: 'inventory.tabs.stock' },
+          { to: '/inventory/expiry', labelKey: 'inventory.tabs.expiry' },
           { to: '/inventory/landed-costs', labelKey: 'inventory.tabs.landedCosts' },
         ],
       },

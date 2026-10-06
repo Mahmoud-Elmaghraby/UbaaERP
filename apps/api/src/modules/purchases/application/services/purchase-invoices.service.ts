@@ -2,6 +2,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import type { Kysely } from 'kysely';
 import type { TenantDatabase } from '../../../../database/tenant/kysely-client';
 import { withTransaction } from '../../../../database/tenant/transaction.util';
+import type { ReceiptLot } from '../../domain/goods-receipt.entity';
 import {
   PURCHASE_INVOICE_REPOSITORY,
   type PurchaseInvoiceRepository,
@@ -184,6 +185,9 @@ export class PurchaseInvoicesService {
         let poId: string;
         let poLines: PurchaseOrderLine[];
         let resolvedLines: ResolvedInvoiceLine[];
+        // Lots/serials typed on the invoice, used only when the invoice also
+        // receives the goods (Goods Receipts disabled).
+        const lotsByPoLineId = new Map<string, ReceiptLot[]>();
 
         if (usingDirectPath) {
           const purchaseOrdersEnabled = await this.featureAvailability.isEnabled(
@@ -216,6 +220,11 @@ export class PurchaseInvoicesService {
 
           poId = order.id;
           poLines = order.lines;
+          // PurchaseOrdersService.create keeps input order, so line i ↔ directLines[i].
+          order.lines.forEach((line, index) => {
+            const lots = input.directLines![index]?.lots;
+            if (lots?.length) lotsByPoLineId.set(line.id, lots);
+          });
           resolvedLines = order.lines.map((line) => ({
             purchaseOrderLineId: line.id,
             quantityInvoiced: line.quantity,
@@ -276,6 +285,9 @@ export class PurchaseInvoicesService {
             }
           }
 
+          for (const line of input.lines!) {
+            if (line.lots?.length) lotsByPoLineId.set(line.purchaseOrderLineId, line.lots);
+          }
           resolvedLines = input.lines!.map((line) => ({
             purchaseOrderLineId: line.purchaseOrderLineId,
             quantityInvoiced: line.quantityInvoiced,
@@ -354,7 +366,11 @@ export class PurchaseInvoicesService {
             const receipt = await this.goodsReceiptsService.create(trx, {
               purchaseOrderId: poId,
               warehouseId: input.warehouseId,
-              lines: linesToReceive.map((line) => ({ ...line, notes: null })),
+              lines: linesToReceive.map((line) => ({
+                ...line,
+                notes: null,
+                lots: lotsByPoLineId.get(line.purchaseOrderLineId),
+              })),
               customFields: {},
             });
             await this.goodsReceiptsService.confirm(trx, receipt.id, schema, actorUserId);

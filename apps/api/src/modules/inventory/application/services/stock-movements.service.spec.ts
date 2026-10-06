@@ -175,6 +175,9 @@ function makeMockStockLotRepository(): jest.Mocked<StockLotRepository> {
   return {
     findByVariantAndLotNumber: jest.fn(),
     findById: jest.fn(),
+    isExpired: jest.fn(),
+    lotsMovedByReference: jest.fn(),
+    listExpiring: jest.fn(),
     listByVariantId: jest.fn(),
     createLot: jest.fn(),
     findLevel: jest.fn(),

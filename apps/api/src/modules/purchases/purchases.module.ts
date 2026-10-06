@@ -53,6 +53,8 @@ import { PurchaseReturnsController } from './presentation/purchase-returns.contr
 import { PurchaseInvoicesController } from './presentation/purchase-invoices.controller';
 
 import { PurchasesEventPublisher } from './infrastructure/events/purchases-event-publisher';
+import { PRODUCT_TRACKING_READER } from './application/ports/product-tracking.reader';
+import { KyselyProductTrackingReader } from './infrastructure/persistence/kysely-product-tracking.reader';
 
 /**
  * Purchases module (CLAUDE.md §10: step 3). Stages so far — see
@@ -135,6 +137,7 @@ import { PurchasesEventPublisher } from './infrastructure/events/purchases-event
     { provide: PURCHASE_ORDER_LINE_REPOSITORY, useClass: KyselyPurchaseOrderLineRepository },
     { provide: GOODS_RECEIPT_REPOSITORY, useClass: KyselyGoodsReceiptRepository },
     { provide: GOODS_RECEIPT_LINE_REPOSITORY, useClass: KyselyGoodsReceiptLineRepository },
+    { provide: PRODUCT_TRACKING_READER, useClass: KyselyProductTrackingReader },
     { provide: PURCHASE_RETURN_REPOSITORY, useClass: KyselyPurchaseReturnRepository },
     { provide: PURCHASE_RETURN_LINE_REPOSITORY, useClass: KyselyPurchaseReturnLineRepository },
     { provide: PURCHASE_INVOICE_REPOSITORY, useClass: KyselyPurchaseInvoiceRepository },

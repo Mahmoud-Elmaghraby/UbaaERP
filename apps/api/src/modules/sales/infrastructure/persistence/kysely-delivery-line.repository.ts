@@ -5,7 +5,7 @@ import type {
   DeliveryLineRepository,
   CreateDeliveryLineRow,
 } from '../../application/ports/delivery-line.repository';
-import type { DeliveryLine } from '../../domain/delivery.entity';
+import type { DeliveryLine, DeliveryLot } from '../../domain/delivery.entity';
 
 function toDomain(row: Selectable<DeliveryLinesTable>): DeliveryLine {
   return {
@@ -15,6 +15,7 @@ function toDomain(row: Selectable<DeliveryLinesTable>): DeliveryLine {
     productVariantId: row.product_variant_id,
     quantityDelivered: Number(row.quantity_delivered),
     notes: row.notes,
+    lots: (Array.isArray(row.lot_allocations) ? row.lot_allocations : []) as DeliveryLot[],
     createdAt: row.created_at,
   };
 }
@@ -44,6 +45,7 @@ export class KyselyDeliveryLineRepository implements DeliveryLineRepository {
         product_variant_id: input.productVariantId,
         quantity_delivered: String(input.quantityDelivered),
         notes: input.notes ?? null,
+        lot_allocations: JSON.stringify(input.lots),
       })
       .returningAll()
       .executeTakeFirstOrThrow();

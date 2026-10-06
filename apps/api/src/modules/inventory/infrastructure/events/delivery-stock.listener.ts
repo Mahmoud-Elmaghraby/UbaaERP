@@ -16,6 +16,8 @@ import { moneyToDto } from '../../presentation/money.mapper';
 interface DeliveryConfirmedLine {
   productVariantId: string;
   quantity: number;
+  /** Lots picked on the delivery line (migration 0077); empty/absent = automatic FEFO. */
+  lots?: { lotNumber: string; quantity: number }[];
 }
 
 interface DeliveryConfirmedMetadata {
@@ -124,16 +126,29 @@ export class DeliveryStockListener {
         );
         const stockLines = metadata.lines.filter((line) => stockItems.has(line.productVariantId));
         for (const line of stockLines) {
-          movements.push(
-            await this.stockMovements.recordMovement(trx, {
-              productVariantId: line.productVariantId,
-              locationId: defaultLocation.id,
-              movementType: 'out',
-              quantity: line.quantity,
-              referenceType: 'delivery',
-              referenceId: payload.entityId,
-            }),
-          );
+          // Tracked items leave lot by lot: the lots picked on the line, or
+          // FEFO — never an expired lot (selling expired medicine/feed is
+          // what lot tracking exists to prevent).
+          const pieces = await this.stockMovements.planOutgoingLots(trx, {
+            productVariantId: line.productVariantId,
+            locationId: defaultLocation.id,
+            quantity: line.quantity,
+            requested: line.lots,
+            blockExpired: true,
+          });
+          for (const piece of pieces ?? [{ lotId: undefined, quantity: line.quantity }]) {
+            movements.push(
+              await this.stockMovements.recordMovement(trx, {
+                productVariantId: line.productVariantId,
+                locationId: defaultLocation.id,
+                movementType: 'out',
+                quantity: piece.quantity,
+                lotId: piece.lotId,
+                referenceType: 'delivery',
+                referenceId: payload.entityId,
+              }),
+            );
+          }
         }
 
         const currency = movements.find((m) => m.unitCost)?.unitCost?.currency;

@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type {
+  ExpiringLotDto,
   RecordStockMovementDto,
   SetReorderPointDto,
   StockLevelDto,
@@ -94,5 +95,13 @@ export function useStockLots(productVariantId: string | undefined) {
     queryKey: ['stock-lots', productVariantId],
     queryFn: () => apiGet<StockLotDto[]>(`/stock/lots?productVariantId=${productVariantId}`),
     enabled: Boolean(productVariantId),
+  });
+}
+
+/** Near-expiry report — lots on hand expiring within `withinDays` (expired ones included). */
+export function useExpiringLots(withinDays: number) {
+  return useQuery({
+    queryKey: ['stock-expiring-lots', withinDays],
+    queryFn: () => apiGet<ExpiringLotDto[]>(`/stock/expiring-lots?withinDays=${withinDays}`),
   });
 }

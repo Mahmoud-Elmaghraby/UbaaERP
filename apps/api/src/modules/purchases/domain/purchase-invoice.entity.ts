@@ -1,4 +1,5 @@
 import { Money } from '@erp-platform/shared-kernel';
+import type { ReceiptLot } from './goods-receipt.entity';
 
 /**
  * Purchase Invoice (master doc §10, step 3 — Purchases, Stage 7). This
@@ -46,6 +47,8 @@ export interface CreatePurchaseInvoiceLineInput {
   quantityInvoiced: number;
   unitPrice?: Money;
   notes?: string | null;
+  /** Lots/serials, passed to the goods receipt created behind the scenes when Goods Receipts is off. */
+  lots?: ReceiptLot[];
 }
 
 /**
@@ -63,6 +66,8 @@ export interface CreatePurchaseInvoiceDirectLineInput {
   quantityInvoiced: number;
   unitPrice: Money;
   notes?: string | null;
+  /** See CreatePurchaseInvoiceLineInput.lots. */
+  lots?: ReceiptLot[];
 }
 
 export interface CreatePurchaseInvoiceInput {

@@ -4,6 +4,20 @@ import { moneySchema } from '../inventory/money.contract';
 export const goodsReceiptStatusSchema = z.enum(['draft', 'confirmed', 'cancelled']);
 export type GoodsReceiptStatusDto = z.infer<typeof goodsReceiptStatusSchema>;
 
+/**
+ * One lot (or one serial, quantity 1) of a received line. Required for
+ * lot/serial-tracked items, with quantities adding up to the line quantity.
+ */
+export const receiptLotSchema = z.object({
+  lotNumber: z.string().trim().min(1).max(100),
+  expiryDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .nullable(),
+  quantity: z.number().positive(),
+});
+export type ReceiptLotDto = z.infer<typeof receiptLotSchema>;
+
 export const goodsReceiptLineSchema = z.object({
   id: z.string().uuid(),
   goodsReceiptId: z.string().uuid(),
@@ -12,6 +26,7 @@ export const goodsReceiptLineSchema = z.object({
   quantityReceived: z.number().positive(),
   unitCost: moneySchema,
   notes: z.string().nullable(),
+  lots: z.array(receiptLotSchema).default([]),
   createdAt: z.coerce.date(),
 });
 export type GoodsReceiptLineDto = z.infer<typeof goodsReceiptLineSchema>;
@@ -40,6 +55,7 @@ export const createGoodsReceiptLineSchema = z.object({
   quantityReceived: z.number().positive(),
   unitCost: moneySchema.optional(),
   notes: z.string().nullable().optional(),
+  lots: z.array(receiptLotSchema).max(1000).optional(),
 });
 export type CreateGoodsReceiptLineDto = z.infer<typeof createGoodsReceiptLineSchema>;
 

@@ -9,6 +9,17 @@ import { Money } from '@erp-platform/shared-kernel';
  */
 export type GoodsReceiptStatus = 'draft' | 'confirmed' | 'cancelled';
 
+/**
+ * How a received quantity splits across lots/serials (migration 0077).
+ * Required for lot/serial-tracked items; empty for everything else.
+ */
+export interface ReceiptLot {
+  lotNumber: string;
+  /** ISO date (YYYY-MM-DD) or null when the lot has no expiry. */
+  expiryDate: string | null;
+  quantity: number;
+}
+
 export interface GoodsReceiptLine {
   id: string;
   goodsReceiptId: string;
@@ -17,6 +28,7 @@ export interface GoodsReceiptLine {
   quantityReceived: number;
   unitCost: Money;
   notes: string | null;
+  lots: ReceiptLot[];
   createdAt: Date;
 }
 
@@ -49,6 +61,7 @@ export interface CreateGoodsReceiptLineInput {
   quantityReceived: number;
   unitCost?: Money;
   notes?: string | null;
+  lots?: ReceiptLot[];
 }
 
 export interface CreateGoodsReceiptInput {

@@ -38,6 +38,12 @@ import { usePurchaseOrderRemaining } from '../../hooks/goods-receipts/use-purcha
 import { ApiError } from '../../../../lib/api-client';
 import { decimalToMinorUnits } from '../../../../lib/money';
 import {
+  receiptLotsToDto,
+  withImplicitSingleLotQuantity,
+  type TrackingType,
+} from '../../../../components/document/lot-entry';
+import { useVariantIndex } from '../../hooks/goods-receipts/use-variant-index';
+import {
   createEmptyGoodsReceiptDrafts,
   GoodsReceiptLineItemsEditor,
   type GoodsReceiptLineDrafts,
@@ -53,9 +59,15 @@ type HeaderFormValues = Omit<CreateGoodsReceiptDto, 'lines'>;
  * the whole submission rather than silently dropping it. An empty unitCost draft is
  * omitted entirely so the server falls back to the purchase order line's own price. */
 function prepareLines(
-  remainingLines: { purchaseOrderLineId: string; remaining: number; unitPrice: { currency: string } }[],
+  remainingLines: {
+    purchaseOrderLineId: string;
+    productVariantId: string;
+    remaining: number;
+    unitPrice: { currency: string };
+  }[],
   drafts: GoodsReceiptLineDrafts,
-): CreateGoodsReceiptLineDto[] | null {
+  trackingOf: (productVariantId: string) => TrackingType,
+): CreateGoodsReceiptLineDto[] | string | null {
   const prepared: CreateGoodsReceiptLineDto[] = [];
   for (const line of remainingLines) {
     const draft = drafts[line.purchaseOrderLineId];
@@ -72,11 +84,23 @@ function prepareLines(
         return null;
       }
     }
+    const trackingType = trackingOf(line.productVariantId);
+    let lots: CreateGoodsReceiptLineDto['lots'];
+    if (trackingType !== 'none') {
+      const result = receiptLotsToDto(
+        trackingType,
+        withImplicitSingleLotQuantity(draft.lots, quantityReceived),
+        quantityReceived,
+      );
+      if ('error' in result) return `lots.errors.${result.error}`;
+      lots = result.lots;
+    }
     prepared.push({
       purchaseOrderLineId: line.purchaseOrderLineId,
       quantityReceived,
       unitCost,
       notes: draft.notes.trim() === '' ? undefined : draft.notes,
+      lots,
     });
   }
   return prepared.length > 0 ? prepared : null;
@@ -90,6 +114,7 @@ export function CreateGoodsReceiptForm({ onDone }: { onDone: () => void }) {
   const { data: definitions, isLoading: definitionsLoading } = useCustomFieldDefinitions(GOODS_RECEIPT_ENTITY_TYPE);
   const [drafts, setDrafts] = useState<GoodsReceiptLineDrafts>({});
   const [linesError, setLinesError] = useState<string | null>(null);
+  const variantIndex = useVariantIndex();
 
   // Goods can only be received against a PO that's been confirmed (or already
   // partially received) — matches GoodsReceiptsService.create()'s own status check.
@@ -127,9 +152,13 @@ export function CreateGoodsReceiptForm({ onDone }: { onDone: () => void }) {
 
   async function onSubmit(headerValues: HeaderFormValues) {
     setLinesError(null);
-    const preparedLines = prepareLines(remainingLines, drafts);
-    if (!preparedLines) {
-      setLinesError(t('purchases.goodsReceipts.linesError'));
+    const preparedLines = prepareLines(
+      remainingLines,
+      drafts,
+      (variantId) => variantIndex.get(variantId)?.trackingType ?? 'none',
+    );
+    if (!preparedLines || typeof preparedLines === 'string') {
+      setLinesError(t(preparedLines ?? 'purchases.goodsReceipts.linesError'));
       return;
     }
     try {

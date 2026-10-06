@@ -1,6 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import type { Kysely } from 'kysely';
 import type { TenantDatabase } from '../../../../database/tenant/kysely-client';
+import { withTransaction } from '../../../../database/tenant/transaction.util';
 import { PURCHASE_ORDER_REPOSITORY, type PurchaseOrderRepository } from '../ports/purchase-order.repository';
 import {
   PURCHASE_ORDER_LINE_REPOSITORY,
@@ -158,7 +159,9 @@ export class PurchaseOrdersService {
       );
     }
 
-    return db.transaction().execute(async (trx) => {
+    // withTransaction: PurchaseInvoicesService's direct-invoicing path calls
+    // this with its own open trx (Kysely throws on Transaction.transaction()).
+    return withTransaction(db, async (trx) => {
       const order = await this.orders.create(trx, {
         poNumber: allocated.formatted,
         supplierId,

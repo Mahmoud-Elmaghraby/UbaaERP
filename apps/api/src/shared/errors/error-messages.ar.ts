@@ -146,6 +146,22 @@ export const AR_MESSAGES: Record<string, string> = {
     'المخزون غير كافٍ في الدُفعة المحددة: الكمية المطلوبة {requested}، والمتاح في هذا الموقع {available} فقط.',
   'STOCK_MOVEMENT.INSUFFICIENT_LOT_TRACKED_STOCK':
     'المخزون غير كافٍ عبر جميع الدُفعات: الكمية المطلوبة {requested}، والمتاح في هذا الموقع {available} فقط عبر كل الدُفعات.',
+  'STOCK_MOVEMENT.INSUFFICIENT_UNEXPIRED_STOCK':
+    'المتاح غير منتهي الصلاحية من "{name}" هو {available} فقط (ويوجد {expired} منتهي الصلاحية لا يُباع)، والمطلوب {requested}.',
+  'STOCK_MOVEMENT.LOT_EXPIRED': 'الدفعة "{lotNumber}" من "{name}" منتهية الصلاحية ولا يمكن بيعها.',
+  'STOCK_MOVEMENT.LOT_NOT_FOUND': 'الدفعة "{lotNumber}" غير موجودة للصنف "{name}".',
+  'STOCK_MOVEMENT.LOTS_QUANTITY_MISMATCH': 'مجموع كميات الدفعات المختارة لـ "{name}" هو {total} بينما كمية السطر {quantity}.',
+  'STOCK_MOVEMENT.LOTS_NOT_TRACKED': 'الصنف "{name}" لا يُتتبع بالدفعات، فلا يجوز تحديد دفعات له.',
+  'GOODS_RECEIPT.LOTS_REQUIRED': 'هذا الصنف يُتتبع بالدفعات — أدخل رقم الدفعة وتاريخ الصلاحية للكمية المستلمة.',
+  'GOODS_RECEIPT.SERIALS_REQUIRED': 'هذا الصنف يُتتبع بالأرقام التسلسلية — أدخل رقمًا تسلسليًا لكل وحدة مستلمة.',
+  'GOODS_RECEIPT.INVALID_LOT': 'كل دفعة تحتاج رقمًا وكمية أكبر من صفر.',
+  'GOODS_RECEIPT.SERIAL_QUANTITY_MUST_BE_ONE': 'الرقم التسلسلي "{lotNumber}" يجب أن تكون كميته 1.',
+  'GOODS_RECEIPT.DUPLICATE_SERIAL': 'الرقم التسلسلي "{lotNumber}" مُدخل أكثر من مرة.',
+  'GOODS_RECEIPT.LOT_EXPIRY_CONFLICT': 'الدفعة "{lotNumber}" مُدخلة مرتين بتاريخي صلاحية مختلفين.',
+  'GOODS_RECEIPT.LOTS_QUANTITY_MISMATCH': 'مجموع كميات الدفعات {total} لا يساوي الكمية المستلمة {quantity}.',
+  'GOODS_RECEIPT.LOTS_NOT_TRACKED': 'هذا الصنف لا يُتتبع بالدفعات، فلا يجوز إدخال دفعات له.',
+  'DELIVERY.INVALID_LOT': 'كل دفعة مختارة تحتاج رقمًا وكمية أكبر من صفر.',
+  'DELIVERY.LOTS_QUANTITY_MISMATCH': 'مجموع كميات الدفعات المختارة {total} لا يساوي الكمية المسلّمة {quantity}.',
 
   // ---- Purchases module ----
   'SUPPLIER.DUPLICATE_CODE': 'يوجد مورّد آخر بنفس الرمز "{value}" بالفعل.',

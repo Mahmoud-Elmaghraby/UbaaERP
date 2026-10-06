@@ -1,7 +1,7 @@
 import type { Kysely } from 'kysely';
 import { Money } from '@erp-platform/shared-kernel';
 import type { TenantDatabase } from '../../../../database/tenant/kysely-client';
-import type { GoodsReceiptLine } from '../../domain/goods-receipt.entity';
+import type { GoodsReceiptLine, ReceiptLot } from '../../domain/goods-receipt.entity';
 
 export interface CreateGoodsReceiptLineRow {
   purchaseOrderLineId: string;
@@ -9,6 +9,7 @@ export interface CreateGoodsReceiptLineRow {
   quantityReceived: number;
   unitCost: Money;
   notes: string | null;
+  lots: ReceiptLot[];
 }
 
 export interface GoodsReceiptLineRepository {

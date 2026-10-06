@@ -1,12 +1,13 @@
 import type { Kysely } from 'kysely';
 import type { TenantDatabase } from '../../../../database/tenant/kysely-client';
-import type { DeliveryLine } from '../../domain/delivery.entity';
+import type { DeliveryLine, DeliveryLot } from '../../domain/delivery.entity';
 
 export interface CreateDeliveryLineRow {
   salesOrderLineId: string;
   productVariantId: string;
   quantityDelivered: number;
   notes: string | null;
+  lots: DeliveryLot[];
 }
 
 export interface DeliveryLineRepository {

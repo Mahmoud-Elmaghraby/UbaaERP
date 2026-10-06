@@ -8,6 +8,12 @@
  */
 export type DeliveryStatus = 'draft' | 'confirmed' | 'cancelled';
 
+/** A lot picked for a delivery line (migration 0077). No lots = Inventory picks FEFO, skipping expired lots. */
+export interface DeliveryLot {
+  lotNumber: string;
+  quantity: number;
+}
+
 export interface DeliveryLine {
   id: string;
   deliveryId: string;
@@ -15,6 +21,7 @@ export interface DeliveryLine {
   productVariantId: string;
   quantityDelivered: number;
   notes: string | null;
+  lots: DeliveryLot[];
   createdAt: Date;
 }
 
@@ -45,6 +52,7 @@ export interface CreateDeliveryLineInput {
   salesOrderLineId: string;
   quantityDelivered: number;
   notes?: string | null;
+  lots?: DeliveryLot[];
 }
 
 export interface CreateDeliveryInput {

@@ -53,7 +53,7 @@ type HeaderFormValues = Omit<CreateDeliveryDto, 'lines'>;
 function prepareLines(
   remainingLines: { salesOrderLineId: string; remaining: number }[],
   drafts: DeliveryLineDrafts,
-): CreateDeliveryLineDto[] | null {
+): CreateDeliveryLineDto[] | string | null {
   const prepared: CreateDeliveryLineDto[] = [];
   for (const line of remainingLines) {
     const draft = drafts[line.salesOrderLineId];
@@ -62,10 +62,16 @@ function prepareLines(
     if (!Number.isFinite(quantityDelivered) || quantityDelivered <= 0 || quantityDelivered > line.remaining) {
       return null;
     }
+    // Picked lots are optional (none = FEFO), but when picked they must cover the quantity.
+    const lots = draft.lots ?? [];
+    if (lots.length > 0 && Math.abs(lots.reduce((sum, lot) => sum + lot.quantity, 0) - quantityDelivered) > 1e-6) {
+      return 'lots.errors.pickMismatch';
+    }
     prepared.push({
       salesOrderLineId: line.salesOrderLineId,
       quantityDelivered,
       notes: draft.notes.trim() === '' ? undefined : draft.notes,
+      lots: lots.length > 0 ? lots : undefined,
     });
   }
   return prepared.length > 0 ? prepared : null;
@@ -118,8 +124,8 @@ export function CreateDeliveryForm({ onDone }: { onDone: () => void }) {
   async function onSubmit(headerValues: HeaderFormValues) {
     setLinesError(null);
     const preparedLines = prepareLines(remainingLines, drafts);
-    if (!preparedLines) {
-      setLinesError(t('sales.deliveries.linesError'));
+    if (!preparedLines || typeof preparedLines === 'string') {
+      setLinesError(t(preparedLines ?? 'sales.deliveries.linesError'));
       return;
     }
     try {
@@ -226,7 +232,12 @@ export function CreateDeliveryForm({ onDone }: { onDone: () => void }) {
         {remainingLoading ? (
           <Skeleton className="h-24 w-full" />
         ) : (
-          <DeliveryLineItemsEditor remainingLines={remainingLines} drafts={drafts} onChange={setDrafts} />
+          <DeliveryLineItemsEditor
+            remainingLines={remainingLines}
+            drafts={drafts}
+            onChange={setDrafts}
+            warehouseId={form.watch('warehouseId')}
+          />
         )}
         {linesError ? <p className="text-sm text-destructive">{linesError}</p> : null}
 

@@ -23,3 +23,20 @@ export const stockLotSchema = z.object({
   levels: z.array(stockLotLevelSchema),
 });
 export type StockLotDto = z.infer<typeof stockLotSchema>;
+
+/** One row of the near-expiry report: a lot on hand in one warehouse, expiring soon (or already expired). */
+export const expiringLotSchema = z.object({
+  stockLotId: z.string().uuid(),
+  lotNumber: z.string(),
+  expiryDate: z.coerce.date(),
+  daysToExpiry: z.number().int(),
+  productVariantId: z.string().uuid(),
+  productName: z.string(),
+  productCode: z.string(),
+  sku: z.string(),
+  warehouseId: z.string().uuid(),
+  warehouseName: z.string(),
+  quantityOnHand: z.number(),
+  unitCost: moneySchema,
+});
+export type ExpiringLotDto = z.infer<typeof expiringLotSchema>;

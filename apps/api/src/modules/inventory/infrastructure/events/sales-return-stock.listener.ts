@@ -11,6 +11,8 @@ import {
 import { DEFAULT_LOCATION_CODE } from '../../domain/warehouse-location.entity';
 import type { DomainEventPayload } from '../../../../shared/events/domain-event';
 import { withTransaction } from '../../../../database/tenant/transaction.util';
+import type { Kysely } from 'kysely';
+import type { TenantDatabase } from '../../../../database/tenant/kysely-client';
 import { OutboxWriterService } from '../../../../shared/outbox/application/services/outbox-writer.service';
 import { moneyToDto } from '../../presentation/money.mapper';
 
@@ -130,17 +132,20 @@ export class SalesReturnStockListener {
             );
           }
 
-          movements.push(
-            await this.stockMovements.recordMovement(trx, {
-              productVariantId: line.productVariantId,
-              locationId: defaultLocation.id,
-              movementType: 'in',
-              quantity: line.quantity,
-              unitCost: stockLevel.averageCost,
-              referenceType: 'sales_return',
-              referenceId: payload.entityId,
-            }),
-          );
+          for (const piece of await this.returnPieces(trx, metadata.deliveryId, line)) {
+            movements.push(
+              await this.stockMovements.recordMovement(trx, {
+                productVariantId: line.productVariantId,
+                locationId: defaultLocation.id,
+                movementType: 'in',
+                quantity: piece.quantity,
+                unitCost: stockLevel.averageCost,
+                lotNumber: piece.lotNumber,
+                referenceType: 'sales_return',
+                referenceId: payload.entityId,
+              }),
+            );
+          }
         }
 
         const currency = movements.find((m) => m.unitCost)?.unitCost?.currency;
@@ -190,5 +195,38 @@ export class SalesReturnStockListener {
       );
       throw err;
     }
+  }
+
+  /**
+   * A tracked item comes back into the lots the original delivery took it
+   * from (keeps expiry and recall traceability right); untracked items are
+   * one plain movement.
+   */
+  private async returnPieces(
+    trx: Kysely<TenantDatabase>,
+    deliveryId: string | undefined,
+    line: SalesReturnConfirmedLine,
+  ): Promise<{ quantity: number; lotNumber?: string }[]> {
+    if ((await this.stockMovements.trackingTypeOf(trx, line.productVariantId)) === 'none') {
+      return [{ quantity: line.quantity }];
+    }
+    const delivered = deliveryId
+      ? await this.stockMovements.lotsMovedByReference(trx, 'delivery', deliveryId, line.productVariantId)
+      : [];
+    const pieces: { quantity: number; lotNumber: string }[] = [];
+    let remaining = line.quantity;
+    for (const lot of delivered) {
+      if (remaining <= 1e-9) break;
+      const take = Math.min(lot.quantity, remaining);
+      pieces.push({ quantity: take, lotNumber: lot.lotNumber });
+      remaining -= take;
+    }
+    if (remaining > 1e-9) {
+      throw new Error(
+        `Cannot tell which lot(s) ${remaining} unit(s) of product variant "${line.productVariantId}" returned ` +
+          `against delivery "${deliveryId ?? '?'}" belong to — the delivery has no lot record for them.`,
+      );
+    }
+    return pieces;
   }
 }

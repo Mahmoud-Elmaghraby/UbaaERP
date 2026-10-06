@@ -1,3 +1,4 @@
+import { Fragment } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Button,
@@ -14,6 +15,8 @@ import { Plus, Trash2 } from 'lucide-react';
 import { ProductVariantPicker } from '../product/product-variant-picker';
 import { defaultPriceText } from '../product/variant-search';
 import { decimalToMinorUnits, formatAmount, multiplyMinorUnits } from '../../lib/money';
+import { useVariantLookupMap } from '../../features/inventory/api/products/queries';
+import { emptyReceiptLotsDraft, ReceiptLotsEditor, type ReceiptLotsDraft } from './lot-entry';
 
 export interface DirectLineDraft {
   key: string;
@@ -21,6 +24,8 @@ export interface DirectLineDraft {
   quantity: string;
   unitPrice: string;
   notes: string;
+  /** Lots/serials received with this line — only when the invoice also receives the goods. */
+  lots: ReceiptLotsDraft;
 }
 
 let keySeq = 0;
@@ -32,6 +37,7 @@ export function newDirectLine(): DirectLineDraft {
     quantity: '1',
     unitPrice: '',
     notes: '',
+    lots: emptyReceiptLotsDraft(),
   };
 }
 
@@ -93,14 +99,18 @@ export function DirectLinesEditor({
   onChange,
   priceKind,
   currency,
+  receiveLots = false,
 }: {
   lines: DirectLineDraft[];
   onChange: (lines: DirectLineDraft[]) => void;
   /** Which default item price prefills a line when a product is picked. */
   priceKind: 'sale' | 'purchase';
   currency: string;
+  /** Show lot/serial entry under tracked items (purchase invoice that also receives the goods). */
+  receiveLots?: boolean;
 }) {
   const { t } = useTranslation();
+  const variants = useVariantLookupMap();
 
   function update(key: string, patch: Partial<DirectLineDraft>) {
     onChange(lines.map((line) => (line.key === key ? { ...line, ...patch } : line)));
@@ -122,66 +132,82 @@ export function DirectLinesEditor({
         <TableBody>
           {lines.map((line, index) => {
             const amount = previewDirectLineAmount(line);
+            const trackingType = receiveLots ? (variants.get(line.productVariantId)?.trackingType ?? 'none') : 'none';
             return (
-              <TableRow key={line.key}>
-                <TableCell className="text-center text-muted-foreground">{index + 1}</TableCell>
-                <TableCell>
-                  <div className="flex flex-col gap-1 py-1">
-                    <ProductVariantPicker
-                      className="h-9"
-                      value={line.productVariantId}
-                      onChange={(value, variant) => {
-                        const price = line.unitPrice.trim() === '' ? defaultPriceText(variant, priceKind, currency) : null;
-                        update(line.key, { productVariantId: value, ...(price ? { unitPrice: price } : {}) });
-                      }}
-                    />
+              <Fragment key={line.key}>
+                <TableRow className={trackingType !== 'none' ? 'border-b-0' : undefined}>
+                  <TableCell className="text-center text-muted-foreground">{index + 1}</TableCell>
+                  <TableCell>
+                    <div className="flex flex-col gap-1 py-1">
+                      <ProductVariantPicker
+                        className="h-9"
+                        value={line.productVariantId}
+                        onChange={(value, variant) => {
+                          const price = line.unitPrice.trim() === '' ? defaultPriceText(variant, priceKind, currency) : null;
+                          update(line.key, { productVariantId: value, ...(price ? { unitPrice: price } : {}) });
+                        }}
+                      />
+                      <Input
+                        className="h-8 text-xs"
+                        placeholder={t('sales.salesInvoices.lineNotes')}
+                        aria-label={t('sales.salesInvoices.lineNotes')}
+                        value={line.notes}
+                        onChange={(e) => update(line.key, { notes: e.target.value })}
+                      />
+                    </div>
+                  </TableCell>
+                  <TableCell>
                     <Input
-                      className="h-8 text-xs"
-                      placeholder={t('sales.salesInvoices.lineNotes')}
-                      aria-label={t('sales.salesInvoices.lineNotes')}
-                      value={line.notes}
-                      onChange={(e) => update(line.key, { notes: e.target.value })}
+                      type="number"
+                      min={0}
+                      step="any"
+                      inputMode="decimal"
+                      className="h-9 text-end"
+                      aria-label={t('documents.quantity')}
+                      value={line.quantity}
+                      onChange={(e) => update(line.key, { quantity: e.target.value })}
                     />
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <Input
-                    type="number"
-                    min={0}
-                    step="any"
-                    inputMode="decimal"
-                    className="h-9 text-end"
-                    aria-label={t('documents.quantity')}
-                    value={line.quantity}
-                    onChange={(e) => update(line.key, { quantity: e.target.value })}
-                  />
-                </TableCell>
-                <TableCell>
-                  <Input
-                    inputMode="decimal"
-                    className="h-9 text-end"
-                    placeholder="0.00"
-                    aria-label={t('documents.unitPrice')}
-                    value={line.unitPrice}
-                    onChange={(e) => update(line.key, { unitPrice: e.target.value })}
-                  />
-                </TableCell>
-                <TableCell className="text-end font-semibold">
-                  {amount ? formatAmount(amount) : <span className="text-muted-foreground">—</span>}
-                </TableCell>
-                <TableCell>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label={t('documents.removeLine')}
-                    disabled={lines.length === 1}
-                    onClick={() => onChange(lines.filter((l) => l.key !== line.key))}
-                  >
-                    <Trash2 />
-                  </Button>
-                </TableCell>
-              </TableRow>
+                  </TableCell>
+                  <TableCell>
+                    <Input
+                      inputMode="decimal"
+                      className="h-9 text-end"
+                      placeholder="0.00"
+                      aria-label={t('documents.unitPrice')}
+                      value={line.unitPrice}
+                      onChange={(e) => update(line.key, { unitPrice: e.target.value })}
+                    />
+                  </TableCell>
+                  <TableCell className="text-end font-semibold">
+                    {amount ? formatAmount(amount) : <span className="text-muted-foreground">—</span>}
+                  </TableCell>
+                  <TableCell>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      aria-label={t('documents.removeLine')}
+                      disabled={lines.length === 1}
+                      onClick={() => onChange(lines.filter((l) => l.key !== line.key))}
+                    >
+                      <Trash2 />
+                    </Button>
+                  </TableCell>
+                </TableRow>
+                {trackingType !== 'none' ? (
+                  <TableRow className="hover:bg-transparent">
+                    <TableCell />
+                    <TableCell colSpan={5} className="pt-0">
+                      <ReceiptLotsEditor
+                        trackingType={trackingType}
+                        quantity={Number(line.quantity) || 0}
+                        draft={line.lots}
+                        onChange={(lots) => update(line.key, { lots })}
+                      />
+                    </TableCell>
+                  </TableRow>
+                ) : null}
+              </Fragment>
             );
           })}
         </TableBody>

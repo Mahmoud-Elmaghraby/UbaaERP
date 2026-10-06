@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { moneySchema } from '../inventory/money.contract';
+import { receiptLotSchema } from './goods-receipt.contract';
 
 export const purchaseInvoiceStatusSchema = z.enum(['draft', 'posted', 'cancelled']);
 export type PurchaseInvoiceStatusDto = z.infer<typeof purchaseInvoiceStatusSchema>;
@@ -42,6 +43,8 @@ export const createPurchaseInvoiceLineSchema = z.object({
   quantityInvoiced: z.number().positive(),
   unitPrice: moneySchema.optional(),
   notes: z.string().nullable().optional(),
+  /** Lots/serials — used only when the invoice also receives the goods (Goods Receipts disabled). */
+  lots: z.array(receiptLotSchema).max(1000).optional(),
 });
 export type CreatePurchaseInvoiceLineDto = z.infer<typeof createPurchaseInvoiceLineSchema>;
 
@@ -50,6 +53,7 @@ export const createPurchaseInvoiceDirectLineSchema = z.object({
   quantityInvoiced: z.number().positive(),
   unitPrice: moneySchema,
   notes: z.string().nullable().optional(),
+  lots: z.array(receiptLotSchema).max(1000).optional(),
 });
 export type CreatePurchaseInvoiceDirectLineDto = z.infer<typeof createPurchaseInvoiceDirectLineSchema>;
 

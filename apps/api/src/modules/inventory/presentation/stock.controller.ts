@@ -6,6 +6,8 @@ import {
   recordStockMovementSchema,
   transferStockSchema,
   stockLotSchema,
+  expiringLotSchema,
+  type ExpiringLotDto,
   type StockLevelDto,
   type SetReorderPointDto,
   type StockMovementDto,
@@ -22,7 +24,7 @@ import { CurrentUser } from '../../../shared/auth/current-user.decorator';
 import type { JwtAccessPayload } from '../../../shared/auth/jwt-payload.type';
 import { JwtAuthGuard } from '../../../shared/auth/jwt-auth.guard';
 import { PermissionsGuard } from '../../../shared/auth/permissions.guard';
-import { RequirePermissions } from '../../../shared/auth/require-permissions.decorator';
+import { RequireAnyPermission, RequirePermissions } from '../../../shared/auth/require-permissions.decorator';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 import { StockMovementsService } from '../application/services/stock-movements.service';
 import { InventoryEventPublisher } from '../infrastructure/events/inventory-event-publisher';
@@ -105,7 +107,10 @@ export class StockController {
     return levels.map(stockLevelToDto);
   }
 
+  /** Read by sales/purchase users too — the delivery form lets them pick a lot. */
   @Get('lots')
+  @RequirePermissions()
+  @RequireAnyPermission('inventory.manage', 'sales.manage', 'purchases.manage')
   async listLots(
     @CurrentTenantSchema() schema: string,
     @Query('productVariantId') productVariantId: string,
@@ -113,6 +118,29 @@ export class StockController {
     const db = this.connections.getClient(schema);
     const lots = await this.service.listLots(db, productVariantId);
     return lots.map(stockLotToDto);
+  }
+
+  /** Near-expiry report: lots on hand expiring within `withinDays` (default 90, max 3650), expired ones included. */
+  @Get('expiring-lots')
+  async listExpiringLots(
+    @CurrentTenantSchema() schema: string,
+    @Query('withinDays') withinDays?: string,
+  ): Promise<ExpiringLotDto[]> {
+    const parsed = Number.parseInt(withinDays ?? '', 10);
+    const days = Number.isFinite(parsed) ? Math.min(Math.max(parsed, 0), 3650) : 90;
+    const db = this.connections.getClient(schema);
+    const rows = await this.service.listExpiringLots(db, days);
+    const today = new Date();
+    const todayUtc = Date.UTC(today.getFullYear(), today.getMonth(), today.getDate());
+    return rows.map((row) =>
+      expiringLotSchema.parse({
+        ...row,
+        daysToExpiry: Math.round(
+          (Date.UTC(row.expiryDate.getFullYear(), row.expiryDate.getMonth(), row.expiryDate.getDate()) - todayUtc) /
+            86_400_000,
+        ),
+      }),
+    );
   }
 
   @Patch('levels/:id/reorder-point')

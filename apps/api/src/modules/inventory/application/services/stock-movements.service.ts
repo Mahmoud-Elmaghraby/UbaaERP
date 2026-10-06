@@ -10,7 +10,12 @@ import {
 } from '../ports/warehouse-location.repository';
 import { PRODUCT_REPOSITORY, type ProductRepository } from '../ports/product.repository';
 import { PRODUCT_VARIANT_REPOSITORY, type ProductVariantRepository } from '../ports/product-variant.repository';
-import { STOCK_LOT_REPOSITORY, type StockLotRepository } from '../ports/stock-lot.repository';
+import {
+  STOCK_LOT_REPOSITORY,
+  type ExpiringLotRow,
+  type LotQuantityMoved,
+  type StockLotRepository,
+} from '../ports/stock-lot.repository';
 import { UnitsOfMeasureService } from './units-of-measure.service';
 import type { StockLevel } from '../../domain/stock-level.entity';
 import type { StockLotWithLevels } from '../../domain/stock-lot.entity';
@@ -213,6 +218,154 @@ export class StockMovementsService {
         }
       }
     });
+  }
+
+  /**
+   * Splits an outgoing document line of a lot/serial-tracked variant into
+   * one piece per lot, so the caller records one movement per lot (each
+   * stamped with its stock_lot_id — exact traceability, and serials issue
+   * one unit per movement as recordMovement requires). Returns null for an
+   * untracked variant: the caller records a single plain movement.
+   *
+   *  - `requested` lots (typed on the document) are honoured exactly and
+   *    must add up to the quantity;
+   *  - otherwise FEFO: `preferredLotIds` first (a purchase return takes back
+   *    the lots its goods receipt brought in), then earliest expiry;
+   *  - `blockExpired` (sales deliveries) refuses expired lots and skips them
+   *    in FEFO. Purchase returns pass false — sending expired stock back to
+   *    the supplier is exactly what should be allowed.
+   */
+  async planOutgoingLots(
+    trx: Kysely<TenantDatabase>,
+    input: {
+      productVariantId: string;
+      locationId: string;
+      quantity: number;
+      requested?: { lotNumber: string; quantity: number }[];
+      preferredLotIds?: string[];
+      blockExpired: boolean;
+    },
+  ): Promise<{ lotId: string; quantity: number }[] | null> {
+    const product = await this.resolveProduct(trx, input.productVariantId);
+    const requested = input.requested ?? [];
+    if (product.trackingType === 'none' || product.itemType === 'service') {
+      if (requested.length > 0) {
+        throw new BusinessRuleError(`"${product.name}" is not lot/serial-tracked, so its line must not carry lots.`, {
+          code: 'STOCK_MOVEMENT.LOTS_NOT_TRACKED',
+          params: { name: product.name },
+        });
+      }
+      return null;
+    }
+
+    if (requested.length > 0) {
+      const total = requested.reduce((sum, lot) => sum + lot.quantity, 0);
+      if (Math.abs(total - input.quantity) > 1e-6) {
+        throw new BusinessRuleError(
+          `The lots chosen for "${product.name}" add up to ${total}, but the line quantity is ${input.quantity}.`,
+          {
+            code: 'STOCK_MOVEMENT.LOTS_QUANTITY_MISMATCH',
+            params: { name: product.name, total, quantity: input.quantity },
+          },
+        );
+      }
+      const pieces: { lotId: string; quantity: number }[] = [];
+      for (const lot of requested) {
+        const found = await this.stockLots.findByVariantAndLotNumber(trx, input.productVariantId, lot.lotNumber.trim());
+        if (!found) {
+          throw new BusinessRuleError(`Lot "${lot.lotNumber}" does not exist for "${product.name}".`, {
+            code: 'STOCK_MOVEMENT.LOT_NOT_FOUND',
+            params: { lotNumber: lot.lotNumber, name: product.name },
+          });
+        }
+        if (input.blockExpired && (await this.stockLots.isExpired(trx, found.id))) {
+          throw new BusinessRuleError(`Lot "${lot.lotNumber}" of "${product.name}" has expired and cannot be sold.`, {
+            code: 'STOCK_MOVEMENT.LOT_EXPIRED',
+            params: { lotNumber: lot.lotNumber, name: product.name },
+          });
+        }
+        if (product.trackingType === 'serial') {
+          if (lot.quantity !== 1) {
+            throw new BusinessRuleError(
+              'Serial-tracked products must be issued exactly one unit (quantity = 1) per movement.',
+              { code: 'STOCK_MOVEMENT.SERIAL_ISSUE_QTY_MUST_BE_ONE' },
+            );
+          }
+        }
+        const existing = pieces.find((piece) => piece.lotId === found.id);
+        if (existing) existing.quantity += lot.quantity;
+        else pieces.push({ lotId: found.id, quantity: lot.quantity });
+      }
+      return pieces;
+    }
+
+    const available = await this.stockLots.listAvailableForFifo(trx, input.productVariantId, input.locationId, {
+      excludeExpired: input.blockExpired,
+    });
+    const preferred = input.preferredLotIds ?? [];
+    const ordered = [
+      ...preferred.flatMap((id) => available.filter((lot) => lot.stockLotId === id)),
+      ...available.filter((lot) => !preferred.includes(lot.stockLotId)),
+    ];
+    const totalAvailable = ordered.reduce((sum, lot) => sum + lot.quantityAvailable, 0);
+    if (totalAvailable + 1e-9 < input.quantity) {
+      if (input.blockExpired) {
+        const all = await this.stockLots.listAvailableForFifo(trx, input.productVariantId, input.locationId);
+        const expired = all.reduce((sum, lot) => sum + lot.quantityAvailable, 0) - totalAvailable;
+        if (expired > 0) {
+          throw new BusinessRuleError(
+            `Only ${totalAvailable} of "${product.name}" is unexpired (${expired} more is expired); requested ${input.quantity}.`,
+            {
+              code: 'STOCK_MOVEMENT.INSUFFICIENT_UNEXPIRED_STOCK',
+              params: { name: product.name, requested: input.quantity, available: totalAvailable, expired },
+            },
+          );
+        }
+      }
+      throw new BusinessRuleError(
+        `Insufficient lot-tracked stock: requested ${input.quantity}, only ${totalAvailable} available across all lots at this location.`,
+        {
+          code: 'STOCK_MOVEMENT.INSUFFICIENT_LOT_TRACKED_STOCK',
+          params: { requested: input.quantity, available: totalAvailable },
+        },
+      );
+    }
+    const pieces: { lotId: string; quantity: number }[] = [];
+    let remaining = input.quantity;
+    for (const lot of ordered) {
+      if (remaining <= 1e-9) break;
+      const take = Math.min(lot.quantityAvailable, remaining);
+      if (product.trackingType === 'serial') {
+        // A serial lot holds one unit; still split defensively into ones.
+        for (let i = 0; i < take; i += 1) pieces.push({ lotId: lot.stockLotId, quantity: 1 });
+      } else {
+        pieces.push({ lotId: lot.stockLotId, quantity: take });
+      }
+      remaining -= take;
+    }
+    return pieces;
+  }
+
+  /** See StockLotRepository.lotsMovedByReference. */
+  lotsMovedByReference(
+    db: Kysely<TenantDatabase>,
+    referenceType: string,
+    referenceId: string,
+    productVariantId: string,
+  ): Promise<LotQuantityMoved[]> {
+    return this.stockLots.lotsMovedByReference(db, referenceType, referenceId, productVariantId);
+  }
+
+  /** Whether a variant is lot/serial-tracked (and a stock item). */
+  async trackingTypeOf(db: Kysely<TenantDatabase>, productVariantId: string): Promise<'none' | 'lot' | 'serial'> {
+    const product = await this.resolveProduct(db, productVariantId);
+    return product.itemType === 'service' ? 'none' : product.trackingType;
+  }
+
+  /** Near-expiry report: lots on hand expiring within `withinDays` days (expired ones included). */
+  listExpiringLots(db: Kysely<TenantDatabase>, withinDays: number): Promise<ExpiringLotRow[]> {
+    const until = new Date(Date.now() + withinDays * 86_400_000).toISOString().slice(0, 10);
+    return this.stockLots.listExpiring(db, until);
   }
 
   private assertStockItem(product: Product): void {

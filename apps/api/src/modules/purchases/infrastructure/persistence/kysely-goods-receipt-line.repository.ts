@@ -6,7 +6,7 @@ import type {
   GoodsReceiptLineRepository,
   CreateGoodsReceiptLineRow,
 } from '../../application/ports/goods-receipt-line.repository';
-import type { GoodsReceiptLine } from '../../domain/goods-receipt.entity';
+import type { GoodsReceiptLine, ReceiptLot } from '../../domain/goods-receipt.entity';
 
 function toDomain(row: Selectable<GoodsReceiptLinesTable>): GoodsReceiptLine {
   return {
@@ -17,6 +17,7 @@ function toDomain(row: Selectable<GoodsReceiptLinesTable>): GoodsReceiptLine {
     quantityReceived: Number(row.quantity_received),
     unitCost: Money.fromMinorUnits(BigInt(row.unit_cost_amount), row.unit_cost_currency),
     notes: row.notes,
+    lots: (Array.isArray(row.lot_allocations) ? row.lot_allocations : []) as ReceiptLot[],
     createdAt: row.created_at,
   };
 }
@@ -48,6 +49,7 @@ export class KyselyGoodsReceiptLineRepository implements GoodsReceiptLineReposit
         unit_cost_amount: input.unitCost.toMinorUnits().toString(),
         unit_cost_currency: input.unitCost.currency,
         notes: input.notes ?? null,
+        lot_allocations: JSON.stringify(input.lots),
       })
       .returningAll()
       .executeTakeFirstOrThrow();

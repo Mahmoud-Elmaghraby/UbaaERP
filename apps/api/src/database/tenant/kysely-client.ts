@@ -468,6 +468,8 @@ export interface DeliveryLinesTable {
   product_variant_id: string;
   quantity_delivered: string;
   notes: string | null;
+  /** Migration 0077 — lot/serial split of this line (JSON array). */
+  lot_allocations: Generated<unknown>;
   created_at: Generated<Date>;
 }
 
@@ -723,6 +725,8 @@ export interface GoodsReceiptLinesTable {
   unit_cost_amount: string;
   unit_cost_currency: string;
   notes: string | null;
+  /** Migration 0077 — lot/serial split of this line (JSON array). */
+  lot_allocations: Generated<unknown>;
   created_at: Generated<Date>;
 }
 

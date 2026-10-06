@@ -1,12 +1,17 @@
+import { Fragment } from 'react';
 import { useTranslation } from 'react-i18next';
+import type { DeliveryLotDto } from '@erp-platform/contracts';
 import { Input, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@erp-platform/ui';
 
 import { useVariantIndex } from '../../hooks/deliveries/use-variant-index';
 import type { RemainingSoLine } from '../../hooks/deliveries/use-sales-order-remaining';
+import { DeliveryLotsPicker } from '../../../../components/document/lot-entry';
 
 export interface DeliveryLineDraft {
   quantityDelivered: string;
   notes: string;
+  /** Picked lots for a lot/serial-tracked line; empty = automatic FEFO. */
+  lots: DeliveryLotDto[];
 }
 
 export type DeliveryLineDrafts = Record<string, DeliveryLineDraft>;
@@ -14,7 +19,7 @@ export type DeliveryLineDrafts = Record<string, DeliveryLineDraft>;
 export function createEmptyDeliveryDrafts(remainingLines: RemainingSoLine[]): DeliveryLineDrafts {
   const drafts: DeliveryLineDrafts = {};
   for (const line of remainingLines) {
-    drafts[line.salesOrderLineId] = { quantityDelivered: '', notes: '' };
+    drafts[line.salesOrderLineId] = { quantityDelivered: '', notes: '', lots: [] };
   }
   return drafts;
 }
@@ -33,8 +38,10 @@ export function DeliveryLineItemsEditor({
   remainingLines,
   drafts,
   onChange,
+  warehouseId,
 }: {
   remainingLines: RemainingSoLine[];
+  warehouseId: string;
   drafts: DeliveryLineDrafts;
   onChange: (drafts: DeliveryLineDrafts) => void;
 }) {
@@ -42,7 +49,7 @@ export function DeliveryLineItemsEditor({
   const variantIndex = useVariantIndex();
 
   function updateDraft(salesOrderLineId: string, patch: Partial<DeliveryLineDraft>) {
-    const current = drafts[salesOrderLineId] ?? { quantityDelivered: '', notes: '' };
+    const current = drafts[salesOrderLineId] ?? { quantityDelivered: '', notes: '', lots: [] };
     onChange({ ...drafts, [salesOrderLineId]: { ...current, ...patch } });
   }
 
@@ -66,31 +73,49 @@ export function DeliveryLineItemsEditor({
         </TableHeader>
         <TableBody>
           {deliverableLines.map((line) => {
-            const draft = drafts[line.salesOrderLineId] ?? { quantityDelivered: '', notes: '' };
+            const draft = drafts[line.salesOrderLineId] ?? { quantityDelivered: '', notes: '', lots: [] };
             const variant = variantIndex.get(line.productVariantId);
+            const trackingType = variant?.trackingType ?? 'none';
+            const quantity = Number(draft.quantityDelivered) || 0;
             return (
-              <TableRow key={line.salesOrderLineId}>
-                <TableCell>{variant ? `${variant.productName} — ${variant.sku}` : line.productVariantId}</TableCell>
-                <TableCell>{line.ordered}</TableCell>
-                <TableCell>{line.remaining}</TableCell>
-                <TableCell>
-                  <Input
-                    type="number"
-                    min={0}
-                    max={line.remaining}
-                    step="any"
-                    inputMode="decimal"
-                    value={draft.quantityDelivered}
-                    onChange={(e) => updateDraft(line.salesOrderLineId, { quantityDelivered: e.target.value })}
-                  />
-                </TableCell>
-                <TableCell>
-                  <Input
-                    value={draft.notes}
-                    onChange={(e) => updateDraft(line.salesOrderLineId, { notes: e.target.value })}
-                  />
-                </TableCell>
-              </TableRow>
+              <Fragment key={line.salesOrderLineId}>
+                <TableRow className={trackingType !== 'none' && quantity > 0 ? 'border-b-0' : undefined}>
+                  <TableCell>{variant ? `${variant.productName} — ${variant.sku}` : line.productVariantId}</TableCell>
+                  <TableCell>{line.ordered}</TableCell>
+                  <TableCell>{line.remaining}</TableCell>
+                  <TableCell>
+                    <Input
+                      type="number"
+                      min={0}
+                      max={line.remaining}
+                      step="any"
+                      inputMode="decimal"
+                      value={draft.quantityDelivered}
+                      onChange={(e) => updateDraft(line.salesOrderLineId, { quantityDelivered: e.target.value })}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Input
+                      value={draft.notes}
+                      onChange={(e) => updateDraft(line.salesOrderLineId, { notes: e.target.value })}
+                    />
+                  </TableCell>
+                </TableRow>
+                {trackingType !== 'none' && quantity > 0 && warehouseId ? (
+                  <TableRow className="hover:bg-transparent">
+                    <TableCell colSpan={5} className="pt-0">
+                      <DeliveryLotsPicker
+                        productVariantId={line.productVariantId}
+                        warehouseId={warehouseId}
+                        trackingType={trackingType}
+                        quantity={quantity}
+                        value={draft.lots}
+                        onChange={(lots) => updateDraft(line.salesOrderLineId, { lots })}
+                      />
+                    </TableCell>
+                  </TableRow>
+                ) : null}
+              </Fragment>
             );
           })}
         </TableBody>

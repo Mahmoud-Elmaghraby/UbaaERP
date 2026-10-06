@@ -3,6 +3,13 @@ import { z } from 'zod';
 export const deliveryStatusSchema = z.enum(['draft', 'confirmed', 'cancelled']);
 export type DeliveryStatusDto = z.infer<typeof deliveryStatusSchema>;
 
+/** A lot picked for a delivery line; omit all lots to let Inventory pick FEFO (expired lots skipped). */
+export const deliveryLotSchema = z.object({
+  lotNumber: z.string().trim().min(1).max(100),
+  quantity: z.number().positive(),
+});
+export type DeliveryLotDto = z.infer<typeof deliveryLotSchema>;
+
 export const deliveryLineSchema = z.object({
   id: z.string().uuid(),
   deliveryId: z.string().uuid(),
@@ -10,6 +17,7 @@ export const deliveryLineSchema = z.object({
   productVariantId: z.string().uuid(),
   quantityDelivered: z.number().positive(),
   notes: z.string().nullable(),
+  lots: z.array(deliveryLotSchema).default([]),
   createdAt: z.coerce.date(),
 });
 export type DeliveryLineDto = z.infer<typeof deliveryLineSchema>;
@@ -37,6 +45,7 @@ export const createDeliveryLineSchema = z.object({
   salesOrderLineId: z.string().uuid(),
   quantityDelivered: z.number().positive(),
   notes: z.string().nullable().optional(),
+  lots: z.array(deliveryLotSchema).max(1000).optional(),
 });
 export type CreateDeliveryLineDto = z.infer<typeof createDeliveryLineSchema>;
 

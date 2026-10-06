@@ -107,14 +107,35 @@ export class PurchaseReturnStockListener {
         const stockLines = metadata.lines.filter((line) => stockItems.has(line.productVariantId));
 
         for (const line of stockLines) {
-          await this.stockMovements.recordMovement(trx, {
+          // Tracked items go back lot by lot, taking the lots this goods
+          // receipt brought in first (expired ones included — returning
+          // them to the supplier is the point), then FEFO for the rest.
+          const receivedLots = metadata.goodsReceiptId
+            ? await this.stockMovements.lotsMovedByReference(
+                trx,
+                'goods_receipt',
+                metadata.goodsReceiptId,
+                line.productVariantId,
+              )
+            : [];
+          const pieces = await this.stockMovements.planOutgoingLots(trx, {
             productVariantId: line.productVariantId,
             locationId: defaultLocation.id,
-            movementType: 'out',
             quantity: line.quantity,
-            referenceType: 'purchase_return',
-            referenceId: payload.entityId,
+            preferredLotIds: receivedLots.map((lot) => lot.stockLotId),
+            blockExpired: false,
           });
+          for (const piece of pieces ?? [{ lotId: undefined, quantity: line.quantity }]) {
+            await this.stockMovements.recordMovement(trx, {
+              productVariantId: line.productVariantId,
+              locationId: defaultLocation.id,
+              movementType: 'out',
+              quantity: piece.quantity,
+              lotId: piece.lotId,
+              referenceType: 'purchase_return',
+              referenceId: payload.entityId,
+            });
+          }
         }
       });
     } catch (err) {

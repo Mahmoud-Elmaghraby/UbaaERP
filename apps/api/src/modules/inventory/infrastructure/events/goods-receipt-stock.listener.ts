@@ -15,6 +15,8 @@ interface GoodsReceiptConfirmedLine {
   productVariantId: string;
   quantity: number;
   unitCost: { amountMinorUnits: string; currency: string };
+  /** Lot/serial split (migration 0077) — non-empty for tracked items; absent on events written before it. */
+  lots?: { lotNumber: string; expiryDate: string | null; quantity: number }[];
 }
 
 interface GoodsReceiptConfirmedMetadata {
@@ -89,27 +91,39 @@ export class GoodsReceiptStockListener {
         }
 
         // Service items appear on documents but never move stock.
-
         const stockItems = await this.stockMovements.stockItemVariantIds(
-
           trx,
-
           metadata.lines.map((line) => line.productVariantId),
-
         );
-
         const stockLines = metadata.lines.filter((line) => stockItems.has(line.productVariantId));
 
         for (const line of stockLines) {
-          await this.stockMovements.recordMovement(trx, {
-            productVariantId: line.productVariantId,
-            locationId: defaultLocation.id,
-            movementType: 'in',
-            quantity: line.quantity,
-            unitCost: Money.fromMinorUnits(BigInt(line.unitCost.amountMinorUnits), line.unitCost.currency),
-            referenceType: 'goods_receipt',
-            referenceId: payload.entityId,
-          });
+          const unitCost = Money.fromMinorUnits(BigInt(line.unitCost.amountMinorUnits), line.unitCost.currency);
+          const tracked = (await this.stockMovements.trackingTypeOf(trx, line.productVariantId)) !== 'none';
+          // A tracked line is received lot by lot (one movement each, so
+          // every lot gets its number, expiry and cost); Purchases already
+          // checked the lots add up to the line quantity.
+          const pieces =
+            tracked && line.lots?.length
+              ? line.lots.map((lot) => ({
+                  quantity: lot.quantity,
+                  lotNumber: lot.lotNumber,
+                  expiryDate: lot.expiryDate ? new Date(`${lot.expiryDate}T00:00:00`) : null,
+                }))
+              : [{ quantity: line.quantity, lotNumber: undefined, expiryDate: undefined }];
+          for (const piece of pieces) {
+            await this.stockMovements.recordMovement(trx, {
+              productVariantId: line.productVariantId,
+              locationId: defaultLocation.id,
+              movementType: 'in',
+              quantity: piece.quantity,
+              unitCost,
+              lotNumber: piece.lotNumber,
+              expiryDate: piece.expiryDate,
+              referenceType: 'goods_receipt',
+              referenceId: payload.entityId,
+            });
+          }
         }
       });
     } catch (err) {

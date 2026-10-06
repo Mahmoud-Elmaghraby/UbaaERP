@@ -10,9 +10,13 @@ import { variantDisplayName } from '../../../../components/product/variant-searc
 export function useVariantIndex() {
   const { data } = useVariantLookup();
   return useMemo(() => {
-    const map = new Map<string, { productName: string; sku: string }>();
+    const map = new Map<string, { productName: string; sku: string; trackingType: 'none' | 'lot' | 'serial' }>();
     for (const variant of data ?? []) {
-      map.set(variant.id, { productName: variantDisplayName(variant), sku: variant.sku });
+      map.set(variant.id, {
+        productName: variantDisplayName(variant),
+        sku: variant.sku,
+        trackingType: variant.trackingType,
+      });
     }
     return map;
   }, [data]);

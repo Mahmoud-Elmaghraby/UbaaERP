@@ -1,9 +1,15 @@
+import { Fragment } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Input, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@erp-platform/ui';
 
 import { useVariantIndex } from '../../hooks/goods-receipts/use-variant-index';
 import type { RemainingPoLine } from '../../hooks/goods-receipts/use-purchase-order-remaining';
 import { formatMoney } from '../../../../lib/money';
+import {
+  emptyReceiptLotsDraft,
+  ReceiptLotsEditor,
+  type ReceiptLotsDraft,
+} from '../../../../components/document/lot-entry';
 
 export interface GoodsReceiptLineDraft {
   quantityReceived: string;
@@ -11,6 +17,8 @@ export interface GoodsReceiptLineDraft {
    * applied server-side (createGoodsReceiptLineSchema.unitCost is optional). */
   unitCost: string;
   notes: string;
+  /** Lots/serials — only used when the line's product is lot/serial-tracked. */
+  lots: ReceiptLotsDraft;
 }
 
 export type GoodsReceiptLineDrafts = Record<string, GoodsReceiptLineDraft>;
@@ -18,7 +26,7 @@ export type GoodsReceiptLineDrafts = Record<string, GoodsReceiptLineDraft>;
 export function createEmptyGoodsReceiptDrafts(remainingLines: RemainingPoLine[]): GoodsReceiptLineDrafts {
   const drafts: GoodsReceiptLineDrafts = {};
   for (const line of remainingLines) {
-    drafts[line.purchaseOrderLineId] = { quantityReceived: '', unitCost: '', notes: '' };
+    drafts[line.purchaseOrderLineId] = { quantityReceived: '', unitCost: '', notes: '', lots: emptyReceiptLotsDraft() };
   }
   return drafts;
 }
@@ -47,7 +55,12 @@ export function GoodsReceiptLineItemsEditor({
   const variantIndex = useVariantIndex();
 
   function updateDraft(purchaseOrderLineId: string, patch: Partial<GoodsReceiptLineDraft>) {
-    const current = drafts[purchaseOrderLineId] ?? { quantityReceived: '', unitCost: '', notes: '' };
+    const current = drafts[purchaseOrderLineId] ?? {
+      quantityReceived: '',
+      unitCost: '',
+      notes: '',
+      lots: emptyReceiptLotsDraft(),
+    };
     onChange({ ...drafts, [purchaseOrderLineId]: { ...current, ...patch } });
   }
 
@@ -72,39 +85,60 @@ export function GoodsReceiptLineItemsEditor({
         </TableHeader>
         <TableBody>
           {receivableLines.map((line) => {
-            const draft = drafts[line.purchaseOrderLineId] ?? { quantityReceived: '', unitCost: '', notes: '' };
+            const draft = drafts[line.purchaseOrderLineId] ?? {
+              quantityReceived: '',
+              unitCost: '',
+              notes: '',
+              lots: emptyReceiptLotsDraft(),
+            };
             const variant = variantIndex.get(line.productVariantId);
+            const trackingType = variant?.trackingType ?? 'none';
+            const quantity = Number(draft.quantityReceived) || 0;
             return (
-              <TableRow key={line.purchaseOrderLineId}>
-                <TableCell>{variant ? `${variant.productName} — ${variant.sku}` : line.productVariantId}</TableCell>
-                <TableCell>{line.ordered}</TableCell>
-                <TableCell>{line.remaining}</TableCell>
-                <TableCell>
-                  <Input
-                    type="number"
-                    min={0}
-                    max={line.remaining}
-                    step="any"
-                    inputMode="decimal"
-                    value={draft.quantityReceived}
-                    onChange={(e) => updateDraft(line.purchaseOrderLineId, { quantityReceived: e.target.value })}
-                  />
-                </TableCell>
-                <TableCell>
-                  <Input
-                    inputMode="decimal"
-                    placeholder={formatMoney(line.unitPrice.amountMinorUnits, line.unitPrice.currency)}
-                    value={draft.unitCost}
-                    onChange={(e) => updateDraft(line.purchaseOrderLineId, { unitCost: e.target.value })}
-                  />
-                </TableCell>
-                <TableCell>
-                  <Input
-                    value={draft.notes}
-                    onChange={(e) => updateDraft(line.purchaseOrderLineId, { notes: e.target.value })}
-                  />
-                </TableCell>
-              </TableRow>
+              <Fragment key={line.purchaseOrderLineId}>
+                <TableRow className={trackingType !== 'none' ? 'border-b-0' : undefined}>
+                  <TableCell>{variant ? `${variant.productName} — ${variant.sku}` : line.productVariantId}</TableCell>
+                  <TableCell>{line.ordered}</TableCell>
+                  <TableCell>{line.remaining}</TableCell>
+                  <TableCell>
+                    <Input
+                      type="number"
+                      min={0}
+                      max={line.remaining}
+                      step="any"
+                      inputMode="decimal"
+                      value={draft.quantityReceived}
+                      onChange={(e) => updateDraft(line.purchaseOrderLineId, { quantityReceived: e.target.value })}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Input
+                      inputMode="decimal"
+                      placeholder={formatMoney(line.unitPrice.amountMinorUnits, line.unitPrice.currency)}
+                      value={draft.unitCost}
+                      onChange={(e) => updateDraft(line.purchaseOrderLineId, { unitCost: e.target.value })}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Input
+                      value={draft.notes}
+                      onChange={(e) => updateDraft(line.purchaseOrderLineId, { notes: e.target.value })}
+                    />
+                  </TableCell>
+                </TableRow>
+                {trackingType !== 'none' ? (
+                  <TableRow className="hover:bg-transparent">
+                    <TableCell colSpan={6} className="pt-0">
+                      <ReceiptLotsEditor
+                        trackingType={trackingType}
+                        quantity={quantity}
+                        draft={draft.lots}
+                        onChange={(lots) => updateDraft(line.purchaseOrderLineId, { lots })}
+                      />
+                    </TableCell>
+                  </TableRow>
+                ) : null}
+              </Fragment>
             );
           })}
         </TableBody>

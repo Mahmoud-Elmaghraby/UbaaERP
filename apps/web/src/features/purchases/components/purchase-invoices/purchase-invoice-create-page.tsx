@@ -68,6 +68,9 @@ import {
 } from './purchase-invoice-line-items-editor';
 import { PURCHASE_INVOICES_PATH } from './purchase-invoices-tab';
 import { usePurchaseInvoiceActions } from './use-purchase-invoice-actions';
+import type { ReceiptLotDto } from '@erp-platform/contracts';
+import { receiptLotsToDto, withImplicitSingleLotQuantity } from '../../../../components/document/lot-entry';
+import { useVariantLookupMap } from '../../../inventory/api/products/queries';
 
 const PURCHASE_INVOICE_ENTITY_TYPE = 'purchase_invoice';
 
@@ -142,6 +145,7 @@ export function PurchaseInvoiceCreatePage() {
   const goodsReceiptsEnabled = useHasFeature(FEATURE_KEYS.PURCHASES_GOODS_RECEIPTS);
   const directMode = !purchaseOrdersEnabled;
   const needsWarehouse = !goodsReceiptsEnabled;
+  const variantMap = useVariantLookupMap();
 
   const { data: purchaseOrders, isLoading: ordersLoading } = usePurchaseOrders();
   const { data: suppliers, isLoading: suppliersLoading } = useSuppliers();
@@ -255,10 +259,30 @@ export function PurchaseInvoiceCreatePage() {
         setLinesError(t('purchases.purchaseInvoices.linesError'));
         return;
       }
+      // When this invoice also receives the goods, tracked items need their lots/serials.
+      const lotsByIndex: (ReceiptLotDto[] | undefined)[] = [];
+      for (const [index, line] of directLines.entries()) {
+        const trackingType = needsWarehouse ? (variantMap.get(line.productVariantId)?.trackingType ?? 'none') : 'none';
+        if (trackingType === 'none') {
+          lotsByIndex.push(undefined);
+          continue;
+        }
+        const quantity = parsed[index]!.quantity;
+        const result = receiptLotsToDto(trackingType, withImplicitSingleLotQuantity(line.lots, quantity), quantity);
+        if ('error' in result) {
+          setLinesError(t(`lots.errors.${result.error}`));
+          return;
+        }
+        lotsByIndex.push(result.lots);
+      }
       payload = {
         ...common,
         supplierId: headerValues.supplierId,
-        directLines: parsed.map(({ quantity, ...rest }) => ({ ...rest, quantityInvoiced: quantity })),
+        directLines: parsed.map(({ quantity, ...rest }, index) => ({
+          ...rest,
+          quantityInvoiced: quantity,
+          lots: lotsByIndex[index],
+        })),
       };
     } else {
       if (!headerValues.purchaseOrderId) {
@@ -514,6 +538,7 @@ export function PurchaseInvoiceCreatePage() {
                       onChange={setDirectLines}
                       priceKind="purchase"
                       currency={currency}
+                      receiveLots={needsWarehouse}
                     />
                   ) : invoiceableLoading ? (
                     <div className="px-5 pb-5">
