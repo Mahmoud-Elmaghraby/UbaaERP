@@ -29,7 +29,10 @@ export function CashFlowReport() {
   const { t } = useTranslation();
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
-  const [runParams, setRunParams] = useState<{ fromDate: string | undefined; toDate: string | undefined }>({
+  const [runParams, setRunParams] = useState<{
+    fromDate: string | undefined;
+    toDate: string | undefined;
+  }>({
     fromDate: undefined,
     toDate: undefined,
   });
@@ -47,7 +50,9 @@ export function CashFlowReport() {
           <Input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} />
         </div>
         <Button
-          onClick={() => setRunParams({ fromDate: fromDate || undefined, toDate: toDate || undefined })}
+          onClick={() =>
+            setRunParams({ fromDate: fromDate || undefined, toDate: toDate || undefined })
+          }
           disabled={!fromDate || !toDate}
         >
           {t('accounting.reports.run')}
@@ -69,7 +74,9 @@ export function CashFlowReport() {
             <TableBody>
               <TableRow>
                 <TableCell>{t('accounting.reports.netIncome')}</TableCell>
-                <TableCell>{formatMoney(report.netIncome.amountMinorUnits, report.netIncome.currency)}</TableCell>
+                <TableCell>
+                  {formatMoney(report.netIncome.amountMinorUnits, report.netIncome.currency)}
+                </TableCell>
               </TableRow>
               {report.adjustments.map((row) => (
                 <TableRow key={row.accountId}>
@@ -99,17 +106,26 @@ export function CashFlowReport() {
             <TableBody>
               <TableRow>
                 <TableCell>{t('accounting.reports.openingCash')}</TableCell>
-                <TableCell>{formatMoney(report.openingCash.amountMinorUnits, report.openingCash.currency)}</TableCell>
+                <TableCell>
+                  {formatMoney(report.openingCash.amountMinorUnits, report.openingCash.currency)}
+                </TableCell>
               </TableRow>
               <TableRow>
                 <TableCell>{t('accounting.reports.closingCash')}</TableCell>
-                <TableCell>{formatMoney(report.closingCash.amountMinorUnits, report.closingCash.currency)}</TableCell>
+                <TableCell>
+                  {formatMoney(report.closingCash.amountMinorUnits, report.closingCash.currency)}
+                </TableCell>
               </TableRow>
             </TableBody>
           </Table>
 
-          <Badge variant={report.isConsistent ? 'default' : 'destructive'} className="justify-self-start">
-            {report.isConsistent ? t('accounting.reports.consistent') : t('accounting.reports.inconsistent')}
+          <Badge
+            variant={report.isConsistent ? 'success' : 'danger'}
+            className="justify-self-start"
+          >
+            {report.isConsistent
+              ? t('accounting.reports.consistent')
+              : t('accounting.reports.inconsistent')}
           </Badge>
         </div>
       ) : null}

@@ -48,7 +48,7 @@ export function CostCentersTab() {
         id: 'isActive',
         header: t('common.status'),
         cell: ({ row }: { row: Row<CostCenterDto> }) => (
-          <Badge variant={row.original.isActive ? 'default' : 'secondary'}>
+          <Badge variant={row.original.isActive ? 'success' : 'neutral'} dot>
             {t(row.original.isActive ? 'common.active' : 'common.inactive')}
           </Badge>
         ),
@@ -87,10 +87,9 @@ export function CostCentersTab() {
 
   return (
     <div className="grid gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-sm text-muted-foreground">{t('accounting.costCenters.subtitle')}</p>
+      <div className="flex flex-wrap items-center justify-end gap-2">
         <Can permission="accounting.manage">
-          <Button size="sm" onClick={() => setCreateOpen(true)}>
+          <Button onClick={() => setCreateOpen(true)}>
             {t('accounting.costCenters.newCostCenter')}
           </Button>
         </Can>
@@ -112,7 +111,9 @@ export function CostCentersTab() {
           <DialogHeader>
             <DialogTitle>{t('accounting.costCenters.editCostCenter')}</DialogTitle>
           </DialogHeader>
-          {editing ? <EditCostCenterForm costCenter={editing} onDone={() => setEditing(null)} /> : null}
+          {editing ? (
+            <EditCostCenterForm costCenter={editing} onDone={() => setEditing(null)} />
+          ) : null}
         </DialogContent>
       </Dialog>
     </div>

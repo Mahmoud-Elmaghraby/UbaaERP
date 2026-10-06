@@ -24,6 +24,7 @@ import type {
 } from '../../domain/stock-movement.entity';
 import { BusinessRuleError } from '../errors';
 import { entityNotFound } from '../../../../shared/errors/entity-errors';
+import { withTransaction } from '../../../../database/tenant/transaction.util';
 
 interface IncomingParams {
   productVariantId: string;
@@ -117,6 +118,26 @@ export class StockMovementsService {
     return this.stockLots.listByVariantId(db, productVariantId);
   }
 
+  /**
+   * Pre-locks every variant a multi-line document is about to move, in a
+   * stable order, so two documents sharing variants can't deadlock by
+   * locking them line-by-line in different orders. `db` must be the
+   * document's own transaction; recordMovement() re-acquiring a lock the
+   * same transaction already holds is a no-op.
+   */
+  lockVariants(trx: Kysely<TenantDatabase>, productVariantIds: readonly string[]): Promise<void> {
+    return this.stockLevels.lockVariants(trx, productVariantIds);
+  }
+
+  /**
+   * Idempotency guard for document listeners: the outbox dispatcher
+   * redelivers an event whenever any listener on it throws, so a document
+   * whose movements already exist must not be applied a second time.
+   */
+  hasMovementsForReference(db: Kysely<TenantDatabase>, referenceType: string, referenceId: string): Promise<boolean> {
+    return this.movements.existsForReference(db, referenceType, referenceId);
+  }
+
   async setReorderPoint(
     db: Kysely<TenantDatabase>,
     stockLevelId: string,
@@ -134,7 +155,17 @@ export class StockMovementsService {
       });
     }
 
-    return db.transaction().execute(async (trx) => {
+    if (input.unitCost?.isNegative()) {
+      throw new BusinessRuleError('A stock movement unit cost cannot be negative.', {
+        code: 'STOCK_MOVEMENT.UNIT_COST_NEGATIVE',
+      });
+    }
+
+    // withTransaction joins a caller-owned transaction (document listeners
+    // apply every line of a document atomically) instead of calling
+    // trx.transaction(), which Kysely rejects outright.
+    return withTransaction(db, async (trx) => {
+      await this.stockLevels.lockVariants(trx, [input.productVariantId]);
       const product = await this.resolveProduct(trx, input.productVariantId);
       const { quantity, unitCost } = await this.resolveBaseUnitQuantityAndCost(
         trx,
@@ -212,7 +243,8 @@ export class StockMovementsService {
       });
     }
 
-    return db.transaction().execute(async (trx) => {
+    return withTransaction(db, async (trx) => {
+      await this.stockLevels.lockVariants(trx, [input.productVariantId]);
       const product = await this.resolveProduct(trx, input.productVariantId);
       if (product.trackingType !== 'none' && !input.lotId) {
         throw new BusinessRuleError(
@@ -274,7 +306,10 @@ export class StockMovementsService {
       }
       unitCost = current.averageCost;
     }
-    if (current && current.averageCost.currency !== unitCost.currency) {
+    // An emptied location carries no value, so it can start over in a new
+    // currency instead of being stuck with whatever it was first valued in.
+    const hasStock = current != null && current.quantityOnHand > 0;
+    if (hasStock && current.averageCost.currency !== unitCost.currency) {
       throw new BusinessRuleError(
         `Currency mismatch: existing stock is valued in "${current.averageCost.currency}", movement uses "${unitCost.currency}". Multi-currency valuation is not supported.`,
         {
@@ -286,8 +321,8 @@ export class StockMovementsService {
 
     const stockLotId = await this.resolveIncomingStockLotId(trx, params, warehouseId, unitCost);
 
-    const previousQuantity = current?.quantityOnHand ?? 0;
-    const previousValue = current ? current.averageCost.multiplyByQuantity(previousQuantity) : Money.zero(unitCost.currency);
+    const previousQuantity = hasStock ? current.quantityOnHand : 0;
+    const previousValue = hasStock ? current.averageCost.multiplyByQuantity(previousQuantity) : Money.zero(unitCost.currency);
     const incomingValue = unitCost.multiplyByQuantity(params.quantity);
     const newQuantity = previousQuantity + params.quantity;
     const newAverageCost = previousValue.add(incomingValue).divideByQuantity(newQuantity);
@@ -351,6 +386,16 @@ export class StockMovementsService {
         );
       }
       const existingLot = await this.stockLots.findByVariantAndLotNumber(trx, params.productVariantId, params.lotNumber);
+      if (
+        existingLot &&
+        params.product.trackingType === 'serial' &&
+        (await this.stockLots.totalQuantityOnHand(trx, existingLot.id)) > 0
+      ) {
+        throw new BusinessRuleError(`Serial number "${params.lotNumber}" is already in stock.`, {
+          code: 'STOCK_MOVEMENT.SERIAL_ALREADY_IN_STOCK',
+          params: { serialNumber: params.lotNumber },
+        });
+      }
       const lot =
         existingLot ??
         (await this.stockLots.createLot(trx, {

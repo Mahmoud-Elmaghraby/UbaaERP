@@ -59,10 +59,14 @@ export function EtaCredentialsPage() {
   // stored secret unchanged" — see onSubmit below), unlike the wire schema's
   // nullable/optional shape, so the form uses its own narrower local schema for that
   // one field rather than the contract's updateEtaCredentialsSchema directly.
-  const formSchema = updateEtaCredentialsSchema.omit({ clientSecret: true }).extend({ clientSecret: z.string() });
+  const formSchema = updateEtaCredentialsSchema
+    .omit({ clientSecret: true })
+    .extend({ clientSecret: z.string() });
 
   const form = useForm<UpdateEtaCredentialsDto & { clientSecret: string }>({
-    resolver: zodResolver(formSchema as z.ZodType<UpdateEtaCredentialsDto & { clientSecret: string }>),
+    resolver: zodResolver(
+      formSchema as z.ZodType<UpdateEtaCredentialsDto & { clientSecret: string }>,
+    ),
     defaultValues: {
       clientId: '',
       clientSecret: '',
@@ -140,7 +144,12 @@ export function EtaCredentialsPage() {
                     <FormItem>
                       <FormLabel>{t('sales.etaCredentials.clientSecret')}</FormLabel>
                       <FormControl>
-                        <Input type="password" autoComplete="new-password" {...field} value={field.value ?? ''} />
+                        <Input
+                          type="password"
+                          autoComplete="new-password"
+                          {...field}
+                          value={field.value ?? ''}
+                        />
                       </FormControl>
                       <FormDescription>
                         {credentials?.clientSecretConfigured
@@ -177,8 +186,12 @@ export function EtaCredentialsPage() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="preprod">{t('sales.etaCredentials.environmentPreprod')}</SelectItem>
-                          <SelectItem value="production">{t('sales.etaCredentials.environmentProduction')}</SelectItem>
+                          <SelectItem value="preprod">
+                            {t('sales.etaCredentials.environmentPreprod')}
+                          </SelectItem>
+                          <SelectItem value="production">
+                            {t('sales.etaCredentials.environmentProduction')}
+                          </SelectItem>
                         </SelectContent>
                       </Select>
                       <FormMessage />
@@ -212,7 +225,7 @@ export function EtaCredentialsPage() {
                 />
                 {credentials ? (
                   <div>
-                    <Badge variant={credentials.clientSecretConfigured ? 'default' : 'secondary'}>
+                    <Badge variant={credentials.clientSecretConfigured ? 'success' : 'neutral'} dot>
                       {credentials.clientSecretConfigured
                         ? t('sales.etaCredentials.statusConfigured')
                         : t('sales.etaCredentials.statusNotConfigured')}
@@ -221,7 +234,11 @@ export function EtaCredentialsPage() {
                 ) : null}
 
                 <Can permission="sales.manage">
-                  <Button type="submit" disabled={updateCredentials.isPending} className="justify-self-start">
+                  <Button
+                    type="submit"
+                    disabled={updateCredentials.isPending}
+                    className="justify-self-start"
+                  >
                     {t('common.save')}
                   </Button>
                 </Can>

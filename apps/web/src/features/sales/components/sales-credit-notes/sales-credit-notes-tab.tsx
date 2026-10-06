@@ -34,7 +34,10 @@ export function SalesCreditNotesTab() {
   const { data: viewingCreditNote, isLoading: viewingLoading } = useSalesCreditNote(viewingId);
 
   const customerById = useMemo(() => new Map((customers ?? []).map((c) => [c.id, c])), [customers]);
-  const salesReturnById = useMemo(() => new Map((salesReturns ?? []).map((r) => [r.id, r])), [salesReturns]);
+  const salesReturnById = useMemo(
+    () => new Map((salesReturns ?? []).map((r) => [r.id, r])),
+    [salesReturns],
+  );
 
   const columns = useMemo<ColumnDef<SalesCreditNoteDto>[]>(
     () => [
@@ -47,12 +50,14 @@ export function SalesCreditNotesTab() {
       {
         id: 'salesReturn',
         header: t('sales.salesCreditNotes.salesReturn'),
-        accessorFn: (row: SalesCreditNoteDto) => salesReturnById.get(row.salesReturnId)?.returnNumber ?? '—',
+        accessorFn: (row: SalesCreditNoteDto) =>
+          salesReturnById.get(row.salesReturnId)?.returnNumber ?? '—',
       },
       {
         id: 'createdAt',
         header: t('sales.salesCreditNotes.createdAt'),
-        accessorFn: (row: SalesCreditNoteDto) => new Date(row.createdAt).toLocaleDateString('ar-EG'),
+        accessorFn: (row: SalesCreditNoteDto) =>
+          new Date(row.createdAt).toLocaleDateString('ar-EG'),
       },
       {
         id: 'actions',
@@ -69,9 +74,7 @@ export function SalesCreditNotesTab() {
 
   return (
     <div className="grid gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-sm text-muted-foreground">{t('sales.salesCreditNotes.subtitle')}</p>
-      </div>
+      <div className="flex flex-wrap items-center justify-end gap-2"></div>
 
       <DataTable columns={columns} data={creditNotes ?? []} isLoading={isLoading} />
 

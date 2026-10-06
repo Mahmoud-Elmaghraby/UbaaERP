@@ -1,12 +1,13 @@
+import type { BadgeProps } from '@erp-platform/ui';
 import type { PurchaseReturnStatusDto } from '@erp-platform/contracts';
 
 export const PURCHASE_RETURN_STATUS_VARIANT: Record<
   PurchaseReturnStatusDto,
-  'default' | 'secondary' | 'destructive' | 'outline'
+  NonNullable<BadgeProps['variant']>
 > = {
-  draft: 'secondary',
-  confirmed: 'default',
-  cancelled: 'destructive',
+  draft: 'neutral',
+  confirmed: 'info',
+  cancelled: 'danger',
 };
 
 export function purchaseReturnStatusLabelKey(status: PurchaseReturnStatusDto): string {

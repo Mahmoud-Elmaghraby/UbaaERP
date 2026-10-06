@@ -1,7 +1,15 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { PurchaseRequisitionWithLinesDto } from '@erp-platform/contracts';
-import { Badge, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@erp-platform/ui';
+import {
+  Badge,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@erp-platform/ui';
 
 import { useBranches } from '../../../settings/queries';
 import { useUsers } from '../../../users-permissions/queries';
@@ -29,12 +37,14 @@ export function PurchaseRequisitionDetailsView({
     <div className="grid gap-3">
       <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
         <div>
-          <p className="text-muted-foreground">{t('purchases.purchaseRequisitions.requisitionNumber')}</p>
+          <p className="text-muted-foreground">
+            {t('purchases.purchaseRequisitions.requisitionNumber')}
+          </p>
           <p className="font-medium">{requisition.requisitionNumber}</p>
         </div>
         <div>
           <p className="text-muted-foreground">{t('common.status')}</p>
-          <Badge variant={PURCHASE_REQUISITION_STATUS_VARIANT[requisition.status]}>
+          <Badge variant={PURCHASE_REQUISITION_STATUS_VARIANT[requisition.status]} dot>
             {t(purchaseRequisitionStatusLabelKey(requisition.status))}
           </Badge>
         </div>
@@ -46,12 +56,14 @@ export function PurchaseRequisitionDetailsView({
           <p className="text-muted-foreground">{t('purchases.purchaseRequisitions.branch')}</p>
           <p className="font-medium">
             {requisition.branchId
-              ? branchById.get(requisition.branchId)?.name ?? '—'
+              ? (branchById.get(requisition.branchId)?.name ?? '—')
               : t('purchases.purchaseRequisitions.noBranch')}
           </p>
         </div>
         <div>
-          <p className="text-muted-foreground">{t('purchases.purchaseRequisitions.neededByDate')}</p>
+          <p className="text-muted-foreground">
+            {t('purchases.purchaseRequisitions.neededByDate')}
+          </p>
           <p className="font-medium">{requisition.neededByDate ?? '—'}</p>
         </div>
         <div className="col-span-2 sm:col-span-4">

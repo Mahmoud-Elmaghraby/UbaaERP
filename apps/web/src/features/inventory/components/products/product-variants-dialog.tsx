@@ -67,7 +67,7 @@ export function ProductVariantsDialog({
               <Can permission="inventory.manage">
                 <Dialog open={addOpen} onOpenChange={setAddOpen}>
                   <DialogTrigger asChild>
-                    <Button size="sm">{t('inventory.products.newVariant')}</Button>
+                    <Button>{t('inventory.products.newVariant')}</Button>
                   </DialogTrigger>
                   <DialogContent>
                     <DialogHeader>
@@ -110,7 +110,7 @@ export function ProductVariantsDialog({
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Badge variant={variant.isActive ? 'default' : 'secondary'}>
+                        <Badge variant={variant.isActive ? 'success' : 'neutral'} dot>
                           {variant.isActive ? t('common.active') : t('common.inactive')}
                         </Badge>
                       </TableCell>
@@ -168,7 +168,9 @@ function AddVariantForm({
       form.reset();
       onDone();
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : t('inventory.products.createVariantError'));
+      toast.error(
+        err instanceof ApiError ? err.message : t('inventory.products.createVariantError'),
+      );
     }
   }
 

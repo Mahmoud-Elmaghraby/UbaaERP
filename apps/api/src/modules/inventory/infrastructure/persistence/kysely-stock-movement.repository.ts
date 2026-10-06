@@ -79,6 +79,17 @@ export class KyselyStockMovementRepository implements StockMovementRepository {
     return toDomain(row);
   }
 
+  async existsForReference(db: Kysely<TenantDatabase>, referenceType: string, referenceId: string): Promise<boolean> {
+    const row = await db
+      .selectFrom('stock_movements')
+      .select('id')
+      .where('reference_type', '=', referenceType)
+      .where('reference_id', '=', referenceId)
+      .limit(1)
+      .executeTakeFirst();
+    return row !== undefined;
+  }
+
   async linkRelatedMovement(db: Kysely<TenantDatabase>, id: string, relatedMovementId: string): Promise<void> {
     await db
       .updateTable('stock_movements')

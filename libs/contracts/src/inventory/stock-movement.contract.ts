@@ -32,8 +32,10 @@ export const stockMovementSchema = z.object({
 });
 export type StockMovementDto = z.infer<typeof stockMovementSchema>;
 
+// Input cost: a stock unit cost can never be negative (inventory audit
+// 2026-10, H7) — the service enforces the same rule for internal callers.
 const moneyInputSchema = z.object({
-  amountMinorUnits: z.string().regex(/^-?\d+$/),
+  amountMinorUnits: z.string().regex(/^\d+$/, 'amountMinorUnits must be a non-negative integer string'),
   currency: z.string().regex(/^[A-Z]{3}$/),
 });
 

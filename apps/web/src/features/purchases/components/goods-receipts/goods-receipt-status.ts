@@ -1,12 +1,13 @@
+import type { BadgeProps } from '@erp-platform/ui';
 import type { GoodsReceiptStatusDto } from '@erp-platform/contracts';
 
 export const GOODS_RECEIPT_STATUS_VARIANT: Record<
   GoodsReceiptStatusDto,
-  'default' | 'secondary' | 'destructive' | 'outline'
+  NonNullable<BadgeProps['variant']>
 > = {
-  draft: 'secondary',
-  confirmed: 'default',
-  cancelled: 'destructive',
+  draft: 'neutral',
+  confirmed: 'info',
+  cancelled: 'danger',
 };
 
 export function goodsReceiptStatusLabelKey(status: GoodsReceiptStatusDto): string {

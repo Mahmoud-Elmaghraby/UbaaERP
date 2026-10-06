@@ -31,7 +31,10 @@ import {
   useRejectPurchaseRequisition,
   useSubmitPurchaseRequisition,
 } from '../../api/purchase-requisitions/queries';
-import { CreatePurchaseRequisitionForm, EditPurchaseRequisitionForm } from './purchase-requisition-form';
+import {
+  CreatePurchaseRequisitionForm,
+  EditPurchaseRequisitionForm,
+} from './purchase-requisition-form';
 import { PurchaseRequisitionDetailsView } from './purchase-requisition-details-view';
 import {
   PURCHASE_REQUISITION_STATUS_VARIANT,
@@ -106,13 +109,16 @@ export function PurchaseRequisitionsTab() {
 
   const columns = useMemo<ColumnDef<PurchaseRequisitionDto>[]>(
     () => [
-      { accessorKey: 'requisitionNumber', header: t('purchases.purchaseRequisitions.requisitionNumber') },
+      {
+        accessorKey: 'requisitionNumber',
+        header: t('purchases.purchaseRequisitions.requisitionNumber'),
+      },
       {
         id: 'status',
         header: t('common.status'),
         accessorFn: (row: PurchaseRequisitionDto) => row.status,
         cell: ({ row }: { row: Row<PurchaseRequisitionDto> }) => (
-          <Badge variant={PURCHASE_REQUISITION_STATUS_VARIANT[row.original.status]}>
+          <Badge variant={PURCHASE_REQUISITION_STATUS_VARIANT[row.original.status]} dot>
             {t(purchaseRequisitionStatusLabelKey(row.original.status))}
           </Badge>
         ),
@@ -121,7 +127,9 @@ export function PurchaseRequisitionsTab() {
         id: 'branch',
         header: t('purchases.purchaseRequisitions.branch'),
         accessorFn: (row: PurchaseRequisitionDto) =>
-          row.branchId ? branchById.get(row.branchId)?.name ?? '—' : t('purchases.purchaseRequisitions.noBranch'),
+          row.branchId
+            ? (branchById.get(row.branchId)?.name ?? '—')
+            : t('purchases.purchaseRequisitions.noBranch'),
       },
       {
         id: 'requestedBy',
@@ -212,10 +220,9 @@ export function PurchaseRequisitionsTab() {
 
   return (
     <div className="grid gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-sm text-muted-foreground">{t('purchases.purchaseRequisitions.subtitle')}</p>
+      <div className="flex flex-wrap items-center justify-end gap-2">
         <Can permission="purchases.manage">
-          <Button size="sm" onClick={() => setCreateOpen(true)}>
+          <Button onClick={() => setCreateOpen(true)}>
             {t('purchases.purchaseRequisitions.newRequisition')}
           </Button>
         </Can>
@@ -238,7 +245,9 @@ export function PurchaseRequisitionsTab() {
             <DialogTitle>{t('purchases.purchaseRequisitions.viewDetails')}</DialogTitle>
           </DialogHeader>
           {viewingLoading ? <Skeleton className="h-40 w-full" /> : null}
-          {viewingRequisition ? <PurchaseRequisitionDetailsView requisition={viewingRequisition} /> : null}
+          {viewingRequisition ? (
+            <PurchaseRequisitionDetailsView requisition={viewingRequisition} />
+          ) : null}
         </DialogContent>
       </Dialog>
 

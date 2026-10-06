@@ -85,6 +85,7 @@ function makeMockMovementRepository(): jest.Mocked<StockMovementRepository> {
     findById: jest.fn(),
     create: jest.fn(),
     linkRelatedMovement: jest.fn(),
+    existsForReference: jest.fn().mockResolvedValue(false),
   };
 }
 
@@ -94,6 +95,7 @@ function makeMockStockLevelRepository(): jest.Mocked<StockLevelRepository> {
     findByVariantAndLocation: jest.fn(),
     upsert: jest.fn(),
     setReorderPoint: jest.fn(),
+    lockVariants: jest.fn().mockResolvedValue(undefined),
   };
 }
 

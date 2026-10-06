@@ -1,195 +1,229 @@
 import { useMemo, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { MoreHorizontal } from 'lucide-react';
+import { FileText, MoreHorizontal, Plus } from 'lucide-react';
 import type { ColumnDef, Row } from '@tanstack/react-table';
-import type { PurchaseInvoiceDto } from '@erp-platform/contracts';
+import type { PurchaseInvoiceDto, PurchaseInvoiceStatusDto } from '@erp-platform/contracts';
 import {
   Badge,
   Button,
   Can,
   DataTable,
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
-  Skeleton,
-  toast,
+  EmptyState,
+  cn,
 } from '@erp-platform/ui';
 
+import { useSuppliers } from '../../api/suppliers/queries';
 import { usePurchaseOrders } from '../../api/purchase-orders/queries';
-import {
-  useCancelPurchaseInvoice,
-  useDeletePurchaseInvoice,
-  usePostPurchaseInvoice,
-  usePurchaseInvoice,
-  usePurchaseInvoices,
-} from '../../api/purchase-invoices/queries';
-import { CreatePurchaseInvoiceForm } from './purchase-invoice-form';
-import { PurchaseInvoiceDetailsView } from './purchase-invoice-details-view';
+import { usePurchaseInvoices } from '../../api/purchase-invoices/queries';
 import { PURCHASE_INVOICE_STATUS_VARIANT, purchaseInvoiceStatusLabelKey } from './purchase-invoice-status';
-import { ApiError } from '../../../../lib/api-client';
+import { usePurchaseInvoiceActions } from './use-purchase-invoice-actions';
 
+export const PURCHASE_INVOICES_PATH = '/purchases/purchase-invoices';
+
+type StatusFilter = 'all' | PurchaseInvoiceStatusDto;
+const STATUS_FILTERS: StatusFilter[] = ['all', 'draft', 'posted', 'cancelled'];
+
+/**
+ * Purchase invoices list. Creating and viewing an invoice are full pages now
+ * (…/new and …/:id — see purchase-invoice-create-page / purchase-invoice-details-page),
+ * no longer dialogs; a row click opens the invoice.
+ */
 export function PurchaseInvoicesTab() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const { data: invoices, isLoading } = usePurchaseInvoices();
   const { data: purchaseOrders } = usePurchaseOrders();
-  const [createOpen, setCreateOpen] = useState(false);
-  const [viewingId, setViewingId] = useState<string | null>(null);
-
-  const { data: viewingInvoice, isLoading: viewingLoading } = usePurchaseInvoice(viewingId);
-
-  const postInvoice = usePostPurchaseInvoice();
-  const cancelInvoice = useCancelPurchaseInvoice();
-  const deleteInvoice = useDeletePurchaseInvoice();
+  const { data: suppliers } = useSuppliers();
+  const actions = usePurchaseInvoiceActions();
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
 
   const poById = useMemo(() => new Map((purchaseOrders ?? []).map((po) => [po.id, po])), [purchaseOrders]);
+  const supplierById = useMemo(() => new Map((suppliers ?? []).map((c) => [c.id, c])), [suppliers]);
 
-  async function handleTransition(
-    mutation: { mutateAsync: (id: string) => Promise<unknown> },
-    id: string,
-    successKey: string,
-    errorKey: string,
-  ) {
-    try {
-      await mutation.mutateAsync(id);
-      toast.success(t(successKey));
-    } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : t(errorKey));
+  const counts = useMemo(() => {
+    const result: Record<StatusFilter, number> = { all: 0, draft: 0, posted: 0, cancelled: 0 };
+    for (const invoice of invoices ?? []) {
+      result.all += 1;
+      result[invoice.status] += 1;
     }
-  }
+    return result;
+  }, [invoices]);
 
-  async function handlePost(id: string) {
-    if (!window.confirm(t('purchases.purchaseInvoices.postConfirm'))) return;
-    await handleTransition(
-      postInvoice,
-      id,
-      'purchases.purchaseInvoices.postSuccess',
-      'purchases.purchaseInvoices.postError',
-    );
-  }
-
-  async function handleCancel(id: string) {
-    if (!window.confirm(t('purchases.purchaseInvoices.cancelConfirm'))) return;
-    await handleTransition(
-      cancelInvoice,
-      id,
-      'purchases.purchaseInvoices.cancelSuccess',
-      'purchases.purchaseInvoices.cancelError',
-    );
-  }
-
-  async function handleDelete(id: string) {
-    if (!window.confirm(t('purchases.purchaseInvoices.deleteConfirm'))) return;
-    try {
-      await deleteInvoice.mutateAsync(id);
-      toast.success(t('purchases.purchaseInvoices.deleteSuccess'));
-    } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : t('common.error'));
-    }
-  }
+  const rows = useMemo(
+    () => (invoices ?? []).filter((inv) => statusFilter === 'all' || inv.status === statusFilter),
+    [invoices, statusFilter],
+  );
 
   const columns = useMemo<ColumnDef<PurchaseInvoiceDto>[]>(
     () => [
-      { accessorKey: 'invoiceNumber', header: t('purchases.purchaseInvoices.invoiceNumber') },
       {
-        id: 'status',
-        header: t('common.status'),
-        accessorFn: (row: PurchaseInvoiceDto) => row.status,
+        accessorKey: 'invoiceNumber',
+        header: t('purchases.purchaseInvoices.invoiceNumber'),
         cell: ({ row }: { row: Row<PurchaseInvoiceDto> }) => (
-          <Badge variant={PURCHASE_INVOICE_STATUS_VARIANT[row.original.status]}>
-            {t(purchaseInvoiceStatusLabelKey(row.original.status))}
-          </Badge>
+          <span className="tabular font-semibold text-brand-700 dark:text-primary">
+            {row.original.invoiceNumber}
+          </span>
         ),
+      },
+      {
+        id: 'supplier',
+        header: t('purchases.purchaseInvoices.supplier'),
+        accessorFn: (row: PurchaseInvoiceDto) => {
+          const supplierId = poById.get(row.purchaseOrderId)?.supplierId;
+          return (supplierId && supplierById.get(supplierId)?.name) || '—';
+        },
+        cell: ({ getValue }) => <span className="font-medium">{getValue<string>()}</span>,
       },
       {
         id: 'purchaseOrder',
         header: t('purchases.purchaseInvoices.purchaseOrder'),
         accessorFn: (row: PurchaseInvoiceDto) => poById.get(row.purchaseOrderId)?.poNumber ?? '—',
+        cell: ({ getValue }) => (
+          <span className="tabular text-secondary-foreground">{getValue<string>()}</span>
+        ),
+      },
+      {
+        id: 'invoiceDate',
+        header: t('purchases.purchaseInvoices.invoiceDate'),
+        accessorFn: (row: PurchaseInvoiceDto) => row.invoiceDate ?? '—',
+        cell: ({ getValue }) => (
+          <span className="tabular text-secondary-foreground">{getValue<string>()}</span>
+        ),
       },
       {
         id: 'dueDate',
         header: t('purchases.purchaseInvoices.dueDate'),
         accessorFn: (row: PurchaseInvoiceDto) => row.dueDate ?? '—',
+        cell: ({ getValue }) => (
+          <span className="tabular text-secondary-foreground">{getValue<string>()}</span>
+        ),
+      },
+      {
+        id: 'status',
+        header: t('common.status'),
+        accessorFn: (row: PurchaseInvoiceDto) => t(purchaseInvoiceStatusLabelKey(row.status)),
+        cell: ({ row }: { row: Row<PurchaseInvoiceDto> }) => (
+          <Badge variant={PURCHASE_INVOICE_STATUS_VARIANT[row.original.status]} dot>
+            {t(purchaseInvoiceStatusLabelKey(row.original.status))}
+          </Badge>
+        ),
       },
       {
         id: 'actions',
         header: '',
+        enableSorting: false,
         cell: ({ row }: { row: Row<PurchaseInvoiceDto> }) => {
           const invoice = row.original;
           return (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon">
-                  <MoreHorizontal className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onSelect={() => setViewingId(invoice.id)}>
-                  {t('purchases.purchaseInvoices.viewDetails')}
-                </DropdownMenuItem>
-                <Can permission="purchases.manage">
-                  <>
+            // Stop clicks (also from the portalled menu) from reaching the row's onClick.
+            <div className="flex justify-end" onClick={(event) => event.stopPropagation()}>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon-sm" aria-label={t('common.actions')}>
+                    <MoreHorizontal />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onSelect={() => navigate(`${PURCHASE_INVOICES_PATH}/${invoice.id}`)}>
+                    {t('documents.open')}
+                  </DropdownMenuItem>
+                  <Can permission="purchases.manage">
                     {invoice.status === 'draft' ? (
-                      <DropdownMenuItem onSelect={() => handlePost(invoice.id)}>
-                        {t('purchases.purchaseInvoices.post')}
-                      </DropdownMenuItem>
-                    ) : null}
-                    {invoice.status === 'draft' ? (
-                      <DropdownMenuItem onSelect={() => handleCancel(invoice.id)}>
-                        {t('purchases.purchaseInvoices.cancel')}
-                      </DropdownMenuItem>
+                      <>
+                        <DropdownMenuItem onSelect={() => void actions.post(invoice.id)}>
+                          {t('purchases.purchaseInvoices.post')}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onSelect={() => void actions.cancel(invoice.id)}>
+                          {t('purchases.purchaseInvoices.cancel')}
+                        </DropdownMenuItem>
+                      </>
                     ) : null}
                     {invoice.status === 'draft' || invoice.status === 'cancelled' ? (
-                      <DropdownMenuItem onSelect={() => handleDelete(invoice.id)}>
-                        {t('common.delete')}
-                      </DropdownMenuItem>
+                      <>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          className="text-danger focus:bg-danger-soft focus:text-danger"
+                          onSelect={() => void actions.remove(invoice.id)}
+                        >
+                          {t('common.delete')}
+                        </DropdownMenuItem>
+                      </>
                     ) : null}
-                  </>
-                </Can>
-              </DropdownMenuContent>
-            </DropdownMenu>
+                  </Can>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           );
         },
       },
     ],
-    [t, poById],
+    [t, poById, supplierById, navigate, actions],
+  );
+
+  const newButton = (
+    <Can permission="purchases.manage">
+      <Button asChild>
+        <Link to={`${PURCHASE_INVOICES_PATH}/new`}>
+          <Plus />
+          {t('purchases.purchaseInvoices.newInvoice')}
+        </Link>
+      </Button>
+    </Can>
   );
 
   return (
-    <div className="grid gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-sm text-muted-foreground">{t('purchases.purchaseInvoices.subtitle')}</p>
-        <Can permission="purchases.manage">
-          <Button size="sm" onClick={() => setCreateOpen(true)}>
-            {t('purchases.purchaseInvoices.newInvoice')}
-          </Button>
-        </Can>
-      </div>
-
-      <DataTable columns={columns} data={invoices ?? []} isLoading={isLoading} />
-
-      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-        <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-3xl">
-          <DialogHeader>
-            <DialogTitle>{t('purchases.purchaseInvoices.newInvoice')}</DialogTitle>
-          </DialogHeader>
-          <CreatePurchaseInvoiceForm onDone={() => setCreateOpen(false)} />
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={viewingId !== null} onOpenChange={(open) => !open && setViewingId(null)}>
-        <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-3xl">
-          <DialogHeader>
-            <DialogTitle>{t('purchases.purchaseInvoices.viewDetails')}</DialogTitle>
-          </DialogHeader>
-          {viewingLoading ? <Skeleton className="h-40 w-full" /> : null}
-          {viewingInvoice ? <PurchaseInvoiceDetailsView invoice={viewingInvoice} /> : null}
-        </DialogContent>
-      </Dialog>
-    </div>
+    <DataTable
+      columns={columns}
+      data={rows}
+      isLoading={isLoading}
+      onRowClick={(invoice) => navigate(`${PURCHASE_INVOICES_PATH}/${invoice.id}`)}
+      searchPlaceholder={t('common.search')}
+      emptyState={
+        statusFilter === 'all' ? (
+          <EmptyState
+            icon={<FileText />}
+            title={t('purchases.purchaseInvoices.emptyTitle')}
+            description={t('purchases.purchaseInvoices.emptyDescription')}
+            action={newButton}
+          />
+        ) : undefined
+      }
+      toolbar={
+        <div role="tablist" aria-label={t('common.status')} className="flex flex-wrap items-center gap-1">
+          {STATUS_FILTERS.map((status) => {
+            const active = status === statusFilter;
+            return (
+              <button
+                key={status}
+                type="button"
+                role="tab"
+                aria-selected={active}
+                onClick={() => setStatusFilter(status)}
+                className={cn(
+                  'flex h-8 items-center gap-1.5 rounded-md px-2.5 text-[13px] font-medium transition-colors',
+                  active ? 'bg-accent text-accent-foreground' : 'text-secondary-foreground hover:bg-muted',
+                )}
+              >
+                {status === 'all' ? t('documents.all') : t(purchaseInvoiceStatusLabelKey(status))}
+                <span
+                  className={cn(
+                    'tabular rounded-full px-1.5 text-[11px]',
+                    active ? 'bg-card text-accent-foreground' : 'bg-muted text-muted-foreground',
+                  )}
+                >
+                  {counts[status]}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      }
+    />
   );
 }

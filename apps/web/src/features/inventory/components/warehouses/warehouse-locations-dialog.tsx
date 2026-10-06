@@ -93,13 +93,16 @@ export function WarehouseLocationsDialog({
               <Can permission="inventory.manage">
                 <Dialog open={addOpen} onOpenChange={setAddOpen}>
                   <DialogTrigger asChild>
-                    <Button size="sm">{t('inventory.warehouses.newLocation')}</Button>
+                    <Button>{t('inventory.warehouses.newLocation')}</Button>
                   </DialogTrigger>
                   <DialogContent>
                     <DialogHeader>
                       <DialogTitle>{t('inventory.warehouses.newLocation')}</DialogTitle>
                     </DialogHeader>
-                    <CreateLocationForm warehouseId={warehouse.id} onDone={() => setAddOpen(false)} />
+                    <CreateLocationForm
+                      warehouseId={warehouse.id}
+                      onDone={() => setAddOpen(false)}
+                    />
                   </DialogContent>
                 </Dialog>
               </Can>
@@ -123,7 +126,7 @@ export function WarehouseLocationsDialog({
                       <TableCell className="font-medium">{location.code}</TableCell>
                       <TableCell>{location.name}</TableCell>
                       <TableCell>
-                        <Badge variant={location.isActive ? 'default' : 'secondary'}>
+                        <Badge variant={location.isActive ? 'success' : 'neutral'} dot>
                           {location.isActive ? t('common.active') : t('common.inactive')}
                         </Badge>
                       </TableCell>
@@ -196,7 +199,9 @@ function CreateLocationForm({ warehouseId, onDone }: { warehouseId: string; onDo
       form.reset();
       onDone();
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : t('inventory.warehouses.createLocationError'));
+      toast.error(
+        err instanceof ApiError ? err.message : t('inventory.warehouses.createLocationError'),
+      );
     }
   }
 
@@ -272,7 +277,9 @@ function EditLocationForm({
       toast.success(t('inventory.warehouses.updateLocationSuccess'));
       onDone();
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : t('inventory.warehouses.updateLocationError'));
+      toast.error(
+        err instanceof ApiError ? err.message : t('inventory.warehouses.updateLocationError'),
+      );
     }
   }
 

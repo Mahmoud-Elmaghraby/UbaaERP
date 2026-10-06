@@ -105,7 +105,13 @@ export function AppearanceDialog({ open, onOpenChange }: AppearanceDialogProps) 
           <div className="flex items-center gap-2">
             <span
               className="h-10 w-10 shrink-0 rounded-lg border"
-              style={{ backgroundColor: isValidHex(customHex) ? (customHex.startsWith('#') ? customHex : `#${customHex}`) : accent }}
+              style={{
+                backgroundColor: isValidHex(customHex)
+                  ? customHex.startsWith('#')
+                    ? customHex
+                    : `#${customHex}`
+                  : accent,
+              }}
               aria-hidden="true"
             />
             <Input

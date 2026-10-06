@@ -101,7 +101,7 @@ export function SalesOrdersTab() {
         header: t('common.status'),
         accessorFn: (row: SalesOrderDto) => row.status,
         cell: ({ row }: { row: Row<SalesOrderDto> }) => (
-          <Badge variant={SALES_ORDER_STATUS_VARIANT[row.original.status]}>
+          <Badge variant={SALES_ORDER_STATUS_VARIANT[row.original.status]} dot>
             {t(salesOrderStatusLabelKey(row.original.status))}
           </Badge>
         ),
@@ -130,7 +130,9 @@ export function SalesOrdersTab() {
                 <Can permission="sales.manage">
                   <>
                     {order.status === 'draft' ? (
-                      <DropdownMenuItem onSelect={() => setEditingId(order.id)}>{t('common.edit')}</DropdownMenuItem>
+                      <DropdownMenuItem onSelect={() => setEditingId(order.id)}>
+                        {t('common.edit')}
+                      </DropdownMenuItem>
                     ) : null}
                     {order.status === 'draft' ? (
                       <DropdownMenuItem onSelect={() => handleConfirm(order.id)}>
@@ -160,10 +162,9 @@ export function SalesOrdersTab() {
 
   return (
     <div className="grid gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-sm text-muted-foreground">{t('sales.salesOrders.subtitle')}</p>
+      <div className="flex flex-wrap items-center justify-end gap-2">
         <Can permission="sales.manage">
-          <Button size="sm" onClick={() => setCreateOpen(true)}>
+          <Button onClick={() => setCreateOpen(true)}>
             {t('sales.salesOrders.newOrder')}
           </Button>
         </Can>
@@ -196,7 +197,9 @@ export function SalesOrdersTab() {
             <DialogTitle>{t('common.edit')}</DialogTitle>
           </DialogHeader>
           {editingLoading ? <Skeleton className="h-40 w-full" /> : null}
-          {editingOrder ? <EditSalesOrderForm order={editingOrder} onDone={() => setEditingId(null)} /> : null}
+          {editingOrder ? (
+            <EditSalesOrderForm order={editingOrder} onDone={() => setEditingId(null)} />
+          ) : null}
         </DialogContent>
       </Dialog>
     </div>

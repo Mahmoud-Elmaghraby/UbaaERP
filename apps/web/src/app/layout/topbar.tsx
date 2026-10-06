@@ -54,13 +54,18 @@ export function Topbar({ onOpenMobileNav, onOpenSearch, onOpenAppearance, onLogo
           const last = index === crumbs.length - 1;
           return (
             <Fragment key={crumb.to}>
-              {index > 0 ? <ChevronLeft className="h-3.5 w-3.5 shrink-0 text-muted-foreground/70" aria-hidden="true" /> : null}
+              {index > 0 ? (
+                <ChevronLeft className="h-3.5 w-3.5 shrink-0 text-muted-foreground/70" aria-hidden="true" />
+              ) : null}
               {last ? (
                 <span className="truncate font-semibold text-foreground" aria-current="page">
                   {t(crumb.labelKey)}
                 </span>
               ) : (
-                <Link to={crumb.to} className="truncate text-muted-foreground transition-colors hover:text-foreground">
+                <Link
+                  to={crumb.to}
+                  className="truncate text-muted-foreground transition-colors hover:text-foreground"
+                >
                   {t(crumb.labelKey)}
                 </Link>
               )}
@@ -79,7 +84,10 @@ export function Topbar({ onOpenMobileNav, onOpenSearch, onOpenAppearance, onLogo
       >
         <Search className="h-4 w-4 shrink-0" aria-hidden="true" />
         <span className="hidden flex-1 text-start md:inline">{t('shell.search')}</span>
-        <kbd dir="ltr" className="hidden rounded border bg-card px-1.5 py-0.5 font-sans text-[11px] md:inline">
+        <kbd
+          dir="ltr"
+          className="hidden rounded border bg-card px-1.5 py-0.5 font-sans text-[11px] md:inline"
+        >
           {t('shell.searchShortcut')}
         </kbd>
       </button>
@@ -96,7 +104,9 @@ export function Topbar({ onOpenMobileNav, onOpenSearch, onOpenAppearance, onLogo
                 {initials || '؟'}
               </AvatarFallback>
             </Avatar>
-            <span className="hidden max-w-[140px] truncate text-sm font-medium lg:inline">{user?.fullName}</span>
+            <span className="hidden max-w-[140px] truncate text-sm font-medium lg:inline">
+              {user?.fullName}
+            </span>
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-60">
@@ -116,7 +126,10 @@ export function Topbar({ onOpenMobileNav, onOpenSearch, onOpenAppearance, onLogo
             {t('shell.appearance')}
           </DropdownMenuItem>
           <DropdownMenuSeparator />
-          <DropdownMenuItem onSelect={onLogout} className="text-danger focus:bg-danger-soft focus:text-danger">
+          <DropdownMenuItem
+            onSelect={onLogout}
+            className="text-danger focus:bg-danger-soft focus:text-danger"
+          >
             <LogOut />
             {t('nav.logout')}
           </DropdownMenuItem>

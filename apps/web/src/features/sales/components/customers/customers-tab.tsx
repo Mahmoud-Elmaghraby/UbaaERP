@@ -69,7 +69,7 @@ export function CustomersTab() {
         header: t('common.status'),
         accessorFn: (row: CustomerDto) => row.isActive,
         cell: ({ row }: { row: Row<CustomerDto> }) => (
-          <Badge variant={row.original.isActive ? 'default' : 'secondary'}>
+          <Badge variant={row.original.isActive ? 'success' : 'neutral'} dot>
             {row.original.isActive ? t('common.active') : t('common.inactive')}
           </Badge>
         ),
@@ -86,7 +86,9 @@ export function CustomersTab() {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem onSelect={() => setEditing(row.original)}>{t('common.edit')}</DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => setEditing(row.original)}>
+                  {t('common.edit')}
+                </DropdownMenuItem>
                 <DropdownMenuItem onSelect={() => handleDelete(row.original.id)}>
                   {t('common.delete')}
                 </DropdownMenuItem>
@@ -101,8 +103,6 @@ export function CustomersTab() {
 
   return (
     <div className="grid gap-4">
-      <p className="text-sm text-muted-foreground">{t('sales.customers.subtitle')}</p>
-
       <DataTable
         columns={columns}
         data={customers ?? []}
@@ -112,7 +112,7 @@ export function CustomersTab() {
             <Can permission="sales.manage">
               <Dialog open={createOpen} onOpenChange={setCreateOpen}>
                 <DialogTrigger asChild>
-                  <Button size="sm">{t('sales.customers.newCustomer')}</Button>
+                  <Button>{t('sales.customers.newCustomer')}</Button>
                 </DialogTrigger>
                 <DialogContent className="max-h-[85vh] overflow-y-auto">
                   <DialogHeader>

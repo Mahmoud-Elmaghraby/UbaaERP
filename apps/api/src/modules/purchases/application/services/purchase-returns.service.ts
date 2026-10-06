@@ -21,6 +21,8 @@ import type {
 import { BusinessRuleError, NotFoundError, isPostgresForeignKeyViolation } from '../errors';
 import { entityNotFound } from '../../../../shared/errors/entity-errors';
 import { NumberingSequencesService } from '../../../settings/application/services/numbering-sequences.service';
+import { OutboxWriterService } from '../../../../shared/outbox/application/services/outbox-writer.service';
+import { withTransaction } from '../../../../database/tenant/transaction.util';
 
 /**
  * Records goods physically sent back to a supplier after a confirmed
@@ -32,7 +34,7 @@ import { NumberingSequencesService } from '../../../settings/application/service
  * Same two-step shape as Goods Receipts: create() persists a 'draft'
  * return, already validated against how much of the referenced goods
  * receipt lines can still be returned, but with no stock effect.
- * confirm() is the one-way door that publishes the Event Bus
+ * confirm() is the one-way door that writes (via the Outbox) the
  * integration event PurchaseReturnStockListener (in the inventory
  * module) consumes to actually decrease stock — never a direct call
  * into Inventory (CLAUDE.md §2.6).
@@ -51,6 +53,7 @@ export class PurchaseReturnsService {
     @Inject(GOODS_RECEIPT_REPOSITORY) private readonly goodsReceipts: GoodsReceiptRepository,
     @Inject(GOODS_RECEIPT_LINE_REPOSITORY) private readonly goodsReceiptLines: GoodsReceiptLineRepository,
     private readonly numberingSequences: NumberingSequencesService,
+    private readonly outboxWriter: OutboxWriterService,
   ) {}
 
   list(db: Kysely<TenantDatabase>): Promise<PurchaseReturn[]> {
@@ -174,12 +177,22 @@ export class PurchaseReturnsService {
   }
 
   /**
-   * The one-way door. Returns the goods receipt's warehouseId alongside
-   * the confirmed return (see PurchaseReturnConfirmation's comment) so
-   * the controller can build the stock-decrease event without a second
-   * round trip.
+   * The one-way door. Flips the status AND writes the
+   * 'purchases.purchase_return.confirmed' integration event to the Outbox
+   * in the same transaction (CLAUDE.md §2.7) — mirroring
+   * GoodsReceiptsService.confirm(). Before 2026-10 the controller
+   * published it on the plain Event Bus after commit, so a crash or a
+   * failing stock listener silently left a confirmed return with no stock
+   * decrease. Inventory's PurchaseReturnStockListener consumes it (never a
+   * direct call — CLAUDE.md §2.6). Returns the goods receipt's warehouseId
+   * alongside the confirmed return (see PurchaseReturnConfirmation).
    */
-  async confirm(db: Kysely<TenantDatabase>, id: string): Promise<PurchaseReturnConfirmation> {
+  async confirm(
+    db: Kysely<TenantDatabase>,
+    id: string,
+    schema: string,
+    actorUserId: string | null,
+  ): Promise<PurchaseReturnConfirmation> {
     const existing = await this.returns.findById(db, id);
     if (!existing) throw entityNotFound('PURCHASE_RETURN', id);
     if (existing.status !== 'draft') {
@@ -189,16 +202,35 @@ export class PurchaseReturnsService {
       );
     }
 
-    const updated = await this.returns.updateStatus(db, id, 'confirmed');
-    if (!updated) throw entityNotFound('PURCHASE_RETURN', id);
-    const lines = await this.lines.listByPurchaseReturnId(db, id);
+    return withTransaction(db, async (trx) => {
+      const updated = await this.returns.updateStatus(trx, id, 'confirmed');
+      if (!updated) throw entityNotFound('PURCHASE_RETURN', id);
+      const lines = await this.lines.listByPurchaseReturnId(trx, id);
 
-    const goodsReceipt = await this.goodsReceipts.findById(db, updated.goodsReceiptId);
-    if (!goodsReceipt) {
-      throw entityNotFound('GOODS_RECEIPT', updated.goodsReceiptId);
-    }
+      const goodsReceipt = await this.goodsReceipts.findById(trx, updated.goodsReceiptId);
+      if (!goodsReceipt) {
+        throw entityNotFound('GOODS_RECEIPT', updated.goodsReceiptId);
+      }
 
-    return { ...updated, lines, warehouseId: goodsReceipt.warehouseId };
+      await this.outboxWriter.write(trx, 'purchases.purchase_return.confirmed', {
+        schema,
+        entityType: 'purchase_return',
+        entityId: updated.id,
+        action: 'confirmed',
+        actorUserId,
+        metadata: {
+          goodsReceiptId: updated.goodsReceiptId,
+          warehouseId: goodsReceipt.warehouseId,
+          lines: lines.map((line) => ({
+            productVariantId: line.productVariantId,
+            quantity: line.quantityReturned,
+          })),
+        },
+        occurredAt: new Date(),
+      });
+
+      return { ...updated, lines, warehouseId: goodsReceipt.warehouseId };
+    });
   }
 
   private async transitionStatus(

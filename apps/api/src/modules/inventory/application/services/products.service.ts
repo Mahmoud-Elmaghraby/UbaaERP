@@ -5,7 +5,12 @@ import { PRODUCT_REPOSITORY, type ProductRepository } from '../ports/product.rep
 import { PRODUCT_VARIANT_REPOSITORY, type ProductVariantRepository } from '../ports/product-variant.repository';
 import type { Product, CreateProductInput, UpdateProductInput } from '../../domain/product.entity';
 import type { ProductVariant } from '../../domain/product-variant.entity';
-import { ConflictError, isPostgresForeignKeyViolation, isPostgresUniqueViolation } from '../errors';
+import {
+  BusinessRuleError,
+  ConflictError,
+  isPostgresForeignKeyViolation,
+  isPostgresUniqueViolation,
+} from '../errors';
 import { duplicateEntity, entityNotFound } from '../../../../shared/errors/entity-errors';
 
 export interface ProductWithVariants extends Product {
@@ -67,6 +72,7 @@ export class ProductsService {
   }
 
   async update(db: Kysely<TenantDatabase>, id: string, input: UpdateProductInput): Promise<Product> {
+    await this.assertStockDefiningFieldsUnchanged(db, id, input);
     try {
       const updated = await this.products.update(db, id, input);
       if (!updated) throw entityNotFound('PRODUCT', id);
@@ -82,9 +88,50 @@ export class ProductsService {
     }
   }
 
+  /**
+   * Stock quantities and costs are stored in the product's own unit, and
+   * lot/serial bookkeeping depends on its tracking type — so once stock has
+   * moved, changing either would silently reinterpret every existing
+   * balance (e.g. 100 "pieces" becoming 100 "boxes"). Inventory audit
+   * 2026-10, H3.
+   */
+  private async assertStockDefiningFieldsUnchanged(
+    db: Kysely<TenantDatabase>,
+    id: string,
+    input: UpdateProductInput,
+  ): Promise<void> {
+    if (input.unitOfMeasureId === undefined && input.trackingType === undefined) return;
+    const current = await this.products.findById(db, id);
+    if (!current) throw entityNotFound('PRODUCT', id);
+    const unitChanges = input.unitOfMeasureId !== undefined && input.unitOfMeasureId !== current.unitOfMeasureId;
+    const trackingChanges = input.trackingType !== undefined && input.trackingType !== current.trackingType;
+    if (!unitChanges && !trackingChanges) return;
+    if (!(await this.products.hasStockMovements(db, id))) return;
+    if (unitChanges) {
+      throw new BusinessRuleError(
+        `Product "${id}" already has stock movements; its unit of measure can no longer be changed.`,
+        { code: 'PRODUCT.UNIT_LOCKED_BY_STOCK' },
+      );
+    }
+    throw new BusinessRuleError(
+      `Product "${id}" already has stock movements; its tracking type can no longer be changed.`,
+      { code: 'PRODUCT.TRACKING_LOCKED_BY_STOCK' },
+    );
+  }
+
   async delete(db: Kysely<TenantDatabase>, id: string): Promise<void> {
-    const deleted = await this.products.delete(db, id);
-    if (!deleted) throw entityNotFound('PRODUCT', id);
+    try {
+      const deleted = await this.products.delete(db, id);
+      if (!deleted) throw entityNotFound('PRODUCT', id);
+    } catch (err) {
+      if (isPostgresForeignKeyViolation(err)) {
+        throw new ConflictError(
+          `Product "${id}" is referenced by stock movements, lots or documents and cannot be deleted — deactivate it instead.`,
+          { code: 'PRODUCT.IN_USE' },
+        );
+      }
+      throw err;
+    }
   }
 
   async addVariant(

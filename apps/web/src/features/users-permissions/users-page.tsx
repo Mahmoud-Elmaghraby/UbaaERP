@@ -71,48 +71,52 @@ export function UsersPage() {
       {isLoading ? (
         <Skeleton className="h-40 w-full" />
       ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>{t('users.fullName')}</TableHead>
-              <TableHead>{t('users.email')}</TableHead>
-              <TableHead>{t('users.role')}</TableHead>
-              <TableHead>{t('users.status')}</TableHead>
-              <TableHead className="w-10" />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {(users ?? []).map((user) => (
-              <TableRow key={user.id}>
-                <TableCell className="font-medium">{user.fullName}</TableCell>
-                <TableCell>{user.email}</TableCell>
-                <TableCell>{roles?.find((r) => r.id === user.roleId)?.name ?? user.roleId}</TableCell>
-                <TableCell>
-                  <Badge variant={user.isActive ? 'default' : 'secondary'}>
-                    {user.isActive ? t('common.active') : t('common.inactive')}
-                  </Badge>
-                </TableCell>
-                <TableCell>
-                  <Can permission="users.manage">
-                    <div className="flex justify-end gap-2">
-                      <Button variant="outline" size="sm" onClick={() => setManagingUser(user)}>
-                        {t('users.manageAccess')}
-                      </Button>
-                      <SendInviteButton userId={user.id} />
-                    </div>
-                  </Can>
-                </TableCell>
-              </TableRow>
-            ))}
-            {(users ?? []).length === 0 ? (
+        <div className="overflow-hidden rounded-xl border bg-card shadow-card">
+          <Table>
+            <TableHeader>
               <TableRow>
-                <TableCell colSpan={5} className="py-8 text-center text-muted-foreground">
-                  {t('common.noResults')}
-                </TableCell>
+                <TableHead>{t('users.fullName')}</TableHead>
+                <TableHead>{t('users.email')}</TableHead>
+                <TableHead>{t('users.role')}</TableHead>
+                <TableHead>{t('users.status')}</TableHead>
+                <TableHead className="w-10" />
               </TableRow>
-            ) : null}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {(users ?? []).map((user) => (
+                <TableRow key={user.id}>
+                  <TableCell className="font-medium">{user.fullName}</TableCell>
+                  <TableCell>{user.email}</TableCell>
+                  <TableCell>
+                    {roles?.find((r) => r.id === user.roleId)?.name ?? user.roleId}
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant={user.isActive ? 'success' : 'neutral'} dot>
+                      {user.isActive ? t('common.active') : t('common.inactive')}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <Can permission="users.manage">
+                      <div className="flex justify-end gap-2">
+                        <Button variant="outline" size="sm" onClick={() => setManagingUser(user)}>
+                          {t('users.manageAccess')}
+                        </Button>
+                        <SendInviteButton userId={user.id} />
+                      </div>
+                    </Can>
+                  </TableCell>
+                </TableRow>
+              ))}
+              {(users ?? []).length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="py-8 text-center text-muted-foreground">
+                    {t('common.noResults')}
+                  </TableCell>
+                </TableRow>
+              ) : null}
+            </TableBody>
+          </Table>
+        </div>
       )}
 
       <UserAccessDialog user={managingUser} onClose={() => setManagingUser(null)} />
@@ -136,7 +140,12 @@ function SendInviteButton({ userId }: { userId: string }) {
   }
 
   return (
-    <Button variant="outline" size="sm" disabled={sendInvite.isPending} onClick={() => void handleClick()}>
+    <Button
+      variant="outline"
+      size="sm"
+      disabled={sendInvite.isPending}
+      onClick={() => void handleClick()}
+    >
       {t('users.sendInvite')}
     </Button>
   );

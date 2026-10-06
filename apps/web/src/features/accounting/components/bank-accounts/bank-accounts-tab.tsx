@@ -52,7 +52,7 @@ export function BankAccountsTab() {
         id: 'isActive',
         header: t('common.status'),
         cell: ({ row }: { row: Row<BankAccountDto> }) => (
-          <Badge variant={row.original.isActive ? 'default' : 'secondary'}>
+          <Badge variant={row.original.isActive ? 'success' : 'neutral'} dot>
             {t(row.original.isActive ? 'common.active' : 'common.inactive')}
           </Badge>
         ),
@@ -94,10 +94,9 @@ export function BankAccountsTab() {
 
   return (
     <div className="grid gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-sm text-muted-foreground">{t('accounting.bankAccounts.subtitle')}</p>
+      <div className="flex flex-wrap items-center justify-end gap-2">
         <Can permission="accounting.manage">
-          <Button size="sm" onClick={() => setCreateOpen(true)}>
+          <Button onClick={() => setCreateOpen(true)}>
             {t('accounting.bankAccounts.newBankAccount')}
           </Button>
         </Can>
@@ -119,11 +118,16 @@ export function BankAccountsTab() {
           <DialogHeader>
             <DialogTitle>{t('accounting.bankAccounts.editBankAccount')}</DialogTitle>
           </DialogHeader>
-          {editing ? <EditBankAccountForm bankAccount={editing} onDone={() => setEditing(null)} /> : null}
+          {editing ? (
+            <EditBankAccountForm bankAccount={editing} onDone={() => setEditing(null)} />
+          ) : null}
         </DialogContent>
       </Dialog>
 
-      <Dialog open={viewingRegisterId !== null} onOpenChange={(open) => !open && setViewingRegisterId(null)}>
+      <Dialog
+        open={viewingRegisterId !== null}
+        onOpenChange={(open) => !open && setViewingRegisterId(null)}
+      >
         <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-4xl">
           <DialogHeader>
             <DialogTitle>{t('accounting.bankAccounts.register')}</DialogTitle>

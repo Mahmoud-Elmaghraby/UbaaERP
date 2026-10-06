@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Can, PageHeader } from '@erp-platform/ui';
+import { Can, PageHeader, useFeatureChecker } from '@erp-platform/ui';
 import type { LucideIcon } from 'lucide-react';
 import {
   BookOpenText,
@@ -14,6 +14,7 @@ import {
 
 import { useAuthStore } from '../../lib/auth-store';
 import { NAV_ITEMS } from '../layout/nav-items';
+import { HomeAttention } from './home-attention';
 
 interface QuickAction {
   to: string;
@@ -23,12 +24,37 @@ interface QuickAction {
 }
 
 const QUICK_ACTIONS: QuickAction[] = [
-  { to: '/sales/sales-invoices', labelKey: 'home.actions.salesInvoice', icon: FileText, permission: 'sales.manage' },
+  {
+    to: '/sales/sales-invoices/new',
+    labelKey: 'home.actions.newSalesInvoice',
+    icon: FileText,
+    permission: 'sales.manage',
+  },
   { to: '/pos', labelKey: 'home.actions.pos', icon: MonitorSmartphone, permission: 'sales.manage' },
-  { to: '/purchases/purchase-orders', labelKey: 'home.actions.purchaseOrder', icon: ShoppingBag, permission: 'purchases.manage' },
-  { to: '/accounting/journal-entries', labelKey: 'home.actions.journalEntry', icon: BookOpenText, permission: 'accounting.manage' },
-  { to: '/inventory/products', labelKey: 'home.actions.products', icon: Package, permission: 'inventory.manage' },
-  { to: '/sales/customers', labelKey: 'home.actions.customers', icon: UsersRound, permission: 'sales.manage' },
+  {
+    to: '/purchases/purchase-invoices/new',
+    labelKey: 'home.actions.newPurchaseInvoice',
+    icon: ShoppingBag,
+    permission: 'purchases.manage',
+  },
+  {
+    to: '/accounting/journal-entries',
+    labelKey: 'home.actions.journalEntry',
+    icon: BookOpenText,
+    permission: 'accounting.manage',
+  },
+  {
+    to: '/inventory/products',
+    labelKey: 'home.actions.products',
+    icon: Package,
+    permission: 'inventory.manage',
+  },
+  {
+    to: '/sales/customers',
+    labelKey: 'home.actions.customers',
+    icon: UsersRound,
+    permission: 'sales.manage',
+  },
 ];
 
 /** Module key (last path segment) → description key, for the sections grid. */
@@ -60,7 +86,10 @@ export function HomePage() {
   const now = new Date();
   const greeting = now.getHours() < 12 ? t('home.greetingMorning') : t('home.greetingEvening');
   const firstName = user?.fullName?.split(' ')[0] ?? '';
-  const modules = NAV_ITEMS.filter((item) => MODULE_DESCRIPTIONS[item.to]);
+  const hasFeature = useFeatureChecker();
+  const modules = NAV_ITEMS.filter(
+    (item) => MODULE_DESCRIPTIONS[item.to] && (!item.feature || hasFeature(item.feature)),
+  );
 
   return (
     <div className="flex flex-col gap-8">
@@ -88,13 +117,18 @@ export function HomePage() {
         </div>
       </section>
 
+      <HomeAttention />
+
       <section className="flex flex-col gap-3">
         <h2 className="text-base font-semibold">{t('home.modules')}</h2>
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {modules.map((item) => {
             const Icon = item.icon;
             const card = (
-              <div key={item.to} className="flex h-full flex-col gap-4 rounded-xl border bg-card p-5 shadow-card">
+              <div
+                key={item.to}
+                className="flex h-full flex-col gap-4 rounded-xl border bg-card p-5 shadow-card"
+              >
                 <Link to={item.to} className="group flex items-start gap-3">
                   {Icon ? (
                     <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-accent text-accent-foreground">
@@ -102,22 +136,29 @@ export function HomePage() {
                     </span>
                   ) : null}
                   <span className="flex min-w-0 flex-1 flex-col">
-                    <span className="font-semibold group-hover:text-primary">{t(item.labelKey)}</span>
-                    <span className="text-[13px] text-muted-foreground">{t(MODULE_DESCRIPTIONS[item.to]!)}</span>
+                    <span className="font-semibold group-hover:text-primary">
+                      {t(item.labelKey)}
+                    </span>
+                    <span className="text-[13px] text-muted-foreground">
+                      {t(MODULE_DESCRIPTIONS[item.to]!)}
+                    </span>
                   </span>
                   <ChevronLeft className="mt-1 h-4 w-4 shrink-0 text-muted-foreground" />
                 </Link>
                 {item.children?.length ? (
                   <div className="flex flex-wrap gap-1.5">
-                    {item.children.slice(0, 5).map((child) => (
-                      <Link
-                        key={child.to}
-                        to={child.to}
-                        className="rounded-md bg-muted px-2.5 py-1 text-xs font-medium text-secondary-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
-                      >
-                        {t(child.labelKey)}
-                      </Link>
-                    ))}
+                    {item.children
+                      .filter((child) => !child.feature || hasFeature(child.feature))
+                      .slice(0, 5)
+                      .map((child) => (
+                        <Link
+                          key={child.to}
+                          to={child.to}
+                          className="rounded-md bg-muted px-2.5 py-1 text-xs font-medium text-secondary-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+                        >
+                          {t(child.labelKey)}
+                        </Link>
+                      ))}
                   </div>
                 ) : null}
               </div>

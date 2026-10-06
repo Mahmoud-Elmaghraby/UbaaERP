@@ -7,7 +7,10 @@ export function SalesReturnsPage() {
   const { t } = useTranslation();
   return (
     <div className="grid gap-6">
-      <PageHeader title={t('sales.tabs.salesReturns')} />
+      <PageHeader
+        title={t('sales.tabs.salesReturns')}
+        description={t('sales.salesReturns.subtitle')}
+      />
       <SalesReturnsTab />
     </div>
   );

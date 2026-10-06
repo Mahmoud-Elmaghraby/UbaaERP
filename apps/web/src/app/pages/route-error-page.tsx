@@ -16,7 +16,10 @@ export function RouteErrorPage() {
     return <NotFoundPage />;
   }
 
-  const details = error instanceof Error ? `${error.name}: ${error.message}\n${error.stack ?? ''}` : String(error);
+  const details =
+    error instanceof Error
+      ? `${error.name}: ${error.message}\n${error.stack ?? ''}`
+      : String(error);
 
   return (
     <div className="mx-auto flex max-w-xl flex-col items-center gap-4 py-16 text-center">
@@ -33,8 +36,13 @@ export function RouteErrorPage() {
       </div>
       {import.meta.env.DEV ? (
         <details className="mt-4 w-full rounded-lg border bg-subtle p-3 text-start text-xs">
-          <summary className="cursor-pointer font-medium text-muted-foreground">{t('errorPage.details')}</summary>
-          <pre dir="ltr" className="mt-2 max-h-64 overflow-auto whitespace-pre-wrap text-left text-muted-foreground">
+          <summary className="cursor-pointer font-medium text-muted-foreground">
+            {t('errorPage.details')}
+          </summary>
+          <pre
+            dir="ltr"
+            className="mt-2 max-h-64 overflow-auto whitespace-pre-wrap text-left text-muted-foreground"
+          >
             {details}
           </pre>
         </details>

@@ -30,7 +30,11 @@ type Rgb = [number, number, number];
 
 function hexToRgb(hex: string): Rgb {
   let h = hex.trim().replace('#', '');
-  if (h.length === 3) h = h.split('').map((c) => c + c).join('');
+  if (h.length === 3)
+    h = h
+      .split('')
+      .map((c) => c + c)
+      .join('');
   if (!/^[0-9a-fA-F]{6}$/.test(h)) h = DEFAULT_ACCENT.slice(1);
   return [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16)) as Rgb;
 }

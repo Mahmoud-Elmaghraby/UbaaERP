@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import type { Kysely, Selectable } from 'kysely';
+import { sql, type Kysely, type Selectable } from 'kysely';
 import { Money } from '@erp-platform/shared-kernel';
 import type {
   StockLotsTable,
@@ -119,6 +119,15 @@ export class KyselyStockLotRepository implements StockLotRepository {
     return lotToDomain(row);
   }
 
+  async totalQuantityOnHand(db: Kysely<TenantDatabase>, stockLotId: string): Promise<number> {
+    const row = await db
+      .selectFrom('stock_lot_levels')
+      .select(sql<string>`coalesce(sum(quantity_on_hand), 0)`.as('total'))
+      .where('stock_lot_id', '=', stockLotId)
+      .executeTakeFirst();
+    return Number(row?.total ?? 0);
+  }
+
   async findLevel(db: Kysely<TenantDatabase>, stockLotId: string, locationId: string): Promise<StockLotLevel | null> {
     const row = await db
       .selectFrom('stock_lot_levels')
@@ -137,7 +146,7 @@ export class KyselyStockLotRepository implements StockLotRepository {
     if (existing) {
       const row = await db
         .updateTable('stock_lot_levels')
-        .set({ quantity_on_hand: input.quantityOnHand.toString(), updated_at: new Date() })
+        .set({ quantity_on_hand: input.quantityOnHand.toString(), updated_at: sql`now()` })
         .where('id', '=', existing.id)
         .returningAll()
         .executeTakeFirstOrThrow();

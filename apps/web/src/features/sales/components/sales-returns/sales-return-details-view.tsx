@@ -1,7 +1,15 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { SalesReturnWithLinesDto } from '@erp-platform/contracts';
-import { Badge, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@erp-platform/ui';
+import {
+  Badge,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@erp-platform/ui';
 
 import { useDeliveries } from '../../api/deliveries/queries';
 import { useSalesCreditNotesBySalesReturn } from '../../api/sales-credit-notes/queries';
@@ -20,7 +28,10 @@ export function SalesReturnDetailsView({ salesReturn }: { salesReturn: SalesRetu
   const { data: creditNotes } = useSalesCreditNotesBySalesReturn(salesReturn.id);
   const creditNote = creditNotes?.[0] ?? null;
 
-  const deliveryById = useMemo(() => new Map((deliveries ?? []).map((d) => [d.id, d])), [deliveries]);
+  const deliveryById = useMemo(
+    () => new Map((deliveries ?? []).map((d) => [d.id, d])),
+    [deliveries],
+  );
 
   return (
     <div className="grid gap-3">
@@ -31,13 +42,15 @@ export function SalesReturnDetailsView({ salesReturn }: { salesReturn: SalesRetu
         </div>
         <div>
           <p className="text-muted-foreground">{t('common.status')}</p>
-          <Badge variant={SALES_RETURN_STATUS_VARIANT[salesReturn.status]}>
+          <Badge variant={SALES_RETURN_STATUS_VARIANT[salesReturn.status]} dot>
             {t(salesReturnStatusLabelKey(salesReturn.status))}
           </Badge>
         </div>
         <div>
           <p className="text-muted-foreground">{t('sales.salesReturns.delivery')}</p>
-          <p className="font-medium">{deliveryById.get(salesReturn.deliveryId)?.deliveryNumber ?? '—'}</p>
+          <p className="font-medium">
+            {deliveryById.get(salesReturn.deliveryId)?.deliveryNumber ?? '—'}
+          </p>
         </div>
         <div>
           <p className="text-muted-foreground">{t('sales.salesReturns.returnDate')}</p>

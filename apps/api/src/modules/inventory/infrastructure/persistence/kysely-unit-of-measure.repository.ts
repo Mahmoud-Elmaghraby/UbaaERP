@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import type { Kysely, Selectable } from 'kysely';
+import { sql, type Kysely, type Selectable } from 'kysely';
 import type { UnitsOfMeasureTable, TenantDatabase } from '../../../../database/tenant/kysely-client';
 import type { UnitOfMeasureRepository } from '../../application/ports/unit-of-measure.repository';
 import type {
@@ -61,7 +61,7 @@ export class KyselyUnitOfMeasureRepository implements UnitOfMeasureRepository {
         ...(input.baseUnitId !== undefined ? { base_unit_id: input.baseUnitId } : {}),
         ...(input.conversionFactor !== undefined ? { conversion_factor: String(input.conversionFactor) } : {}),
         ...(input.isActive !== undefined ? { is_active: input.isActive } : {}),
-        updated_at: new Date(),
+        updated_at: sql`now()`,
       })
       .where('id', '=', id)
       .returningAll()

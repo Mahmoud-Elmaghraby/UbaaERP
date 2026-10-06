@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Dialog, DialogContent, DialogTitle, cn, usePermissions } from '@erp-platform/ui';
+import { Dialog, DialogContent, DialogTitle, cn, useFeatureChecker, usePermissions } from '@erp-platform/ui';
 import { CornerDownLeft, Search } from 'lucide-react';
 
 import { NAV_ITEMS } from './nav-items';
@@ -36,6 +36,7 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const permissions = usePermissions();
+  const hasFeature = useFeatureChecker();
   const [query, setQuery] = useState('');
   const [activeIndex, setActiveIndex] = useState(0);
   const listRef = useRef<HTMLUListElement>(null);
@@ -44,16 +45,20 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
     const result: Destination[] = [];
     for (const item of NAV_ITEMS) {
       if (item.permission && !permissions.includes(item.permission)) continue;
+      if (item.feature && !hasFeature(item.feature)) continue;
       const section = t(item.labelKey);
       if (item.children?.length) {
-        for (const child of item.children) result.push({ to: child.to, label: t(child.labelKey), section });
+        for (const child of item.children) {
+          if (child.feature && !hasFeature(child.feature)) continue;
+          result.push({ to: child.to, label: t(child.labelKey), section });
+        }
       } else {
         result.push({ to: item.to, label: section });
       }
     }
     result.push({ to: '/profile', label: t('profile.title') });
     return result;
-  }, [permissions, t]);
+  }, [permissions, hasFeature, t]);
 
   const results = useMemo(() => {
     const q = normalize(query.trim());
@@ -124,13 +129,17 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
                   {destination.section ? (
                     <span className="truncate text-xs text-muted-foreground">{destination.section}</span>
                   ) : null}
-                  {index === activeIndex ? <CornerDownLeft className="h-3.5 w-3.5 shrink-0 opacity-60" /> : null}
+                  {index === activeIndex ? (
+                    <CornerDownLeft className="h-3.5 w-3.5 shrink-0 opacity-60" />
+                  ) : null}
                 </button>
               </li>
             ))
           )}
         </ul>
-        <div className="border-t bg-subtle px-4 py-2 text-xs text-muted-foreground">{t('shell.searchHint')}</div>
+        <div className="border-t bg-subtle px-4 py-2 text-xs text-muted-foreground">
+          {t('shell.searchHint')}
+        </div>
       </DialogContent>
     </Dialog>
   );

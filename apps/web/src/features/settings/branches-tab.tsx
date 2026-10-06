@@ -45,8 +45,7 @@ export function BranchesTab() {
 
   return (
     <div className="grid gap-6">
-      <div className="flex items-center justify-between">
-        <p className="text-sm text-muted-foreground">{t('settings.tabs.branches')}</p>
+      <div className="flex items-center justify-end">
         <Can permission="settings.manage">
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
@@ -65,37 +64,39 @@ export function BranchesTab() {
       {isLoading ? (
         <Skeleton className="h-40 w-full" />
       ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>{t('settings.branches.name')}</TableHead>
-              <TableHead>{t('settings.branches.code')}</TableHead>
-              <TableHead>{t('settings.branches.address')}</TableHead>
-              <TableHead>{t('settings.branches.status')}</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {(branches ?? []).map((branch) => (
-              <TableRow key={branch.id}>
-                <TableCell className="font-medium">{branch.name}</TableCell>
-                <TableCell>{branch.code}</TableCell>
-                <TableCell>{branch.address ?? '-'}</TableCell>
-                <TableCell>
-                  <Badge variant={branch.isActive ? 'default' : 'secondary'}>
-                    {branch.isActive ? t('common.active') : t('common.inactive')}
-                  </Badge>
-                </TableCell>
-              </TableRow>
-            ))}
-            {(branches ?? []).length === 0 ? (
+        <div className="overflow-hidden rounded-xl border bg-card shadow-card">
+          <Table>
+            <TableHeader>
               <TableRow>
-                <TableCell colSpan={4} className="py-8 text-center text-muted-foreground">
-                  {t('common.noResults')}
-                </TableCell>
+                <TableHead>{t('settings.branches.name')}</TableHead>
+                <TableHead>{t('settings.branches.code')}</TableHead>
+                <TableHead>{t('settings.branches.address')}</TableHead>
+                <TableHead>{t('settings.branches.status')}</TableHead>
               </TableRow>
-            ) : null}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {(branches ?? []).map((branch) => (
+                <TableRow key={branch.id}>
+                  <TableCell className="font-medium">{branch.name}</TableCell>
+                  <TableCell>{branch.code}</TableCell>
+                  <TableCell>{branch.address ?? '-'}</TableCell>
+                  <TableCell>
+                    <Badge variant={branch.isActive ? 'success' : 'neutral'} dot>
+                      {branch.isActive ? t('common.active') : t('common.inactive')}
+                    </Badge>
+                  </TableCell>
+                </TableRow>
+              ))}
+              {(branches ?? []).length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={4} className="py-8 text-center text-muted-foreground">
+                    {t('common.noResults')}
+                  </TableCell>
+                </TableRow>
+              ) : null}
+            </TableBody>
+          </Table>
+        </div>
       )}
     </div>
   );

@@ -34,9 +34,13 @@ export function FiscalYearPeriodsView({ fiscalYearId }: { fiscalYearId: string }
   async function handleToggle(id: string, status: 'open' | 'closed') {
     const mutation = status === 'open' ? closePeriod : reopenPeriod;
     const successKey =
-      status === 'open' ? 'accounting.fiscalYears.periodCloseSuccess' : 'accounting.fiscalYears.periodReopenSuccess';
+      status === 'open'
+        ? 'accounting.fiscalYears.periodCloseSuccess'
+        : 'accounting.fiscalYears.periodReopenSuccess';
     const errorKey =
-      status === 'open' ? 'accounting.fiscalYears.periodCloseError' : 'accounting.fiscalYears.periodReopenError';
+      status === 'open'
+        ? 'accounting.fiscalYears.periodCloseError'
+        : 'accounting.fiscalYears.periodReopenError';
     try {
       await mutation.mutateAsync(id);
       toast.success(t(successKey));
@@ -67,7 +71,7 @@ export function FiscalYearPeriodsView({ fiscalYearId }: { fiscalYearId: string }
             <TableCell>{period.startDate}</TableCell>
             <TableCell>{period.endDate}</TableCell>
             <TableCell>
-              <Badge variant={PERIOD_STATUS_VARIANT[period.status]}>
+              <Badge variant={PERIOD_STATUS_VARIANT[period.status]} dot>
                 {t(periodStatusLabelKey(period.status))}
               </Badge>
             </TableCell>

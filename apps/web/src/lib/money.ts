@@ -85,5 +85,42 @@ export function minorUnitsToDecimalString(
  * موديولات لاحقة (Purchases/Sales) بنفس الشكل.
  */
 export function formatMoney(amountMinorUnits: string, currency: string): string {
-  return `${minorUnitsToDecimalString(amountMinorUnits)} ${currency}`;
+  return `${formatAmount(amountMinorUnits)} ${currency}`;
+}
+
+/**
+ * نفس minorUnitsToDecimalString لكن بفاصل الآلاف للعرض فقط ("123456789" -> "1,234,567.89").
+ * لا تُستخدم كقيمة لحقل إدخال (الحقول تتوقع الرقم بدون فواصل).
+ */
+export function formatAmount(amountMinorUnits: string, decimals: number = DEFAULT_DECIMALS): string {
+  const plain = minorUnitsToDecimalString(amountMinorUnits, decimals);
+  const negative = plain.startsWith('-');
+  const body = negative ? plain.slice(1) : plain;
+  const [whole = '0', fraction] = body.split('.');
+  const grouped = whole.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  return `${negative ? '-' : ''}${grouped}${fraction !== undefined ? `.${fraction}` : ''}`;
+}
+
+/**
+ * سعر الوحدة (بأصغر وحدة نقدية) × كمية (قد تكون كسرية) — بحساب صحيح بالكامل عبر BigInt
+ * بدون أي float، مع تقريب نصف لأعلى لأقرب أصغر وحدة. للعرض والمعاينة في الواجهة فقط؛
+ * الإجمالي الرسمي دائمًا ما يحسبه الباك‑إند.
+ */
+export function multiplyMinorUnits(amountMinorUnits: string, quantity: number | string): string {
+  const qtyText = typeof quantity === 'number' ? quantity.toString() : quantity.trim();
+  const match = /^(\d+)(?:\.(\d+))?$/.exec(qtyText);
+  if (!match) return '0';
+  const [, whole, fraction = ''] = match;
+  const scale = 10n ** BigInt(fraction.length);
+  const qtyScaled = BigInt(whole + fraction);
+  const product = BigInt(amountMinorUnits) * qtyScaled;
+  const negative = product < 0n;
+  const abs = negative ? -product : product;
+  const rounded = (abs + scale / 2n) / scale;
+  return (negative ? -rounded : rounded).toString();
+}
+
+/** Sum of minor-unit amounts (BigInt, exact). */
+export function sumMinorUnits(amounts: string[]): string {
+  return amounts.reduce((total, value) => total + BigInt(value), 0n).toString();
 }

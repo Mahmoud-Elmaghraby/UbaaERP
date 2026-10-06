@@ -79,7 +79,7 @@ export function FiscalYearsTab() {
         header: t('common.status'),
         accessorFn: (row: FiscalYearDto) => row.status,
         cell: ({ row }: { row: Row<FiscalYearDto> }) => (
-          <Badge variant={FISCAL_YEAR_STATUS_VARIANT[row.original.status]}>
+          <Badge variant={FISCAL_YEAR_STATUS_VARIANT[row.original.status]} dot>
             {t(fiscalYearStatusLabelKey(row.original.status))}
           </Badge>
         ),
@@ -127,10 +127,9 @@ export function FiscalYearsTab() {
 
   return (
     <div className="grid gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-sm text-muted-foreground">{t('accounting.fiscalYears.subtitle')}</p>
+      <div className="flex flex-wrap items-center justify-end gap-2">
         <Can permission="accounting.manage">
-          <Button size="sm" onClick={() => setCreateOpen(true)}>
+          <Button onClick={() => setCreateOpen(true)}>
             {t('accounting.fiscalYears.newFiscalYear')}
           </Button>
         </Can>
@@ -147,7 +146,10 @@ export function FiscalYearsTab() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={viewingPeriodsId !== null} onOpenChange={(open) => !open && setViewingPeriodsId(null)}>
+      <Dialog
+        open={viewingPeriodsId !== null}
+        onOpenChange={(open) => !open && setViewingPeriodsId(null)}
+      >
         <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>{t('accounting.fiscalYears.viewPeriods')}</DialogTitle>

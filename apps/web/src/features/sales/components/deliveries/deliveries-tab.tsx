@@ -46,7 +46,10 @@ export function DeliveriesTab() {
   const cancelDelivery = useCancelDelivery();
   const deleteDelivery = useDeleteDelivery();
 
-  const soById = useMemo(() => new Map((salesOrders ?? []).map((so) => [so.id, so])), [salesOrders]);
+  const soById = useMemo(
+    () => new Map((salesOrders ?? []).map((so) => [so.id, so])),
+    [salesOrders],
+  );
 
   async function handleTransition(
     mutation: { mutateAsync: (id: string) => Promise<unknown> },
@@ -100,7 +103,7 @@ export function DeliveriesTab() {
         header: t('common.status'),
         accessorFn: (row: DeliveryDto) => row.status,
         cell: ({ row }: { row: Row<DeliveryDto> }) => (
-          <Badge variant={DELIVERY_STATUS_VARIANT[row.original.status]}>
+          <Badge variant={DELIVERY_STATUS_VARIANT[row.original.status]} dot>
             {t(deliveryStatusLabelKey(row.original.status))}
           </Badge>
         ),
@@ -161,10 +164,9 @@ export function DeliveriesTab() {
 
   return (
     <div className="grid gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-sm text-muted-foreground">{t('sales.deliveries.subtitle')}</p>
+      <div className="flex flex-wrap items-center justify-end gap-2">
         <Can permission="sales.manage">
-          <Button size="sm" onClick={() => setCreateOpen(true)}>
+          <Button onClick={() => setCreateOpen(true)}>
             {t('sales.deliveries.newDelivery')}
           </Button>
         </Can>

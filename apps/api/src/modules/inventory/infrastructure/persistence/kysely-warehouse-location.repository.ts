@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import type { Kysely, Selectable } from 'kysely';
+import { sql, type Kysely, type Selectable } from 'kysely';
 import type { WarehouseLocationsTable, TenantDatabase } from '../../../../database/tenant/kysely-client';
 import type { WarehouseLocationRepository } from '../../application/ports/warehouse-location.repository';
 import type {
@@ -62,7 +62,7 @@ export class KyselyWarehouseLocationRepository implements WarehouseLocationRepos
         ...(input.code !== undefined ? { code: input.code } : {}),
         ...(input.name !== undefined ? { name: input.name } : {}),
         ...(input.isActive !== undefined ? { is_active: input.isActive } : {}),
-        updated_at: new Date(),
+        updated_at: sql`now()`,
       })
       .where('id', '=', id)
       .returningAll()

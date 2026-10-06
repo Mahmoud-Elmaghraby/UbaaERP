@@ -46,7 +46,10 @@ export function GoodsReceiptsTab() {
   const cancelReceipt = useCancelGoodsReceipt();
   const deleteReceipt = useDeleteGoodsReceipt();
 
-  const poById = useMemo(() => new Map((purchaseOrders ?? []).map((po) => [po.id, po])), [purchaseOrders]);
+  const poById = useMemo(
+    () => new Map((purchaseOrders ?? []).map((po) => [po.id, po])),
+    [purchaseOrders],
+  );
 
   async function handleTransition(
     mutation: { mutateAsync: (id: string) => Promise<unknown> },
@@ -100,7 +103,7 @@ export function GoodsReceiptsTab() {
         header: t('common.status'),
         accessorFn: (row: GoodsReceiptDto) => row.status,
         cell: ({ row }: { row: Row<GoodsReceiptDto> }) => (
-          <Badge variant={GOODS_RECEIPT_STATUS_VARIANT[row.original.status]}>
+          <Badge variant={GOODS_RECEIPT_STATUS_VARIANT[row.original.status]} dot>
             {t(goodsReceiptStatusLabelKey(row.original.status))}
           </Badge>
         ),
@@ -161,10 +164,9 @@ export function GoodsReceiptsTab() {
 
   return (
     <div className="grid gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-sm text-muted-foreground">{t('purchases.goodsReceipts.subtitle')}</p>
+      <div className="flex flex-wrap items-center justify-end gap-2">
         <Can permission="purchases.manage">
-          <Button size="sm" onClick={() => setCreateOpen(true)}>
+          <Button onClick={() => setCreateOpen(true)}>
             {t('purchases.goodsReceipts.newReceipt')}
           </Button>
         </Can>

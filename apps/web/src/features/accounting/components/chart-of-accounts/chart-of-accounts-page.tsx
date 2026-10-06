@@ -7,7 +7,10 @@ export function ChartOfAccountsPage() {
   const { t } = useTranslation();
   return (
     <div className="grid gap-6">
-      <PageHeader title={t('accounting.tabs.chartOfAccounts')} />
+      <PageHeader
+        title={t('accounting.tabs.chartOfAccounts')}
+        description={t('accounting.chartOfAccounts.subtitle')}
+      />
       <ChartOfAccountsTab />
     </div>
   );

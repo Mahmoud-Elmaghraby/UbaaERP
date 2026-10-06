@@ -7,7 +7,7 @@ export function RfqsPage() {
   const { t } = useTranslation();
   return (
     <div className="grid gap-6">
-      <PageHeader title={t('purchases.tabs.rfqs')} />
+      <PageHeader title={t('purchases.tabs.rfqs')} description={t('purchases.rfqs.subtitle')} />
       <RfqsTab />
     </div>
   );

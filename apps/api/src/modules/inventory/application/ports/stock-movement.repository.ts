@@ -28,6 +28,8 @@ export interface StockMovementRepository {
   /** Inserted inside the same transaction as the StockLevelRepository.upsert() it accompanies. */
   create(db: Kysely<TenantDatabase>, input: CreateStockMovementRow): Promise<StockMovement>;
   /** Sets related_movement_id after both legs of a transfer exist (they reference each other). */
+  /** True when any movement already carries this (reference_type, reference_id) — the document was already applied. */
+  existsForReference(db: Kysely<TenantDatabase>, referenceType: string, referenceId: string): Promise<boolean>;
   linkRelatedMovement(db: Kysely<TenantDatabase>, id: string, relatedMovementId: string): Promise<void>;
 }
 

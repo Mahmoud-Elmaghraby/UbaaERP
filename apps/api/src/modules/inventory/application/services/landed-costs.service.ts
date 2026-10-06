@@ -64,6 +64,12 @@ export class LandedCostsService {
       const movements = await Promise.all(
         input.stockMovementIds.map((id) => this.fetchEligibleMovement(trx, id)),
       );
+      // Revaluing reads and rewrites stock_levels — serialize with every
+      // concurrent stock movement on the same variants (see lockVariants).
+      await this.stockLevels.lockVariants(
+        trx,
+        movements.map((movement) => movement.productVariantId),
+      );
 
       const weights = this.computeWeights(movements, input.allocationMethod);
       const amounts = this.splitAmount(input.totalCost, weights);

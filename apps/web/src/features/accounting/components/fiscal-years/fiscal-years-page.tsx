@@ -7,7 +7,10 @@ export function FiscalYearsPage() {
   const { t } = useTranslation();
   return (
     <div className="grid gap-6">
-      <PageHeader title={t('accounting.tabs.fiscalYears')} />
+      <PageHeader
+        title={t('accounting.tabs.fiscalYears')}
+        description={t('accounting.fiscalYears.subtitle')}
+      />
       <FiscalYearsTab />
     </div>
   );

@@ -7,7 +7,10 @@ export function JournalEntriesPage() {
   const { t } = useTranslation();
   return (
     <div className="grid gap-6">
-      <PageHeader title={t('accounting.tabs.journalEntries')} />
+      <PageHeader
+        title={t('accounting.tabs.journalEntries')}
+        description={t('accounting.journalEntries.subtitle')}
+      />
       <JournalEntriesTab />
     </div>
   );

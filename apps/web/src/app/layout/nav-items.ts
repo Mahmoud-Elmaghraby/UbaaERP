@@ -20,6 +20,9 @@ export interface NavItem {
    * the whole group (item + children): sub-sections don't have their own permission in this
    * MVP, `inventory.manage` covers all of Inventory's sub-sections together. */
   permission?: string;
+  /** Plan feature key (see lib/feature-keys.ts) — hidden when the tenant doesn't have it
+   * or turned it off. UX only; the API enforces it (PlanFeatureGuard). */
+  feature?: string;
   /** Sub-sections rendered as a nested list under this item, expanded whenever the current
    * route is this item's path or a descendant of it (see AppShell). */
   children?: NavItem[];
@@ -48,9 +51,9 @@ export const NAV_GROUPS: NavGroup[] = [
         permission: 'sales.manage',
         children: [
           { to: '/sales/customers', labelKey: 'sales.tabs.customers' },
-          { to: '/sales/quotations', labelKey: 'sales.tabs.quotations' },
-          { to: '/sales/sales-orders', labelKey: 'sales.tabs.salesOrders' },
-          { to: '/sales/deliveries', labelKey: 'sales.tabs.deliveries' },
+          { to: '/sales/quotations', labelKey: 'sales.tabs.quotations', feature: 'sales.quotations' },
+          { to: '/sales/sales-orders', labelKey: 'sales.tabs.salesOrders', feature: 'sales.sales_orders' },
+          { to: '/sales/deliveries', labelKey: 'sales.tabs.deliveries', feature: 'sales.deliveries' },
           { to: '/sales/sales-invoices', labelKey: 'sales.tabs.salesInvoices' },
           { to: '/sales/payments-received', labelKey: 'sales.tabs.paymentsReceived' },
           { to: '/sales/sales-returns', labelKey: 'sales.tabs.salesReturns' },
@@ -66,9 +69,17 @@ export const NAV_GROUPS: NavGroup[] = [
         children: [
           { to: '/purchases/suppliers', labelKey: 'purchases.tabs.suppliers' },
           { to: '/purchases/purchase-requisitions', labelKey: 'purchases.tabs.purchaseRequisitions' },
-          { to: '/purchases/rfqs', labelKey: 'purchases.tabs.rfqs' },
-          { to: '/purchases/purchase-orders', labelKey: 'purchases.tabs.purchaseOrders' },
-          { to: '/purchases/goods-receipts', labelKey: 'purchases.tabs.goodsReceipts' },
+          { to: '/purchases/rfqs', labelKey: 'purchases.tabs.rfqs', feature: 'purchases.rfq' },
+          {
+            to: '/purchases/purchase-orders',
+            labelKey: 'purchases.tabs.purchaseOrders',
+            feature: 'purchases.purchase_orders',
+          },
+          {
+            to: '/purchases/goods-receipts',
+            labelKey: 'purchases.tabs.goodsReceipts',
+            feature: 'purchases.goods_receipts',
+          },
           { to: '/purchases/purchase-returns', labelKey: 'purchases.tabs.purchaseReturns' },
           { to: '/purchases/purchase-invoices', labelKey: 'purchases.tabs.purchaseInvoices' },
         ],
@@ -98,6 +109,7 @@ export const NAV_GROUPS: NavGroup[] = [
         labelKey: 'nav.accounting',
         icon: Calculator,
         permission: 'accounting.manage',
+        feature: 'accounting',
         children: [
           { to: '/accounting/chart-of-accounts', labelKey: 'accounting.tabs.chartOfAccounts' },
           { to: '/accounting/journal-entries', labelKey: 'accounting.tabs.journalEntries' },
@@ -145,7 +157,16 @@ export function getBreadcrumbs(pathname: string): Crumb[] {
     if (pathname === item.to || pathname.startsWith(`${item.to}/`)) {
       const trail: Crumb[] = [home, { to: item.to, labelKey: item.labelKey }];
       const child = item.children?.find((c) => pathname === c.to || pathname.startsWith(`${c.to}/`));
-      if (child) trail.push({ to: child.to, labelKey: child.labelKey });
+      if (child) {
+        trail.push({ to: child.to, labelKey: child.labelKey });
+        // A document page under a list (…/new or …/:id).
+        if (pathname !== child.to) {
+          trail.push({
+            to: pathname,
+            labelKey: pathname.endsWith('/new') ? 'documents.crumbNew' : 'documents.crumbDetails',
+          });
+        }
+      }
       return trail;
     }
   }

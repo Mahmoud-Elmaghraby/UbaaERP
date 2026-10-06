@@ -30,6 +30,17 @@ export interface StockLevelRepository {
       averageCost: Money;
     },
   ): Promise<StockLevel>;
+  /**
+   * Serializes stock changes per product variant for the rest of the
+   * caller's transaction (inventory audit 2026-10, C1). Every movement
+   * reads the current balance, recalculates quantity/average cost and
+   * writes an absolute value back — without this, two concurrent
+   * movements on the same variant lose an update or oversell. Locks are
+   * taken in a stable (sorted) order so multi-line documents can't
+   * deadlock against each other; they're released at commit/rollback.
+   * Must be called on a transaction.
+   */
+  lockVariants(db: Kysely<TenantDatabase>, productVariantIds: readonly string[]): Promise<void>;
   setReorderPoint(db: Kysely<TenantDatabase>, id: string, reorderPoint: number | null): Promise<StockLevel | null>;
 }
 

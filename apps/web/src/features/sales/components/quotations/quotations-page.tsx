@@ -7,7 +7,7 @@ export function QuotationsPage() {
   const { t } = useTranslation();
   return (
     <div className="grid gap-6">
-      <PageHeader title={t('sales.tabs.quotations')} />
+      <PageHeader title={t('sales.tabs.quotations')} description={t('sales.quotations.subtitle')} />
       <QuotationsTab />
     </div>
   );

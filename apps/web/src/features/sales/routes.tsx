@@ -10,6 +10,12 @@ const DeliveriesPage = lazy(() => import('./components/deliveries').then((m) => 
 const SalesInvoicesPage = lazy(() =>
   import('./components/sales-invoices').then((m) => ({ default: m.SalesInvoicesPage })),
 );
+const SalesInvoiceCreatePage = lazy(() =>
+  import('./components/sales-invoices').then((m) => ({ default: m.SalesInvoiceCreatePage })),
+);
+const SalesInvoiceDetailsPage = lazy(() =>
+  import('./components/sales-invoices').then((m) => ({ default: m.SalesInvoiceDetailsPage })),
+);
 const PaymentsReceivedPage = lazy(() =>
   import('./components/payments-received').then((m) => ({ default: m.PaymentsReceivedPage })),
 );
@@ -49,6 +55,8 @@ export const salesRoutes: RouteObject[] = [
       { path: 'sales-orders', element: <SalesOrdersPage /> },
       { path: 'deliveries', element: <DeliveriesPage /> },
       { path: 'sales-invoices', element: <SalesInvoicesPage /> },
+      { path: 'sales-invoices/new', element: <SalesInvoiceCreatePage /> },
+      { path: 'sales-invoices/:id', element: <SalesInvoiceDetailsPage /> },
       { path: 'payments-received', element: <PaymentsReceivedPage /> },
       { path: 'sales-returns', element: <SalesReturnsPage /> },
       { path: 'sales-credit-notes', element: <SalesCreditNotesPage /> },

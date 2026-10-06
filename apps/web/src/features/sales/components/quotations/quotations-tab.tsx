@@ -69,21 +69,41 @@ export function QuotationsTab() {
   }
 
   async function handleSend(id: string) {
-    await handleTransition(sendQuotation, id, 'sales.quotations.sendSuccess', 'sales.quotations.sendError');
+    await handleTransition(
+      sendQuotation,
+      id,
+      'sales.quotations.sendSuccess',
+      'sales.quotations.sendError',
+    );
   }
 
   async function handleAccept(id: string) {
-    await handleTransition(acceptQuotation, id, 'sales.quotations.acceptSuccess', 'sales.quotations.acceptError');
+    await handleTransition(
+      acceptQuotation,
+      id,
+      'sales.quotations.acceptSuccess',
+      'sales.quotations.acceptError',
+    );
   }
 
   async function handleReject(id: string) {
     if (!window.confirm(t('sales.quotations.rejectConfirm'))) return;
-    await handleTransition(rejectQuotation, id, 'sales.quotations.rejectSuccess', 'sales.quotations.rejectError');
+    await handleTransition(
+      rejectQuotation,
+      id,
+      'sales.quotations.rejectSuccess',
+      'sales.quotations.rejectError',
+    );
   }
 
   async function handleCancel(id: string) {
     if (!window.confirm(t('sales.quotations.cancelConfirm'))) return;
-    await handleTransition(cancelQuotation, id, 'sales.quotations.cancelSuccess', 'sales.quotations.cancelError');
+    await handleTransition(
+      cancelQuotation,
+      id,
+      'sales.quotations.cancelSuccess',
+      'sales.quotations.cancelError',
+    );
   }
 
   async function handleDelete(id: string) {
@@ -104,7 +124,7 @@ export function QuotationsTab() {
         header: t('common.status'),
         accessorFn: (row: QuotationDto) => row.status,
         cell: ({ row }: { row: Row<QuotationDto> }) => (
-          <Badge variant={QUOTATION_STATUS_VARIANT[row.original.status]}>
+          <Badge variant={QUOTATION_STATUS_VARIANT[row.original.status]} dot>
             {t(quotationStatusLabelKey(row.original.status))}
           </Badge>
         ),
@@ -180,10 +200,9 @@ export function QuotationsTab() {
 
   return (
     <div className="grid gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-sm text-muted-foreground">{t('sales.quotations.subtitle')}</p>
+      <div className="flex flex-wrap items-center justify-end gap-2">
         <Can permission="sales.manage">
-          <Button size="sm" onClick={() => setCreateOpen(true)}>
+          <Button onClick={() => setCreateOpen(true)}>
             {t('sales.quotations.newQuotation')}
           </Button>
         </Can>
@@ -216,7 +235,9 @@ export function QuotationsTab() {
             <DialogTitle>{t('common.edit')}</DialogTitle>
           </DialogHeader>
           {editingLoading ? <Skeleton className="h-40 w-full" /> : null}
-          {editingQuotation ? <EditQuotationForm quotation={editingQuotation} onDone={() => setEditingId(null)} /> : null}
+          {editingQuotation ? (
+            <EditQuotationForm quotation={editingQuotation} onDone={() => setEditingId(null)} />
+          ) : null}
         </DialogContent>
       </Dialog>
     </div>

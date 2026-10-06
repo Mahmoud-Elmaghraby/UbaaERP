@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import type { Kysely, Selectable } from 'kysely';
+import { sql, type Kysely, type Selectable } from 'kysely';
 import { Money } from '@erp-platform/shared-kernel';
 import type { StockLevelsTable, TenantDatabase } from '../../../../database/tenant/kysely-client';
 import type { StockLevelRepository } from '../../application/ports/stock-level.repository';
@@ -72,12 +72,31 @@ export class KyselyStockLevelRepository implements StockLevelRepository {
           quantity_on_hand: input.quantityOnHand.toString(),
           average_cost_amount: input.averageCost.toMinorUnits().toString(),
           average_cost_currency: input.averageCost.currency,
-          updated_at: new Date(),
+          updated_at: sql`now()`,
         }),
       )
       .returningAll()
       .executeTakeFirstOrThrow();
     return toDomain(row);
+  }
+
+  /**
+   * Transaction-scoped advisory locks (pg_advisory_xact_lock), one per
+   * variant. An advisory lock rather than SELECT … FOR UPDATE because the
+   * stock_levels / stock_lot_levels rows may not exist yet (first receipt
+   * at a location) and because one variant's lot rows span several
+   * tables — the lock covers all of them with one key. Keys are hashed
+   * UUIDs, so collisions between tenants sharing the cluster are
+   * negligible and would only cost a brief extra wait, never correctness.
+   */
+  async lockVariants(db: Kysely<TenantDatabase>, productVariantIds: readonly string[]): Promise<void> {
+    if (!db.isTransaction) {
+      throw new Error('KyselyStockLevelRepository.lockVariants() must be called inside a transaction.');
+    }
+    const ordered = [...new Set(productVariantIds)].sort();
+    for (const id of ordered) {
+      await sql`select pg_advisory_xact_lock(hashtextextended(${`stock:${id}`}, 0))`.execute(db);
+    }
   }
 
   async setReorderPoint(
@@ -87,7 +106,7 @@ export class KyselyStockLevelRepository implements StockLevelRepository {
   ): Promise<StockLevel | null> {
     const row = await db
       .updateTable('stock_levels')
-      .set({ reorder_point: reorderPoint === null ? null : reorderPoint.toString(), updated_at: new Date() })
+      .set({ reorder_point: reorderPoint === null ? null : reorderPoint.toString(), updated_at: sql`now()` })
       .where('id', '=', id)
       .returningAll()
       .executeTakeFirst();

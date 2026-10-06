@@ -8,6 +8,7 @@ import {
 } from '../../application/ports/warehouse-location.repository';
 import { DEFAULT_LOCATION_CODE } from '../../domain/warehouse-location.entity';
 import type { DomainEventPayload } from '../../../../shared/events/domain-event';
+import { withTransaction } from '../../../../database/tenant/transaction.util';
 
 interface PurchaseReturnConfirmedLine {
   productVariantId: string;
@@ -47,14 +48,14 @@ interface PurchaseReturnConfirmedMetadata {
  * is a reasonable future enhancement, not required for this stage's
  * scope (see claude/purchases-module-status.md's Stage 6 write-up).
  *
- * Reliability: same accepted trade-off as GoodsReceiptStockListener —
- * plain Event Bus (EventEmitter2), not Outbox-backed (CLAUDE.md §2.7 is
- * scoped to financial events; a stock decrease isn't one). A failure
- * here is a real correctness gap (the return is confirmed, but stock
- * doesn't decrease), including the ordinary case where a "no negative
- * stock" rejection is expected — the returned goods may have already
- * been sold or moved elsewhere. Logged loudly for manual reconciliation
- * rather than silently swallowed or retried.
+ * Reliability (inventory audit 2026-10, C3/H1): the event now arrives
+ * via the Outbox (PurchaseReturnsService.confirm() writes it in the same
+ * transaction as the status flip), and this handler applies all lines
+ * in one transaction, skips an already-applied return, and rethrows so
+ * the dispatcher retries. A "no negative stock" rejection (the goods were
+ * already sold or moved) therefore ends as a failed outbox row after
+ * MAX_ATTEMPTS — visible, all-or-nothing — instead of a half-applied,
+ * log-only return.
  */
 @Injectable()
 export class PurchaseReturnStockListener {
@@ -83,22 +84,34 @@ export class PurchaseReturnStockListener {
         throw new Error(`Warehouse "${metadata.warehouseId}" has no default location — cannot return stock.`);
       }
 
-      for (const line of metadata.lines) {
-        await this.stockMovements.recordMovement(db, {
-          productVariantId: line.productVariantId,
-          locationId: defaultLocation.id,
-          movementType: 'out',
-          quantity: line.quantity,
-          referenceType: 'purchase_return',
-          referenceId: payload.entityId,
-        });
-      }
+      await withTransaction(db, async (trx) => {
+        await this.stockMovements.lockVariants(
+          trx,
+          metadata.lines.map((line) => line.productVariantId),
+        );
+        if (await this.stockMovements.hasMovementsForReference(trx, 'purchase_return', payload.entityId)) {
+          this.logger.warn(`Purchase return "${payload.entityId}" was already applied to stock — skipping redelivery.`);
+          return;
+        }
+
+        for (const line of metadata.lines) {
+          await this.stockMovements.recordMovement(trx, {
+            productVariantId: line.productVariantId,
+            locationId: defaultLocation.id,
+            movementType: 'out',
+            quantity: line.quantity,
+            referenceType: 'purchase_return',
+            referenceId: payload.entityId,
+          });
+        }
+      });
     } catch (err) {
       this.logger.error(
         `Failed to apply stock movement(s) for purchase return "${payload.entityId}" ` +
           `(tenant schema "${payload.schema}"): ${err instanceof Error ? err.message : String(err)}. ` +
-          'Stock levels may now be out of sync with what was physically returned — needs manual reconciliation.',
+          'Nothing was applied; the outbox will retry.',
       );
+      throw err;
     }
   }
 }

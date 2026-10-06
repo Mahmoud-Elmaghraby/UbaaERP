@@ -1,7 +1,15 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { DeliveryWithLinesDto } from '@erp-platform/contracts';
-import { Badge, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@erp-platform/ui';
+import {
+  Badge,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@erp-platform/ui';
 
 import { useWarehouses } from '../../../inventory/api/warehouses/queries';
 import { useSalesOrders } from '../../api/sales-orders/queries';
@@ -16,8 +24,14 @@ export function DeliveryDetailsView({ delivery }: { delivery: DeliveryWithLinesD
   const { data: warehouses } = useWarehouses();
   const variantIndex = useVariantIndex();
 
-  const soById = useMemo(() => new Map((salesOrders ?? []).map((so) => [so.id, so])), [salesOrders]);
-  const warehouseById = useMemo(() => new Map((warehouses ?? []).map((w) => [w.id, w])), [warehouses]);
+  const soById = useMemo(
+    () => new Map((salesOrders ?? []).map((so) => [so.id, so])),
+    [salesOrders],
+  );
+  const warehouseById = useMemo(
+    () => new Map((warehouses ?? []).map((w) => [w.id, w])),
+    [warehouses],
+  );
 
   return (
     <div className="grid gap-3">
@@ -28,7 +42,7 @@ export function DeliveryDetailsView({ delivery }: { delivery: DeliveryWithLinesD
         </div>
         <div>
           <p className="text-muted-foreground">{t('common.status')}</p>
-          <Badge variant={DELIVERY_STATUS_VARIANT[delivery.status]}>
+          <Badge variant={DELIVERY_STATUS_VARIANT[delivery.status]} dot>
             {t(deliveryStatusLabelKey(delivery.status))}
           </Badge>
         </div>

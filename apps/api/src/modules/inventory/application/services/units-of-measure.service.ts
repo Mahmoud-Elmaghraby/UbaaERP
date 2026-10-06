@@ -8,7 +8,7 @@ import {
   type CreateUnitOfMeasureInput,
   type UpdateUnitOfMeasureInput,
 } from '../../domain/unit-of-measure.entity';
-import { BusinessRuleError, ConflictError, isPostgresUniqueViolation } from '../errors';
+import { BusinessRuleError, ConflictError, isPostgresForeignKeyViolation, isPostgresUniqueViolation } from '../errors';
 import { entityNotFound } from '../../../../shared/errors/entity-errors';
 
 @Injectable()
@@ -89,8 +89,17 @@ export class UnitsOfMeasureService {
   }
 
   async delete(db: Kysely<TenantDatabase>, id: string): Promise<void> {
-    const deleted = await this.repository.delete(db, id);
-    if (!deleted) throw entityNotFound('UNIT_OF_MEASURE', id);
+    try {
+      const deleted = await this.repository.delete(db, id);
+      if (!deleted) throw entityNotFound('UNIT_OF_MEASURE', id);
+    } catch (err) {
+      if (isPostgresForeignKeyViolation(err)) {
+        throw new ConflictError(`Unit of measure "${id}" is used by products or other units and cannot be deleted.`, {
+          code: 'UNIT_OF_MEASURE.IN_USE',
+        });
+      }
+      throw err;
+    }
   }
 
   async convert(db: Kysely<TenantDatabase>, fromUnitId: string, toUnitId: string, quantity: number): Promise<number> {

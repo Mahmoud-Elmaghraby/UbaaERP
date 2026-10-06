@@ -1,15 +1,16 @@
+import type { BadgeProps } from '@erp-platform/ui';
 import type { PurchaseRequisitionStatusDto } from '@erp-platform/contracts';
 
 /** Shared between the list column and the details view so both render the same badge. */
 export const PURCHASE_REQUISITION_STATUS_VARIANT: Record<
   PurchaseRequisitionStatusDto,
-  'default' | 'secondary' | 'destructive' | 'outline'
+  NonNullable<BadgeProps['variant']>
 > = {
-  draft: 'secondary',
-  submitted: 'outline',
-  approved: 'default',
-  rejected: 'destructive',
-  cancelled: 'secondary',
+  draft: 'neutral',
+  submitted: 'info',
+  approved: 'success',
+  rejected: 'danger',
+  cancelled: 'danger',
 };
 
 export function purchaseRequisitionStatusLabelKey(status: PurchaseRequisitionStatusDto): string {

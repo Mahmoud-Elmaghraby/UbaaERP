@@ -32,12 +32,16 @@ async function bootstrap() {
   const { AppModule } = await import('./app.module');
 
   const app = await NestFactory.create(AppModule);
-  // Order matters: Nest tries global filters in the order passed here and
-  // stops at the first whose @Catch() types match. DomainExceptionFilter's
-  // specific domain-error classes are checked first; UnexpectedExceptionFilter
-  // (a bare @Catch()) is the last-resort net for everything else — see its
-  // own header comment for why that used to reach the client unexplained.
-  app.useGlobalFilters(new DomainExceptionFilter(), new UnexpectedExceptionFilter());
+  // Order matters, and it is the REVERSE of what it looks like: Nest
+  // reverses the global filters list (router-exception-filters.js:
+  // `setCustomFilters(filters.reverse())`) and uses the first one whose
+  // @Catch() matches — so the LAST filter passed here is tried FIRST.
+  // The bare @Catch() UnexpectedExceptionFilter must therefore come first
+  // (tried last, the catch-all net) and DomainExceptionFilter last (tried
+  // first). With the opposite order every domain error (invalid login,
+  // not found, business rules…) was swallowed by the catch-all and
+  // returned to the client as a generic 500 instead of its real status.
+  app.useGlobalFilters(new UnexpectedExceptionFilter(), new DomainExceptionFilter());
   // helmet() sets the standard set of security response headers (HSTS,
   // X-Content-Type-Options, X-Frame-Options, a conservative default CSP,
   // etc.) that were previously entirely absent from every response.

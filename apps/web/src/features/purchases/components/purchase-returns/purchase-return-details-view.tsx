@@ -1,19 +1,37 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { PurchaseReturnWithLinesDto } from '@erp-platform/contracts';
-import { Badge, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@erp-platform/ui';
+import {
+  Badge,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@erp-platform/ui';
 
 import { useGoodsReceipts } from '../../api/goods-receipts/queries';
 import { useVariantIndex } from '../../hooks/purchase-returns/use-variant-index';
-import { PURCHASE_RETURN_STATUS_VARIANT, purchaseReturnStatusLabelKey } from './purchase-return-status';
+import {
+  PURCHASE_RETURN_STATUS_VARIANT,
+  purchaseReturnStatusLabelKey,
+} from './purchase-return-status';
 
 /** Read-only header + lines, same shape as every other Purchases entity's details view. */
-export function PurchaseReturnDetailsView({ purchaseReturn }: { purchaseReturn: PurchaseReturnWithLinesDto }) {
+export function PurchaseReturnDetailsView({
+  purchaseReturn,
+}: {
+  purchaseReturn: PurchaseReturnWithLinesDto;
+}) {
   const { t } = useTranslation();
   const { data: goodsReceipts } = useGoodsReceipts();
   const variantIndex = useVariantIndex();
 
-  const receiptById = useMemo(() => new Map((goodsReceipts ?? []).map((r) => [r.id, r])), [goodsReceipts]);
+  const receiptById = useMemo(
+    () => new Map((goodsReceipts ?? []).map((r) => [r.id, r])),
+    [goodsReceipts],
+  );
 
   return (
     <div className="grid gap-3">
@@ -24,13 +42,15 @@ export function PurchaseReturnDetailsView({ purchaseReturn }: { purchaseReturn: 
         </div>
         <div>
           <p className="text-muted-foreground">{t('common.status')}</p>
-          <Badge variant={PURCHASE_RETURN_STATUS_VARIANT[purchaseReturn.status]}>
+          <Badge variant={PURCHASE_RETURN_STATUS_VARIANT[purchaseReturn.status]} dot>
             {t(purchaseReturnStatusLabelKey(purchaseReturn.status))}
           </Badge>
         </div>
         <div>
           <p className="text-muted-foreground">{t('purchases.purchaseReturns.goodsReceipt')}</p>
-          <p className="font-medium">{receiptById.get(purchaseReturn.goodsReceiptId)?.receiptNumber ?? '—'}</p>
+          <p className="font-medium">
+            {receiptById.get(purchaseReturn.goodsReceiptId)?.receiptNumber ?? '—'}
+          </p>
         </div>
         <div>
           <p className="text-muted-foreground">{t('purchases.purchaseReturns.returnDate')}</p>

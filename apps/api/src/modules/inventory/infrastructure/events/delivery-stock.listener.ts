@@ -9,6 +9,7 @@ import {
 } from '../../application/ports/warehouse-location.repository';
 import { DEFAULT_LOCATION_CODE } from '../../domain/warehouse-location.entity';
 import type { DomainEventPayload } from '../../../../shared/events/domain-event';
+import { withTransaction } from '../../../../database/tenant/transaction.util';
 import { OutboxWriterService } from '../../../../shared/outbox/application/services/outbox-writer.service';
 import { moneyToDto } from '../../presentation/money.mapper';
 
@@ -45,12 +46,11 @@ interface DeliveryConfirmedMetadata {
  * given) rather than a caller-chosen lot — same accepted scope
  * boundary as GoodsReceiptStockListener/PurchaseReturnStockListener.
  *
- * Reliability: plain Event Bus (EventEmitter2), not Outbox-backed
- * (CLAUDE.md §2.7 is scoped to financial events; a stock decrease isn't
- * one). A failure here is a real correctness gap (the delivery is
- * confirmed, but stock doesn't decrease) — logged loudly for manual
- * reconciliation rather than silently swallowed or retried, same
- * trade-off as its Purchases-side siblings.
+ * Reliability (inventory audit 2026-10, C3/H1): delivered via the Outbox
+ * (DeliveriesService.confirm()); all lines plus the COGS event commit in
+ * one transaction, an already-applied delivery is skipped, and failures
+ * are rethrown so the dispatcher retries (then leaves a failed outbox row
+ * after MAX_ATTEMPTS) instead of being logged and forgotten.
  */
 @Injectable()
 export class DeliveryStockListener {
@@ -80,14 +80,12 @@ export class DeliveryStockListener {
    * no separate valuation lookup is needed here; the cost is simply read
    * back off the movements this same handler already has to create.
    *
-   * The outer try/catch keeps this listener's existing, accepted
-   * reliability posture for the stock-decrease side (plain Event Bus,
-   * not itself Outbox-backed — CLAUDE.md §2.7 scopes Outbox to
-   * financial events, and 'sales.delivery.confirmed' is now Outbox-
-   * upgraded at its SOURCE — DeliveriesService.confirm() — precisely so
-   * this handler firing at all is reliable; a failure *inside* this
-   * handler is still logged loudly for manual reconciliation rather
-   * than retried, unchanged from before).
+   * Until 2026-10 this handler opened db.transaction() and then called
+   * recordMovement(trx), which itself called trx.transaction() — Kysely
+   * rejects that outright, and the outer try/catch swallowed the error,
+   * so confirmed deliveries never decreased stock nor posted COGS.
+   * recordMovement() now joins the caller's transaction (withTransaction)
+   * and this handler rethrows, so a failure is retried by the outbox.
    */
   @OnEvent('sales.delivery.confirmed')
   async handle(payload: DomainEventPayload): Promise<void> {
@@ -106,7 +104,18 @@ export class DeliveryStockListener {
         throw new Error(`Warehouse "${metadata.warehouseId}" has no default location — cannot ship stock.`);
       }
 
-      await db.transaction().execute(async (trx) => {
+      // withTransaction, not db.transaction(): recordMovement() joins this
+      // same transaction, so all lines AND the cost event commit together.
+      await withTransaction(db, async (trx) => {
+        await this.stockMovements.lockVariants(
+          trx,
+          metadata.lines.map((line) => line.productVariantId),
+        );
+        if (await this.stockMovements.hasMovementsForReference(trx, 'delivery', payload.entityId)) {
+          this.logger.warn(`Delivery "${payload.entityId}" was already applied to stock — skipping redelivery.`);
+          return;
+        }
+
         const movements = [];
         for (const line of metadata.lines) {
           movements.push(
@@ -164,8 +173,9 @@ export class DeliveryStockListener {
       this.logger.error(
         `Failed to apply stock movement(s) for delivery "${payload.entityId}" ` +
           `(tenant schema "${payload.schema}"): ${err instanceof Error ? err.message : String(err)}. ` +
-          'Stock levels may now be out of sync with what was physically shipped — needs manual reconciliation.',
+          'Nothing was applied; the outbox will retry.',
       );
+      throw err;
     }
   }
 }

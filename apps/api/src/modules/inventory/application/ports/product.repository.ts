@@ -9,6 +9,8 @@ export interface ProductRepository {
   create(db: Kysely<TenantDatabase>, input: CreateProductInput): Promise<Product>;
   update(db: Kysely<TenantDatabase>, id: string, input: UpdateProductInput): Promise<Product | null>;
   delete(db: Kysely<TenantDatabase>, id: string): Promise<boolean>;
+  /** True once any of the product's variants has a stock movement — its unit/tracking then become immutable. */
+  hasStockMovements(db: Kysely<TenantDatabase>, productId: string): Promise<boolean>;
 }
 
 export const PRODUCT_REPOSITORY = Symbol('PRODUCT_REPOSITORY');

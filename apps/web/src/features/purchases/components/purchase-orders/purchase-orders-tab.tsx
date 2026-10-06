@@ -30,7 +30,10 @@ import {
 } from '../../api/purchase-orders/queries';
 import { CreatePurchaseOrderTabs, EditPurchaseOrderForm } from './purchase-order-form';
 import { PurchaseOrderDetailsView } from './purchase-order-details-view';
-import { PURCHASE_ORDER_STATUS_VARIANT, purchaseOrderStatusLabelKey } from './purchase-order-status';
+import {
+  PURCHASE_ORDER_STATUS_VARIANT,
+  purchaseOrderStatusLabelKey,
+} from './purchase-order-status';
 import { ApiError } from '../../../../lib/api-client';
 
 export function PurchaseOrdersTab() {
@@ -101,7 +104,7 @@ export function PurchaseOrdersTab() {
         header: t('common.status'),
         accessorFn: (row: PurchaseOrderDto) => row.status,
         cell: ({ row }: { row: Row<PurchaseOrderDto> }) => (
-          <Badge variant={PURCHASE_ORDER_STATUS_VARIANT[row.original.status]}>
+          <Badge variant={PURCHASE_ORDER_STATUS_VARIANT[row.original.status]} dot>
             {t(purchaseOrderStatusLabelKey(row.original.status))}
           </Badge>
         ),
@@ -135,7 +138,9 @@ export function PurchaseOrdersTab() {
                 <Can permission="purchases.manage">
                   <>
                     {order.status === 'draft' ? (
-                      <DropdownMenuItem onSelect={() => setEditingId(order.id)}>{t('common.edit')}</DropdownMenuItem>
+                      <DropdownMenuItem onSelect={() => setEditingId(order.id)}>
+                        {t('common.edit')}
+                      </DropdownMenuItem>
                     ) : null}
                     {order.status === 'draft' ? (
                       <DropdownMenuItem onSelect={() => handleConfirm(order.id)}>
@@ -165,10 +170,9 @@ export function PurchaseOrdersTab() {
 
   return (
     <div className="grid gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-sm text-muted-foreground">{t('purchases.purchaseOrders.subtitle')}</p>
+      <div className="flex flex-wrap items-center justify-end gap-2">
         <Can permission="purchases.manage">
-          <Button size="sm" onClick={() => setCreateOpen(true)}>
+          <Button onClick={() => setCreateOpen(true)}>
             {t('purchases.purchaseOrders.newOrder')}
           </Button>
         </Can>
@@ -201,7 +205,9 @@ export function PurchaseOrdersTab() {
             <DialogTitle>{t('common.edit')}</DialogTitle>
           </DialogHeader>
           {editingLoading ? <Skeleton className="h-40 w-full" /> : null}
-          {editingOrder ? <EditPurchaseOrderForm order={editingOrder} onDone={() => setEditingId(null)} /> : null}
+          {editingOrder ? (
+            <EditPurchaseOrderForm order={editingOrder} onDone={() => setEditingId(null)} />
+          ) : null}
         </DialogContent>
       </Dialog>
     </div>

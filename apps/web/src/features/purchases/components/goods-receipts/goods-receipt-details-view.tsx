@@ -1,7 +1,15 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { GoodsReceiptWithLinesDto } from '@erp-platform/contracts';
-import { Badge, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@erp-platform/ui';
+import {
+  Badge,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@erp-platform/ui';
 
 import { useWarehouses } from '../../../inventory/api/warehouses/queries';
 import { usePurchaseOrders } from '../../api/purchase-orders/queries';
@@ -16,8 +24,14 @@ export function GoodsReceiptDetailsView({ receipt }: { receipt: GoodsReceiptWith
   const { data: warehouses } = useWarehouses();
   const variantIndex = useVariantIndex();
 
-  const poById = useMemo(() => new Map((purchaseOrders ?? []).map((po) => [po.id, po])), [purchaseOrders]);
-  const warehouseById = useMemo(() => new Map((warehouses ?? []).map((w) => [w.id, w])), [warehouses]);
+  const poById = useMemo(
+    () => new Map((purchaseOrders ?? []).map((po) => [po.id, po])),
+    [purchaseOrders],
+  );
+  const warehouseById = useMemo(
+    () => new Map((warehouses ?? []).map((w) => [w.id, w])),
+    [warehouses],
+  );
 
   return (
     <div className="grid gap-3">
@@ -28,7 +42,7 @@ export function GoodsReceiptDetailsView({ receipt }: { receipt: GoodsReceiptWith
         </div>
         <div>
           <p className="text-muted-foreground">{t('common.status')}</p>
-          <Badge variant={GOODS_RECEIPT_STATUS_VARIANT[receipt.status]}>
+          <Badge variant={GOODS_RECEIPT_STATUS_VARIANT[receipt.status]} dot>
             {t(goodsReceiptStatusLabelKey(receipt.status))}
           </Badge>
         </div>
@@ -67,7 +81,9 @@ export function GoodsReceiptDetailsView({ receipt }: { receipt: GoodsReceiptWith
                 {variantIndex.get(line.productVariantId)?.sku ?? '—'})
               </TableCell>
               <TableCell>{line.quantityReceived}</TableCell>
-              <TableCell>{formatMoney(line.unitCost.amountMinorUnits, line.unitCost.currency)}</TableCell>
+              <TableCell>
+                {formatMoney(line.unitCost.amountMinorUnits, line.unitCost.currency)}
+              </TableCell>
               <TableCell>{line.notes ?? '—'}</TableCell>
             </TableRow>
           ))}

@@ -1,7 +1,15 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { QuotationWithLinesDto } from '@erp-platform/contracts';
-import { Badge, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@erp-platform/ui';
+import {
+  Badge,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@erp-platform/ui';
 
 import { useCustomers } from '../../api/customers/queries';
 import { useVariantIndex } from '../../hooks/quotations/use-variant-index';
@@ -28,7 +36,7 @@ export function QuotationDetailsView({ quotation }: { quotation: QuotationWithLi
         </div>
         <div>
           <p className="text-muted-foreground">{t('common.status')}</p>
-          <Badge variant={QUOTATION_STATUS_VARIANT[quotation.status]}>
+          <Badge variant={QUOTATION_STATUS_VARIANT[quotation.status]} dot>
             {t(quotationStatusLabelKey(quotation.status))}
           </Badge>
         </div>
@@ -69,7 +77,9 @@ export function QuotationDetailsView({ quotation }: { quotation: QuotationWithLi
                 {variantIndex.get(line.productVariantId)?.sku ?? '—'})
               </TableCell>
               <TableCell>{line.quantity}</TableCell>
-              <TableCell>{formatMoney(line.unitPrice.amountMinorUnits, line.unitPrice.currency)}</TableCell>
+              <TableCell>
+                {formatMoney(line.unitPrice.amountMinorUnits, line.unitPrice.currency)}
+              </TableCell>
               <TableCell>{line.notes ?? '—'}</TableCell>
             </TableRow>
           ))}

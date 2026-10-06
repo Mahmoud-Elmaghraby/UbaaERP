@@ -64,7 +64,9 @@ export function NumberingTab() {
   const deleteSequence = useDeleteNumberingSequence();
 
   const branchName = (branchId: string | null) =>
-    branchId ? branches?.find((b) => b.id === branchId)?.name ?? branchId : t('settings.numbering.tenantWide');
+    branchId
+      ? (branches?.find((b) => b.id === branchId)?.name ?? branchId)
+      : t('settings.numbering.tenantWide');
 
   async function handleDelete(id: string) {
     if (!window.confirm(t('settings.numbering.deleteConfirm'))) return;
@@ -78,8 +80,7 @@ export function NumberingTab() {
 
   return (
     <div className="grid gap-6">
-      <div className="flex items-center justify-between">
-        <p className="text-sm text-muted-foreground">{t('settings.tabs.numbering')}</p>
+      <div className="flex items-center justify-end">
         <Can permission="settings.manage">
           <Dialog open={createOpen} onOpenChange={setCreateOpen}>
             <DialogTrigger asChild>
@@ -98,55 +99,57 @@ export function NumberingTab() {
       {isLoading ? (
         <Skeleton className="h-40 w-full" />
       ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>{t('settings.numbering.documentType')}</TableHead>
-              <TableHead>{t('settings.numbering.branch')}</TableHead>
-              <TableHead>{t('settings.numbering.prefix')}</TableHead>
-              <TableHead>{t('settings.numbering.nextNumber')}</TableHead>
-              <TableHead>{t('settings.numbering.paddingLength')}</TableHead>
-              <TableHead className="w-10" />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {(sequences ?? []).map((sequence) => (
-              <TableRow key={sequence.id}>
-                <TableCell className="font-medium">{sequence.documentType}</TableCell>
-                <TableCell>{branchName(sequence.branchId)}</TableCell>
-                <TableCell>{sequence.prefix ?? '-'}</TableCell>
-                <TableCell>{sequence.nextNumber}</TableCell>
-                <TableCell>{sequence.paddingLength}</TableCell>
-                <TableCell>
-                  <Can permission="settings.manage">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onSelect={() => setEditing(sequence)}>
-                          {t('common.edit')}
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onSelect={() => handleDelete(sequence.id)}>
-                          {t('common.delete')}
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </Can>
-                </TableCell>
-              </TableRow>
-            ))}
-            {(sequences ?? []).length === 0 ? (
+        <div className="overflow-hidden rounded-xl border bg-card shadow-card">
+          <Table>
+            <TableHeader>
               <TableRow>
-                <TableCell colSpan={6} className="py-8 text-center text-muted-foreground">
-                  {t('common.noResults')}
-                </TableCell>
+                <TableHead>{t('settings.numbering.documentType')}</TableHead>
+                <TableHead>{t('settings.numbering.branch')}</TableHead>
+                <TableHead>{t('settings.numbering.prefix')}</TableHead>
+                <TableHead>{t('settings.numbering.nextNumber')}</TableHead>
+                <TableHead>{t('settings.numbering.paddingLength')}</TableHead>
+                <TableHead className="w-10" />
               </TableRow>
-            ) : null}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {(sequences ?? []).map((sequence) => (
+                <TableRow key={sequence.id}>
+                  <TableCell className="font-medium">{sequence.documentType}</TableCell>
+                  <TableCell>{branchName(sequence.branchId)}</TableCell>
+                  <TableCell>{sequence.prefix ?? '-'}</TableCell>
+                  <TableCell>{sequence.nextNumber}</TableCell>
+                  <TableCell>{sequence.paddingLength}</TableCell>
+                  <TableCell>
+                    <Can permission="settings.manage">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onSelect={() => setEditing(sequence)}>
+                            {t('common.edit')}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onSelect={() => handleDelete(sequence.id)}>
+                            {t('common.delete')}
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </Can>
+                  </TableCell>
+                </TableRow>
+              ))}
+              {(sequences ?? []).length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="py-8 text-center text-muted-foreground">
+                    {t('common.noResults')}
+                  </TableCell>
+                </TableRow>
+              ) : null}
+            </TableBody>
+          </Table>
+        </div>
       )}
 
       <Dialog open={editing !== null} onOpenChange={(open) => !open && setEditing(null)}>
@@ -168,7 +171,13 @@ function CreateSequenceForm({ onDone }: { onDone: () => void }) {
 
   const form = useForm<CreateNumberingSequenceDto>({
     resolver: zodResolver(createNumberingSequenceSchema),
-    defaultValues: { documentType: '', branchId: null, prefix: '', nextNumber: 1, paddingLength: 5 },
+    defaultValues: {
+      documentType: '',
+      branchId: null,
+      prefix: '',
+      nextNumber: 1,
+      paddingLength: 5,
+    },
   });
 
   async function onSubmit(values: CreateNumberingSequenceDto) {

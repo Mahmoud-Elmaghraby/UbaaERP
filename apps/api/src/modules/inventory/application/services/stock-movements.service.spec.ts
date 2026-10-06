@@ -80,6 +80,7 @@ function makeMockStockLevelRepository(): jest.Mocked<StockLevelRepository> {
     findByVariantAndLocation: jest.fn(),
     upsert: jest.fn(),
     setReorderPoint: jest.fn(),
+    lockVariants: jest.fn().mockResolvedValue(undefined),
   };
 }
 
@@ -89,6 +90,7 @@ function makeMockMovementRepository(): jest.Mocked<StockMovementRepository> {
     findById: jest.fn(),
     create: jest.fn(),
     linkRelatedMovement: jest.fn(),
+    existsForReference: jest.fn().mockResolvedValue(false),
   };
 }
 
@@ -142,6 +144,7 @@ function makeMockProductRepository(): jest.Mocked<ProductRepository> {
     create: jest.fn(),
     update: jest.fn(),
     delete: jest.fn(),
+    hasStockMovements: jest.fn(),
   };
 }
 
@@ -166,6 +169,7 @@ function makeMockStockLotRepository(): jest.Mocked<StockLotRepository> {
     listAvailableForFifo: jest.fn(),
     createConsumption: jest.fn(),
     listConsumptionsByMovementId: jest.fn(),
+    totalQuantityOnHand: jest.fn().mockResolvedValue(0),
   };
 }
 

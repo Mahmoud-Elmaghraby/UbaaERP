@@ -45,3 +45,15 @@ export function useHasFeature(featureKey: string): boolean {
   const { features, disabledFeatures } = React.useContext(FeaturesContext);
   return features.includes(featureKey) && !disabledFeatures.includes(featureKey);
 }
+
+/**
+ * Same check as useHasFeature, as a function — for filtering lists (menus, search
+ * results) where calling a hook per item isn't possible.
+ */
+export function useFeatureChecker(): (featureKey: string) => boolean {
+  const { features, disabledFeatures } = React.useContext(FeaturesContext);
+  return React.useCallback(
+    (featureKey: string) => features.includes(featureKey) && !disabledFeatures.includes(featureKey),
+    [features, disabledFeatures],
+  );
+}

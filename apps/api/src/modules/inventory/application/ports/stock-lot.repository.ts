@@ -26,6 +26,8 @@ export interface StockLotRepository {
   listByVariantId(db: Kysely<TenantDatabase>, productVariantId: string): Promise<StockLotWithLevels[]>;
   createLot(db: Kysely<TenantDatabase>, input: CreateStockLotInput): Promise<StockLot>;
 
+  /** Quantity of this lot on hand across every location (0 when it has no level rows). */
+  totalQuantityOnHand(db: Kysely<TenantDatabase>, stockLotId: string): Promise<number>;
   findLevel(db: Kysely<TenantDatabase>, stockLotId: string, locationId: string): Promise<StockLotLevel | null>;
   /** Creates the (lot, location) row on first use, or updates its quantity — always inside the movement's own transaction. */
   upsertLevel(

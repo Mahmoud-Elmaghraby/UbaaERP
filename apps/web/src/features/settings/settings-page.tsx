@@ -13,7 +13,7 @@ export function SettingsPage() {
 
   return (
     <div className="grid gap-6">
-      <PageHeader title={t('settings.title')} />
+      <PageHeader title={t('settings.title')} description={t('settings.pageDescription')} />
 
       <Tabs defaultValue="branches">
         <TabsList>

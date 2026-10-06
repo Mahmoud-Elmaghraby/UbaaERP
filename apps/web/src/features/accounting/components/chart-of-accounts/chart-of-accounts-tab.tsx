@@ -68,7 +68,9 @@ export function ChartOfAccountsTab() {
       await deleteAccount.mutateAsync(account.id);
       toast.success(t('accounting.chartOfAccounts.deleteSuccess'));
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : t('accounting.chartOfAccounts.deleteError'));
+      toast.error(
+        err instanceof ApiError ? err.message : t('accounting.chartOfAccounts.deleteError'),
+      );
     }
   }
 
@@ -88,7 +90,11 @@ export function ChartOfAccountsTab() {
               className="text-muted-foreground"
               aria-label={isExpanded ? t('common.collapse') : t('common.expand')}
             >
-              {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+              {isExpanded ? (
+                <ChevronDown className="h-4 w-4" />
+              ) : (
+                <ChevronRight className="h-4 w-4" />
+              )}
             </button>
           ) : (
             <span className="w-4" />
@@ -101,7 +107,9 @@ export function ChartOfAccountsTab() {
           {!account.isActive ? (
             <Badge variant="secondary">{t('accounting.chartOfAccounts.inactive')}</Badge>
           ) : null}
-          <Badge variant="outline">{t(`accounting.chartOfAccounts.accountTypeValue.${account.accountType}`)}</Badge>
+          <Badge variant="outline">
+            {t(`accounting.chartOfAccounts.accountTypeValue.${account.accountType}`)}
+          </Badge>
           <div className="flex-1" />
           <Can permission="accounting.manage">
             <DropdownMenu>
@@ -137,8 +145,7 @@ export function ChartOfAccountsTab() {
 
   return (
     <div className="grid gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-sm text-muted-foreground">{t('accounting.chartOfAccounts.subtitle')}</p>
+      <div className="flex flex-wrap items-center justify-end gap-2">
         <Can permission="accounting.manage">
           <Button size="sm" onClick={() => setCreateParentId(null)}>
             {t('accounting.chartOfAccounts.newAccount')}
@@ -158,7 +165,10 @@ export function ChartOfAccountsTab() {
         </div>
       )}
 
-      <Dialog open={createParentId !== undefined} onOpenChange={(open) => !open && setCreateParentId(undefined)}>
+      <Dialog
+        open={createParentId !== undefined}
+        onOpenChange={(open) => !open && setCreateParentId(undefined)}
+      >
         <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>{t('accounting.chartOfAccounts.newAccount')}</DialogTitle>
@@ -172,13 +182,19 @@ export function ChartOfAccountsTab() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={editingAccount !== null} onOpenChange={(open) => !open && setEditingAccount(null)}>
+      <Dialog
+        open={editingAccount !== null}
+        onOpenChange={(open) => !open && setEditingAccount(null)}
+      >
         <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>{t('common.edit')}</DialogTitle>
           </DialogHeader>
           {editingAccount ? (
-            <EditChartOfAccountForm account={editingAccount} onDone={() => setEditingAccount(null)} />
+            <EditChartOfAccountForm
+              account={editingAccount}
+              onDone={() => setEditingAccount(null)}
+            />
           ) : null}
         </DialogContent>
       </Dialog>

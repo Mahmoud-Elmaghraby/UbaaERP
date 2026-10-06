@@ -30,7 +30,9 @@ export function AuditLogsPage() {
 
       <div className="flex flex-wrap items-end gap-3">
         <div className="grid gap-1.5">
-          <label className="text-xs text-muted-foreground">{t('auditLogs.filters.entityType')}</label>
+          <label className="text-xs text-muted-foreground">
+            {t('auditLogs.filters.entityType')}
+          </label>
           <Input
             value={draft.entityType ?? ''}
             onChange={(e) => setDraft((prev) => ({ ...prev, entityType: e.target.value }))}
@@ -69,37 +71,43 @@ export function AuditLogsPage() {
       {isLoading ? (
         <Skeleton className="h-40 w-full" />
       ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>{t('auditLogs.date')}</TableHead>
-              <TableHead>{t('auditLogs.action')}</TableHead>
-              <TableHead>{t('auditLogs.entityType')}</TableHead>
-              <TableHead>{t('auditLogs.entityId')}</TableHead>
-              <TableHead>{t('auditLogs.user')}</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {(logs ?? []).map((log) => (
-              <TableRow key={log.id}>
-                <TableCell className="text-sm text-muted-foreground">
-                  {new Date(log.createdAt).toLocaleString('ar-EG')}
-                </TableCell>
-                <TableCell>{log.action}</TableCell>
-                <TableCell>{log.entityType}</TableCell>
-                <TableCell className="text-xs text-muted-foreground">{log.entityId ?? '-'}</TableCell>
-                <TableCell className="text-xs text-muted-foreground">{log.userId ?? '-'}</TableCell>
-              </TableRow>
-            ))}
-            {(logs ?? []).length === 0 ? (
+        <div className="overflow-hidden rounded-xl border bg-card shadow-card">
+          <Table>
+            <TableHeader>
               <TableRow>
-                <TableCell colSpan={5} className="py-8 text-center text-muted-foreground">
-                  {t('common.noResults')}
-                </TableCell>
+                <TableHead>{t('auditLogs.date')}</TableHead>
+                <TableHead>{t('auditLogs.action')}</TableHead>
+                <TableHead>{t('auditLogs.entityType')}</TableHead>
+                <TableHead>{t('auditLogs.entityId')}</TableHead>
+                <TableHead>{t('auditLogs.user')}</TableHead>
               </TableRow>
-            ) : null}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {(logs ?? []).map((log) => (
+                <TableRow key={log.id}>
+                  <TableCell className="text-sm text-muted-foreground">
+                    {new Date(log.createdAt).toLocaleString('ar-EG')}
+                  </TableCell>
+                  <TableCell>{log.action}</TableCell>
+                  <TableCell>{log.entityType}</TableCell>
+                  <TableCell className="text-xs text-muted-foreground">
+                    {log.entityId ?? '-'}
+                  </TableCell>
+                  <TableCell className="text-xs text-muted-foreground">
+                    {log.userId ?? '-'}
+                  </TableCell>
+                </TableRow>
+              ))}
+              {(logs ?? []).length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="py-8 text-center text-muted-foreground">
+                    {t('common.noResults')}
+                  </TableCell>
+                </TableRow>
+              ) : null}
+            </TableBody>
+          </Table>
+        </div>
       )}
     </div>
   );

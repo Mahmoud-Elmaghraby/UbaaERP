@@ -7,7 +7,10 @@ export function BankAccountsPage() {
   const { t } = useTranslation();
   return (
     <div className="grid gap-6">
-      <PageHeader title={t('accounting.tabs.bankAccounts')} />
+      <PageHeader
+        title={t('accounting.tabs.bankAccounts')}
+        description={t('accounting.bankAccounts.subtitle')}
+      />
       <BankAccountsTab />
     </div>
   );

@@ -31,7 +31,10 @@ import {
 import { CreatePaymentReceivedForm } from './payment-received-form';
 import { AllocatePaymentReceivedForm } from './payment-received-allocate-form';
 import { PaymentReceivedDetailsView } from './payment-received-details-view';
-import { PAYMENT_RECEIVED_STATUS_VARIANT, paymentReceivedStatusLabelKey } from './payment-received-status';
+import {
+  PAYMENT_RECEIVED_STATUS_VARIANT,
+  paymentReceivedStatusLabelKey,
+} from './payment-received-status';
 import { formatMoney } from '../../../../lib/money';
 import { ApiError } from '../../../../lib/api-client';
 
@@ -44,7 +47,8 @@ export function PaymentsReceivedTab() {
   const [allocatingId, setAllocatingId] = useState<string | null>(null);
 
   const { data: viewingPayment, isLoading: viewingLoading } = usePaymentReceived(viewingId);
-  const { data: allocatingPayment, isLoading: allocatingLoading } = usePaymentReceived(allocatingId);
+  const { data: allocatingPayment, isLoading: allocatingLoading } =
+    usePaymentReceived(allocatingId);
 
   const postPayment = usePostPaymentReceived();
   const cancelPayment = useCancelPaymentReceived();
@@ -104,7 +108,7 @@ export function PaymentsReceivedTab() {
         header: t('common.status'),
         accessorFn: (row: PaymentReceivedDto) => row.status,
         cell: ({ row }: { row: Row<PaymentReceivedDto> }) => (
-          <Badge variant={PAYMENT_RECEIVED_STATUS_VARIANT[row.original.status]}>
+          <Badge variant={PAYMENT_RECEIVED_STATUS_VARIANT[row.original.status]} dot>
             {t(paymentReceivedStatusLabelKey(row.original.status))}
           </Badge>
         ),
@@ -117,7 +121,8 @@ export function PaymentsReceivedTab() {
       {
         id: 'amount',
         header: t('sales.paymentsReceived.amount'),
-        accessorFn: (row: PaymentReceivedDto) => formatMoney(row.amount.amountMinorUnits, row.amount.currency),
+        accessorFn: (row: PaymentReceivedDto) =>
+          formatMoney(row.amount.amountMinorUnits, row.amount.currency),
       },
       {
         id: 'actions',
@@ -170,10 +175,9 @@ export function PaymentsReceivedTab() {
 
   return (
     <div className="grid gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-sm text-muted-foreground">{t('sales.paymentsReceived.subtitle')}</p>
+      <div className="flex flex-wrap items-center justify-end gap-2">
         <Can permission="sales.manage">
-          <Button size="sm" onClick={() => setCreateOpen(true)}>
+          <Button onClick={() => setCreateOpen(true)}>
             {t('sales.paymentsReceived.newPayment')}
           </Button>
         </Can>
@@ -207,7 +211,10 @@ export function PaymentsReceivedTab() {
           </DialogHeader>
           {allocatingLoading ? <Skeleton className="h-40 w-full" /> : null}
           {allocatingPayment ? (
-            <AllocatePaymentReceivedForm payment={allocatingPayment} onDone={() => setAllocatingId(null)} />
+            <AllocatePaymentReceivedForm
+              payment={allocatingPayment}
+              onDone={() => setAllocatingId(null)}
+            />
           ) : null}
         </DialogContent>
       </Dialog>

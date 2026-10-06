@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import type { Kysely, Selectable } from 'kysely';
+import { sql, type Kysely, type Selectable } from 'kysely';
 import type { ProductsTable, TenantDatabase } from '../../../../database/tenant/kysely-client';
 import type { ProductRepository } from '../../application/ports/product.repository';
 import type {
@@ -75,7 +75,7 @@ export class KyselyProductRepository implements ProductRepository {
         ...(input.attributes !== undefined ? { attributes: JSON.stringify(input.attributes) } : {}),
         ...(input.isActive !== undefined ? { is_active: input.isActive } : {}),
         ...(input.customFields !== undefined ? { custom_fields: JSON.stringify(input.customFields) } : {}),
-        updated_at: new Date(),
+        updated_at: sql`now()`,
       })
       .where('id', '=', id)
       .returningAll()
@@ -86,5 +86,16 @@ export class KyselyProductRepository implements ProductRepository {
   async delete(db: Kysely<TenantDatabase>, id: string): Promise<boolean> {
     const result = await db.deleteFrom('products').where('id', '=', id).executeTakeFirst();
     return result.numDeletedRows > 0n;
+  }
+
+  async hasStockMovements(db: Kysely<TenantDatabase>, productId: string): Promise<boolean> {
+    const row = await db
+      .selectFrom('stock_movements')
+      .innerJoin('product_variants', 'product_variants.id', 'stock_movements.product_variant_id')
+      .select('stock_movements.id')
+      .where('product_variants.product_id', '=', productId)
+      .limit(1)
+      .executeTakeFirst();
+    return row !== undefined;
   }
 }

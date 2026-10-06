@@ -80,6 +80,11 @@ export const AR_MESSAGES: Record<string, string> = {
   'WAREHOUSE.DUPLICATE_CODE': 'يوجد مستودع آخر بنفس الرمز "{value}" بالفعل.',
   'WAREHOUSE_LOCATION.DUPLICATE_CODE_IN_WAREHOUSE':
     'يوجد موقع تخزين آخر بنفس الرمز "{code}" داخل هذا المستودع بالفعل.',
+  'PRODUCT.IN_USE': 'لا يمكن حذف المنتج لوجود حركات مخزون أو مستندات مرتبطة به — يمكنك إيقافه بدلًا من حذفه.',
+  'PRODUCT.UNIT_LOCKED_BY_STOCK': 'لا يمكن تغيير وحدة القياس لمنتج له حركات مخزون مسجلة.',
+  'PRODUCT.TRACKING_LOCKED_BY_STOCK': 'لا يمكن تغيير نوع التتبع (دفعات/أرقام تسلسلية) لمنتج له حركات مخزون مسجلة.',
+  'UNIT_OF_MEASURE.IN_USE': 'لا يمكن حذف وحدة القياس لأنها مستخدمة في منتجات أو وحدات أخرى.',
+  'WAREHOUSE.IN_USE': 'لا يمكن حذف المستودع لوجود مخزون أو مستندات مرتبطة به.',
   'WAREHOUSE_LOCATION.HAS_STOCK': 'لا يمكن حذف موقع تخزين يحتوي على مخزون مسجل.',
   'UNIT_OF_MEASURE.DUPLICATE_NAME': 'توجد وحدة قياس أخرى بنفس الاسم "{name}" بالفعل.',
   'UNIT_OF_MEASURE.CANNOT_BE_OWN_BASE_UNIT': 'لا يمكن أن تكون وحدة القياس هي الوحدة الأساسية لنفسها.',
@@ -114,6 +119,8 @@ export const AR_MESSAGES: Record<string, string> = {
   'STOCK_MOVEMENT.SERIAL_RECEIVE_QTY_MUST_BE_ONE':
     'المنتجات ذات التتبع بالرقم التسلسلي يجب استلامها بكمية واحدة فقط (=1) لكل رقم تسلسلي.',
   'STOCK_MOVEMENT.TRACKING_LABEL_REQUIRED': 'هذا المنتج يخضع للتتبع، ويجب إدخال {trackingLabel}.',
+  'STOCK_MOVEMENT.UNIT_COST_NEGATIVE': 'لا يمكن أن تكون تكلفة الوحدة في حركة المخزون بالسالب.',
+  'STOCK_MOVEMENT.SERIAL_ALREADY_IN_STOCK': 'الرقم التسلسلي "{serialNumber}" موجود بالفعل في المخزون.',
   'STOCK_MOVEMENT.INSUFFICIENT_STOCK':
     'المخزون غير كافٍ: الكمية المطلوبة {requested}، والمتاح في هذا الموقع {available} فقط.',
   'STOCK_MOVEMENT.SERIAL_ISSUE_QTY_MUST_BE_ONE':

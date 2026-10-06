@@ -35,7 +35,7 @@ export function PosSessionReportDialog({ session }: { session: PosSessionDto }) 
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             {t(session.status === 'closed' ? 'pos.report.titleZ' : 'pos.report.titleX')}
-            <Badge variant={session.status === 'closed' ? 'secondary' : 'default'}>
+            <Badge variant={session.status === 'closed' ? 'neutral' : 'success'} dot>
               {t(session.status === 'closed' ? 'pos.session.closed' : 'pos.session.open')}
             </Badge>
           </DialogTitle>
@@ -53,21 +53,30 @@ export function PosSessionReportDialog({ session }: { session: PosSessionDto }) 
               <div>
                 <p className="text-muted-foreground">{t('pos.report.totalSalesAmount')}</p>
                 <p className="font-medium">
-                  {formatMoney(report.totalSalesAmount.amountMinorUnits, report.totalSalesAmount.currency)}
+                  {formatMoney(
+                    report.totalSalesAmount.amountMinorUnits,
+                    report.totalSalesAmount.currency,
+                  )}
                 </p>
               </div>
             </div>
 
             <Separator />
-            <p className="font-medium text-muted-foreground">{t('pos.report.tendersByMethodTitle')}</p>
+            <p className="font-medium text-muted-foreground">
+              {t('pos.report.tendersByMethodTitle')}
+            </p>
             {report.tendersByMethod.length === 0 ? (
               <p className="text-muted-foreground">{t('pos.report.noTenders')}</p>
             ) : (
               <div className="grid gap-1">
                 {report.tendersByMethod.map((tender) => (
                   <div key={tender.paymentMethod} className="flex justify-between">
-                    <span>{t(`sales.paymentsReceived.paymentMethodValue.${tender.paymentMethod}`)}</span>
-                    <span>{formatMoney(tender.amount.amountMinorUnits, tender.amount.currency)}</span>
+                    <span>
+                      {t(`sales.paymentsReceived.paymentMethodValue.${tender.paymentMethod}`)}
+                    </span>
+                    <span>
+                      {formatMoney(tender.amount.amountMinorUnits, tender.amount.currency)}
+                    </span>
                   </div>
                 ))}
               </div>
@@ -79,20 +88,29 @@ export function PosSessionReportDialog({ session }: { session: PosSessionDto }) 
               <div>
                 <p className="text-muted-foreground">{t('pos.openSession.openingCashAmount')}</p>
                 <p className="font-medium">
-                  {formatMoney(session.openingCashAmount.amountMinorUnits, session.openingCashAmount.currency)}
+                  {formatMoney(
+                    session.openingCashAmount.amountMinorUnits,
+                    session.openingCashAmount.currency,
+                  )}
                 </p>
               </div>
               <div>
                 <p className="text-muted-foreground">{t('pos.closeSession.expectedCashAmount')}</p>
                 <p className="font-medium">
-                  {formatMoney(report.expectedCashAmount.amountMinorUnits, report.expectedCashAmount.currency)}
+                  {formatMoney(
+                    report.expectedCashAmount.amountMinorUnits,
+                    report.expectedCashAmount.currency,
+                  )}
                 </p>
               </div>
               {report.countedCashAmount ? (
                 <div>
                   <p className="text-muted-foreground">{t('pos.closeSession.countedCashAmount')}</p>
                   <p className="font-medium">
-                    {formatMoney(report.countedCashAmount.amountMinorUnits, report.countedCashAmount.currency)}
+                    {formatMoney(
+                      report.countedCashAmount.amountMinorUnits,
+                      report.countedCashAmount.currency,
+                    )}
                   </p>
                 </div>
               ) : null}
@@ -100,7 +118,10 @@ export function PosSessionReportDialog({ session }: { session: PosSessionDto }) 
                 <div>
                   <p className="text-muted-foreground">{t('pos.closeSession.varianceAmount')}</p>
                   <p className="font-medium">
-                    {formatMoney(report.varianceAmount.amountMinorUnits, report.varianceAmount.currency)}
+                    {formatMoney(
+                      report.varianceAmount.amountMinorUnits,
+                      report.varianceAmount.currency,
+                    )}
                   </p>
                 </div>
               ) : null}
@@ -109,7 +130,8 @@ export function PosSessionReportDialog({ session }: { session: PosSessionDto }) 
             <Separator />
             <div className="flex items-center justify-between">
               <p className="text-xs text-muted-foreground">
-                {t('pos.report.generatedAt')}: {new Date(report.generatedAt).toLocaleString('ar-EG')}
+                {t('pos.report.generatedAt')}:{' '}
+                {new Date(report.generatedAt).toLocaleString('ar-EG')}
               </p>
               <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching}>
                 {t('pos.report.refresh')}

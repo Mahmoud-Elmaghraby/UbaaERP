@@ -1,7 +1,15 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { JournalEntryWithLinesDto } from '@erp-platform/contracts';
-import { Badge, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@erp-platform/ui';
+import {
+  Badge,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@erp-platform/ui';
 
 import { useChartOfAccounts } from '../../api/chart-of-accounts/queries';
 import { useCostCenters } from '../../api/cost-centers/queries';
@@ -19,7 +27,10 @@ export function JournalEntryDetailsView({ entry }: { entry: JournalEntryWithLine
   const { data: costCenters } = useCostCenters();
 
   const accountById = useMemo(() => new Map((accounts ?? []).map((a) => [a.id, a])), [accounts]);
-  const costCenterById = useMemo(() => new Map((costCenters ?? []).map((c) => [c.id, c])), [costCenters]);
+  const costCenterById = useMemo(
+    () => new Map((costCenters ?? []).map((c) => [c.id, c])),
+    [costCenters],
+  );
 
   return (
     <div className="grid gap-3">
@@ -30,7 +41,7 @@ export function JournalEntryDetailsView({ entry }: { entry: JournalEntryWithLine
         </div>
         <div>
           <p className="text-muted-foreground">{t('common.status')}</p>
-          <Badge variant={JOURNAL_ENTRY_STATUS_VARIANT[entry.status]}>
+          <Badge variant={JOURNAL_ENTRY_STATUS_VARIANT[entry.status]} dot>
             {t(journalEntryStatusLabelKey(entry.status))}
           </Badge>
         </div>
@@ -42,7 +53,9 @@ export function JournalEntryDetailsView({ entry }: { entry: JournalEntryWithLine
           <p className="text-muted-foreground">{t('accounting.journalEntries.source')}</p>
           <p className="font-medium">
             {t(`accounting.journalEntries.sourceValue.${entry.source}`)}
-            {entry.source === 'auto' && entry.sourceReferenceType ? ` (${entry.sourceReferenceType})` : ''}
+            {entry.source === 'auto' && entry.sourceReferenceType
+              ? ` (${entry.sourceReferenceType})`
+              : ''}
           </p>
         </div>
         {entry.reversalOfEntryId ? (
@@ -75,7 +88,8 @@ export function JournalEntryDetailsView({ entry }: { entry: JournalEntryWithLine
           {entry.lines.map((line) => (
             <TableRow key={line.id}>
               <TableCell>
-                {accountById.get(line.accountId)?.code ?? '—'} — {accountById.get(line.accountId)?.name ?? '—'}
+                {accountById.get(line.accountId)?.code ?? '—'} —{' '}
+                {accountById.get(line.accountId)?.name ?? '—'}
               </TableCell>
               <TableCell>
                 {line.debitAmount.amountMinorUnits !== '0'

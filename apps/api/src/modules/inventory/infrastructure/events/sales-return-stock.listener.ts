@@ -10,6 +10,7 @@ import {
 } from '../../application/ports/warehouse-location.repository';
 import { DEFAULT_LOCATION_CODE } from '../../domain/warehouse-location.entity';
 import type { DomainEventPayload } from '../../../../shared/events/domain-event';
+import { withTransaction } from '../../../../database/tenant/transaction.util';
 import { OutboxWriterService } from '../../../../shared/outbox/application/services/outbox-writer.service';
 import { moneyToDto } from '../../presentation/money.mapper';
 
@@ -54,10 +55,10 @@ interface SalesReturnConfirmedMetadata {
  * every other Inventory-internal caller uses — no import of anything
  * from the sales module, only the event payload shape is the contract.
  *
- * Reliability: same accepted trade-off as its Purchases-side sibling —
- * plain Event Bus (EventEmitter2), not Outbox-backed (a stock increase
- * isn't a financial event under CLAUDE.md §2.7). Logged loudly via
- * Logger.error for manual reconciliation rather than silently swallowed.
+ * Reliability (inventory audit 2026-10, C3/H1): delivered via the Outbox
+ * (SalesReturnsService.confirm()); same all-or-nothing, idempotent,
+ * rethrow-to-retry handling as DeliveryStockListener — see that class's
+ * comment, including the nested-transaction bug this fixed.
  */
 @Injectable()
 export class SalesReturnStockListener {
@@ -97,7 +98,18 @@ export class SalesReturnStockListener {
         throw new Error(`Warehouse "${metadata.warehouseId}" has no default location — cannot return stock.`);
       }
 
-      await db.transaction().execute(async (trx) => {
+      // withTransaction, not db.transaction(): recordMovement() joins this
+      // same transaction, so all lines AND the cost event commit together.
+      await withTransaction(db, async (trx) => {
+        await this.stockMovements.lockVariants(
+          trx,
+          metadata.lines.map((line) => line.productVariantId),
+        );
+        if (await this.stockMovements.hasMovementsForReference(trx, 'sales_return', payload.entityId)) {
+          this.logger.warn(`Sales return "${payload.entityId}" was already applied to stock — skipping redelivery.`);
+          return;
+        }
+
         const movements = [];
         for (const line of metadata.lines) {
           const stockLevel = await this.stockLevels.findByVariantAndLocation(
@@ -168,8 +180,9 @@ export class SalesReturnStockListener {
       this.logger.error(
         `Failed to apply stock movement(s) for sales return "${payload.entityId}" ` +
           `(tenant schema "${payload.schema}"): ${err instanceof Error ? err.message : String(err)}. ` +
-          'Stock levels may now be out of sync with what was physically returned — needs manual reconciliation.',
+          'Nothing was applied; the outbox will retry.',
       );
+      throw err;
     }
   }
 }

@@ -42,8 +42,6 @@ export function StockTab() {
 
   return (
     <div className="grid gap-4">
-      <p className="text-sm text-muted-foreground">{t('inventory.stock.subtitle')}</p>
-
       <div className="grid gap-4 rounded-md border p-4">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <ProductVariantSelector
@@ -67,7 +65,9 @@ export function StockTab() {
         </div>
         <Can permission="inventory.manage">
           <div className="flex flex-wrap gap-2">
-            <Button onClick={() => setMovementOpen(true)}>{t('inventory.stock.recordMovement')}</Button>
+            <Button onClick={() => setMovementOpen(true)}>
+              {t('inventory.stock.recordMovement')}
+            </Button>
             <Button variant="outline" onClick={() => setTransferOpen(true)}>
               {t('inventory.stock.transfer')}
             </Button>

@@ -46,7 +46,10 @@ export function SalesReturnsTab() {
   const cancelReturn = useCancelSalesReturn();
   const deleteReturn = useDeleteSalesReturn();
 
-  const deliveryById = useMemo(() => new Map((deliveries ?? []).map((d) => [d.id, d])), [deliveries]);
+  const deliveryById = useMemo(
+    () => new Map((deliveries ?? []).map((d) => [d.id, d])),
+    [deliveries],
+  );
 
   async function handleTransition(
     mutation: { mutateAsync: (id: string) => Promise<unknown> },
@@ -104,7 +107,7 @@ export function SalesReturnsTab() {
         header: t('common.status'),
         accessorFn: (row: SalesReturnDto) => row.status,
         cell: ({ row }: { row: Row<SalesReturnDto> }) => (
-          <Badge variant={SALES_RETURN_STATUS_VARIANT[row.original.status]}>
+          <Badge variant={SALES_RETURN_STATUS_VARIANT[row.original.status]} dot>
             {t(salesReturnStatusLabelKey(row.original.status))}
           </Badge>
         ),
@@ -112,7 +115,8 @@ export function SalesReturnsTab() {
       {
         id: 'delivery',
         header: t('sales.salesReturns.delivery'),
-        accessorFn: (row: SalesReturnDto) => deliveryById.get(row.deliveryId)?.deliveryNumber ?? '—',
+        accessorFn: (row: SalesReturnDto) =>
+          deliveryById.get(row.deliveryId)?.deliveryNumber ?? '—',
       },
       {
         id: 'returnDate',
@@ -165,10 +169,9 @@ export function SalesReturnsTab() {
 
   return (
     <div className="grid gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-sm text-muted-foreground">{t('sales.salesReturns.subtitle')}</p>
+      <div className="flex flex-wrap items-center justify-end gap-2">
         <Can permission="sales.manage">
-          <Button size="sm" onClick={() => setCreateOpen(true)}>
+          <Button onClick={() => setCreateOpen(true)}>
             {t('sales.salesReturns.newReturn')}
           </Button>
         </Can>

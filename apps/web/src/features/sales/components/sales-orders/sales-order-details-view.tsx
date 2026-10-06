@@ -1,7 +1,15 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { SalesOrderWithLinesDto } from '@erp-platform/contracts';
-import { Badge, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@erp-platform/ui';
+import {
+  Badge,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@erp-platform/ui';
 
 import { AttachmentsPanel } from '../../../attachments/components/attachments-panel';
 import { useCustomers } from '../../api/customers/queries';
@@ -19,7 +27,10 @@ function formatDiscountLabel(source: {
     return `${source.discountPercentage}%`;
   }
   if (source.discountType === 'fixed' && source.discountFixedAmount) {
-    return formatMoney(source.discountFixedAmount.amountMinorUnits, source.discountFixedAmount.currency);
+    return formatMoney(
+      source.discountFixedAmount.amountMinorUnits,
+      source.discountFixedAmount.currency,
+    );
   }
   return null;
 }
@@ -44,7 +55,7 @@ export function SalesOrderDetailsView({ order }: { order: SalesOrderWithLinesDto
         </div>
         <div>
           <p className="text-muted-foreground">{t('common.status')}</p>
-          <Badge variant={SALES_ORDER_STATUS_VARIANT[order.status]}>
+          <Badge variant={SALES_ORDER_STATUS_VARIANT[order.status]} dot>
             {t(salesOrderStatusLabelKey(order.status))}
           </Badge>
         </div>
@@ -54,15 +65,21 @@ export function SalesOrderDetailsView({ order }: { order: SalesOrderWithLinesDto
         </div>
         <div>
           <p className="text-muted-foreground">{t('sales.salesOrders.subtotalAmount')}</p>
-          <p className="font-medium">{formatMoney(order.subtotalAmount.amountMinorUnits, order.subtotalAmount.currency)}</p>
+          <p className="font-medium">
+            {formatMoney(order.subtotalAmount.amountMinorUnits, order.subtotalAmount.currency)}
+          </p>
         </div>
         <div>
           <p className="text-muted-foreground">{t('sales.salesOrders.discountSectionTitle')}</p>
-          <p className="font-medium">{formatDiscountLabel(order) ?? t('sales.salesOrders.discountTypeNone')}</p>
+          <p className="font-medium">
+            {formatDiscountLabel(order) ?? t('sales.salesOrders.discountTypeNone')}
+          </p>
         </div>
         <div>
           <p className="text-muted-foreground">{t('sales.salesOrders.totalAmount')}</p>
-          <p className="font-medium">{formatMoney(order.totalAmount.amountMinorUnits, order.totalAmount.currency)}</p>
+          <p className="font-medium">
+            {formatMoney(order.totalAmount.amountMinorUnits, order.totalAmount.currency)}
+          </p>
         </div>
         <div className="col-span-2 sm:col-span-3">
           <p className="text-muted-foreground">{t('sales.salesOrders.notes')}</p>
@@ -88,7 +105,9 @@ export function SalesOrderDetailsView({ order }: { order: SalesOrderWithLinesDto
                 {variantIndex.get(line.productVariantId)?.sku ?? '—'})
               </TableCell>
               <TableCell>{line.quantity}</TableCell>
-              <TableCell>{formatMoney(line.unitPrice.amountMinorUnits, line.unitPrice.currency)}</TableCell>
+              <TableCell>
+                {formatMoney(line.unitPrice.amountMinorUnits, line.unitPrice.currency)}
+              </TableCell>
               <TableCell>{formatDiscountLabel(line) ?? '—'}</TableCell>
               <TableCell>{line.notes ?? '—'}</TableCell>
             </TableRow>

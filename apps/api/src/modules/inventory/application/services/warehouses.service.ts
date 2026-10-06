@@ -83,8 +83,17 @@ export class WarehousesService {
   }
 
   async delete(db: Kysely<TenantDatabase>, id: string): Promise<void> {
-    const deleted = await this.repository.delete(db, id);
-    if (!deleted) throw entityNotFound('WAREHOUSE', id);
+    try {
+      const deleted = await this.repository.delete(db, id);
+      if (!deleted) throw entityNotFound('WAREHOUSE', id);
+    } catch (err) {
+      if (isPostgresForeignKeyViolation(err)) {
+        throw new ConflictError(`Warehouse "${id}" has stock or documents recorded against it and cannot be deleted.`, {
+          code: 'WAREHOUSE.IN_USE',
+        });
+      }
+      throw err;
+    }
   }
 
   listLocations(db: Kysely<TenantDatabase>, warehouseId: string): Promise<WarehouseLocation[]> {

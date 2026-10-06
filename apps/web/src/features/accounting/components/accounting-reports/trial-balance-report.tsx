@@ -42,8 +42,10 @@ export function TrialBalanceReport() {
 
       {report ? (
         <div className="grid gap-2">
-          <Badge variant={report.isBalanced ? 'default' : 'destructive'} className="justify-self-start">
-            {report.isBalanced ? t('accounting.reports.balanced') : t('accounting.reports.unbalanced')}
+          <Badge variant={report.isBalanced ? 'success' : 'danger'} className="justify-self-start">
+            {report.isBalanced
+              ? t('accounting.reports.balanced')
+              : t('accounting.reports.unbalanced')}
           </Badge>
           <Table>
             <TableHeader>
@@ -61,10 +63,18 @@ export function TrialBalanceReport() {
                 <TableRow key={row.accountId}>
                   <TableCell>{row.accountCode}</TableCell>
                   <TableCell>{row.accountName}</TableCell>
-                  <TableCell>{t(`accounting.chartOfAccounts.accountTypeValue.${row.accountType}`)}</TableCell>
-                  <TableCell>{formatMoney(row.totalDebit.amountMinorUnits, row.totalDebit.currency)}</TableCell>
-                  <TableCell>{formatMoney(row.totalCredit.amountMinorUnits, row.totalCredit.currency)}</TableCell>
-                  <TableCell>{formatMoney(row.balance.amountMinorUnits, row.balance.currency)}</TableCell>
+                  <TableCell>
+                    {t(`accounting.chartOfAccounts.accountTypeValue.${row.accountType}`)}
+                  </TableCell>
+                  <TableCell>
+                    {formatMoney(row.totalDebit.amountMinorUnits, row.totalDebit.currency)}
+                  </TableCell>
+                  <TableCell>
+                    {formatMoney(row.totalCredit.amountMinorUnits, row.totalCredit.currency)}
+                  </TableCell>
+                  <TableCell>
+                    {formatMoney(row.balance.amountMinorUnits, row.balance.currency)}
+                  </TableCell>
                 </TableRow>
               ))}
               {report.rows.length === 0 ? (
@@ -78,8 +88,12 @@ export function TrialBalanceReport() {
             <TableFooter>
               <TableRow>
                 <TableCell colSpan={3}>{t('accounting.reports.total')}</TableCell>
-                <TableCell>{formatMoney(report.totalDebit.amountMinorUnits, report.totalDebit.currency)}</TableCell>
-                <TableCell>{formatMoney(report.totalCredit.amountMinorUnits, report.totalCredit.currency)}</TableCell>
+                <TableCell>
+                  {formatMoney(report.totalDebit.amountMinorUnits, report.totalDebit.currency)}
+                </TableCell>
+                <TableCell>
+                  {formatMoney(report.totalCredit.amountMinorUnits, report.totalCredit.currency)}
+                </TableCell>
                 <TableCell />
               </TableRow>
             </TableFooter>

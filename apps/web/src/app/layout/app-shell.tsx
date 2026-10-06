@@ -90,7 +90,11 @@ export function AppShell() {
 
       {/* Mobile drawer */}
       {mobileNavOpen ? (
-        <div className="fixed inset-0 z-40 bg-foreground/40 md:hidden" onClick={() => setMobileNavOpen(false)} aria-hidden="true" />
+        <div
+          className="fixed inset-0 z-40 bg-foreground/40 md:hidden"
+          onClick={() => setMobileNavOpen(false)}
+          aria-hidden="true"
+        />
       ) : null}
       <aside
         className={cn(

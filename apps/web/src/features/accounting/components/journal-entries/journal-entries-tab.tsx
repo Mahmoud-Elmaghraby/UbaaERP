@@ -39,7 +39,12 @@ import { JournalEntryDetailsView } from './journal-entry-details-view';
 import { ReverseJournalEntryForm } from './journal-entry-reverse-form';
 import { JOURNAL_ENTRY_STATUS_VARIANT, journalEntryStatusLabelKey } from './journal-entry-status';
 
-const STATUS_FILTERS: Array<JournalEntryStatus | '__all__'> = ['__all__', 'draft', 'posted', 'cancelled'];
+const STATUS_FILTERS: Array<JournalEntryStatus | '__all__'> = [
+  '__all__',
+  'draft',
+  'posted',
+  'cancelled',
+];
 
 export function JournalEntriesTab() {
   const { t } = useTranslation();
@@ -78,7 +83,9 @@ export function JournalEntriesTab() {
       await cancelEntry.mutateAsync(id);
       toast.success(t('accounting.journalEntries.cancelSuccess'));
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : t('accounting.journalEntries.cancelError'));
+      toast.error(
+        err instanceof ApiError ? err.message : t('accounting.journalEntries.cancelError'),
+      );
     }
   }
 
@@ -88,7 +95,9 @@ export function JournalEntriesTab() {
       await deleteEntry.mutateAsync(id);
       toast.success(t('accounting.journalEntries.deleteSuccess'));
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : t('accounting.journalEntries.deleteError'));
+      toast.error(
+        err instanceof ApiError ? err.message : t('accounting.journalEntries.deleteError'),
+      );
     }
   }
 
@@ -101,7 +110,7 @@ export function JournalEntriesTab() {
         header: t('common.status'),
         accessorFn: (row: JournalEntryDto) => row.status,
         cell: ({ row }: { row: Row<JournalEntryDto> }) => (
-          <Badge variant={JOURNAL_ENTRY_STATUS_VARIANT[row.original.status]}>
+          <Badge variant={JOURNAL_ENTRY_STATUS_VARIANT[row.original.status]} dot>
             {t(journalEntryStatusLabelKey(row.original.status))}
           </Badge>
         ),
@@ -109,7 +118,8 @@ export function JournalEntriesTab() {
       {
         id: 'source',
         header: t('accounting.journalEntries.source'),
-        accessorFn: (row: JournalEntryDto) => t(`accounting.journalEntries.sourceValue.${row.source}`),
+        accessorFn: (row: JournalEntryDto) =>
+          t(`accounting.journalEntries.sourceValue.${row.source}`),
       },
       { accessorKey: 'description', header: t('accounting.journalEntries.description') },
       {
@@ -168,17 +178,19 @@ export function JournalEntriesTab() {
 
   return (
     <div className="grid gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-sm text-muted-foreground">{t('accounting.journalEntries.subtitle')}</p>
+      <div className="flex flex-wrap items-center justify-end gap-2">
         <Can permission="accounting.manage">
-          <Button size="sm" onClick={() => setCreateOpen(true)}>
+          <Button onClick={() => setCreateOpen(true)}>
             {t('accounting.journalEntries.newEntry')}
           </Button>
         </Can>
       </div>
 
       <div className="w-48">
-        <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as JournalEntryStatus | '__all__')}>
+        <Select
+          value={statusFilter}
+          onValueChange={(v) => setStatusFilter(v as JournalEntryStatus | '__all__')}
+        >
           <SelectTrigger>
             <SelectValue />
           </SelectTrigger>

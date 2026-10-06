@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import type { Kysely, Selectable } from 'kysely';
+import { sql, type Kysely, type Selectable } from 'kysely';
 import type { ProductVariantsTable, TenantDatabase } from '../../../../database/tenant/kysely-client';
 import type { ProductVariantRepository } from '../../application/ports/product-variant.repository';
 import type {
@@ -65,7 +65,7 @@ export class KyselyProductVariantRepository implements ProductVariantRepository 
         ...(input.attributeValues !== undefined ? { attribute_values: JSON.stringify(input.attributeValues) } : {}),
         ...(input.barcode !== undefined ? { barcode: input.barcode } : {}),
         ...(input.isActive !== undefined ? { is_active: input.isActive } : {}),
-        updated_at: new Date(),
+        updated_at: sql`now()`,
       })
       .where('id', '=', id)
       .returningAll()

@@ -61,7 +61,7 @@ export function SuppliersTab() {
         header: t('common.status'),
         accessorFn: (row: SupplierDto) => row.isActive,
         cell: ({ row }: { row: Row<SupplierDto> }) => (
-          <Badge variant={row.original.isActive ? 'default' : 'secondary'}>
+          <Badge variant={row.original.isActive ? 'success' : 'neutral'} dot>
             {row.original.isActive ? t('common.active') : t('common.inactive')}
           </Badge>
         ),
@@ -78,7 +78,9 @@ export function SuppliersTab() {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem onSelect={() => setEditing(row.original)}>{t('common.edit')}</DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => setEditing(row.original)}>
+                  {t('common.edit')}
+                </DropdownMenuItem>
                 <DropdownMenuItem onSelect={() => handleDelete(row.original.id)}>
                   {t('common.delete')}
                 </DropdownMenuItem>
@@ -93,8 +95,6 @@ export function SuppliersTab() {
 
   return (
     <div className="grid gap-4">
-      <p className="text-sm text-muted-foreground">{t('purchases.suppliers.subtitle')}</p>
-
       <DataTable
         columns={columns}
         data={suppliers ?? []}
@@ -104,7 +104,7 @@ export function SuppliersTab() {
             <Can permission="purchases.manage">
               <Dialog open={createOpen} onOpenChange={setCreateOpen}>
                 <DialogTrigger asChild>
-                  <Button size="sm">{t('purchases.suppliers.newSupplier')}</Button>
+                  <Button>{t('purchases.suppliers.newSupplier')}</Button>
                 </DialogTrigger>
                 <DialogContent className="max-h-[85vh] overflow-y-auto">
                   <DialogHeader>

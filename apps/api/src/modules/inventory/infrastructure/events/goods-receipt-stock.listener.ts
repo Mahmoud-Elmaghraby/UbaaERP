@@ -9,6 +9,7 @@ import {
 } from '../../application/ports/warehouse-location.repository';
 import { DEFAULT_LOCATION_CODE } from '../../domain/warehouse-location.entity';
 import type { DomainEventPayload } from '../../../../shared/events/domain-event';
+import { withTransaction } from '../../../../database/tenant/transaction.util';
 
 interface GoodsReceiptConfirmedLine {
   productVariantId: string;
@@ -36,25 +37,19 @@ interface GoodsReceiptConfirmedMetadata {
  * StockMovementsService's weighted-average costing picks it up — a
  * goods receipt is a real incoming cost, same as any other 'in' movement.
  *
- * Reliability, a deliberate scope decision (flagged for the user, not
- * silently assumed): this stays on the plain Event Bus (EventEmitter2),
- * the same trade-off already accepted for InventoryAuditListener — see
- * that listener's and domain-event.ts's class comments. CLAUDE.md §2.7's
- * Outbox Pattern requirement is scoped to *financial* events (the
- * examples given are sale/purchase invoice posting, i.e. events
- * Accounting must never miss); a goods receipt's stock effect is an
- * inventory-quantity concern, not a ledger posting, so Outbox is
- * reserved for Stage 7 (Purchase Invoices) as already documented.
- * Unlike the audit listener though, a failure here IS a real correctness
- * gap (physical stock received but stock_levels not updated) — so it's
- * logged loudly (Logger.error) rather than silently swallowed, and each
- * line's movement is independently transactional (StockMovementsService
- * .recordMovement() wraps each call in its own DB transaction), so a
- * failure partway through only leaves the remaining lines un-applied,
- * not a corrupted partial movement. No retry and no reconciliation job
- * exist yet; revisit if this gap proves to matter in practice (a
- * dead-letter/retry mechanism, or promoting this specific event to the
- * Outbox pattern, are both reasonable future options).
+ * Reliability (inventory audit 2026-10, C3/H1): the event arrives via the
+ * Outbox (GoodsReceiptsService.confirm() writes it in the same
+ * transaction as the status flip), and OutboxDispatcherService retries
+ * whenever a listener throws. So this handler:
+ *  - applies every line in ONE transaction (all or nothing — never a
+ *    half-received document),
+ *  - pre-locks the document's variants in a stable order (no deadlock
+ *    against another document sharing products),
+ *  - skips a receipt whose movements already exist (a redelivery after
+ *    another listener on the same event failed must not double the stock),
+ *  - rethrows after logging, so a failure is retried and, after
+ *    MAX_ATTEMPTS, left visible as a failed outbox row — never silently
+ *    swallowed.
  */
 @Injectable()
 export class GoodsReceiptStockListener {
@@ -83,23 +78,35 @@ export class GoodsReceiptStockListener {
         throw new Error(`Warehouse "${metadata.warehouseId}" has no default location — cannot receive stock.`);
       }
 
-      for (const line of metadata.lines) {
-        await this.stockMovements.recordMovement(db, {
-          productVariantId: line.productVariantId,
-          locationId: defaultLocation.id,
-          movementType: 'in',
-          quantity: line.quantity,
-          unitCost: Money.fromMinorUnits(BigInt(line.unitCost.amountMinorUnits), line.unitCost.currency),
-          referenceType: 'goods_receipt',
-          referenceId: payload.entityId,
-        });
-      }
+      await withTransaction(db, async (trx) => {
+        await this.stockMovements.lockVariants(
+          trx,
+          metadata.lines.map((line) => line.productVariantId),
+        );
+        if (await this.stockMovements.hasMovementsForReference(trx, 'goods_receipt', payload.entityId)) {
+          this.logger.warn(`Goods receipt "${payload.entityId}" was already applied to stock — skipping redelivery.`);
+          return;
+        }
+
+        for (const line of metadata.lines) {
+          await this.stockMovements.recordMovement(trx, {
+            productVariantId: line.productVariantId,
+            locationId: defaultLocation.id,
+            movementType: 'in',
+            quantity: line.quantity,
+            unitCost: Money.fromMinorUnits(BigInt(line.unitCost.amountMinorUnits), line.unitCost.currency),
+            referenceType: 'goods_receipt',
+            referenceId: payload.entityId,
+          });
+        }
+      });
     } catch (err) {
       this.logger.error(
         `Failed to apply stock movement(s) for goods receipt "${payload.entityId}" ` +
           `(tenant schema "${payload.schema}"): ${err instanceof Error ? err.message : String(err)}. ` +
-          'Stock levels may now be out of sync with what was physically received — needs manual reconciliation.',
+          'Nothing was applied; the outbox will retry.',
       );
+      throw err;
     }
   }
 }

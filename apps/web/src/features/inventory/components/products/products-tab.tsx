@@ -63,11 +63,15 @@ export function ProductsTab() {
         cell: ({ row }: { row: Row<ProductDto> }) => {
           const type = row.original.trackingType;
           if (type === 'none') {
-            return <span className="text-muted-foreground">{t('inventory.products.trackingNone')}</span>;
+            return (
+              <span className="text-muted-foreground">{t('inventory.products.trackingNone')}</span>
+            );
           }
           return (
             <Badge variant="secondary">
-              {type === 'lot' ? t('inventory.products.trackingLot') : t('inventory.products.trackingSerial')}
+              {type === 'lot'
+                ? t('inventory.products.trackingLot')
+                : t('inventory.products.trackingSerial')}
             </Badge>
           );
         },
@@ -77,7 +81,7 @@ export function ProductsTab() {
         header: t('inventory.products.variants'),
         accessorFn: (row: ProductDto) => row.trackVariants,
         cell: ({ row }: { row: Row<ProductDto> }) => (
-          <Badge variant={row.original.trackVariants ? 'default' : 'secondary'}>
+          <Badge variant={row.original.trackVariants ? 'brand' : 'neutral'}>
             {row.original.trackVariants ? t('common.yes') : t('common.no')}
           </Badge>
         ),
@@ -87,7 +91,7 @@ export function ProductsTab() {
         header: t('common.status'),
         accessorFn: (row: ProductDto) => row.isActive,
         cell: ({ row }: { row: Row<ProductDto> }) => (
-          <Badge variant={row.original.isActive ? 'default' : 'secondary'}>
+          <Badge variant={row.original.isActive ? 'success' : 'neutral'} dot>
             {row.original.isActive ? t('common.active') : t('common.inactive')}
           </Badge>
         ),
@@ -107,7 +111,9 @@ export function ProductsTab() {
                 <DropdownMenuItem onSelect={() => setManagingVariantsFor(row.original)}>
                   {t('inventory.products.manageVariants')}
                 </DropdownMenuItem>
-                <DropdownMenuItem onSelect={() => setEditing(row.original)}>{t('common.edit')}</DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => setEditing(row.original)}>
+                  {t('common.edit')}
+                </DropdownMenuItem>
                 <DropdownMenuItem onSelect={() => handleDelete(row.original.id)}>
                   {t('common.delete')}
                 </DropdownMenuItem>
@@ -122,8 +128,6 @@ export function ProductsTab() {
 
   return (
     <div className="grid gap-4">
-      <p className="text-sm text-muted-foreground">{t('inventory.products.subtitle')}</p>
-
       <DataTable
         columns={columns}
         data={products ?? []}
@@ -133,7 +137,7 @@ export function ProductsTab() {
             <Can permission="inventory.manage">
               <Dialog open={createOpen} onOpenChange={setCreateOpen}>
                 <DialogTrigger asChild>
-                  <Button size="sm">{t('inventory.products.newProduct')}</Button>
+                  <Button>{t('inventory.products.newProduct')}</Button>
                 </DialogTrigger>
                 <DialogContent className="max-h-[85vh] overflow-y-auto">
                   <DialogHeader>
@@ -156,7 +160,10 @@ export function ProductsTab() {
         </DialogContent>
       </Dialog>
 
-      <ProductVariantsDialog product={managingVariantsFor} onClose={() => setManagingVariantsFor(null)} />
+      <ProductVariantsDialog
+        product={managingVariantsFor}
+        onClose={() => setManagingVariantsFor(null)}
+      />
     </div>
   );
 }

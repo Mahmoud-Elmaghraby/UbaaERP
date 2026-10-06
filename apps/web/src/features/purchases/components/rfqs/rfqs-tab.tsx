@@ -21,13 +21,7 @@ import {
 } from '@erp-platform/ui';
 
 import { usePurchaseRequisitions } from '../../api/purchase-requisitions/queries';
-import {
-  useCancelRfq,
-  useDeleteRfq,
-  useRfq,
-  useRfqs,
-  useSendRfq,
-} from '../../api/rfqs/queries';
+import { useCancelRfq, useDeleteRfq, useRfq, useRfqs, useSendRfq } from '../../api/rfqs/queries';
 import { CreateRfqForm, EditRfqForm } from './rfq-form';
 import { RfqDetailsView } from './rfq-details-view';
 import { RFQ_STATUS_VARIANT, rfqStatusLabelKey } from './rfq-status';
@@ -48,7 +42,10 @@ export function RfqsTab() {
   const cancelRfq = useCancelRfq();
   const deleteRfq = useDeleteRfq();
 
-  const requisitionById = useMemo(() => new Map((requisitions ?? []).map((r) => [r.id, r])), [requisitions]);
+  const requisitionById = useMemo(
+    () => new Map((requisitions ?? []).map((r) => [r.id, r])),
+    [requisitions],
+  );
 
   async function handleSend(id: string) {
     try {
@@ -87,7 +84,7 @@ export function RfqsTab() {
         header: t('common.status'),
         accessorFn: (row: RfqDto) => row.status,
         cell: ({ row }: { row: Row<RfqDto> }) => (
-          <Badge variant={RFQ_STATUS_VARIANT[row.original.status]}>
+          <Badge variant={RFQ_STATUS_VARIANT[row.original.status]} dot>
             {t(rfqStatusLabelKey(row.original.status))}
           </Badge>
         ),
@@ -97,7 +94,7 @@ export function RfqsTab() {
         header: t('purchases.rfqs.sourceRequisition'),
         accessorFn: (row: RfqDto) =>
           row.sourceRequisitionId
-            ? requisitionById.get(row.sourceRequisitionId)?.requisitionNumber ?? '—'
+            ? (requisitionById.get(row.sourceRequisitionId)?.requisitionNumber ?? '—')
             : t('purchases.rfqs.noSourceRequisition'),
       },
       {
@@ -156,10 +153,9 @@ export function RfqsTab() {
 
   return (
     <div className="grid gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-sm text-muted-foreground">{t('purchases.rfqs.subtitle')}</p>
+      <div className="flex flex-wrap items-center justify-end gap-2">
         <Can permission="purchases.manage">
-          <Button size="sm" onClick={() => setCreateOpen(true)}>
+          <Button onClick={() => setCreateOpen(true)}>
             {t('purchases.rfqs.newRfq')}
           </Button>
         </Can>

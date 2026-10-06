@@ -52,7 +52,9 @@ export function BankAccountRegisterView({ bankAccountId }: { bankAccountId: stri
         await reconcileLine.mutateAsync({ bankAccountId, lineId });
       }
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : t('accounting.bankAccounts.reconcileError'));
+      toast.error(
+        err instanceof ApiError ? err.message : t('accounting.bankAccounts.reconcileError'),
+      );
     }
   }
 
@@ -80,7 +82,10 @@ export function BankAccountRegisterView({ bankAccountId }: { bankAccountId: stri
         <div className="grid gap-3">
           <p className="text-sm font-medium">
             {t('accounting.reports.openingBalance')}:{' '}
-            {formatMoney(register.openingBalance.amountMinorUnits, register.openingBalance.currency)}
+            {formatMoney(
+              register.openingBalance.amountMinorUnits,
+              register.openingBalance.currency,
+            )}
           </p>
           <Table>
             <TableHeader>
@@ -112,10 +117,13 @@ export function BankAccountRegisterView({ bankAccountId }: { bankAccountId: stri
                       : '—'}
                   </TableCell>
                   <TableCell>
-                    {formatMoney(line.runningBalance.amountMinorUnits, line.runningBalance.currency)}
+                    {formatMoney(
+                      line.runningBalance.amountMinorUnits,
+                      line.runningBalance.currency,
+                    )}
                   </TableCell>
                   <TableCell>
-                    <Badge variant={line.isReconciled ? 'default' : 'secondary'}>
+                    <Badge variant={line.isReconciled ? 'success' : 'neutral'} dot>
                       {t(
                         line.isReconciled
                           ? 'accounting.bankAccounts.reconciled'
@@ -152,7 +160,10 @@ export function BankAccountRegisterView({ bankAccountId }: { bankAccountId: stri
           </Table>
           <p className="text-sm font-medium">
             {t('accounting.reports.closingBalance')}:{' '}
-            {formatMoney(register.closingBalance.amountMinorUnits, register.closingBalance.currency)}
+            {formatMoney(
+              register.closingBalance.amountMinorUnits,
+              register.closingBalance.currency,
+            )}
           </p>
         </div>
       ) : null}

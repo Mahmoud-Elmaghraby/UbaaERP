@@ -7,7 +7,10 @@ export function UnitsOfMeasurePage() {
   const { t } = useTranslation();
   return (
     <div className="grid gap-6">
-      <PageHeader title={t('inventory.tabs.unitsOfMeasure')} />
+      <PageHeader
+        title={t('inventory.tabs.unitsOfMeasure')}
+        description={t('inventory.unitsOfMeasure.subtitle')}
+      />
       <UnitsOfMeasureTab />
     </div>
   );

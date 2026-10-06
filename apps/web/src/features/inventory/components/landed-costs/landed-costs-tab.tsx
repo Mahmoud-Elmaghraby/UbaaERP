@@ -34,7 +34,8 @@ export function LandedCostsTab() {
       {
         id: 'totalCost',
         header: t('inventory.landedCosts.totalCost'),
-        cell: ({ row }: { row: Row<LandedCostDto> }) => formatMoney(row.original.totalCost.amountMinorUnits, row.original.totalCost.currency),
+        cell: ({ row }: { row: Row<LandedCostDto> }) =>
+          formatMoney(row.original.totalCost.amountMinorUnits, row.original.totalCost.currency),
       },
       {
         id: 'allocationMethod',
@@ -55,7 +56,8 @@ export function LandedCostsTab() {
       {
         id: 'reference',
         header: t('inventory.landedCosts.reference'),
-        accessorFn: (row: LandedCostDto) => (row.referenceType ? `${row.referenceType} ${row.referenceId ?? ''}`.trim() : '—'),
+        accessorFn: (row: LandedCostDto) =>
+          row.referenceType ? `${row.referenceType} ${row.referenceId ?? ''}`.trim() : '—',
       },
       {
         id: 'notes',
@@ -77,8 +79,7 @@ export function LandedCostsTab() {
 
   return (
     <div className="grid gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-sm text-muted-foreground">{t('inventory.landedCosts.subtitle')}</p>
+      <div className="flex flex-wrap items-center justify-end gap-2">
         <Can permission="inventory.manage">
           <Button onClick={() => setApplyOpen(true)}>{t('inventory.landedCosts.apply')}</Button>
         </Can>

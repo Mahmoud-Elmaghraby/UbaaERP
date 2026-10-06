@@ -69,8 +69,7 @@ export function TemplatesTab() {
 
   return (
     <div className="grid gap-6">
-      <div className="flex items-center justify-between">
-        <p className="text-sm text-muted-foreground">{t('settings.tabs.templates')}</p>
+      <div className="flex items-center justify-end">
         <Can permission="settings.manage">
           <Dialog open={createOpen} onOpenChange={setCreateOpen}>
             <DialogTrigger asChild>
@@ -89,57 +88,59 @@ export function TemplatesTab() {
       {isLoading ? (
         <Skeleton className="h-40 w-full" />
       ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>{t('settings.templates.documentType')}</TableHead>
-              <TableHead>{t('settings.templates.name')}</TableHead>
-              <TableHead>{t('settings.templates.isDefault')}</TableHead>
-              <TableHead className="w-10" />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {(templates ?? []).map((template) => (
-              <TableRow key={template.id}>
-                <TableCell className="font-medium">{template.documentType}</TableCell>
-                <TableCell>{template.name}</TableCell>
-                <TableCell>
-                  {template.isDefault ? (
-                    <Badge>{t('settings.templates.defaultBadge')}</Badge>
-                  ) : (
-                    '-'
-                  )}
-                </TableCell>
-                <TableCell>
-                  <Can permission="settings.manage">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onSelect={() => setEditing(template)}>
-                          {t('common.edit')}
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onSelect={() => handleDelete(template.id)}>
-                          {t('common.delete')}
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </Can>
-                </TableCell>
-              </TableRow>
-            ))}
-            {(templates ?? []).length === 0 ? (
+        <div className="overflow-hidden rounded-xl border bg-card shadow-card">
+          <Table>
+            <TableHeader>
               <TableRow>
-                <TableCell colSpan={4} className="py-8 text-center text-muted-foreground">
-                  {t('common.noResults')}
-                </TableCell>
+                <TableHead>{t('settings.templates.documentType')}</TableHead>
+                <TableHead>{t('settings.templates.name')}</TableHead>
+                <TableHead>{t('settings.templates.isDefault')}</TableHead>
+                <TableHead className="w-10" />
               </TableRow>
-            ) : null}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {(templates ?? []).map((template) => (
+                <TableRow key={template.id}>
+                  <TableCell className="font-medium">{template.documentType}</TableCell>
+                  <TableCell>{template.name}</TableCell>
+                  <TableCell>
+                    {template.isDefault ? (
+                      <Badge>{t('settings.templates.defaultBadge')}</Badge>
+                    ) : (
+                      '-'
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <Can permission="settings.manage">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onSelect={() => setEditing(template)}>
+                            {t('common.edit')}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onSelect={() => handleDelete(template.id)}>
+                            {t('common.delete')}
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </Can>
+                  </TableCell>
+                </TableRow>
+              ))}
+              {(templates ?? []).length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={4} className="py-8 text-center text-muted-foreground">
+                    {t('common.noResults')}
+                  </TableCell>
+                </TableRow>
+              ) : null}
+            </TableBody>
+          </Table>
+        </div>
       )}
 
       <Dialog open={editing !== null} onOpenChange={(open) => !open && setEditing(null)}>
@@ -248,7 +249,11 @@ function EditTemplateForm({
 
   const form = useForm<UpdateDocumentTemplateDto>({
     resolver: zodResolver(updateDocumentTemplateSchema),
-    defaultValues: { name: template.name, content: template.content, isDefault: template.isDefault },
+    defaultValues: {
+      name: template.name,
+      content: template.content,
+      isDefault: template.isDefault,
+    },
   });
 
   async function onSubmit(values: UpdateDocumentTemplateDto) {

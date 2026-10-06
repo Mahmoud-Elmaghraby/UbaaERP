@@ -18,6 +18,12 @@ const PurchaseReturnsPage = lazy(() =>
 const PurchaseInvoicesPage = lazy(() =>
   import('./components/purchase-invoices').then((m) => ({ default: m.PurchaseInvoicesPage })),
 );
+const PurchaseInvoiceCreatePage = lazy(() =>
+  import('./components/purchase-invoices').then((m) => ({ default: m.PurchaseInvoiceCreatePage })),
+);
+const PurchaseInvoiceDetailsPage = lazy(() =>
+  import('./components/purchase-invoices').then((m) => ({ default: m.PurchaseInvoiceDetailsPage })),
+);
 
 /**
  * Routes owned by the Purchases module. Follows the same route-per-entity,
@@ -46,6 +52,8 @@ export const purchasesRoutes: RouteObject[] = [
       { path: 'goods-receipts', element: <GoodsReceiptsPage /> },
       { path: 'purchase-returns', element: <PurchaseReturnsPage /> },
       { path: 'purchase-invoices', element: <PurchaseInvoicesPage /> },
+      { path: 'purchase-invoices/new', element: <PurchaseInvoiceCreatePage /> },
+      { path: 'purchase-invoices/:id', element: <PurchaseInvoiceDetailsPage /> },
     ],
   },
 ];

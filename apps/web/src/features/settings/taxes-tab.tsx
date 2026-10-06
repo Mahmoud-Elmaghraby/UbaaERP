@@ -63,8 +63,7 @@ export function TaxesTab() {
 
   return (
     <div className="grid gap-6">
-      <div className="flex items-center justify-between">
-        <p className="text-sm text-muted-foreground">{t('settings.tabs.taxes')}</p>
+      <div className="flex items-center justify-end">
         <Can permission="settings.manage">
           <Dialog open={createOpen} onOpenChange={setCreateOpen}>
             <DialogTrigger asChild>
@@ -83,57 +82,59 @@ export function TaxesTab() {
       {isLoading ? (
         <Skeleton className="h-40 w-full" />
       ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>{t('settings.taxes.name')}</TableHead>
-              <TableHead>{t('settings.taxes.rate')}</TableHead>
-              <TableHead>{t('settings.taxes.status')}</TableHead>
-              <TableHead className="w-10" />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {(taxRules ?? []).map((taxRule) => (
-              <TableRow key={taxRule.id}>
-                <TableCell className="font-medium">{taxRule.name}</TableCell>
-                <TableCell>{taxRule.rate}%</TableCell>
-                <TableCell>
-                  {taxRule.isActive ? (
-                    <Badge>{t('common.active')}</Badge>
-                  ) : (
-                    <Badge variant="secondary">{t('common.inactive')}</Badge>
-                  )}
-                </TableCell>
-                <TableCell>
-                  <Can permission="settings.manage">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onSelect={() => setEditing(taxRule)}>
-                          {t('common.edit')}
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onSelect={() => handleDelete(taxRule.id)}>
-                          {t('common.delete')}
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </Can>
-                </TableCell>
-              </TableRow>
-            ))}
-            {(taxRules ?? []).length === 0 ? (
+        <div className="overflow-hidden rounded-xl border bg-card shadow-card">
+          <Table>
+            <TableHeader>
               <TableRow>
-                <TableCell colSpan={4} className="py-8 text-center text-muted-foreground">
-                  {t('common.noResults')}
-                </TableCell>
+                <TableHead>{t('settings.taxes.name')}</TableHead>
+                <TableHead>{t('settings.taxes.rate')}</TableHead>
+                <TableHead>{t('settings.taxes.status')}</TableHead>
+                <TableHead className="w-10" />
               </TableRow>
-            ) : null}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {(taxRules ?? []).map((taxRule) => (
+                <TableRow key={taxRule.id}>
+                  <TableCell className="font-medium">{taxRule.name}</TableCell>
+                  <TableCell>{taxRule.rate}%</TableCell>
+                  <TableCell>
+                    {taxRule.isActive ? (
+                      <Badge>{t('common.active')}</Badge>
+                    ) : (
+                      <Badge variant="secondary">{t('common.inactive')}</Badge>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <Can permission="settings.manage">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onSelect={() => setEditing(taxRule)}>
+                            {t('common.edit')}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onSelect={() => handleDelete(taxRule.id)}>
+                            {t('common.delete')}
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </Can>
+                  </TableCell>
+                </TableRow>
+              ))}
+              {(taxRules ?? []).length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={4} className="py-8 text-center text-muted-foreground">
+                    {t('common.noResults')}
+                  </TableCell>
+                </TableRow>
+              ) : null}
+            </TableBody>
+          </Table>
+        </div>
       )}
 
       <Dialog open={editing !== null} onOpenChange={(open) => !open && setEditing(null)}>

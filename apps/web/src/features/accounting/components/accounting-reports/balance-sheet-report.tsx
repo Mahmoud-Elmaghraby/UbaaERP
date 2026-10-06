@@ -43,8 +43,10 @@ export function BalanceSheetReport() {
 
       {report ? (
         <div className="grid gap-6">
-          <Badge variant={report.isBalanced ? 'default' : 'destructive'} className="justify-self-start">
-            {report.isBalanced ? t('accounting.reports.balanced') : t('accounting.reports.unbalanced')}
+          <Badge variant={report.isBalanced ? 'success' : 'danger'} className="justify-self-start">
+            {report.isBalanced
+              ? t('accounting.reports.balanced')
+              : t('accounting.reports.unbalanced')}
           </Badge>
 
           <Table>
@@ -59,14 +61,18 @@ export function BalanceSheetReport() {
                   <TableCell>
                     {row.accountCode} — {row.accountName}
                   </TableCell>
-                  <TableCell>{formatMoney(row.amount.amountMinorUnits, row.amount.currency)}</TableCell>
+                  <TableCell>
+                    {formatMoney(row.amount.amountMinorUnits, row.amount.currency)}
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
             <TableFooter>
               <TableRow>
                 <TableCell>{t('accounting.reports.totalAssets')}</TableCell>
-                <TableCell>{formatMoney(report.totalAssets.amountMinorUnits, report.totalAssets.currency)}</TableCell>
+                <TableCell>
+                  {formatMoney(report.totalAssets.amountMinorUnits, report.totalAssets.currency)}
+                </TableCell>
               </TableRow>
             </TableFooter>
           </Table>
@@ -83,14 +89,21 @@ export function BalanceSheetReport() {
                   <TableCell>
                     {row.accountCode} — {row.accountName}
                   </TableCell>
-                  <TableCell>{formatMoney(row.amount.amountMinorUnits, row.amount.currency)}</TableCell>
+                  <TableCell>
+                    {formatMoney(row.amount.amountMinorUnits, row.amount.currency)}
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
             <TableFooter>
               <TableRow>
                 <TableCell>{t('accounting.reports.totalLiabilities')}</TableCell>
-                <TableCell>{formatMoney(report.totalLiabilities.amountMinorUnits, report.totalLiabilities.currency)}</TableCell>
+                <TableCell>
+                  {formatMoney(
+                    report.totalLiabilities.amountMinorUnits,
+                    report.totalLiabilities.currency,
+                  )}
+                </TableCell>
               </TableRow>
             </TableFooter>
           </Table>
@@ -107,20 +120,27 @@ export function BalanceSheetReport() {
                   <TableCell>
                     {row.accountCode} — {row.accountName}
                   </TableCell>
-                  <TableCell>{formatMoney(row.amount.amountMinorUnits, row.amount.currency)}</TableCell>
+                  <TableCell>
+                    {formatMoney(row.amount.amountMinorUnits, row.amount.currency)}
+                  </TableCell>
                 </TableRow>
               ))}
               <TableRow>
                 <TableCell>{t('accounting.reports.currentYearEarnings')}</TableCell>
                 <TableCell>
-                  {formatMoney(report.currentYearEarnings.amountMinorUnits, report.currentYearEarnings.currency)}
+                  {formatMoney(
+                    report.currentYearEarnings.amountMinorUnits,
+                    report.currentYearEarnings.currency,
+                  )}
                 </TableCell>
               </TableRow>
             </TableBody>
             <TableFooter>
               <TableRow>
                 <TableCell>{t('accounting.reports.totalEquity')}</TableCell>
-                <TableCell>{formatMoney(report.totalEquity.amountMinorUnits, report.totalEquity.currency)}</TableCell>
+                <TableCell>
+                  {formatMoney(report.totalEquity.amountMinorUnits, report.totalEquity.currency)}
+                </TableCell>
               </TableRow>
             </TableFooter>
           </Table>

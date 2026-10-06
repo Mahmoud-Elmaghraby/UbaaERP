@@ -66,43 +66,47 @@ export function RolesPage() {
       {isLoading ? (
         <Skeleton className="h-40 w-full" />
       ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>{t('roles.name')}</TableHead>
-              <TableHead>{t('roles.systemRole')}</TableHead>
-              <TableHead>{t('roles.permissions')}</TableHead>
-              <TableHead>{t('common.actions')}</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {(roles ?? []).map((role) => (
-              <TableRow key={role.id}>
-                <TableCell className="font-medium">{role.name}</TableCell>
-                <TableCell>
-                  {role.isSystem ? <Badge variant="secondary">{t('roles.systemRole')}</Badge> : null}
-                </TableCell>
-                <TableCell className="text-sm text-muted-foreground">
-                  {role.permissionKeys.length}
-                </TableCell>
-                <TableCell>
-                  <Can permission="roles.manage">
-                    <Button variant="outline" size="sm" onClick={() => setEditingRole(role)}>
-                      {t('common.edit')}
-                    </Button>
-                  </Can>
-                </TableCell>
-              </TableRow>
-            ))}
-            {(roles ?? []).length === 0 ? (
+        <div className="overflow-hidden rounded-xl border bg-card shadow-card">
+          <Table>
+            <TableHeader>
               <TableRow>
-                <TableCell colSpan={4} className="py-8 text-center text-muted-foreground">
-                  {t('common.noResults')}
-                </TableCell>
+                <TableHead>{t('roles.name')}</TableHead>
+                <TableHead>{t('roles.systemRole')}</TableHead>
+                <TableHead>{t('roles.permissions')}</TableHead>
+                <TableHead>{t('common.actions')}</TableHead>
               </TableRow>
-            ) : null}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {(roles ?? []).map((role) => (
+                <TableRow key={role.id}>
+                  <TableCell className="font-medium">{role.name}</TableCell>
+                  <TableCell>
+                    {role.isSystem ? (
+                      <Badge variant="secondary">{t('roles.systemRole')}</Badge>
+                    ) : null}
+                  </TableCell>
+                  <TableCell className="text-sm text-muted-foreground">
+                    {role.permissionKeys.length}
+                  </TableCell>
+                  <TableCell>
+                    <Can permission="roles.manage">
+                      <Button variant="outline" size="sm" onClick={() => setEditingRole(role)}>
+                        {t('common.edit')}
+                      </Button>
+                    </Can>
+                  </TableCell>
+                </TableRow>
+              ))}
+              {(roles ?? []).length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={4} className="py-8 text-center text-muted-foreground">
+                    {t('common.noResults')}
+                  </TableCell>
+                </TableRow>
+              ) : null}
+            </TableBody>
+          </Table>
+        </div>
       )}
 
       <Dialog open={!!editingRole} onOpenChange={(open) => !open && setEditingRole(null)}>

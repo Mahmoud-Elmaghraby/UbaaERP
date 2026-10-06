@@ -81,11 +81,11 @@ export class PurchaseReturnsController {
   }
 
   /**
-   * The one-way door: confirms the return, then publishes the
-   * integration event Inventory's PurchaseReturnStockListener consumes
-   * to actually decrease stock (CLAUDE.md §2.6 — never a direct call
-   * from Purchases into Inventory). Published only after the DB write
-   * has committed, same as every other confirm action in this module.
+   * The one-way door — like GoodsReceiptsController.confirm(), this does
+   * NOT call this.events.publish(): PurchaseReturnsService.confirm()
+   * writes 'purchases.purchase_return.confirmed' to the Outbox atomically
+   * with the status flip, and OutboxDispatcherService puts it on the
+   * Event Bus (where Inventory's PurchaseReturnStockListener picks it up).
    */
   @Post(':id/confirm')
   async confirm(
@@ -94,20 +94,7 @@ export class PurchaseReturnsController {
     @Param('id') id: string,
   ): Promise<PurchaseReturnWithLinesDto> {
     const db = this.connections.getClient(schema);
-    const confirmation = await this.service.confirm(db, id);
-    this.events.publish('purchase_return', 'confirmed', {
-      schema,
-      entityId: confirmation.id,
-      actorUserId: user.sub,
-      metadata: {
-        goodsReceiptId: confirmation.goodsReceiptId,
-        warehouseId: confirmation.warehouseId,
-        lines: confirmation.lines.map((line) => ({
-          productVariantId: line.productVariantId,
-          quantity: line.quantityReturned,
-        })),
-      },
-    });
+    const confirmation = await this.service.confirm(db, id, schema, user.sub);
     return returnWithLinesToDto(confirmation);
   }
 

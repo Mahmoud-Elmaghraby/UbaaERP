@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import type { Kysely, Selectable } from 'kysely';
+import { sql, type Kysely, type Selectable } from 'kysely';
 import type { WarehousesTable, TenantDatabase } from '../../../../database/tenant/kysely-client';
 import type { WarehouseRepository } from '../../application/ports/warehouse.repository';
 import type { Warehouse, CreateWarehouseInput, UpdateWarehouseInput } from '../../domain/warehouse.entity';
@@ -56,7 +56,7 @@ export class KyselyWarehouseRepository implements WarehouseRepository {
         ...(input.branchId !== undefined ? { branch_id: input.branchId } : {}),
         ...(input.isActive !== undefined ? { is_active: input.isActive } : {}),
         ...(input.customFields !== undefined ? { custom_fields: JSON.stringify(input.customFields) } : {}),
-        updated_at: new Date(),
+        updated_at: sql`now()`,
       })
       .where('id', '=', id)
       .returningAll()

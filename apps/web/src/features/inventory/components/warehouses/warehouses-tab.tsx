@@ -54,8 +54,7 @@ export function WarehousesTab() {
 
   return (
     <div className="grid gap-6">
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-sm text-muted-foreground">{t('inventory.warehouses.subtitle')}</p>
+      <div className="flex items-center justify-end gap-3">
         <Can permission="inventory.manage">
           <Dialog open={createOpen} onOpenChange={setCreateOpen}>
             <DialogTrigger asChild>
@@ -74,64 +73,66 @@ export function WarehousesTab() {
       {isLoading ? (
         <Skeleton className="h-40 w-full" />
       ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>{t('inventory.warehouses.name')}</TableHead>
-              <TableHead>{t('inventory.warehouses.code')}</TableHead>
-              <TableHead>{t('inventory.warehouses.branch')}</TableHead>
-              <TableHead>{t('common.active')}</TableHead>
-              <TableHead className="w-10" />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {(warehouses ?? []).map((warehouse) => (
-              <TableRow key={warehouse.id}>
-                <TableCell className="font-medium">{warehouse.name}</TableCell>
-                <TableCell>{warehouse.code}</TableCell>
-                <TableCell>
-                  {warehouse.branchId
-                    ? (branchById.get(warehouse.branchId)?.name ?? '-')
-                    : t('inventory.warehouses.noBranch')}
-                </TableCell>
-                <TableCell>
-                  <Badge variant={warehouse.isActive ? 'default' : 'secondary'}>
-                    {warehouse.isActive ? t('common.active') : t('common.inactive')}
-                  </Badge>
-                </TableCell>
-                <TableCell>
-                  <Can permission="inventory.manage">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onSelect={() => setManagingLocationsFor(warehouse)}>
-                          {t('inventory.warehouses.manageLocations')}
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onSelect={() => setEditing(warehouse)}>
-                          {t('common.edit')}
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onSelect={() => handleDelete(warehouse.id)}>
-                          {t('common.delete')}
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </Can>
-                </TableCell>
-              </TableRow>
-            ))}
-            {(warehouses ?? []).length === 0 ? (
+        <div className="overflow-hidden rounded-xl border bg-card shadow-card">
+          <Table>
+            <TableHeader>
               <TableRow>
-                <TableCell colSpan={5} className="py-8 text-center text-muted-foreground">
-                  {t('common.noResults')}
-                </TableCell>
+                <TableHead>{t('inventory.warehouses.name')}</TableHead>
+                <TableHead>{t('inventory.warehouses.code')}</TableHead>
+                <TableHead>{t('inventory.warehouses.branch')}</TableHead>
+                <TableHead>{t('common.active')}</TableHead>
+                <TableHead className="w-10" />
               </TableRow>
-            ) : null}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {(warehouses ?? []).map((warehouse) => (
+                <TableRow key={warehouse.id}>
+                  <TableCell className="font-medium">{warehouse.name}</TableCell>
+                  <TableCell>{warehouse.code}</TableCell>
+                  <TableCell>
+                    {warehouse.branchId
+                      ? (branchById.get(warehouse.branchId)?.name ?? '-')
+                      : t('inventory.warehouses.noBranch')}
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant={warehouse.isActive ? 'success' : 'neutral'} dot>
+                      {warehouse.isActive ? t('common.active') : t('common.inactive')}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <Can permission="inventory.manage">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onSelect={() => setManagingLocationsFor(warehouse)}>
+                            {t('inventory.warehouses.manageLocations')}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onSelect={() => setEditing(warehouse)}>
+                            {t('common.edit')}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onSelect={() => handleDelete(warehouse.id)}>
+                            {t('common.delete')}
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </Can>
+                  </TableCell>
+                </TableRow>
+              ))}
+              {(warehouses ?? []).length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="py-8 text-center text-muted-foreground">
+                    {t('common.noResults')}
+                  </TableCell>
+                </TableRow>
+              ) : null}
+            </TableBody>
+          </Table>
+        </div>
       )}
 
       <Dialog open={editing !== null} onOpenChange={(open) => !open && setEditing(null)}>
@@ -139,7 +140,9 @@ export function WarehousesTab() {
           <DialogHeader>
             <DialogTitle>{t('common.edit')}</DialogTitle>
           </DialogHeader>
-          {editing ? <EditWarehouseForm warehouse={editing} onDone={() => setEditing(null)} /> : null}
+          {editing ? (
+            <EditWarehouseForm warehouse={editing} onDone={() => setEditing(null)} />
+          ) : null}
         </DialogContent>
       </Dialog>
 

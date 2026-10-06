@@ -59,7 +59,9 @@ function QuotationLinesReadOnly({ quotation }: { quotation: SupplierQuotationWit
               {variantIndex.get(line.productVariantId)?.sku ?? '—'})
             </TableCell>
             <TableCell>{line.quantity}</TableCell>
-            <TableCell>{formatMoney(line.unitPrice.amountMinorUnits, line.unitPrice.currency)}</TableCell>
+            <TableCell>
+              {formatMoney(line.unitPrice.amountMinorUnits, line.unitPrice.currency)}
+            </TableCell>
             <TableCell>{line.notes ?? '—'}</TableCell>
           </TableRow>
         ))}
@@ -81,9 +83,13 @@ export function RfqDetailsView({ rfq }: { rfq: RfqWithDetailsDto }) {
 
   const [recordOpen, setRecordOpen] = useState(false);
   const [activeQuotationId, setActiveQuotationId] = useState<string | null>(null);
-  const { data: activeQuotation, isLoading: activeQuotationLoading } = useSupplierQuotation(activeQuotationId);
+  const { data: activeQuotation, isLoading: activeQuotationLoading } =
+    useSupplierQuotation(activeQuotationId);
 
-  const requisitionById = useMemo(() => new Map((requisitions ?? []).map((r) => [r.id, r])), [requisitions]);
+  const requisitionById = useMemo(
+    () => new Map((requisitions ?? []).map((r) => [r.id, r])),
+    [requisitions],
+  );
   const supplierById = useMemo(() => new Map((suppliers ?? []).map((s) => [s.id, s])), [suppliers]);
 
   const quotedSupplierIds = useMemo(
@@ -135,13 +141,15 @@ export function RfqDetailsView({ rfq }: { rfq: RfqWithDetailsDto }) {
         </div>
         <div>
           <p className="text-muted-foreground">{t('common.status')}</p>
-          <Badge variant={RFQ_STATUS_VARIANT[rfq.status]}>{t(rfqStatusLabelKey(rfq.status))}</Badge>
+          <Badge variant={RFQ_STATUS_VARIANT[rfq.status]} dot>
+            {t(rfqStatusLabelKey(rfq.status))}
+          </Badge>
         </div>
         <div>
           <p className="text-muted-foreground">{t('purchases.rfqs.sourceRequisition')}</p>
           <p className="font-medium">
             {rfq.sourceRequisitionId
-              ? requisitionById.get(rfq.sourceRequisitionId)?.requisitionNumber ?? '—'
+              ? (requisitionById.get(rfq.sourceRequisitionId)?.requisitionNumber ?? '—')
               : t('purchases.rfqs.noSourceRequisition')}
           </p>
         </div>
@@ -152,7 +160,9 @@ export function RfqDetailsView({ rfq }: { rfq: RfqWithDetailsDto }) {
       </div>
 
       <div>
-        <p className="mb-2 text-sm font-medium text-muted-foreground">{t('purchases.rfqs.lines')}</p>
+        <p className="mb-2 text-sm font-medium text-muted-foreground">
+          {t('purchases.rfqs.lines')}
+        </p>
         <Table>
           <TableHeader>
             <TableRow>
@@ -177,7 +187,9 @@ export function RfqDetailsView({ rfq }: { rfq: RfqWithDetailsDto }) {
       </div>
 
       <div>
-        <p className="mb-2 text-sm font-medium text-muted-foreground">{t('purchases.rfqs.invitedSuppliers')}</p>
+        <p className="mb-2 text-sm font-medium text-muted-foreground">
+          {t('purchases.rfqs.invitedSuppliers')}
+        </p>
         <div className="flex flex-wrap gap-1.5">
           {rfq.supplierIds.map((id) => (
             <Badge key={id} variant="secondary">
@@ -189,7 +201,9 @@ export function RfqDetailsView({ rfq }: { rfq: RfqWithDetailsDto }) {
 
       <div className="grid gap-2">
         <div className="flex items-center justify-between">
-          <p className="text-sm font-medium text-muted-foreground">{t('purchases.rfqs.quotations')}</p>
+          <p className="text-sm font-medium text-muted-foreground">
+            {t('purchases.rfqs.quotations')}
+          </p>
           <Can permission="purchases.manage">
             {canRecordQuotation ? (
               <Button size="sm" variant="outline" onClick={() => setRecordOpen(true)}>
@@ -215,30 +229,48 @@ export function RfqDetailsView({ rfq }: { rfq: RfqWithDetailsDto }) {
               <TableRow key={quotation.id}>
                 <TableCell>{supplierById.get(quotation.supplierId)?.name ?? '—'}</TableCell>
                 <TableCell>
-                  <Badge variant={QUOTATION_STATUS_VARIANT[quotation.status]}>
+                  <Badge variant={QUOTATION_STATUS_VARIANT[quotation.status]} dot>
                     {t(quotationStatusLabelKey(quotation.status))}
                   </Badge>
                 </TableCell>
                 <TableCell>{quotation.validUntil ?? '—'}</TableCell>
                 <TableCell>
                   <div className="flex flex-wrap justify-end gap-1">
-                    <Button variant="ghost" size="sm" onClick={() => setActiveQuotationId(quotation.id)}>
-                      {quotation.status === 'received' ? t('common.edit') : t('purchases.rfqs.viewDetails')}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setActiveQuotationId(quotation.id)}
+                    >
+                      {quotation.status === 'received'
+                        ? t('common.edit')
+                        : t('purchases.rfqs.viewDetails')}
                     </Button>
                     <Can permission="purchases.manage">
                       <>
                         {quotation.status === 'received' ? (
-                          <Button variant="ghost" size="sm" onClick={() => handleSelect(quotation.id)}>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleSelect(quotation.id)}
+                          >
                             {t('purchases.rfqs.select')}
                           </Button>
                         ) : null}
                         {quotation.status === 'received' ? (
-                          <Button variant="ghost" size="sm" onClick={() => handleReject(quotation.id)}>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleReject(quotation.id)}
+                          >
                             {t('purchases.rfqs.reject')}
                           </Button>
                         ) : null}
                         {quotation.status === 'received' ? (
-                          <Button variant="ghost" size="sm" onClick={() => handleDeleteQuotation(quotation.id)}>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDeleteQuotation(quotation.id)}
+                          >
                             {t('common.delete')}
                           </Button>
                         ) : null}
@@ -272,11 +304,16 @@ export function RfqDetailsView({ rfq }: { rfq: RfqWithDetailsDto }) {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={activeQuotationId !== null} onOpenChange={(open) => !open && setActiveQuotationId(null)}>
+      <Dialog
+        open={activeQuotationId !== null}
+        onOpenChange={(open) => !open && setActiveQuotationId(null)}
+      >
         <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>
-              {activeQuotation?.status === 'received' ? t('common.edit') : t('purchases.rfqs.viewDetails')}
+              {activeQuotation?.status === 'received'
+                ? t('common.edit')
+                : t('purchases.rfqs.viewDetails')}
             </DialogTitle>
           </DialogHeader>
           {activeQuotationLoading ? <Skeleton className="h-40 w-full" /> : null}

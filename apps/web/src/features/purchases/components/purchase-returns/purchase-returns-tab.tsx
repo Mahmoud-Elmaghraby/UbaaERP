@@ -30,7 +30,10 @@ import {
 } from '../../api/purchase-returns/queries';
 import { CreatePurchaseReturnForm } from './purchase-return-form';
 import { PurchaseReturnDetailsView } from './purchase-return-details-view';
-import { PURCHASE_RETURN_STATUS_VARIANT, purchaseReturnStatusLabelKey } from './purchase-return-status';
+import {
+  PURCHASE_RETURN_STATUS_VARIANT,
+  purchaseReturnStatusLabelKey,
+} from './purchase-return-status';
 import { ApiError } from '../../../../lib/api-client';
 
 export function PurchaseReturnsTab() {
@@ -46,7 +49,10 @@ export function PurchaseReturnsTab() {
   const cancelReturn = useCancelPurchaseReturn();
   const deleteReturn = useDeletePurchaseReturn();
 
-  const receiptById = useMemo(() => new Map((goodsReceipts ?? []).map((r) => [r.id, r])), [goodsReceipts]);
+  const receiptById = useMemo(
+    () => new Map((goodsReceipts ?? []).map((r) => [r.id, r])),
+    [goodsReceipts],
+  );
 
   async function handleTransition(
     mutation: { mutateAsync: (id: string) => Promise<unknown> },
@@ -100,7 +106,7 @@ export function PurchaseReturnsTab() {
         header: t('common.status'),
         accessorFn: (row: PurchaseReturnDto) => row.status,
         cell: ({ row }: { row: Row<PurchaseReturnDto> }) => (
-          <Badge variant={PURCHASE_RETURN_STATUS_VARIANT[row.original.status]}>
+          <Badge variant={PURCHASE_RETURN_STATUS_VARIANT[row.original.status]} dot>
             {t(purchaseReturnStatusLabelKey(row.original.status))}
           </Badge>
         ),
@@ -108,7 +114,8 @@ export function PurchaseReturnsTab() {
       {
         id: 'goodsReceipt',
         header: t('purchases.purchaseReturns.goodsReceipt'),
-        accessorFn: (row: PurchaseReturnDto) => receiptById.get(row.goodsReceiptId)?.receiptNumber ?? '—',
+        accessorFn: (row: PurchaseReturnDto) =>
+          receiptById.get(row.goodsReceiptId)?.receiptNumber ?? '—',
       },
       {
         id: 'returnDate',
@@ -161,10 +168,9 @@ export function PurchaseReturnsTab() {
 
   return (
     <div className="grid gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-sm text-muted-foreground">{t('purchases.purchaseReturns.subtitle')}</p>
+      <div className="flex flex-wrap items-center justify-end gap-2">
         <Can permission="purchases.manage">
-          <Button size="sm" onClick={() => setCreateOpen(true)}>
+          <Button onClick={() => setCreateOpen(true)}>
             {t('purchases.purchaseReturns.newReturn')}
           </Button>
         </Can>

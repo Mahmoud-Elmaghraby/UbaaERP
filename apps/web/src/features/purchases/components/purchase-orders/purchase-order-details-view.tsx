@@ -1,13 +1,24 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { PurchaseOrderWithLinesDto } from '@erp-platform/contracts';
-import { Badge, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@erp-platform/ui';
+import {
+  Badge,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@erp-platform/ui';
 
 import { AttachmentsPanel } from '../../../attachments/components/attachments-panel';
 import { useSuppliers } from '../../api/suppliers/queries';
 import { useVariantIndex } from '../../hooks/purchase-orders/use-variant-index';
 import { formatMoney } from '../../../../lib/money';
-import { PURCHASE_ORDER_STATUS_VARIANT, purchaseOrderStatusLabelKey } from './purchase-order-status';
+import {
+  PURCHASE_ORDER_STATUS_VARIANT,
+  purchaseOrderStatusLabelKey,
+} from './purchase-order-status';
 
 /** Read-only header + lines + total, same shape as PurchaseRequisitionDetailsView /
  * RfqDetailsView's own header sections. totalAmount is always server-computed
@@ -29,7 +40,7 @@ export function PurchaseOrderDetailsView({ order }: { order: PurchaseOrderWithLi
         </div>
         <div>
           <p className="text-muted-foreground">{t('common.status')}</p>
-          <Badge variant={PURCHASE_ORDER_STATUS_VARIANT[order.status]}>
+          <Badge variant={PURCHASE_ORDER_STATUS_VARIANT[order.status]} dot>
             {t(purchaseOrderStatusLabelKey(order.status))}
           </Badge>
         </div>
@@ -38,12 +49,16 @@ export function PurchaseOrderDetailsView({ order }: { order: PurchaseOrderWithLi
           <p className="font-medium">{supplierById.get(order.supplierId)?.name ?? '—'}</p>
         </div>
         <div>
-          <p className="text-muted-foreground">{t('purchases.purchaseOrders.expectedDeliveryDate')}</p>
+          <p className="text-muted-foreground">
+            {t('purchases.purchaseOrders.expectedDeliveryDate')}
+          </p>
           <p className="font-medium">{order.expectedDeliveryDate ?? '—'}</p>
         </div>
         <div>
           <p className="text-muted-foreground">{t('purchases.purchaseOrders.totalAmount')}</p>
-          <p className="font-medium">{formatMoney(order.totalAmount.amountMinorUnits, order.totalAmount.currency)}</p>
+          <p className="font-medium">
+            {formatMoney(order.totalAmount.amountMinorUnits, order.totalAmount.currency)}
+          </p>
         </div>
         <div className="col-span-2 sm:col-span-3">
           <p className="text-muted-foreground">{t('purchases.purchaseOrders.notes')}</p>
@@ -68,7 +83,9 @@ export function PurchaseOrderDetailsView({ order }: { order: PurchaseOrderWithLi
                 {variantIndex.get(line.productVariantId)?.sku ?? '—'})
               </TableCell>
               <TableCell>{line.quantity}</TableCell>
-              <TableCell>{formatMoney(line.unitPrice.amountMinorUnits, line.unitPrice.currency)}</TableCell>
+              <TableCell>
+                {formatMoney(line.unitPrice.amountMinorUnits, line.unitPrice.currency)}
+              </TableCell>
               <TableCell>{line.notes ?? '—'}</TableCell>
             </TableRow>
           ))}

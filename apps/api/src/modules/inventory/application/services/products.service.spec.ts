@@ -4,7 +4,7 @@ import type { ProductRepository } from '../ports/product.repository';
 import type { ProductVariantRepository } from '../ports/product-variant.repository';
 import type { Product } from '../../domain/product.entity';
 import type { ProductVariant } from '../../domain/product-variant.entity';
-import { ConflictError, NotFoundError } from '../errors';
+import { BusinessRuleError, ConflictError, NotFoundError } from '../errors';
 import { ProductsService } from './products.service';
 
 const FAKE_TRX = { __trx: true } as unknown as Kysely<TenantDatabase>;
@@ -54,6 +54,7 @@ function makeMockProductRepository(): jest.Mocked<ProductRepository> {
     create: jest.fn(),
     update: jest.fn(),
     delete: jest.fn(),
+    hasStockMovements: jest.fn().mockResolvedValue(false),
   };
 }
 
@@ -192,6 +193,49 @@ describe('ProductsService', () => {
       products.delete.mockResolvedValue(false);
 
       await expect(service.delete(FAKE_DB, 'missing')).rejects.toThrow(NotFoundError);
+    });
+
+    it('translates a foreign-key-violation (stock/documents reference it) into ConflictError', async () => {
+      products.delete.mockRejectedValue(Object.assign(new Error('fk'), { code: '23503' }));
+
+      await expect(service.delete(FAKE_DB, 'product-1')).rejects.toMatchObject({ code: 'PRODUCT.IN_USE' });
+    });
+  });
+
+  describe('update() — stock-defining fields', () => {
+    it('blocks changing the unit of measure once the product has stock movements', async () => {
+      products.findById.mockResolvedValue(makeProduct());
+      products.hasStockMovements.mockResolvedValue(true);
+
+      await expect(service.update(FAKE_DB, 'product-1', { unitOfMeasureId: 'uom-2' })).rejects.toMatchObject({
+        code: 'PRODUCT.UNIT_LOCKED_BY_STOCK',
+      });
+      expect(products.update).not.toHaveBeenCalled();
+    });
+
+    it('blocks changing the tracking type once the product has stock movements', async () => {
+      products.findById.mockResolvedValue(makeProduct());
+      products.hasStockMovements.mockResolvedValue(true);
+
+      await expect(service.update(FAKE_DB, 'product-1', { trackingType: 'lot' })).rejects.toThrow(BusinessRuleError);
+    });
+
+    it('allows the change while the product has no stock movements', async () => {
+      products.findById.mockResolvedValue(makeProduct());
+      products.hasStockMovements.mockResolvedValue(false);
+      products.update.mockResolvedValue(makeProduct({ unitOfMeasureId: 'uom-2' }));
+
+      await expect(service.update(FAKE_DB, 'product-1', { unitOfMeasureId: 'uom-2' })).resolves.toMatchObject({
+        unitOfMeasureId: 'uom-2',
+      });
+    });
+
+    it('does not query movements when the unit/tracking are resent unchanged', async () => {
+      products.findById.mockResolvedValue(makeProduct());
+      products.update.mockResolvedValue(makeProduct({ name: 'Renamed' }));
+
+      await service.update(FAKE_DB, 'product-1', { name: 'Renamed', unitOfMeasureId: 'uom-1', trackingType: 'none' });
+      expect(products.hasStockMovements).not.toHaveBeenCalled();
     });
   });
 });

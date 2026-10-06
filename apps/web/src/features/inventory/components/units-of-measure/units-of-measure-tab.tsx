@@ -51,8 +51,7 @@ export function UnitsOfMeasureTab() {
 
   return (
     <div className="grid gap-6">
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-sm text-muted-foreground">{t('inventory.unitsOfMeasure.subtitle')}</p>
+      <div className="flex items-center justify-end gap-3">
         <Can permission="inventory.manage">
           <Dialog open={createOpen} onOpenChange={setCreateOpen}>
             <DialogTrigger asChild>
@@ -71,63 +70,69 @@ export function UnitsOfMeasureTab() {
       {isLoading ? (
         <Skeleton className="h-40 w-full" />
       ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>{t('inventory.unitsOfMeasure.name')}</TableHead>
-              <TableHead>{t('inventory.unitsOfMeasure.symbol')}</TableHead>
-              <TableHead>{t('inventory.unitsOfMeasure.baseUnit')}</TableHead>
-              <TableHead>{t('inventory.unitsOfMeasure.conversionFactor')}</TableHead>
-              <TableHead>{t('common.active')}</TableHead>
-              <TableHead className="w-10" />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {(units ?? []).map((unit) => (
-              <TableRow key={unit.id}>
-                <TableCell className="font-medium">{unit.name}</TableCell>
-                <TableCell>{unit.symbol}</TableCell>
-                <TableCell>
-                  {unit.baseUnitId ? (unitById.get(unit.baseUnitId)?.name ?? '-') : (
-                    <Badge variant="secondary">{t('inventory.unitsOfMeasure.baseUnitBadge')}</Badge>
-                  )}
-                </TableCell>
-                <TableCell>{unit.baseUnitId ? unit.conversionFactor : '-'}</TableCell>
-                <TableCell>
-                  <Badge variant={unit.isActive ? 'default' : 'secondary'}>
-                    {unit.isActive ? t('common.active') : t('common.inactive')}
-                  </Badge>
-                </TableCell>
-                <TableCell>
-                  <Can permission="inventory.manage">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onSelect={() => setEditing(unit)}>
-                          {t('common.edit')}
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onSelect={() => handleDelete(unit.id)}>
-                          {t('common.delete')}
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </Can>
-                </TableCell>
-              </TableRow>
-            ))}
-            {(units ?? []).length === 0 ? (
+        <div className="overflow-hidden rounded-xl border bg-card shadow-card">
+          <Table>
+            <TableHeader>
               <TableRow>
-                <TableCell colSpan={6} className="py-8 text-center text-muted-foreground">
-                  {t('common.noResults')}
-                </TableCell>
+                <TableHead>{t('inventory.unitsOfMeasure.name')}</TableHead>
+                <TableHead>{t('inventory.unitsOfMeasure.symbol')}</TableHead>
+                <TableHead>{t('inventory.unitsOfMeasure.baseUnit')}</TableHead>
+                <TableHead>{t('inventory.unitsOfMeasure.conversionFactor')}</TableHead>
+                <TableHead>{t('common.active')}</TableHead>
+                <TableHead className="w-10" />
               </TableRow>
-            ) : null}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {(units ?? []).map((unit) => (
+                <TableRow key={unit.id}>
+                  <TableCell className="font-medium">{unit.name}</TableCell>
+                  <TableCell>{unit.symbol}</TableCell>
+                  <TableCell>
+                    {unit.baseUnitId ? (
+                      (unitById.get(unit.baseUnitId)?.name ?? '-')
+                    ) : (
+                      <Badge variant="secondary">
+                        {t('inventory.unitsOfMeasure.baseUnitBadge')}
+                      </Badge>
+                    )}
+                  </TableCell>
+                  <TableCell>{unit.baseUnitId ? unit.conversionFactor : '-'}</TableCell>
+                  <TableCell>
+                    <Badge variant={unit.isActive ? 'success' : 'neutral'} dot>
+                      {unit.isActive ? t('common.active') : t('common.inactive')}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <Can permission="inventory.manage">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onSelect={() => setEditing(unit)}>
+                            {t('common.edit')}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onSelect={() => handleDelete(unit.id)}>
+                            {t('common.delete')}
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </Can>
+                  </TableCell>
+                </TableRow>
+              ))}
+              {(units ?? []).length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="py-8 text-center text-muted-foreground">
+                    {t('common.noResults')}
+                  </TableCell>
+                </TableRow>
+              ) : null}
+            </TableBody>
+          </Table>
+        </div>
       )}
 
       <Dialog open={editing !== null} onOpenChange={(open) => !open && setEditing(null)}>

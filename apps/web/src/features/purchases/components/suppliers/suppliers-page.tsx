@@ -7,7 +7,10 @@ export function SuppliersPage() {
   const { t } = useTranslation();
   return (
     <div className="grid gap-6">
-      <PageHeader title={t('purchases.tabs.suppliers')} />
+      <PageHeader
+        title={t('purchases.tabs.suppliers')}
+        description={t('purchases.suppliers.subtitle')}
+      />
       <SuppliersTab />
     </div>
   );
