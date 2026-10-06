@@ -1,7 +1,5 @@
 import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, UseGuards } from '@nestjs/common';
 import {
-  productSchema,
-  productWithVariantsSchema,
   createProductSchema,
   updateProductSchema,
   productVariantSchema,
@@ -25,6 +23,7 @@ import { RequirePermissions } from '../../../shared/auth/require-permissions.dec
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 import { ProductsService } from '../application/services/products.service';
 import { InventoryEventPublisher } from '../infrastructure/events/inventory-event-publisher';
+import { productInputFromDto, productToDto, productWithVariantsToDto } from './product.mapper';
 
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 @RequirePermissions('inventory.manage')
@@ -40,14 +39,14 @@ export class ProductsController {
   async list(@CurrentTenantSchema() schema: string): Promise<ProductDto[]> {
     const db = this.connections.getClient(schema);
     const products = await this.service.list(db);
-    return products.map((p) => productSchema.parse(p));
+    return products.map(productToDto);
   }
 
   @Get(':id')
   async getById(@CurrentTenantSchema() schema: string, @Param('id') id: string): Promise<ProductWithVariantsDto> {
     const db = this.connections.getClient(schema);
     const product = await this.service.getById(db, id);
-    return productWithVariantsSchema.parse(product);
+    return productWithVariantsToDto(product);
   }
 
   @Post()
@@ -57,14 +56,14 @@ export class ProductsController {
     @Body(new ZodValidationPipe(createProductSchema)) body: CreateProductDto,
   ): Promise<ProductWithVariantsDto> {
     const db = this.connections.getClient(schema);
-    const product = await this.service.create(db, body);
+    const product = await this.service.create(db, productInputFromDto(body));
     this.events.publish('product', 'created', {
       schema,
       entityId: product.id,
       actorUserId: user.sub,
       metadata: { variantIds: product.variants.map((v) => v.id) },
     });
-    return productWithVariantsSchema.parse(product);
+    return productWithVariantsToDto(product);
   }
 
   @Patch(':id')
@@ -75,9 +74,9 @@ export class ProductsController {
     @Body(new ZodValidationPipe(updateProductSchema)) body: UpdateProductDto,
   ): Promise<ProductDto> {
     const db = this.connections.getClient(schema);
-    const product = await this.service.update(db, id, body);
+    const product = await this.service.update(db, id, productInputFromDto(body));
     this.events.publish('product', 'updated', { schema, entityId: product.id, actorUserId: user.sub });
-    return productSchema.parse(product);
+    return productToDto(product);
   }
 
   @Delete(':id')

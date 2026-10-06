@@ -1,6 +1,7 @@
 import type { ProductVariantLookupDto } from '@erp-platform/contracts';
 
 import { normalizeForSearch } from '../../lib/search-normalize';
+import { minorUnitsToDecimalString } from '../../lib/money';
 
 /** The text a variant is shown as in pickers: name, plus its options when it has any. */
 export function variantDisplayName(variant: ProductVariantLookupDto): string {
@@ -48,4 +49,19 @@ export function findVariantByCode(
     variants.find((variant) => normalizeForSearch(variant.sku) === needle) ??
     variants.find((variant) => normalizeForSearch(variant.productCode) === needle)
   );
+}
+
+/**
+ * The item's default sale/purchase price as editable decimal text, when it is
+ * set and in the document's currency — used to prefill a line's price the
+ * moment a product is picked. Null means "leave the price for the user".
+ */
+export function defaultPriceText(
+  variant: ProductVariantLookupDto,
+  kind: 'sale' | 'purchase',
+  currency: string,
+): string | null {
+  const price = kind === 'sale' ? variant.salePrice : variant.purchasePrice;
+  if (!price || (currency && price.currency !== currency)) return null;
+  return minorUnitsToDecimalString(price.amountMinorUnits);
 }

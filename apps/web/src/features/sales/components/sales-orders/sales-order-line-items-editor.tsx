@@ -17,6 +17,7 @@ import {
 } from '@erp-platform/ui';
 
 import { ProductVariantPicker } from '../../../../components/product/product-variant-picker';
+import { defaultPriceText } from '../../../../components/product/variant-search';
 import { createEmptyDiscountDraft, DiscountDraft } from '../../lib/discount-fields';
 
 export interface SalesOrderLineDraft {
@@ -96,7 +97,10 @@ export function SalesOrderLineItemsEditor({
                 <TableCell>
                   <ProductVariantPicker
                     value={line.productVariantId}
-                    onChange={(value) => updateLine(line.key, { productVariantId: value })}
+                    onChange={(value, variant) => {
+                      const price = line.unitPrice.trim() === '' ? defaultPriceText(variant, 'sale', currency) : null;
+                      updateLine(line.key, { productVariantId: value, ...(price ? { unitPrice: price } : {}) });
+                    }}
                   />
                 </TableCell>
                 <TableCell>

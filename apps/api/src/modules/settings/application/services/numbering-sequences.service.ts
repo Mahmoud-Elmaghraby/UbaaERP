@@ -64,6 +64,15 @@ export class NumberingSequencesService {
     if (!deleted) throw entityNotFound('NUMBERING_SEQUENCE', id);
   }
 
+  /** See NumberingSequenceRepository.ensureTenantWide — used by modules that number on demand (e.g. product codes). */
+  ensureTenantWide(
+    db: Kysely<TenantDatabase>,
+    documentType: string,
+    defaults: { prefix: string | null; paddingLength: number },
+  ): Promise<void> {
+    return this.repository.ensureTenantWide(db, documentType, defaults);
+  }
+
   /** Used by later modules (Sales, Purchases, ...) to number a new document. */
   allocateNext(
     db: Kysely<TenantDatabase>,

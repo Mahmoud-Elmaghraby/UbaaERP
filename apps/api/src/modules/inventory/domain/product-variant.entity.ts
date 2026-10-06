@@ -1,3 +1,5 @@
+import type { Money } from '@erp-platform/shared-kernel';
+
 export interface ProductVariant {
   id: string;
   productId: string;
@@ -43,4 +45,12 @@ export interface ProductVariantLookup {
   unitOfMeasureId: string;
   unitOfMeasureSymbol: string;
   trackingType: 'none' | 'lot' | 'serial';
+  itemType: 'stock' | 'service';
+  categoryId: string | null;
+  brandId: string | null;
+  /** Prefilled on sales lines / POS. */
+  salePrice: Money | null;
+  /** Prefilled on purchase lines. */
+  purchasePrice: Money | null;
+  taxRuleId: string | null;
 }

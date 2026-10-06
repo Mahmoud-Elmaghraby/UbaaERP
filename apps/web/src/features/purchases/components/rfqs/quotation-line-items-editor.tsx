@@ -3,6 +3,7 @@ import { Plus, Trash2 } from 'lucide-react';
 import { Button, Input, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@erp-platform/ui';
 
 import { ProductVariantPicker } from '../../../../components/product/product-variant-picker';
+import { defaultPriceText } from '../../../../components/product/variant-search';
 
 export interface QuotationLineDraft {
   key: string;
@@ -70,7 +71,10 @@ export function QuotationLineItemsEditor({
                 <TableCell>
                   <ProductVariantPicker
                     value={line.productVariantId}
-                    onChange={(value) => updateLine(line.key, { productVariantId: value })}
+                    onChange={(value, variant) => {
+                      const price = line.unitPrice.trim() === '' ? defaultPriceText(variant, 'purchase', currency) : null;
+                      updateLine(line.key, { productVariantId: value, ...(price ? { unitPrice: price } : {}) });
+                    }}
                   />
                 </TableCell>
                 <TableCell>

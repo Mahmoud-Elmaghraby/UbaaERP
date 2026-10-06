@@ -210,6 +210,45 @@ export interface ProductsTable {
   custom_fields: unknown;
   created_at: Generated<Date>;
   updated_at: Generated<Date>;
+  /** Migration 0075 — 'stock' | 'service'. */
+  item_type: Generated<string>;
+  category_id: string | null;
+  brand_id: string | null;
+  sale_price_amount: string | null;
+  sale_price_currency: string | null;
+  purchase_price_amount: string | null;
+  purchase_price_currency: string | null;
+  tax_rule_id: string | null;
+}
+
+/** Migration 0075. */
+export interface InventorySettingsTable {
+  id: string;
+  singleton: Generated<boolean>;
+  item_code_mode: Generated<string>;
+  barcode_mode: Generated<string>;
+  barcode_prefix: Generated<string>;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
+/** Migration 0075. */
+export interface ProductCategoriesTable {
+  id: string;
+  name: string;
+  parent_id: string | null;
+  is_active: Generated<boolean>;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
+/** Migration 0075. */
+export interface ProductBrandsTable {
+  id: string;
+  name: string;
+  is_active: Generated<boolean>;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
 }
 
 export interface ProductVariantsTable {
@@ -773,6 +812,9 @@ export interface TenantDatabase {
   units_of_measure: UnitsOfMeasureTable;
   warehouses: WarehousesTable;
   products: ProductsTable;
+  inventory_settings: InventorySettingsTable;
+  product_categories: ProductCategoriesTable;
+  product_brands: ProductBrandsTable;
   product_variants: ProductVariantsTable;
   warehouse_locations: WarehouseLocationsTable;
   stock_levels: StockLevelsTable;

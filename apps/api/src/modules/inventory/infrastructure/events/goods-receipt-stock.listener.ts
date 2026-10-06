@@ -88,7 +88,19 @@ export class GoodsReceiptStockListener {
           return;
         }
 
-        for (const line of metadata.lines) {
+        // Service items appear on documents but never move stock.
+
+        const stockItems = await this.stockMovements.stockItemVariantIds(
+
+          trx,
+
+          metadata.lines.map((line) => line.productVariantId),
+
+        );
+
+        const stockLines = metadata.lines.filter((line) => stockItems.has(line.productVariantId));
+
+        for (const line of stockLines) {
           await this.stockMovements.recordMovement(trx, {
             productVariantId: line.productVariantId,
             locationId: defaultLocation.id,

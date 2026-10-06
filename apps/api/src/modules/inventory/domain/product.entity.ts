@@ -1,4 +1,9 @@
+import type { Money } from '@erp-platform/shared-kernel';
+
 export type ProductTrackingType = 'none' | 'lot' | 'serial';
+
+/** 'stock' items move inventory; 'service' items (labour, delivery, printing service…) never do. */
+export type ProductItemType = 'stock' | 'service';
 
 export interface Product {
   id: string;
@@ -18,12 +23,32 @@ export interface Product {
   attributes: string[];
   isActive: boolean;
   customFields: Record<string, unknown>;
+  itemType: ProductItemType;
+  categoryId: string | null;
+  brandId: string | null;
+  /** Default selling price, prefilled on sales lines and POS. */
+  salePrice: Money | null;
+  /** Default purchase price, prefilled on purchase lines. */
+  purchasePrice: Money | null;
+  /** Default tax rule (Settings › Taxes). */
+  taxRuleId: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
 
-export interface CreateProductInput {
-  code: string;
+/** Master-data fields shared by create and update. */
+export interface ProductMasterDataInput {
+  itemType?: ProductItemType;
+  categoryId?: string | null;
+  brandId?: string | null;
+  salePrice?: Money | null;
+  purchasePrice?: Money | null;
+  taxRuleId?: string | null;
+}
+
+export interface CreateProductInput extends ProductMasterDataInput {
+  /** Omitted when Inventory settings generate item codes automatically. */
+  code?: string;
   name: string;
   description?: string | null;
   unitOfMeasureId: string;
@@ -42,7 +67,7 @@ export interface CreateProductInput {
   defaultVariantBarcode?: string | null;
 }
 
-export interface UpdateProductInput {
+export interface UpdateProductInput extends ProductMasterDataInput {
   code?: string;
   name?: string;
   description?: string | null;

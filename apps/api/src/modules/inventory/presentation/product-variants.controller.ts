@@ -1,11 +1,12 @@
 import { Controller, Get, UseGuards } from '@nestjs/common';
-import { productVariantLookupSchema, type ProductVariantLookupDto } from '@erp-platform/contracts';
+import type { ProductVariantLookupDto } from '@erp-platform/contracts';
 import { TenantConnectionManager } from '../../../shared/tenancy/tenant-connection-manager';
 import { CurrentTenantSchema } from '../../../shared/auth/current-tenant-schema.decorator';
 import { JwtAuthGuard } from '../../../shared/auth/jwt-auth.guard';
 import { PermissionsGuard } from '../../../shared/auth/permissions.guard';
 import { RequireAnyPermission } from '../../../shared/auth/require-permissions.decorator';
 import { ProductsService } from '../application/services/products.service';
+import { variantLookupToDto } from './product.mapper';
 
 /**
  * Read-only catalogue lookup shared by every module that picks products:
@@ -33,6 +34,6 @@ export class ProductVariantsController {
   async list(@CurrentTenantSchema() schema: string): Promise<ProductVariantLookupDto[]> {
     const db = this.connections.getClient(schema);
     const variants = await this.service.listVariantLookup(db);
-    return variants.map((variant) => productVariantLookupSchema.parse(variant));
+    return variants.map(variantLookupToDto);
   }
 }

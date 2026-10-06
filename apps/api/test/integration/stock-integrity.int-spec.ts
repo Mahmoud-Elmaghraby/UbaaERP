@@ -33,7 +33,10 @@ describe('StockMovementsService (integration, real Postgres) — concurrency & n
   let locationA: string;
   let locationB: string;
 
-  async function createProduct(trackingType: 'none' | 'lot' | 'serial' = 'none'): Promise<string> {
+  async function createProduct(
+    trackingType: 'none' | 'lot' | 'serial' = 'none',
+    itemType: 'stock' | 'service' = 'stock',
+  ): Promise<string> {
     const suffix = uniqueSuffix();
     const unitId = randomUUID();
     await db
@@ -49,6 +52,7 @@ describe('StockMovementsService (integration, real Postgres) — concurrency & n
         name: `Product ${suffix}`,
         unit_of_measure_id: unitId,
         tracking_type: trackingType,
+        item_type: itemType,
         is_active: true,
         track_variants: false,
       })
@@ -312,6 +316,22 @@ describe('StockMovementsService (integration, real Postgres) — concurrency & n
         .where(sql`payload->>'entityId'`, '=', deliveryId)
         .execute();
       expect(cogsEvents).toHaveLength(1);
+    });
+
+    it('skips service items on a delivery instead of failing on "insufficient stock"', async () => {
+      const goods = await createProduct();
+      const service = await createProduct('none', 'service');
+      await receiptListener.handle(
+        event(randomUUID(), [{ productVariantId: goods, quantity: 3, unitCost: { amountMinorUnits: '1000', currency: 'EGP' } }]),
+      );
+      await deliveryListener.handle(
+        event(randomUUID(), [
+          { productVariantId: goods, quantity: 1 },
+          { productVariantId: service, quantity: 1 },
+        ]),
+      );
+      expect(await quantityAt(goods, defaultLocationId)).toBe(2);
+      expect(await quantityAt(service, defaultLocationId)).toBe(0);
     });
 
     it('is all-or-nothing and rethrows (so the outbox retries) when one line lacks stock', async () => {

@@ -81,6 +81,23 @@ export class KyselyNumberingSequenceRepository implements NumberingSequenceRepos
     return result.numDeletedRows > 0n;
   }
 
+  async ensureTenantWide(
+    db: Kysely<TenantDatabase>,
+    documentType: string,
+    defaults: { prefix: string | null; paddingLength: number },
+  ): Promise<void> {
+    // Target-less ON CONFLICT DO NOTHING: the uniqueness is an expression
+    // index (COALESCE(branch_id, sentinel)), which a plain column list
+    // can't name — and swallowing the conflict as a statement-level no-op
+    // keeps the surrounding transaction usable (catching a unique-violation
+    // error would abort it).
+    await sql`
+      INSERT INTO numbering_sequences (id, document_type, branch_id, prefix, padding_length)
+      VALUES (gen_random_uuid(), ${documentType}, NULL, ${defaults.prefix}, ${defaults.paddingLength})
+      ON CONFLICT DO NOTHING
+    `.execute(db);
+  }
+
   async allocateNext(
     db: Kysely<TenantDatabase>,
     documentType: string,

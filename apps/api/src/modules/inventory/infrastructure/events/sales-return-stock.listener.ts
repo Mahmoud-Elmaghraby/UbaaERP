@@ -111,7 +111,13 @@ export class SalesReturnStockListener {
         }
 
         const movements = [];
-        for (const line of metadata.lines) {
+        // Service items appear on documents but never move stock.
+        const stockItems = await this.stockMovements.stockItemVariantIds(
+          trx,
+          metadata.lines.map((line) => line.productVariantId),
+        );
+        const stockLines = metadata.lines.filter((line) => stockItems.has(line.productVariantId));
+        for (const line of stockLines) {
           const stockLevel = await this.stockLevels.findByVariantAndLocation(
             trx,
             line.productVariantId,

@@ -13,3 +13,9 @@ export const moneySchema = z.object({
     .regex(/^[A-Z]{3}$/, 'currency must be a three-letter ISO 4217 code'),
 });
 export type MoneyDto = z.infer<typeof moneySchema>;
+
+/** Input price/cost that can't be negative (a default sale or purchase price). */
+export const nonNegativeMoneySchema = z.object({
+  amountMinorUnits: z.string().regex(/^\d+$/, 'amountMinorUnits must be a non-negative integer string'),
+  currency: z.string().regex(/^[A-Z]{3}$/, 'currency must be a three-letter ISO 4217 code'),
+});

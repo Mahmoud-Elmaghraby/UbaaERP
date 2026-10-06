@@ -116,6 +116,12 @@ function makeProduct(overrides: Partial<Product> = {}): Product {
     attributes: [],
     isActive: true,
     customFields: {},
+    itemType: 'stock',
+    categoryId: null,
+    brandId: null,
+    salePrice: null,
+    purchasePrice: null,
+    taxRuleId: null,
     createdAt: new Date('2026-01-01T00:00:00Z'),
     updatedAt: new Date('2026-01-01T00:00:00Z'),
     ...overrides,
@@ -151,6 +157,8 @@ function makeMockProductRepository(): jest.Mocked<ProductRepository> {
 function makeMockProductVariantRepository(): jest.Mocked<ProductVariantRepository> {
   return {
     listLookup: jest.fn(),
+    skuExists: jest.fn().mockResolvedValue(false),
+    barcodeExists: jest.fn().mockResolvedValue(false),
     listByProductId: jest.fn(),
     findById: jest.fn(),
     create: jest.fn(),

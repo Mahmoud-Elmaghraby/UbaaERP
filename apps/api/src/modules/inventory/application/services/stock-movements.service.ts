@@ -130,6 +130,21 @@ export class StockMovementsService {
   }
 
   /**
+   * The subset of these variants that are stock items. Service items
+   * (labour, delivery, a printing service…) appear on sales/purchase
+   * documents but never move inventory, so document listeners drop their
+   * lines before recording movements.
+   */
+  async stockItemVariantIds(db: Kysely<TenantDatabase>, productVariantIds: readonly string[]): Promise<Set<string>> {
+    const result = new Set<string>();
+    for (const id of new Set(productVariantIds)) {
+      const product = await this.resolveProduct(db, id);
+      if (product.itemType !== 'service') result.add(id);
+    }
+    return result;
+  }
+
+  /**
    * Idempotency guard for document listeners: the outbox dispatcher
    * redelivers an event whenever any listener on it throws, so a document
    * whose movements already exist must not be applied a second time.
@@ -167,6 +182,7 @@ export class StockMovementsService {
     return withTransaction(db, async (trx) => {
       await this.stockLevels.lockVariants(trx, [input.productVariantId]);
       const product = await this.resolveProduct(trx, input.productVariantId);
+      this.assertStockItem(product);
       const { quantity, unitCost } = await this.resolveBaseUnitQuantityAndCost(
         trx,
         product,
@@ -197,6 +213,15 @@ export class StockMovementsService {
         }
       }
     });
+  }
+
+  private assertStockItem(product: Product): void {
+    if (product.itemType === 'service') {
+      throw new BusinessRuleError(`"${product.name}" is a service item and has no stock.`, {
+        code: 'STOCK_MOVEMENT.SERVICE_ITEM',
+        params: { name: product.name },
+      });
+    }
   }
 
   private async resolveProduct(trx: Kysely<TenantDatabase>, productVariantId: string): Promise<Product> {
@@ -246,6 +271,7 @@ export class StockMovementsService {
     return withTransaction(db, async (trx) => {
       await this.stockLevels.lockVariants(trx, [input.productVariantId]);
       const product = await this.resolveProduct(trx, input.productVariantId);
+      this.assertStockItem(product);
       if (product.trackingType !== 'none' && !input.lotId) {
         throw new BusinessRuleError(
           'Transferring a lot/serial-tracked product requires specifying which lot (lotId) to transfer.',

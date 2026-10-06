@@ -21,6 +21,8 @@ export const ENTITY_LABELS = {
   WAREHOUSE_LOCATION: 'Warehouse location',
   PRODUCT: 'Product',
   PRODUCT_VARIANT: 'Product variant',
+  PRODUCT_CATEGORY: 'Product category',
+  PRODUCT_BRAND: 'Brand',
   UNIT_OF_MEASURE: 'Unit of measure',
   STOCK_LEVEL: 'Stock level',
   STOCK_MOVEMENT: 'Stock movement',

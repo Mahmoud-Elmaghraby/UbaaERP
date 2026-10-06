@@ -8,3 +8,5 @@ export * from './stock-level.contract';
 export * from './stock-movement.contract';
 export * from './landed-cost.contract';
 export * from './stock-lot.contract';
+export * from './inventory-settings.contract';
+export * from './product-category.contract';

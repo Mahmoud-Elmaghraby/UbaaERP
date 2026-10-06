@@ -16,6 +16,8 @@ import {
   isPostgresUniqueViolation,
 } from '../errors';
 import { duplicateEntity, entityNotFound } from '../../../../shared/errors/entity-errors';
+import { ProductCodesService } from './product-codes.service';
+import { withTransaction } from '../../../../database/tenant/transaction.util';
 
 export interface ProductWithVariants extends Product {
   variants: ProductVariant[];
@@ -26,6 +28,7 @@ export class ProductsService {
   constructor(
     @Inject(PRODUCT_REPOSITORY) private readonly products: ProductRepository,
     @Inject(PRODUCT_VARIANT_REPOSITORY) private readonly variants: ProductVariantRepository,
+    private readonly codes: ProductCodesService,
   ) {}
 
   list(db: Kysely<TenantDatabase>): Promise<Product[]> {
@@ -49,14 +52,18 @@ export class ProductsService {
    */
   async create(db: Kysely<TenantDatabase>, input: CreateProductInput): Promise<ProductWithVariants> {
     try {
-      return await db.transaction().execute(async (trx) => {
-        const product = await this.products.create(trx, input);
+      return await withTransaction(db, async (trx) => {
+        // Typed code wins; otherwise the next 'product' number when auto codes are on.
+        const code = await this.codes.resolveItemCode(trx, input.code, async (candidate) =>
+          Boolean(await this.products.findByCode(trx, candidate)),
+        );
+        const product = await this.products.create(trx, { ...input, code });
         const variants: ProductVariant[] = [];
         if (!product.trackVariants) {
           const variant = await this.variants.create(trx, {
             productId: product.id,
-            sku: input.defaultVariantSku ?? product.code,
-            barcode: input.defaultVariantBarcode ?? null,
+            sku: await this.codes.resolveVariantSku(trx, input.defaultVariantSku, product.code),
+            barcode: await this.codes.resolveBarcode(trx, input.defaultVariantBarcode),
           });
           variants.push(variant);
         }
@@ -69,12 +76,10 @@ export class ProductsService {
       if (isPostgresUniqueViolation(err)) {
         throw new ConflictError(
           `A product with code "${input.code}" (or its default variant SKU) already exists.`,
-          { code: 'PRODUCT.DUPLICATE_CODE_OR_VARIANT_SKU', params: { code: input.code } },
+          { code: 'PRODUCT.DUPLICATE_CODE_OR_VARIANT_SKU', params: { code: input.code ?? '' } },
         );
       }
-      if (isPostgresForeignKeyViolation(err)) {
-        throw entityNotFound('UNIT_OF_MEASURE', input.unitOfMeasureId);
-      }
+      if (isPostgresForeignKeyViolation(err)) throw productReferenceNotFound(err, input);
       throw err;
     }
   }
@@ -89,9 +94,7 @@ export class ProductsService {
       if (isPostgresUniqueViolation(err)) {
         throw duplicateEntity('PRODUCT', 'code', input.code);
       }
-      if (isPostgresForeignKeyViolation(err)) {
-        throw entityNotFound('UNIT_OF_MEASURE', input.unitOfMeasureId);
-      }
+      if (isPostgresForeignKeyViolation(err)) throw productReferenceNotFound(err, input);
       throw err;
     }
   }
@@ -145,11 +148,18 @@ export class ProductsService {
   async addVariant(
     db: Kysely<TenantDatabase>,
     productId: string,
-    input: { sku: string; attributeValues?: Record<string, unknown>; barcode?: string | null },
+    input: { sku?: string; attributeValues?: Record<string, unknown>; barcode?: string | null },
   ): Promise<ProductVariant> {
-    await this.getById(db, productId);
+    const product = await this.getById(db, productId);
     try {
-      return await this.variants.create(db, { productId, ...input });
+      return await withTransaction(db, async (trx) =>
+        this.variants.create(trx, {
+          productId,
+          attributeValues: input.attributeValues,
+          sku: await this.codes.resolveVariantSku(trx, input.sku, product.code),
+          barcode: await this.codes.resolveBarcode(trx, input.barcode),
+        }),
+      );
     } catch (err) {
       if (isPostgresUniqueViolation(err)) throw variantUniqueViolation(err, input);
       throw err;
@@ -178,6 +188,18 @@ export class ProductsService {
       throw err;
     }
   }
+}
+
+/** A product FK points at a missing unit / category / brand / tax rule — say which. */
+function productReferenceNotFound(
+  err: unknown,
+  input: { unitOfMeasureId?: string; categoryId?: string | null; brandId?: string | null; taxRuleId?: string | null },
+) {
+  const constraint = violatedConstraint(err) ?? '';
+  if (constraint.includes('category')) return entityNotFound('PRODUCT_CATEGORY', input.categoryId);
+  if (constraint.includes('brand')) return entityNotFound('PRODUCT_BRAND', input.brandId);
+  if (constraint.includes('tax_rule')) return entityNotFound('TAX_RULE', input.taxRuleId);
+  return entityNotFound('UNIT_OF_MEASURE', input.unitOfMeasureId);
 }
 
 function violatedConstraint(err: unknown): string | undefined {

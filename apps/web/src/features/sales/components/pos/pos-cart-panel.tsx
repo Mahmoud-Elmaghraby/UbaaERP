@@ -30,6 +30,7 @@ import { useCustomers } from '../../api/customers/queries';
 import { usePosCheckout } from '../../api/pos/queries';
 import { useVariantLookup } from '../../../inventory/api/products/queries';
 import {
+  defaultPriceText,
   findVariantByCode,
   searchVariants,
   variantDisplayName,
@@ -87,8 +88,8 @@ function createEmptyTender(): TenderDraft {
  * Product search runs over the whole catalogue fetched once (useVariantLookup):
  * Arabic-spelling-tolerant name search plus SKU/code/barcode, and Enter adds the
  * exact barcode/code match (or the best result) — so a barcode scanner, which types
- * the code and presses Enter, adds the item straight to the cart. There is no sale-price field anywhere on ProductVariantDto, so unit price is
- * always entered manually per line, same as the Sales Order manual line editor.
+ * the code and presses Enter, adds the item straight to the cart. The line price starts at the
+ * item's default sale price (when set, in the session currency) and stays editable.
  */
 export function PosCartPanel({ session }: { session: PosSessionDto }) {
   const { t } = useTranslation();
@@ -131,6 +132,8 @@ export function PosCartPanel({ session }: { session: PosSessionDto }) {
   }
 
   function addToCart(productVariantId: string, label: string) {
+    const variant = sellable.find((entry) => entry.id === productVariantId);
+    const defaultPrice = variant ? defaultPriceText(variant, 'sale', currency) : null;
     setLines((prev) => {
       const existing = prev.find((l) => l.productVariantId === productVariantId);
       if (existing) {
@@ -144,7 +147,7 @@ export function PosCartPanel({ session }: { session: PosSessionDto }) {
           productVariantId,
           label,
           quantity: '1',
-          unitPrice: '',
+          unitPrice: defaultPrice ?? '',
           discount: createEmptyDiscountDraft(),
         },
       ];

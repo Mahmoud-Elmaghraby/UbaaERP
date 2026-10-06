@@ -29,6 +29,7 @@ function makeMockRepository(): jest.Mocked<NumberingSequenceRepository> {
     update: jest.fn(),
     delete: jest.fn(),
     allocateNext: jest.fn(),
+    ensureTenantWide: jest.fn(),
   };
 }
 

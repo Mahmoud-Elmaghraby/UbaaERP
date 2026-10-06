@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { sql, type Kysely, type Selectable } from 'kysely';
+import { Money } from '@erp-platform/shared-kernel';
 import type { ProductVariantsTable, TenantDatabase } from '../../../../database/tenant/kysely-client';
 import type { ProductVariantRepository } from '../../application/ports/product-variant.repository';
 import type {
@@ -20,6 +21,10 @@ function toDomain(row: Selectable<ProductVariantsTable>): ProductVariant {
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
+}
+
+function money(amount: string | null, currency: string | null): Money | null {
+  return amount !== null && currency !== null ? Money.fromMinorUnits(BigInt(amount), currency) : null;
 }
 
 export class KyselyProductVariantRepository implements ProductVariantRepository {
@@ -54,6 +59,16 @@ export class KyselyProductVariantRepository implements ProductVariantRepository 
     return toDomain(row);
   }
 
+  async skuExists(db: Kysely<TenantDatabase>, sku: string): Promise<boolean> {
+    const row = await db.selectFrom('product_variants').select('id').where('sku', '=', sku).executeTakeFirst();
+    return row !== undefined;
+  }
+
+  async barcodeExists(db: Kysely<TenantDatabase>, barcode: string): Promise<boolean> {
+    const row = await db.selectFrom('product_variants').select('id').where('barcode', '=', barcode).executeTakeFirst();
+    return row !== undefined;
+  }
+
   async listLookup(db: Kysely<TenantDatabase>): Promise<ProductVariantLookup[]> {
     const rows = await db
       .selectFrom('product_variants')
@@ -72,6 +87,14 @@ export class KyselyProductVariantRepository implements ProductVariantRepository 
         'products.unit_of_measure_id as unit_of_measure_id',
         'units_of_measure.symbol as unit_of_measure_symbol',
         'products.tracking_type as tracking_type',
+        'products.item_type as item_type',
+        'products.category_id as category_id',
+        'products.brand_id as brand_id',
+        'products.sale_price_amount as sale_price_amount',
+        'products.sale_price_currency as sale_price_currency',
+        'products.purchase_price_amount as purchase_price_amount',
+        'products.purchase_price_currency as purchase_price_currency',
+        'products.tax_rule_id as tax_rule_id',
       ])
       .orderBy('products.name')
       .orderBy('product_variants.sku')
@@ -89,6 +112,12 @@ export class KyselyProductVariantRepository implements ProductVariantRepository 
       unitOfMeasureId: row.unit_of_measure_id,
       unitOfMeasureSymbol: row.unit_of_measure_symbol,
       trackingType: row.tracking_type as ProductVariantLookup['trackingType'],
+      itemType: row.item_type as ProductVariantLookup['itemType'],
+      categoryId: row.category_id,
+      brandId: row.brand_id,
+      salePrice: money(row.sale_price_amount, row.sale_price_currency),
+      purchasePrice: money(row.purchase_price_amount, row.purchase_price_currency),
+      taxRuleId: row.tax_rule_id,
     }));
   }
 

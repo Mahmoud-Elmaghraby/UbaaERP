@@ -1,10 +1,13 @@
 import { randomUUID } from 'node:crypto';
 import { sql, type Kysely, type Selectable } from 'kysely';
+import { Money } from '@erp-platform/shared-kernel';
 import type { ProductsTable, TenantDatabase } from '../../../../database/tenant/kysely-client';
 import type { ProductRepository } from '../../application/ports/product.repository';
 import type {
   Product,
   ProductTrackingType,
+  ProductItemType,
+  ProductMasterDataInput,
   CreateProductInput,
   UpdateProductInput,
 } from '../../domain/product.entity';
@@ -21,8 +24,40 @@ function toDomain(row: Selectable<ProductsTable>): Product {
     attributes: (row.attributes ?? []) as string[],
     isActive: row.is_active,
     customFields: (row.custom_fields ?? {}) as Record<string, unknown>,
+    itemType: row.item_type as ProductItemType,
+    categoryId: row.category_id,
+    brandId: row.brand_id,
+    salePrice: toMoney(row.sale_price_amount, row.sale_price_currency),
+    purchasePrice: toMoney(row.purchase_price_amount, row.purchase_price_currency),
+    taxRuleId: row.tax_rule_id,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+  };
+}
+
+function toMoney(amount: string | null, currency: string | null): Money | null {
+  return amount !== null && currency !== null ? Money.fromMinorUnits(BigInt(amount), currency) : null;
+}
+
+/** Only the master-data columns the caller actually sent (undefined = leave unchanged). */
+function masterDataColumns(input: ProductMasterDataInput) {
+  return {
+    ...(input.itemType !== undefined ? { item_type: input.itemType } : {}),
+    ...(input.categoryId !== undefined ? { category_id: input.categoryId } : {}),
+    ...(input.brandId !== undefined ? { brand_id: input.brandId } : {}),
+    ...(input.taxRuleId !== undefined ? { tax_rule_id: input.taxRuleId } : {}),
+    ...(input.salePrice !== undefined
+      ? {
+          sale_price_amount: input.salePrice ? input.salePrice.toMinorUnits().toString() : null,
+          sale_price_currency: input.salePrice ? input.salePrice.currency : null,
+        }
+      : {}),
+    ...(input.purchasePrice !== undefined
+      ? {
+          purchase_price_amount: input.purchasePrice ? input.purchasePrice.toMinorUnits().toString() : null,
+          purchase_price_currency: input.purchasePrice ? input.purchasePrice.currency : null,
+        }
+      : {}),
   };
 }
 
@@ -42,10 +77,11 @@ export class KyselyProductRepository implements ProductRepository {
     return row ? toDomain(row) : null;
   }
 
-  async create(db: Kysely<TenantDatabase>, input: CreateProductInput): Promise<Product> {
+  async create(db: Kysely<TenantDatabase>, input: CreateProductInput & { code: string }): Promise<Product> {
     const row = await db
       .insertInto('products')
       .values({
+        ...masterDataColumns(input),
         id: randomUUID(),
         code: input.code,
         name: input.name,
@@ -75,6 +111,7 @@ export class KyselyProductRepository implements ProductRepository {
         ...(input.attributes !== undefined ? { attributes: JSON.stringify(input.attributes) } : {}),
         ...(input.isActive !== undefined ? { is_active: input.isActive } : {}),
         ...(input.customFields !== undefined ? { custom_fields: JSON.stringify(input.customFields) } : {}),
+        ...masterDataColumns(input),
         updated_at: sql`now()`,
       })
       .where('id', '=', id)

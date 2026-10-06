@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { SettingsModule } from '../settings/settings.module';
 import { UNIT_OF_MEASURE_REPOSITORY } from './application/ports/unit-of-measure.repository';
 import { WAREHOUSE_REPOSITORY } from './application/ports/warehouse.repository';
 import { WAREHOUSE_LOCATION_REPOSITORY } from './application/ports/warehouse-location.repository';
@@ -24,6 +25,15 @@ import { WarehousesService } from './application/services/warehouses.service';
 import { ProductsService } from './application/services/products.service';
 import { StockMovementsService } from './application/services/stock-movements.service';
 import { LandedCostsService } from './application/services/landed-costs.service';
+import { InventorySettingsService } from './application/services/inventory-settings.service';
+import { ProductCodesService } from './application/services/product-codes.service';
+import { ProductCatalogService } from './application/services/product-catalog.service';
+import { INVENTORY_SETTINGS_REPOSITORY } from './application/ports/inventory-settings.repository';
+import { PRODUCT_CATALOG_REPOSITORY } from './application/ports/product-catalog.repository';
+import { KyselyInventorySettingsRepository } from './infrastructure/persistence/kysely-inventory-settings.repository';
+import { KyselyProductCatalogRepository } from './infrastructure/persistence/kysely-product-catalog.repository';
+import { InventorySettingsController } from './presentation/inventory-settings.controller';
+import { ProductBrandsController, ProductCategoriesController } from './presentation/product-catalog.controller';
 
 import { UnitsOfMeasureController } from './presentation/units-of-measure.controller';
 import { WarehousesController } from './presentation/warehouses.controller';
@@ -52,7 +62,13 @@ import { SalesReturnStockListener } from './infrastructure/events/sales-return-s
  * optional module at once).
  */
 @Module({
+  // SettingsModule: NumberingSequencesService for automatic item codes / barcodes
+  // (Settings is the foundation module — same dependency Purchases/Sales already take).
+  imports: [SettingsModule],
   controllers: [
+    InventorySettingsController,
+    ProductCategoriesController,
+    ProductBrandsController,
     UnitsOfMeasureController,
     WarehousesController,
     ProductsController,
@@ -70,6 +86,11 @@ import { SalesReturnStockListener } from './infrastructure/events/sales-return-s
     { provide: STOCK_MOVEMENT_REPOSITORY, useClass: KyselyStockMovementRepository },
     { provide: LANDED_COST_REPOSITORY, useClass: KyselyLandedCostRepository },
     { provide: STOCK_LOT_REPOSITORY, useClass: KyselyStockLotRepository },
+    { provide: INVENTORY_SETTINGS_REPOSITORY, useClass: KyselyInventorySettingsRepository },
+    { provide: PRODUCT_CATALOG_REPOSITORY, useClass: KyselyProductCatalogRepository },
+    InventorySettingsService,
+    ProductCodesService,
+    ProductCatalogService,
     UnitsOfMeasureService,
     WarehousesService,
     ProductsService,

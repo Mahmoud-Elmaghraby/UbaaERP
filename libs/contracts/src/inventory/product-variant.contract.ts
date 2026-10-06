@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { moneySchema } from './money.contract';
 
 export const productVariantSchema = z.object({
   id: z.string().uuid(),
@@ -21,7 +22,8 @@ export const barcodeInputSchema = z
   .nullable();
 
 export const createProductVariantSchema = z.object({
-  sku: z.string().trim().min(1),
+  /** Optional: defaults to the product code (first variant) or code-2, code-3… */
+  sku: z.string().trim().min(1).optional(),
   attributeValues: z.record(z.unknown()).optional(),
   barcode: barcodeInputSchema.optional(),
 });
@@ -55,5 +57,11 @@ export const productVariantLookupSchema = z.object({
   unitOfMeasureId: z.string().uuid(),
   unitOfMeasureSymbol: z.string(),
   trackingType: z.enum(['none', 'lot', 'serial']),
+  itemType: z.enum(['stock', 'service']),
+  categoryId: z.string().uuid().nullable(),
+  brandId: z.string().uuid().nullable(),
+  salePrice: moneySchema.nullable(),
+  purchasePrice: moneySchema.nullable(),
+  taxRuleId: z.string().uuid().nullable(),
 });
 export type ProductVariantLookupDto = z.infer<typeof productVariantLookupSchema>;

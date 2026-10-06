@@ -12,6 +12,7 @@ import {
 import { Plus, Trash2 } from 'lucide-react';
 
 import { ProductVariantPicker } from '../product/product-variant-picker';
+import { defaultPriceText } from '../product/variant-search';
 import { decimalToMinorUnits, formatAmount, multiplyMinorUnits } from '../../lib/money';
 
 export interface DirectLineDraft {
@@ -90,9 +91,14 @@ export function parseDirectLines(
 export function DirectLinesEditor({
   lines,
   onChange,
+  priceKind,
+  currency,
 }: {
   lines: DirectLineDraft[];
   onChange: (lines: DirectLineDraft[]) => void;
+  /** Which default item price prefills a line when a product is picked. */
+  priceKind: 'sale' | 'purchase';
+  currency: string;
 }) {
   const { t } = useTranslation();
 
@@ -124,7 +130,10 @@ export function DirectLinesEditor({
                     <ProductVariantPicker
                       className="h-9"
                       value={line.productVariantId}
-                      onChange={(value) => update(line.key, { productVariantId: value })}
+                      onChange={(value, variant) => {
+                        const price = line.unitPrice.trim() === '' ? defaultPriceText(variant, priceKind, currency) : null;
+                        update(line.key, { productVariantId: value, ...(price ? { unitPrice: price } : {}) });
+                      }}
                     />
                     <Input
                       className="h-8 text-xs"

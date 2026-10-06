@@ -6,6 +6,7 @@ import type { Product } from '../../domain/product.entity';
 import type { ProductVariant } from '../../domain/product-variant.entity';
 import { BusinessRuleError, ConflictError, NotFoundError } from '../errors';
 import { ProductsService } from './products.service';
+import type { ProductCodesService } from './product-codes.service';
 
 const FAKE_TRX = { __trx: true } as unknown as Kysely<TenantDatabase>;
 const FAKE_DB = {
@@ -26,6 +27,12 @@ function makeProduct(overrides: Partial<Product> = {}): Product {
     attributes: [],
     isActive: true,
     customFields: {},
+    itemType: 'stock',
+    categoryId: null,
+    brandId: null,
+    salePrice: null,
+    purchasePrice: null,
+    taxRuleId: null,
     createdAt: new Date('2026-01-01T00:00:00Z'),
     updatedAt: new Date('2026-01-01T00:00:00Z'),
     ...overrides,
@@ -61,6 +68,8 @@ function makeMockProductRepository(): jest.Mocked<ProductRepository> {
 function makeMockVariantRepository(): jest.Mocked<ProductVariantRepository> {
   return {
     listLookup: jest.fn(),
+    skuExists: jest.fn().mockResolvedValue(false),
+    barcodeExists: jest.fn().mockResolvedValue(false),
     listByProductId: jest.fn(),
     findById: jest.fn(),
     create: jest.fn(),
@@ -85,7 +94,13 @@ describe('ProductsService', () => {
   beforeEach(() => {
     products = makeMockProductRepository();
     variants = makeMockVariantRepository();
-    service = new ProductsService(products, variants);
+    // Codes stub: typed values pass through, nothing is auto-generated (manual mode).
+    const codes = {
+      resolveItemCode: jest.fn(async (_trx: unknown, typed?: string) => typed ?? 'AUTO-1'),
+      resolveVariantSku: jest.fn(async (_trx: unknown, typed: string | undefined, code: string) => typed ?? code),
+      resolveBarcode: jest.fn(async (_trx: unknown, typed?: string | null) => typed ?? null),
+    } as unknown as ProductCodesService;
+    service = new ProductsService(products, variants, codes);
   });
 
   describe('getById()', () => {

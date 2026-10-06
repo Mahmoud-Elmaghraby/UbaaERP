@@ -492,7 +492,12 @@ export function SalesInvoiceCreatePage() {
 
                 <SectionCard title={t('documents.lines')} flush>
                   {directMode ? (
-                    <DirectLinesEditor lines={directLines} onChange={setDirectLines} />
+                    <DirectLinesEditor
+                      lines={directLines}
+                      onChange={setDirectLines}
+                      priceKind="sale"
+                      currency={currency}
+                    />
                   ) : invoiceableLoading ? (
                     <div className="px-5 pb-5">
                       <Skeleton className="h-24 w-full" />

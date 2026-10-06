@@ -26,6 +26,16 @@ export interface NumberingSequenceRepository {
    * invoices issued at the same time must never get the same number) —
    * implemented as a single UPDATE ... RETURNING, not read-then-write.
    */
+  /**
+   * Creates the tenant-wide (branch_id NULL) sequence for documentType with
+   * these defaults if none exists yet; a no-op otherwise (never changes an
+   * existing sequence). Safe under concurrent callers.
+   */
+  ensureTenantWide(
+    db: Kysely<TenantDatabase>,
+    documentType: string,
+    defaults: { prefix: string | null; paddingLength: number },
+  ): Promise<void>;
   allocateNext(
     db: Kysely<TenantDatabase>,
     documentType: string,
