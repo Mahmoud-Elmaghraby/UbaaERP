@@ -321,6 +321,36 @@ export interface StockMovementsTable {
   created_at: Generated<Date>;
 }
 
+export interface StockCountsTable {
+  id: string;
+  count_number: string;
+  kind: string;
+  warehouse_id: string;
+  status: Generated<string>;
+  count_date: string | null;
+  notes: string | null;
+  created_by: string | null;
+  posted_by: string | null;
+  posted_at: Date | null;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
+export interface StockCountLinesTable {
+  id: string;
+  stock_count_id: string;
+  product_variant_id: string;
+  location_id: string;
+  lot_number: string | null;
+  expiry_date: string | null;
+  system_quantity: Generated<string>;
+  counted_quantity: string | null;
+  unit_cost_amount: string | null;
+  unit_cost_currency: string | null;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
 export interface StockLotsTable {
   id: string;
   product_variant_id: string;
@@ -845,6 +875,8 @@ export interface TenantDatabase {
   stock_lots: StockLotsTable;
   stock_lot_levels: StockLotLevelsTable;
   stock_lot_consumptions: StockLotConsumptionsTable;
+  stock_counts: StockCountsTable;
+  stock_count_lines: StockCountLinesTable;
   suppliers: SuppliersTable;
   purchase_requisitions: PurchaseRequisitionsTable;
   purchase_requisition_lines: PurchaseRequisitionLinesTable;

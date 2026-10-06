@@ -46,6 +46,14 @@ import { GoodsReceiptStockListener } from './infrastructure/events/goods-receipt
 import { PurchaseReturnStockListener } from './infrastructure/events/purchase-return-stock.listener';
 import { DeliveryStockListener } from './infrastructure/events/delivery-stock.listener';
 import { SalesReturnStockListener } from './infrastructure/events/sales-return-stock.listener';
+import { StockCountsController } from './presentation/stock-counts.controller';
+import { InventoryReportsController } from './presentation/inventory-reports.controller';
+import { STOCK_COUNT_REPOSITORY } from './application/ports/stock-count.repository';
+import { INVENTORY_REPORTS_REPOSITORY } from './application/ports/inventory-reports.repository';
+import { KyselyStockCountRepository } from './infrastructure/persistence/kysely-stock-count.repository';
+import { KyselyInventoryReportsRepository } from './infrastructure/persistence/kysely-inventory-reports.repository';
+import { StockCountsService } from './application/services/stock-counts.service';
+import { InventoryReportsService } from './application/services/inventory-reports.service';
 
 /**
  * Inventory module (CLAUDE.md §10: step 2). Mostly plain CRUD (units of
@@ -75,6 +83,8 @@ import { SalesReturnStockListener } from './infrastructure/events/sales-return-s
     ProductVariantsController,
     StockController,
     LandedCostsController,
+    StockCountsController,
+    InventoryReportsController,
   ],
   providers: [
     { provide: UNIT_OF_MEASURE_REPOSITORY, useClass: KyselyUnitOfMeasureRepository },
@@ -88,6 +98,8 @@ import { SalesReturnStockListener } from './infrastructure/events/sales-return-s
     { provide: STOCK_LOT_REPOSITORY, useClass: KyselyStockLotRepository },
     { provide: INVENTORY_SETTINGS_REPOSITORY, useClass: KyselyInventorySettingsRepository },
     { provide: PRODUCT_CATALOG_REPOSITORY, useClass: KyselyProductCatalogRepository },
+    { provide: STOCK_COUNT_REPOSITORY, useClass: KyselyStockCountRepository },
+    { provide: INVENTORY_REPORTS_REPOSITORY, useClass: KyselyInventoryReportsRepository },
     InventorySettingsService,
     ProductCodesService,
     ProductCatalogService,
@@ -96,6 +108,8 @@ import { SalesReturnStockListener } from './infrastructure/events/sales-return-s
     ProductsService,
     StockMovementsService,
     LandedCostsService,
+    StockCountsService,
+    InventoryReportsService,
     InventoryEventPublisher,
     GoodsReceiptStockListener,
     PurchaseReturnStockListener,

@@ -9,6 +9,11 @@ const UnitsOfMeasurePage = lazy(() =>
 const CatalogPage = lazy(() => import('./components/catalog').then((m) => ({ default: m.CatalogPage })));
 const LabelsPage = lazy(() => import('./components/labels').then((m) => ({ default: m.LabelsPage })));
 const ExpiryReportPage = lazy(() => import('./components/expiry').then((m) => ({ default: m.ExpiryReportPage })));
+const StockCountsPage = lazy(() => import('./components/counts').then((m) => ({ default: m.StockCountsPage })));
+const StockCountPage = lazy(() => import('./components/counts').then((m) => ({ default: m.StockCountPage })));
+const ItemCardPage = lazy(() => import('./components/reports').then((m) => ({ default: m.ItemCardPage })));
+const ValuationPage = lazy(() => import('./components/reports').then((m) => ({ default: m.ValuationPage })));
+const LowStockPage = lazy(() => import('./components/reports').then((m) => ({ default: m.LowStockPage })));
 const StockPage = lazy(() => import('./components/stock').then((m) => ({ default: m.StockPage })));
 const LandedCostsPage = lazy(() =>
   import('./components/landed-costs').then((m) => ({ default: m.LandedCostsPage })),
@@ -36,6 +41,11 @@ export const inventoryRoutes: RouteObject[] = [
       { path: 'warehouses', element: <WarehousesPage /> },
       { path: 'units-of-measure', element: <UnitsOfMeasurePage /> },
       { path: 'stock', element: <StockPage /> },
+      { path: 'counts', element: <StockCountsPage /> },
+      { path: 'counts/:id', element: <StockCountPage /> },
+      { path: 'item-card', element: <ItemCardPage /> },
+      { path: 'valuation', element: <ValuationPage /> },
+      { path: 'low-stock', element: <LowStockPage /> },
       { path: 'expiry', element: <ExpiryReportPage /> },
       { path: 'landed-costs', element: <LandedCostsPage /> },
     ],

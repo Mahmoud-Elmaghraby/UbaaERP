@@ -10,3 +10,4 @@ export * from './landed-cost.contract';
 export * from './stock-lot.contract';
 export * from './inventory-settings.contract';
 export * from './product-category.contract';
+export * from './stock-count.contract';

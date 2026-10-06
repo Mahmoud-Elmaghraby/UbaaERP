@@ -27,6 +27,8 @@ export const ENTITY_LABELS = {
   STOCK_LEVEL: 'Stock level',
   STOCK_MOVEMENT: 'Stock movement',
   LANDED_COST: 'Landed cost',
+  STOCK_COUNT: 'Stock count',
+  STOCK_COUNT_LINE: 'Stock count line',
   FISCAL_YEAR: 'Fiscal year',
   CHART_OF_ACCOUNT: 'Chart of accounts entry',
   BANK_ACCOUNT: 'Bank account',
