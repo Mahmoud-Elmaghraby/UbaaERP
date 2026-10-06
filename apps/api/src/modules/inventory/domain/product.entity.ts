@@ -38,6 +38,8 @@ export interface CreateProductInput {
    * product's code when omitted.
    */
   defaultVariantSku?: string;
+  /** Barcode for the auto-created default variant (simple, non-variant products). */
+  defaultVariantBarcode?: string | null;
 }
 
 export interface UpdateProductInput {

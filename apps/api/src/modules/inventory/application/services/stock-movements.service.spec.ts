@@ -150,6 +150,7 @@ function makeMockProductRepository(): jest.Mocked<ProductRepository> {
 
 function makeMockProductVariantRepository(): jest.Mocked<ProductVariantRepository> {
   return {
+    listLookup: jest.fn(),
     listByProductId: jest.fn(),
     findById: jest.fn(),
     create: jest.fn(),

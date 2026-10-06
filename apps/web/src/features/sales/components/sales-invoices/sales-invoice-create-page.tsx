@@ -36,7 +36,6 @@ import {
 import { CheckCircle2, FileWarning, Info } from 'lucide-react';
 
 import { useCustomFieldDefinitions } from '../../../settings/queries';
-import { useProductsWithVariants } from '../../../inventory/api/products/queries';
 import { useWarehouses } from '../../../inventory/api/warehouses/queries';
 import { useCustomers } from '../../api/customers/queries';
 import { useSalesOrders } from '../../api/sales-orders/queries';
@@ -147,7 +146,6 @@ export function SalesInvoiceCreatePage() {
   const { data: salesOrders, isLoading: ordersLoading } = useSalesOrders();
   const { data: customers, isLoading: customersLoading } = useCustomers();
   const { data: warehouses } = useWarehouses();
-  const { data: productsWithVariants } = useProductsWithVariants();
   const { data: definitions, isLoading: definitionsLoading } =
     useCustomFieldDefinitions(SALES_INVOICE_ENTITY_TYPE);
 
@@ -165,13 +163,6 @@ export function SalesInvoiceCreatePage() {
     [salesOrders],
   );
   const customerById = useMemo(() => new Map((customers ?? []).map((c) => [c.id, c])), [customers]);
-  const variants = useMemo(
-    () =>
-      productsWithVariants.flatMap((product) =>
-        product.variants.filter((v) => v.isActive).map((v) => ({ id: v.id, name: product.name, sku: v.sku })),
-      ),
-    [productsWithVariants],
-  );
 
   const formSchema = useMemo(() => {
     const staticSchema = createSalesInvoiceSchema.omit({
@@ -501,7 +492,7 @@ export function SalesInvoiceCreatePage() {
 
                 <SectionCard title={t('documents.lines')} flush>
                   {directMode ? (
-                    <DirectLinesEditor lines={directLines} onChange={setDirectLines} variants={variants} />
+                    <DirectLinesEditor lines={directLines} onChange={setDirectLines} />
                   ) : invoiceableLoading ? (
                     <div className="px-5 pb-5">
                       <Skeleton className="h-24 w-full" />

@@ -232,6 +232,15 @@ describe('StockMovementsService (integration, real Postgres) — concurrency & n
     ).rejects.toMatchObject({ code: 'STOCK_MOVEMENT.UNIT_COST_NEGATIVE' });
   });
 
+  it('lists the whole catalogue as flat variant rows in one query', async () => {
+    const variantId = await createProduct();
+    const lookup = await new KyselyProductVariantRepository().listLookup(db);
+    const row = lookup.find((entry) => entry.id === variantId);
+    expect(row).toMatchObject({ isActive: true, productIsActive: true, trackingType: 'none' });
+    expect(row?.productName).toMatch(/^Product /);
+    expect(row?.unitOfMeasureSymbol).toMatch(/^pc/);
+  });
+
   describe('document stock listeners (outbox-delivered)', () => {
     let warehouseId: string;
     let defaultLocationId: string;

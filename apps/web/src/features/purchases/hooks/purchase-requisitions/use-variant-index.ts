@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 
-import { useProductsWithVariants } from '../../../inventory/api/products/queries';
+import { useVariantLookup } from '../../../inventory/api/products/queries';
+import { variantDisplayName } from '../../../../components/product/variant-search';
 
 /**
  * Same per-entity lookup-hook pattern Inventory uses (see
@@ -14,14 +15,12 @@ import { useProductsWithVariants } from '../../../inventory/api/products/queries
  * (goods_receipts.warehouse_id -> warehouses).
  */
 export function useVariantIndex() {
-  const { data: productsWithVariants } = useProductsWithVariants();
+  const { data } = useVariantLookup();
   return useMemo(() => {
     const map = new Map<string, { productName: string; sku: string }>();
-    for (const product of productsWithVariants) {
-      for (const variant of product.variants) {
-        map.set(variant.id, { productName: product.name, sku: variant.sku });
-      }
+    for (const variant of data ?? []) {
+      map.set(variant.id, { productName: variantDisplayName(variant), sku: variant.sku });
     }
     return map;
-  }, [productsWithVariants]);
+  }, [data]);
 }

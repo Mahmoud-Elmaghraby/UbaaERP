@@ -6,6 +6,8 @@ import {
   updateProductSchema,
   productVariantSchema,
   createProductVariantSchema,
+  updateProductVariantSchema,
+  type UpdateProductVariantDto,
   type ProductDto,
   type ProductWithVariantsDto,
   type CreateProductDto,
@@ -100,6 +102,25 @@ export class ProductsController {
     const db = this.connections.getClient(schema);
     const variant = await this.service.addVariant(db, id, body);
     this.events.publish('product_variant', 'created', {
+      schema,
+      entityId: variant.id,
+      actorUserId: user.sub,
+      metadata: { productId: id },
+    });
+    return productVariantSchema.parse(variant);
+  }
+
+  @Patch(':id/variants/:variantId')
+  async updateVariant(
+    @CurrentTenantSchema() schema: string,
+    @CurrentUser() user: JwtAccessPayload,
+    @Param('id') id: string,
+    @Param('variantId') variantId: string,
+    @Body(new ZodValidationPipe(updateProductVariantSchema)) body: UpdateProductVariantDto,
+  ): Promise<ProductVariantDto> {
+    const db = this.connections.getClient(schema);
+    const variant = await this.service.updateVariant(db, id, variantId, body);
+    this.events.publish('product_variant', 'updated', {
       schema,
       entityId: variant.id,
       actorUserId: user.sub,

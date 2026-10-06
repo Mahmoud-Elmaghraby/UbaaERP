@@ -1,60 +1,40 @@
 import { useTranslation } from 'react-i18next';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@erp-platform/ui';
 
-import { useProduct, useProducts } from '../../api/products/queries';
+import { ProductVariantPicker } from '../../../../components/product/product-variant-picker';
 import { useWarehouseLocations, useWarehouses } from '../../api/warehouses/queries';
 
-/** Cascading product -> variant picker. Plain controlled component (not a react-hook-form
- * field) so it can be reused identically as a filter and inside the movement/transfer forms,
- * which manage their own state rather than routing dynamic selects through a Zod resolver. */
+/** Searchable product picker (name / SKU / code / barcode) — one control instead of the
+ * old product → variant cascade. Plain controlled component (not a react-hook-form field)
+ * so it can be reused identically as a filter and inside the movement/transfer forms.
+ * Picking a variant reports both its product and its own id. */
 export function ProductVariantSelector({
-  productId,
   variantId,
   onProductChange,
   onVariantChange,
+  activeOnly = true,
 }: {
-  productId: string | undefined;
+  /** Kept for call-site compatibility; the picker derives the product from the variant. */
+  productId?: string | undefined;
   variantId: string | undefined;
   onProductChange: (id: string | undefined) => void;
   onVariantChange: (id: string | undefined) => void;
+  /** Filters should also find inactive items (history); forms should not. */
+  activeOnly?: boolean;
 }) {
   const { t } = useTranslation();
-  const { data: products } = useProducts();
-  const { data: productDetail } = useProduct(productId);
-
   return (
-    <>
-      <div className="grid gap-1.5">
-        <label className="text-sm font-medium">{t('inventory.stock.product')}</label>
-        <Select value={productId} onValueChange={onProductChange}>
-          <SelectTrigger>
-            <SelectValue placeholder={t('inventory.stock.selectProduct')} />
-          </SelectTrigger>
-          <SelectContent>
-            {(products ?? []).map((p) => (
-              <SelectItem key={p.id} value={p.id}>
-                {p.name} ({p.code})
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-      <div className="grid gap-1.5">
-        <label className="text-sm font-medium">{t('inventory.stock.variant')}</label>
-        <Select value={variantId} onValueChange={onVariantChange} disabled={!productDetail}>
-          <SelectTrigger>
-            <SelectValue placeholder={t('inventory.stock.selectVariant')} />
-          </SelectTrigger>
-          <SelectContent>
-            {(productDetail?.variants ?? []).map((v) => (
-              <SelectItem key={v.id} value={v.id}>
-                {v.sku}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-    </>
+    <div className="grid gap-1.5">
+      <label className="text-sm font-medium">{t('inventory.stock.product')}</label>
+      <ProductVariantPicker
+        value={variantId}
+        activeOnly={activeOnly}
+        onChange={(id, variant) => {
+          onProductChange(variant.productId);
+          onVariantChange(id);
+        }}
+      />
+    </div>
   );
 }
 

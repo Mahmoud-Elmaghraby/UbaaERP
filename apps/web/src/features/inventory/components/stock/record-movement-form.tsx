@@ -61,6 +61,23 @@ export function RecordMovementForm({ onDone }: { onDone: () => void }) {
       setError(t('inventory.stock.fillRequiredFields'));
       return;
     }
+    if (movementType === 'in' && !unitCost.trim()) {
+      setError(t('inventory.stock.unitCostRequiredForIn'));
+      return;
+    }
+    let unitCostMinor: string | undefined;
+    if (unitCost.trim()) {
+      try {
+        unitCostMinor = decimalToMinorUnits(unitCost);
+      } catch (parseError) {
+        setError(parseError instanceof Error ? parseError.message : t('inventory.stock.invalidUnitCost'));
+        return;
+      }
+      if (BigInt(unitCostMinor) < 0n) {
+        setError(t('inventory.stock.invalidUnitCost'));
+        return;
+      }
+    }
     try {
       await recordMovement.mutateAsync({
         productVariantId: variantId,
@@ -68,9 +85,10 @@ export function RecordMovementForm({ onDone }: { onDone: () => void }) {
         movementType,
         quantity: Number(quantity),
         unitOfMeasureId: unitOfMeasureId || undefined,
-        unitCost: unitCost
-          ? { amountMinorUnits: decimalToMinorUnits(unitCost), currency: tenantSettings?.currencyCode ?? 'EGP' }
-          : undefined,
+        unitCost:
+          unitCostMinor !== undefined
+            ? { amountMinorUnits: unitCostMinor, currency: tenantSettings?.currencyCode ?? 'EGP' }
+            : undefined,
         lotNumber: trackingType !== 'none' && isReceiving && lotNumber ? lotNumber : undefined,
         expiryDate: trackingType === 'lot' && isReceiving && expiryDate ? new Date(expiryDate) : undefined,
         lotId: trackingType !== 'none' && !isReceiving && lotId ? lotId : undefined,
@@ -144,7 +162,9 @@ export function RecordMovementForm({ onDone }: { onDone: () => void }) {
         </div>
       </div>
       <div className="grid gap-1.5">
-        <label className="text-sm font-medium">{t('inventory.stock.unitCostOptional')}</label>
+        <label className="text-sm font-medium">
+          {movementType === 'in' ? t('inventory.stock.unitCostRequired') : t('inventory.stock.unitCostOptional')}
+        </label>
         <Input inputMode="decimal" placeholder="0.00" value={unitCost} onChange={(e) => setUnitCost(e.target.value)} />
       </div>
       {trackingType !== 'none' && isReceiving ? (

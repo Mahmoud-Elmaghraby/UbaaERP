@@ -1,14 +1,8 @@
-import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Plus, Trash2 } from 'lucide-react';
 import {
   Button,
   Input,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
   Table,
   TableBody,
   TableCell,
@@ -17,7 +11,7 @@ import {
   TableRow,
 } from '@erp-platform/ui';
 
-import { useProductsWithVariants } from '../../../inventory/api/products/queries';
+import { ProductVariantPicker } from '../../../../components/product/product-variant-picker';
 
 export interface PurchaseRequisitionLineDraft {
   /** Local React key only — never sent to the backend (lines have no client-assigned id). */
@@ -42,10 +36,8 @@ export function createEmptyLine(): PurchaseRequisitionLineDraft {
  * subtly wrong without a compiler to check it. The surrounding form manages `lines` as its own
  * useState and merges it into the submitted DTO by hand.
  *
- * The per-row product picker is a single flat "product — SKU" <Select> (not the cascading
- * product->variant pair ProductVariantSelector uses elsewhere in Inventory) — a repeatable
- * table row has less room for two dropdowns, and every row already needs its own local variant
- * list, so one flat list keeps each row compact.
+ * The per-row product picker is the shared searchable ProductVariantPicker (name / SKU /
+ * code / barcode) over the catalogue fetched once for the whole page.
  */
 export function PurchaseRequisitionLineItemsEditor({
   lines,
@@ -55,18 +47,7 @@ export function PurchaseRequisitionLineItemsEditor({
   onChange: (lines: PurchaseRequisitionLineDraft[]) => void;
 }) {
   const { t } = useTranslation();
-  const { data: productsWithVariants } = useProductsWithVariants();
 
-  const options = useMemo(
-    () =>
-      productsWithVariants.flatMap((product) =>
-        product.variants.map((variant) => ({
-          value: variant.id,
-          label: `${product.name} — ${variant.sku}`,
-        })),
-      ),
-    [productsWithVariants],
-  );
 
   function updateLine(key: string, patch: Partial<PurchaseRequisitionLineDraft>) {
     onChange(lines.map((line) => (line.key === key ? { ...line, ...patch } : line)));
@@ -96,21 +77,10 @@ export function PurchaseRequisitionLineItemsEditor({
             {lines.map((line) => (
               <TableRow key={line.key}>
                 <TableCell>
-                  <Select
+                  <ProductVariantPicker
                     value={line.productVariantId}
-                    onValueChange={(value) => updateLine(line.key, { productVariantId: value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder={t('purchases.purchaseRequisitions.selectProduct')} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {options.map((option) => (
-                        <SelectItem key={option.value} value={option.value}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    onChange={(value) => updateLine(line.key, { productVariantId: value })}
+                  />
                 </TableCell>
                 <TableCell>
                   <Input

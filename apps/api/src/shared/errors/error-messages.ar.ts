@@ -76,6 +76,7 @@ export const AR_MESSAGES: Record<string, string> = {
   'PRODUCT.DUPLICATE_CODE_OR_VARIANT_SKU':
     'يوجد منتج آخر بنفس الرمز "{code}" (أو رمز الوحدة الافتراضي) بالفعل.',
   'PRODUCT.DUPLICATE_CODE': 'يوجد منتج آخر بنفس الرمز "{value}" بالفعل.',
+  'PRODUCT_VARIANT.DUPLICATE_BARCODE': 'الباركود "{value}" مستخدم بالفعل لصنف آخر.',
   'PRODUCT_VARIANT.DUPLICATE_SKU': 'يوجد نوع منتج آخر بنفس رمز الصنف (SKU) "{value}" بالفعل.',
   'WAREHOUSE.DUPLICATE_CODE': 'يوجد مستودع آخر بنفس الرمز "{value}" بالفعل.',
   'WAREHOUSE_LOCATION.DUPLICATE_CODE_IN_WAREHOUSE':

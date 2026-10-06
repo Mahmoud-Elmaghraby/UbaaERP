@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { productVariantSchema } from './product-variant.contract';
+import { barcodeInputSchema, productVariantSchema } from './product-variant.contract';
 
 export const productTrackingTypeSchema = z.enum(['none', 'lot', 'serial']);
 export type ProductTrackingTypeDto = z.infer<typeof productTrackingTypeSchema>;
@@ -36,8 +36,12 @@ export const createProductSchema = z.object({
   isActive: z.boolean().optional(),
   customFields: z.record(z.unknown()).optional(),
   defaultVariantSku: z.string().min(1).optional(),
+  /** Barcode for the auto-created default variant of a simple (non-variant) product. */
+  defaultVariantBarcode: barcodeInputSchema.optional(),
 });
 export type CreateProductDto = z.infer<typeof createProductSchema>;
 
-export const updateProductSchema = createProductSchema.omit({ defaultVariantSku: true }).partial();
+export const updateProductSchema = createProductSchema
+  .omit({ defaultVariantSku: true, defaultVariantBarcode: true })
+  .partial();
 export type UpdateProductDto = z.infer<typeof updateProductSchema>;

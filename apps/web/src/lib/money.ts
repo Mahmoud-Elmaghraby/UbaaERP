@@ -1,3 +1,5 @@
+import { toWesternDigits } from './search-normalize';
+
 /**
  * Decimal-string <-> minor-unit helpers for the MoneyDto contract shape
  * (`{ amountMinorUnits: string, currency: string }`, see @erp-platform/contracts).
@@ -32,7 +34,13 @@ function assertValidDecimals(decimals: number): void {
 export function decimalToMinorUnits(input: string, decimals: number = DEFAULT_DECIMALS): string {
   assertValidDecimals(decimals);
 
-  const trimmed = input.trim();
+  // Accept what Arabic keyboards and pasted figures actually contain:
+  // Arabic-Indic digits, the Arabic decimal mark "٫", and thousands
+  // separators ("," "٬" spaces) — "١٬٢٥٠٫٥٠" and "1,250.50" both mean 1250.50.
+  const trimmed = toWesternDigits(input)
+    .trim()
+    .replace(/٫/g, '.')
+    .replace(/[,٬\s]/g, '');
   const match = /^(-)?(\d+)(?:\.(\d+))?$/.exec(trimmed);
   if (!match) {
     throw new Error(`قيمة عشرية غير صالحة: "${input}"`);

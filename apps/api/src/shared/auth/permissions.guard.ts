@@ -1,7 +1,7 @@
 import { CanActivate, ExecutionContext, ForbiddenException, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import type { JwtAccessPayload } from './jwt-payload.type';
-import { PERMISSIONS_METADATA_KEY } from './require-permissions.decorator';
+import { ANY_PERMISSIONS_METADATA_KEY, PERMISSIONS_METADATA_KEY } from './require-permissions.decorator';
 
 /**
  * Backend permission enforcement — the actual mechanism behind
@@ -20,13 +20,21 @@ export class PermissionsGuard implements CanActivate {
       context.getHandler(),
       context.getClass(),
     ]);
-    if (!required || required.length === 0) return true;
+    const requiredAny = this.reflector.getAllAndOverride<string[]>(ANY_PERMISSIONS_METADATA_KEY, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
+    const hasAllRule = Boolean(required && required.length > 0);
+    const hasAnyRule = Boolean(requiredAny && requiredAny.length > 0);
+    if (!hasAllRule && !hasAnyRule) return true;
 
     const request = context.switchToHttp().getRequest<{ user?: JwtAccessPayload }>();
     const userPermissions = request.user?.permissions ?? [];
-    const hasAll = required.every((permission) => userPermissions.includes(permission));
-    if (!hasAll) {
+    if (hasAllRule && !required.every((permission) => userPermissions.includes(permission))) {
       throw new ForbiddenException(`Missing required permission(s): ${required.join(', ')}.`);
+    }
+    if (hasAnyRule && !requiredAny.some((permission) => userPermissions.includes(permission))) {
+      throw new ForbiddenException(`Requires one of the permission(s): ${requiredAny.join(', ')}.`);
     }
     return true;
   }

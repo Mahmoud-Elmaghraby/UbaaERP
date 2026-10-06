@@ -6,6 +6,7 @@ import type {
   ProductVariant,
   CreateProductVariantInput,
   UpdateProductVariantInput,
+  ProductVariantLookup,
 } from '../../domain/product-variant.entity';
 
 function toDomain(row: Selectable<ProductVariantsTable>): ProductVariant {
@@ -51,6 +52,44 @@ export class KyselyProductVariantRepository implements ProductVariantRepository 
       .returningAll()
       .executeTakeFirstOrThrow();
     return toDomain(row);
+  }
+
+  async listLookup(db: Kysely<TenantDatabase>): Promise<ProductVariantLookup[]> {
+    const rows = await db
+      .selectFrom('product_variants')
+      .innerJoin('products', 'products.id', 'product_variants.product_id')
+      .innerJoin('units_of_measure', 'units_of_measure.id', 'products.unit_of_measure_id')
+      .select([
+        'product_variants.id as id',
+        'product_variants.product_id as product_id',
+        'products.code as product_code',
+        'products.name as product_name',
+        'product_variants.sku as sku',
+        'product_variants.barcode as barcode',
+        'product_variants.attribute_values as attribute_values',
+        'product_variants.is_active as is_active',
+        'products.is_active as product_is_active',
+        'products.unit_of_measure_id as unit_of_measure_id',
+        'units_of_measure.symbol as unit_of_measure_symbol',
+        'products.tracking_type as tracking_type',
+      ])
+      .orderBy('products.name')
+      .orderBy('product_variants.sku')
+      .execute();
+    return rows.map((row) => ({
+      id: row.id,
+      productId: row.product_id,
+      productCode: row.product_code,
+      productName: row.product_name,
+      sku: row.sku,
+      barcode: row.barcode,
+      attributeValues: (row.attribute_values ?? {}) as Record<string, unknown>,
+      isActive: row.is_active,
+      productIsActive: row.product_is_active,
+      unitOfMeasureId: row.unit_of_measure_id,
+      unitOfMeasureSymbol: row.unit_of_measure_symbol,
+      trackingType: row.tracking_type as ProductVariantLookup['trackingType'],
+    }));
   }
 
   async update(

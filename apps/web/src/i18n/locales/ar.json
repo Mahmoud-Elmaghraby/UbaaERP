@@ -349,12 +349,17 @@
       "updateError": "تعذّر تحديث المنتج",
       "deleteConfirm": "هل أنت متأكد من حذف هذا المنتج؟",
       "deleteSuccess": "تم حذف المنتج بنجاح",
-      "manageVariants": "إدارة المتغيرات",
+      "manageVariants": "الأكواد والباركود والمتغيرات",
       "newVariant": "متغير جديد",
       "sku": "SKU",
       "barcode": "الباركود",
       "createVariantSuccess": "تم إضافة المتغير بنجاح",
-      "createVariantError": "تعذّر إضافة المتغير"
+      "createVariantError": "تعذّر إضافة المتغير",
+      "editVariant": "تعديل الكود والباركود",
+      "barcodePlaceholder": "امسح الباركود أو اكتبه",
+      "skuRequired": "رمز الصنف (SKU) مطلوب.",
+      "updateVariantSuccess": "تم حفظ التعديلات",
+      "updateVariantError": "تعذّر حفظ التعديلات"
     },
     "stock": {
       "subtitle": "متابعة أرصدة المخزون وحركاته ونقل الأصناف بين المواقع",
@@ -410,7 +415,11 @@
       "selectLot": "اختر الدفعة",
       "lotRequiredForTracked": "الدفعة مطلوبة للأصناف التي يتم تتبعها",
       "transferSuccess": "تم نقل المخزون بنجاح",
-      "transferError": "تعذّر نقل المخزون"
+      "transferError": "تعذّر نقل المخزون",
+      "clearFilters": "مسح الفلاتر",
+      "unitCostRequired": "تكلفة الوحدة",
+      "unitCostRequiredForIn": "حركة الوارد تحتاج تكلفة الوحدة.",
+      "invalidUnitCost": "تكلفة الوحدة غير صحيحة — اكتب رقمًا موجبًا مثل 12.50"
     },
     "landedCosts": {
       "subtitle": "توزيع تكلفة إضافية (شحن، جمارك، تأمين) على حركات استلام سابقة لتعديل متوسط التكلفة",
@@ -430,6 +439,10 @@
       "viewAllocations": "عرض التوزيعات",
       "selectMovements": "اختر حركات الاستلام لتوزيع التكلفة عليها",
       "selectedCount": "تم اختيار {{count}} حركة"
+    },
+    "picker": {
+      "searchPlaceholder": "ابحث بالاسم أو الكود أو الباركود…",
+      "empty": "لا يوجد صنف مطابق"
     }
   },
   "purchases": {
@@ -1376,7 +1389,8 @@
       "empty": "لم تتم إضافة أي أصناف بعد",
       "emptyError": "أضف صنفًا واحدًا على الأقل قبل إتمام البيع",
       "lineError": "أدخل كمية وسعر وحدة صحيحين لكل صنف في السلة",
-      "lineTotal": "إجمالي البند"
+      "lineTotal": "إجمالي البند",
+      "notFound": "لا يوجد صنف بهذا الكود أو الباركود"
     },
     "customer": {
       "label": "العميل",

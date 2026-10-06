@@ -2,11 +2,6 @@ import { useTranslation } from 'react-i18next';
 import {
   Button,
   Input,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
   Table,
   TableBody,
   TableCell,
@@ -16,6 +11,7 @@ import {
 } from '@erp-platform/ui';
 import { Plus, Trash2 } from 'lucide-react';
 
+import { ProductVariantPicker } from '../product/product-variant-picker';
 import { decimalToMinorUnits, formatAmount, multiplyMinorUnits } from '../../lib/money';
 
 export interface DirectLineDraft {
@@ -24,12 +20,6 @@ export interface DirectLineDraft {
   quantity: string;
   unitPrice: string;
   notes: string;
-}
-
-export interface VariantOption {
-  id: string;
-  name: string;
-  sku: string;
 }
 
 let keySeq = 0;
@@ -100,11 +90,9 @@ export function parseDirectLines(
 export function DirectLinesEditor({
   lines,
   onChange,
-  variants,
 }: {
   lines: DirectLineDraft[];
   onChange: (lines: DirectLineDraft[]) => void;
-  variants: VariantOption[];
 }) {
   const { t } = useTranslation();
 
@@ -133,21 +121,11 @@ export function DirectLinesEditor({
                 <TableCell className="text-center text-muted-foreground">{index + 1}</TableCell>
                 <TableCell>
                   <div className="flex flex-col gap-1 py-1">
-                    <Select
+                    <ProductVariantPicker
+                      className="h-9"
                       value={line.productVariantId}
-                      onValueChange={(value) => update(line.key, { productVariantId: value })}
-                    >
-                      <SelectTrigger className="h-9" aria-label={t('documents.selectProduct')}>
-                        <SelectValue placeholder={t('documents.selectProduct')} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {variants.map((variant) => (
-                          <SelectItem key={variant.id} value={variant.id}>
-                            {variant.name} — {variant.sku}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      onChange={(value) => update(line.key, { productVariantId: value })}
+                    />
                     <Input
                       className="h-8 text-xs"
                       placeholder={t('sales.salesInvoices.lineNotes')}

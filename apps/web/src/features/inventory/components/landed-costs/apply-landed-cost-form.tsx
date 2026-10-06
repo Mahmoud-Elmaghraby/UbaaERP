@@ -20,7 +20,7 @@ import {
   toast,
 } from '@erp-platform/ui';
 
-import { useProduct, useProducts } from '../../api/products/queries';
+import { ProductVariantPicker } from '../../../../components/product/product-variant-picker';
 import { useWarehouseLocations, useWarehouses } from '../../api/warehouses/queries';
 import { useStockMovements } from '../../api/stock/queries';
 import { useApplyLandedCost } from '../../api/landed-costs/queries';
@@ -50,7 +50,6 @@ export function ApplyLandedCostForm({ onDone }: { onDone: () => void }) {
 
   const [totalCost, setTotalCost] = useState('');
   const [allocationMethod, setAllocationMethod] = useState<LandedCostAllocationMethodDto>('by_value');
-  const [filterProductId, setFilterProductId] = useState<string | undefined>();
   const [filterVariantId, setFilterVariantId] = useState<string | undefined>();
   const [filterWarehouseId, setFilterWarehouseId] = useState<string | undefined>();
   const [filterLocationId, setFilterLocationId] = useState<string | undefined>();
@@ -60,8 +59,6 @@ export function ApplyLandedCostForm({ onDone }: { onDone: () => void }) {
   const [notes, setNotes] = useState('');
   const [error, setError] = useState<string | null>(null);
 
-  const { data: products } = useProducts();
-  const { data: productDetail } = useProduct(filterProductId);
   const { data: warehouses } = useWarehouses();
   const { data: locations } = useWarehouseLocations(filterWarehouseId);
 
@@ -133,41 +130,13 @@ export function ApplyLandedCostForm({ onDone }: { onDone: () => void }) {
       <div className="grid gap-2 rounded-md border p-3">
         <p className="text-sm font-medium">{t('inventory.landedCosts.selectMovements')}</p>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <div className="grid gap-1.5">
+          <div className="grid gap-1.5 sm:col-span-2">
             <label className="text-sm font-medium">{t('inventory.stock.product')}</label>
-            <Select
-              value={filterProductId}
-              onValueChange={(id) => {
-                setFilterProductId(id);
-                setFilterVariantId(undefined);
-              }}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder={t('inventory.stock.selectProduct')} />
-              </SelectTrigger>
-              <SelectContent>
-                {(products ?? []).map((p) => (
-                  <SelectItem key={p.id} value={p.id}>
-                    {p.name} ({p.code})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="grid gap-1.5">
-            <label className="text-sm font-medium">{t('inventory.stock.variant')}</label>
-            <Select value={filterVariantId} onValueChange={setFilterVariantId} disabled={!productDetail}>
-              <SelectTrigger>
-                <SelectValue placeholder={t('inventory.stock.selectVariant')} />
-              </SelectTrigger>
-              <SelectContent>
-                {(productDetail?.variants ?? []).map((v) => (
-                  <SelectItem key={v.id} value={v.id}>
-                    {v.sku}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <ProductVariantPicker
+              value={filterVariantId}
+              activeOnly={false}
+              onChange={(id) => setFilterVariantId(id)}
+            />
           </div>
           <div className="grid gap-1.5">
             <label className="text-sm font-medium">{t('inventory.stock.warehouse')}</label>

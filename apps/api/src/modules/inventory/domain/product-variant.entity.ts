@@ -23,3 +23,24 @@ export interface UpdateProductVariantInput {
   barcode?: string | null;
   isActive?: boolean;
 }
+
+/**
+ * One sellable/purchasable variant flattened with the product fields every
+ * document picker needs (name, code, unit, tracking) — returned for the
+ * whole catalogue in ONE query so the frontend never fetches product by
+ * product (inventory audit 2026-10: the old per-product N+1).
+ */
+export interface ProductVariantLookup {
+  id: string;
+  productId: string;
+  productCode: string;
+  productName: string;
+  sku: string;
+  barcode: string | null;
+  attributeValues: Record<string, unknown>;
+  isActive: boolean;
+  productIsActive: boolean;
+  unitOfMeasureId: string;
+  unitOfMeasureSymbol: string;
+  trackingType: 'none' | 'lot' | 'serial';
+}

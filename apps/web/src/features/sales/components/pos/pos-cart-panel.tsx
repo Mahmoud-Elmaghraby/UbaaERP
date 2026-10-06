@@ -28,7 +28,12 @@ import {
 
 import { useCustomers } from '../../api/customers/queries';
 import { usePosCheckout } from '../../api/pos/queries';
-import { useProductsWithVariants } from '../../../inventory/api/products/queries';
+import { useVariantLookup } from '../../../inventory/api/products/queries';
+import {
+  findVariantByCode,
+  searchVariants,
+  variantDisplayName,
+} from '../../../../components/product/variant-search';
 import { ApiError } from '../../../../lib/api-client';
 import { decimalToMinorUnits, formatMoney } from '../../../../lib/money';
 import {
@@ -79,17 +84,17 @@ function createEmptyTender(): TenderDraft {
  * "checkout" action that calls PosSalesService.checkout() (Stage 3) — Sales Order →
  * Delivery → Sales Invoice → Payment(s) Received, atomically, in one call.
  *
- * No Command/Popover/cmdk dependency for product search (none exist in libs/ui yet
- * and CLAUDE.md §11 says not to add a dependency without justification) — a plain
- * text filter over useProductsWithVariants() plus a results list is enough for this
- * MVP. There is no sale-price field anywhere on ProductVariantDto, so unit price is
+ * Product search runs over the whole catalogue fetched once (useVariantLookup):
+ * Arabic-spelling-tolerant name search plus SKU/code/barcode, and Enter adds the
+ * exact barcode/code match (or the best result) — so a barcode scanner, which types
+ * the code and presses Enter, adds the item straight to the cart. There is no sale-price field anywhere on ProductVariantDto, so unit price is
  * always entered manually per line, same as the Sales Order manual line editor.
  */
 export function PosCartPanel({ session }: { session: PosSessionDto }) {
   const { t } = useTranslation();
   const currency = session.openingCashAmount.currency;
   const { data: customers } = useCustomers();
-  const { data: productsWithVariants } = useProductsWithVariants();
+  const { data: catalogue } = useVariantLookup();
   const checkout = usePosCheckout();
 
   const [search, setSearch] = useState('');
@@ -101,20 +106,29 @@ export function PosCartPanel({ session }: { session: PosSessionDto }) {
   const [error, setError] = useState<string | null>(null);
   const [lastResult, setLastResult] = useState<PosCheckoutResultDto | null>(null);
 
+  const sellable = useMemo(
+    () => (catalogue ?? []).filter((variant) => variant.isActive && variant.productIsActive),
+    [catalogue],
+  );
+
   const searchResults = useMemo(() => {
-    const query = search.trim().toLowerCase();
-    if (query === '') return [];
-    const results: { productVariantId: string; label: string }[] = [];
-    for (const product of productsWithVariants) {
-      for (const variant of product.variants) {
-        const haystack = `${product.name} ${variant.sku} ${variant.barcode ?? ''}`.toLowerCase();
-        if (haystack.includes(query)) {
-          results.push({ productVariantId: variant.id, label: `${product.name} — ${variant.sku}` });
-        }
-      }
+    if (search.trim() === '') return [];
+    return searchVariants(sellable, search)
+      .slice(0, 20)
+      .map((variant) => ({ productVariantId: variant.id, label: `${variantDisplayName(variant)} — ${variant.sku}` }));
+  }, [sellable, search]);
+
+  /** Enter in the search box: exact barcode/SKU/code first (scanner), else the top result. */
+  function addFromSearch() {
+    const exact = findVariantByCode(sellable, search);
+    if (exact) {
+      addToCart(exact.id, `${variantDisplayName(exact)} — ${exact.sku}`);
+      return;
     }
-    return results.slice(0, 20);
-  }, [productsWithVariants, search]);
+    const first = searchResults[0];
+    if (first) addToCart(first.productVariantId, first.label);
+    else if (search.trim() !== '') toast.error(t('pos.cart.notFound'));
+  }
 
   function addToCart(productVariantId: string, label: string) {
     setLines((prev) => {
@@ -289,6 +303,12 @@ export function PosCartPanel({ session }: { session: PosSessionDto }) {
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                addFromSearch();
+              }
+            }}
             placeholder={t('pos.cart.searchPlaceholder')}
             autoFocus
           />

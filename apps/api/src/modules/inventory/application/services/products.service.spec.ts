@@ -60,6 +60,7 @@ function makeMockProductRepository(): jest.Mocked<ProductRepository> {
 
 function makeMockVariantRepository(): jest.Mocked<ProductVariantRepository> {
   return {
+    listLookup: jest.fn(),
     listByProductId: jest.fn(),
     findById: jest.fn(),
     create: jest.fn(),
@@ -117,7 +118,7 @@ describe('ProductsService', () => {
         unitOfMeasureId: 'uom-1',
       });
 
-      expect(variants.create).toHaveBeenCalledWith(FAKE_TRX, { productId: product.id, sku: product.code });
+      expect(variants.create).toHaveBeenCalledWith(FAKE_TRX, { productId: product.id, sku: product.code, barcode: null });
       expect(result.variants).toEqual([variant]);
     });
 
@@ -236,6 +237,37 @@ describe('ProductsService', () => {
 
       await service.update(FAKE_DB, 'product-1', { name: 'Renamed', unitOfMeasureId: 'uom-1', trackingType: 'none' });
       expect(products.hasStockMovements).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('updateVariant()', () => {
+    it('updates the barcode of a variant that belongs to the product', async () => {
+      variants.findById.mockResolvedValue(makeVariant());
+      variants.update.mockResolvedValue(makeVariant({ barcode: '6221234567890' }));
+
+      await expect(
+        service.updateVariant(FAKE_DB, 'product-1', 'variant-1', { barcode: '6221234567890' }),
+      ).resolves.toMatchObject({ barcode: '6221234567890' });
+    });
+
+    it('rejects a variant id that belongs to another product', async () => {
+      variants.findById.mockResolvedValue(makeVariant({ productId: 'other-product' }));
+
+      await expect(service.updateVariant(FAKE_DB, 'product-1', 'variant-1', { isActive: false })).rejects.toThrow(
+        NotFoundError,
+      );
+      expect(variants.update).not.toHaveBeenCalled();
+    });
+
+    it('reports a duplicate barcode (not SKU) when the barcode unique key is violated', async () => {
+      variants.findById.mockResolvedValue(makeVariant());
+      variants.update.mockRejectedValue(
+        Object.assign(new Error('dup'), { code: '23505', constraint: 'product_variants_barcode_unique' }),
+      );
+
+      await expect(
+        service.updateVariant(FAKE_DB, 'product-1', 'variant-1', { barcode: '123' }),
+      ).rejects.toMatchObject({ code: 'PRODUCT_VARIANT.DUPLICATE_BARCODE' });
     });
   });
 });

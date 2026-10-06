@@ -28,6 +28,7 @@ import { LandedCostsService } from './application/services/landed-costs.service'
 import { UnitsOfMeasureController } from './presentation/units-of-measure.controller';
 import { WarehousesController } from './presentation/warehouses.controller';
 import { ProductsController } from './presentation/products.controller';
+import { ProductVariantsController } from './presentation/product-variants.controller';
 import { StockController } from './presentation/stock.controller';
 import { LandedCostsController } from './presentation/landed-costs.controller';
 import { InventoryEventPublisher } from './infrastructure/events/inventory-event-publisher';
@@ -55,6 +56,7 @@ import { SalesReturnStockListener } from './infrastructure/events/sales-return-s
     UnitsOfMeasureController,
     WarehousesController,
     ProductsController,
+    ProductVariantsController,
     StockController,
     LandedCostsController,
   ],

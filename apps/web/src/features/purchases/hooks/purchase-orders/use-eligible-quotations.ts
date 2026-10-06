@@ -27,8 +27,8 @@ export interface EligibleQuotation {
  * the backend doesn't even support — GET /supplier-quotations requires
  * ?rfqId=).
  *
- * Fans out one request per closed RFQ via useQueries — the same "composed
- * bulk-lookup" pattern already used by Inventory's useProductsWithVariants.
+ * Fans out one request per closed RFQ via useQueries (a "composed bulk
+ * lookup" — bounded by the number of closed RFQs, not the catalogue size).
  * Query keys intentionally match useSupplierQuotations()'s
  * ['supplier-quotations', 'by-rfq', rfqId] shape so the cache is shared.
  */

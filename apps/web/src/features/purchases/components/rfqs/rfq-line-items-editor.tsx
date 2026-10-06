@@ -1,23 +1,8 @@
-import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Plus, Trash2 } from 'lucide-react';
-import {
-  Button,
-  Input,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@erp-platform/ui';
+import { Button, Input, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@erp-platform/ui';
 
-import { useProductsWithVariants } from '../../../inventory/api/products/queries';
+import { ProductVariantPicker } from '../../../../components/product/product-variant-picker';
 
 export interface RfqLineDraft {
   key: string;
@@ -47,18 +32,6 @@ export function RfqLineItemsEditor({
   onChange: (lines: RfqLineDraft[]) => void;
 }) {
   const { t } = useTranslation();
-  const { data: productsWithVariants } = useProductsWithVariants();
-
-  const options = useMemo(
-    () =>
-      productsWithVariants.flatMap((product) =>
-        product.variants.map((variant) => ({
-          value: variant.id,
-          label: `${product.name} — ${variant.sku}`,
-        })),
-      ),
-    [productsWithVariants],
-  );
 
   function updateLine(key: string, patch: Partial<RfqLineDraft>) {
     onChange(lines.map((line) => (line.key === key ? { ...line, ...patch } : line)));
@@ -88,21 +61,10 @@ export function RfqLineItemsEditor({
             {lines.map((line) => (
               <TableRow key={line.key}>
                 <TableCell>
-                  <Select
+                  <ProductVariantPicker
                     value={line.productVariantId}
-                    onValueChange={(value) => updateLine(line.key, { productVariantId: value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder={t('purchases.rfqs.selectProduct')} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {options.map((option) => (
-                        <SelectItem key={option.value} value={option.value}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    onChange={(value) => updateLine(line.key, { productVariantId: value })}
+                  />
                 </TableCell>
                 <TableCell>
                   <Input

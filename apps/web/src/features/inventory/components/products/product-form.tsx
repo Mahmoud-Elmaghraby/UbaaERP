@@ -31,7 +31,7 @@ import { AttachmentsPanel } from '../../../attachments/components/attachments-pa
 import { useCustomFieldDefinitions } from '../../../settings/queries';
 import { useCreateProduct, useUpdateProduct } from '../../api/products/queries';
 import { ApiError } from '../../../../lib/api-client';
-import { UnitOfMeasureField, TrackingTypeField } from './product-form-fields';
+import { AttributesInput, UnitOfMeasureField, TrackingTypeField } from './product-form-fields';
 
 const PRODUCT_ENTITY_TYPE = 'product';
 
@@ -59,6 +59,7 @@ export function CreateProductForm({ onDone }: { onDone: () => void }) {
       isActive: true,
       customFields: {},
       defaultVariantSku: '',
+      defaultVariantBarcode: '',
     },
   });
 
@@ -69,7 +70,8 @@ export function CreateProductForm({ onDone }: { onDone: () => void }) {
       await createProduct.mutateAsync({
         ...values,
         description: values.description || null,
-        defaultVariantSku: values.defaultVariantSku || undefined,
+        defaultVariantSku: values.trackVariants ? undefined : values.defaultVariantSku || undefined,
+        defaultVariantBarcode: values.trackVariants ? undefined : values.defaultVariantBarcode || undefined,
         attributes: values.trackVariants ? values.attributes : [],
       });
       toast.success(t('inventory.products.createSuccess'));
@@ -166,17 +168,10 @@ export function CreateProductForm({ onDone }: { onDone: () => void }) {
               <FormItem>
                 <FormLabel>{t('inventory.products.attributes')}</FormLabel>
                 <FormControl>
-                  <Input
+                  <AttributesInput
                     placeholder={t('inventory.products.attributesPlaceholder')}
-                    value={(field.value ?? []).join(', ')}
-                    onChange={(e) =>
-                      field.onChange(
-                        e.target.value
-                          .split(',')
-                          .map((s) => s.trim())
-                          .filter(Boolean),
-                      )
-                    }
+                    value={field.value}
+                    onChange={field.onChange}
                   />
                 </FormControl>
                 <FormMessage />
@@ -184,19 +179,45 @@ export function CreateProductForm({ onDone }: { onDone: () => void }) {
             )}
           />
         ) : null}
-        <FormField
-          control={form.control}
-          name="defaultVariantSku"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>{t('inventory.products.defaultVariantSku')}</FormLabel>
-              <FormControl>
-                <Input {...field} value={field.value ?? ''} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+        {!trackVariants ? (
+          <div className="grid gap-4 sm:grid-cols-2">
+            <FormField
+              control={form.control}
+              name="defaultVariantSku"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t('inventory.products.defaultVariantSku')}</FormLabel>
+                  <FormControl>
+                    <Input {...field} value={field.value ?? ''} dir="ltr" />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="defaultVariantBarcode"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t('inventory.products.barcode')}</FormLabel>
+                  <FormControl>
+                    <Input
+                      {...field}
+                      value={field.value ?? ''}
+                      dir="ltr"
+                      placeholder={t('inventory.products.barcodePlaceholder')}
+                      onKeyDown={(event) => {
+                        // Barcode scanners end with Enter — don't let it submit the form.
+                        if (event.key === 'Enter') event.preventDefault();
+                      }}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+        ) : null}
         <FormField
           control={form.control}
           name="isActive"
@@ -350,17 +371,10 @@ export function EditProductForm({ product, onDone }: { product: ProductDto; onDo
               <FormItem>
                 <FormLabel>{t('inventory.products.attributes')}</FormLabel>
                 <FormControl>
-                  <Input
+                  <AttributesInput
                     placeholder={t('inventory.products.attributesPlaceholder')}
-                    value={(field.value ?? []).join(', ')}
-                    onChange={(e) =>
-                      field.onChange(
-                        e.target.value
-                          .split(',')
-                          .map((s) => s.trim())
-                          .filter(Boolean),
-                      )
-                    }
+                    value={field.value}
+                    onChange={field.onChange}
                   />
                 </FormControl>
                 <FormMessage />

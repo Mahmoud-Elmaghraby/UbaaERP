@@ -4,7 +4,11 @@ import type { TenantDatabase } from '../../../../database/tenant/kysely-client';
 import { PRODUCT_REPOSITORY, type ProductRepository } from '../ports/product.repository';
 import { PRODUCT_VARIANT_REPOSITORY, type ProductVariantRepository } from '../ports/product-variant.repository';
 import type { Product, CreateProductInput, UpdateProductInput } from '../../domain/product.entity';
-import type { ProductVariant } from '../../domain/product-variant.entity';
+import type {
+  ProductVariant,
+  ProductVariantLookup,
+  UpdateProductVariantInput,
+} from '../../domain/product-variant.entity';
 import {
   BusinessRuleError,
   ConflictError,
@@ -52,12 +56,16 @@ export class ProductsService {
           const variant = await this.variants.create(trx, {
             productId: product.id,
             sku: input.defaultVariantSku ?? product.code,
+            barcode: input.defaultVariantBarcode ?? null,
           });
           variants.push(variant);
         }
         return { ...product, variants };
       });
     } catch (err) {
+      if (isPostgresUniqueViolation(err) && violatedConstraint(err) === 'product_variants_barcode_unique') {
+        throw duplicateEntity('PRODUCT_VARIANT', 'barcode', input.defaultVariantBarcode ?? undefined);
+      }
       if (isPostgresUniqueViolation(err)) {
         throw new ConflictError(
           `A product with code "${input.code}" (or its default variant SKU) already exists.`,
@@ -143,10 +151,44 @@ export class ProductsService {
     try {
       return await this.variants.create(db, { productId, ...input });
     } catch (err) {
-      if (isPostgresUniqueViolation(err)) {
-        throw duplicateEntity('PRODUCT_VARIANT', 'sku', input.sku);
-      }
+      if (isPostgresUniqueViolation(err)) throw variantUniqueViolation(err, input);
       throw err;
     }
   }
+
+  /** The whole catalogue as flat variant rows — see ProductVariantLookup. */
+  listVariantLookup(db: Kysely<TenantDatabase>): Promise<ProductVariantLookup[]> {
+    return this.variants.listLookup(db);
+  }
+
+  async updateVariant(
+    db: Kysely<TenantDatabase>,
+    productId: string,
+    variantId: string,
+    input: UpdateProductVariantInput,
+  ): Promise<ProductVariant> {
+    const existing = await this.variants.findById(db, variantId);
+    if (!existing || existing.productId !== productId) throw entityNotFound('PRODUCT_VARIANT', variantId);
+    try {
+      const updated = await this.variants.update(db, variantId, input);
+      if (!updated) throw entityNotFound('PRODUCT_VARIANT', variantId);
+      return updated;
+    } catch (err) {
+      if (isPostgresUniqueViolation(err)) throw variantUniqueViolation(err, input);
+      throw err;
+    }
+  }
+}
+
+function violatedConstraint(err: unknown): string | undefined {
+  return typeof err === 'object' && err !== null && 'constraint' in err
+    ? String((err as { constraint?: unknown }).constraint)
+    : undefined;
+}
+
+/** product_variants has two unique keys (sku, barcode) — report the one actually violated. */
+function variantUniqueViolation(err: unknown, input: { sku?: string; barcode?: string | null }) {
+  return violatedConstraint(err) === 'product_variants_barcode_unique'
+    ? duplicateEntity('PRODUCT_VARIANT', 'barcode', input.barcode ?? undefined)
+    : duplicateEntity('PRODUCT_VARIANT', 'sku', input.sku);
 }

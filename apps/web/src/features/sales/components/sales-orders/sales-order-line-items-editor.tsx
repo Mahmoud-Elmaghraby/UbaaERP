@@ -1,4 +1,3 @@
-import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Plus, Trash2 } from 'lucide-react';
 import {
@@ -17,7 +16,7 @@ import {
   TableRow,
 } from '@erp-platform/ui';
 
-import { useProductsWithVariants } from '../../../inventory/api/products/queries';
+import { ProductVariantPicker } from '../../../../components/product/product-variant-picker';
 import { createEmptyDiscountDraft, DiscountDraft } from '../../lib/discount-fields';
 
 export interface SalesOrderLineDraft {
@@ -63,18 +62,7 @@ export function SalesOrderLineItemsEditor({
   currency: string;
 }) {
   const { t } = useTranslation();
-  const { data: productsWithVariants } = useProductsWithVariants();
 
-  const options = useMemo(
-    () =>
-      productsWithVariants.flatMap((product) =>
-        product.variants.map((variant) => ({
-          value: variant.id,
-          label: `${product.name} — ${variant.sku}`,
-        })),
-      ),
-    [productsWithVariants],
-  );
 
   function updateLine(key: string, patch: Partial<SalesOrderLineDraft>) {
     onChange(lines.map((line) => (line.key === key ? { ...line, ...patch } : line)));
@@ -106,21 +94,10 @@ export function SalesOrderLineItemsEditor({
             {lines.map((line) => (
               <TableRow key={line.key}>
                 <TableCell>
-                  <Select
+                  <ProductVariantPicker
                     value={line.productVariantId}
-                    onValueChange={(value) => updateLine(line.key, { productVariantId: value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder={t('sales.salesOrders.selectProduct')} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {options.map((option) => (
-                        <SelectItem key={option.value} value={option.value}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    onChange={(value) => updateLine(line.key, { productVariantId: value })}
+                  />
                 </TableCell>
                 <TableCell>
                   <Input

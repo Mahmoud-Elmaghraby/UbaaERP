@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 
-import { useProductsWithVariants } from '../../../inventory/api/products/queries';
+import { useVariantLookup } from '../../../inventory/api/products/queries';
+import { variantDisplayName } from '../../../../components/product/variant-search';
 
 /** Same per-entity lookup-hook pattern as purchase-requisitions/use-variant-index.ts —
  * see that file's comment for the full rationale (read-only cross-module reference data,
@@ -8,14 +9,12 @@ import { useProductsWithVariants } from '../../../inventory/api/products/queries
  * Quotation lines both use this — quotations are nested under the RFQs feature folder,
  * not a separate routed entity, so they share this copy rather than getting their own. */
 export function useVariantIndex() {
-  const { data: productsWithVariants } = useProductsWithVariants();
+  const { data } = useVariantLookup();
   return useMemo(() => {
     const map = new Map<string, { productName: string; sku: string }>();
-    for (const product of productsWithVariants) {
-      for (const variant of product.variants) {
-        map.set(variant.id, { productName: product.name, sku: variant.sku });
-      }
+    for (const variant of data ?? []) {
+      map.set(variant.id, { productName: variantDisplayName(variant), sku: variant.sku });
     }
     return map;
-  }, [productsWithVariants]);
+  }, [data]);
 }

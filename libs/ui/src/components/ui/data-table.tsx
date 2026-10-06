@@ -26,8 +26,10 @@ export interface DataTableProps<TData, TValue> {
   emptyMessage?: string;
   /** Optional richer empty state (icon + description + action) — overrides emptyMessage. */
   emptyState?: React.ReactNode;
-  /** Rows per page. Set to 0 (or Infinity) to disable client-side pagination entirely. */
+  /** Initial rows per page. Set to 0 (or Infinity) to disable client-side pagination entirely. */
   pageSize?: number;
+  /** Page sizes the user can switch between in the footer. */
+  pageSizeOptions?: number[];
   /** Optional content (filters, "new" button) rendered in the table's header bar. */
   toolbar?: React.ReactNode;
   /** Client-side quick search across all text columns. On by default. */
@@ -54,6 +56,7 @@ export function DataTable<TData, TValue>({
   emptyMessage = 'لا توجد نتائج',
   emptyState,
   pageSize = 10,
+  pageSizeOptions = [10, 25, 50, 100],
   toolbar,
   searchable = true,
   searchPlaceholder = 'بحث…',
@@ -195,11 +198,32 @@ export function DataTable<TData, TValue>({
 
       {paginationEnabled && !isLoading && filteredCount > 0 ? (
         <div className="flex flex-wrap items-center justify-between gap-3 border-t px-4 py-2.5 text-[13px] text-muted-foreground">
-          <span>
-            عرض <span className="tabular font-medium text-foreground">{from}</span>–
-            <span className="tabular font-medium text-foreground">{to}</span> من{' '}
-            <span className="tabular font-medium text-foreground">{filteredCount}</span>
-          </span>
+          <div className="flex flex-wrap items-center gap-3">
+            <span>
+              عرض <span className="tabular font-medium text-foreground">{from}</span>–
+              <span className="tabular font-medium text-foreground">{to}</span> من{' '}
+              <span className="tabular font-medium text-foreground">{filteredCount}</span>
+            </span>
+            {filteredCount > Math.min(...pageSizeOptions) ? (
+              <label className="flex items-center gap-1.5">
+                <span>صفوف:</span>
+                <select
+                  value={currentPageSize}
+                  onChange={(event) => table.setPageSize(Number(event.target.value))}
+                  className="tabular h-8 rounded-md border border-input bg-card px-1.5 text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/20"
+                  aria-label="عدد الصفوف في الصفحة"
+                >
+                  {[...new Set([...pageSizeOptions, pageSize])]
+                    .sort((a, b) => a - b)
+                    .map((size) => (
+                      <option key={size} value={size}>
+                        {size}
+                      </option>
+                    ))}
+                </select>
+              </label>
+            ) : null}
+          </div>
           {table.getPageCount() > 1 ? (
             <div className="flex items-center gap-1">
               <Button

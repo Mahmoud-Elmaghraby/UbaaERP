@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { X } from 'lucide-react';
 import {
   Button,
   Can,
@@ -52,6 +53,7 @@ export function StockTab() {
               setFilterVariantId(undefined);
             }}
             onVariantChange={setFilterVariantId}
+            activeOnly={false}
           />
           <WarehouseLocationSelector
             warehouseId={filterWarehouseId}
@@ -63,6 +65,22 @@ export function StockTab() {
             onLocationChange={setFilterLocationId}
           />
         </div>
+        <div className="flex flex-wrap items-center gap-2">
+          {filterVariantId || filterWarehouseId ? (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setFilterProductId(undefined);
+                setFilterVariantId(undefined);
+                setFilterWarehouseId(undefined);
+                setFilterLocationId(undefined);
+              }}
+            >
+              <X />
+              {t('inventory.stock.clearFilters')}
+            </Button>
+          ) : null}
         <Can permission="inventory.manage">
           <div className="flex flex-wrap gap-2">
             <Button onClick={() => setMovementOpen(true)}>
@@ -73,6 +91,7 @@ export function StockTab() {
             </Button>
           </div>
         </Can>
+        </div>
       </div>
 
       <Tabs value={activeView} onValueChange={setActiveView}>
