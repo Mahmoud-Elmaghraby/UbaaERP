@@ -5,6 +5,7 @@ import type {
   BarcodeMode,
   InventorySettings,
   ItemCodeMode,
+  ScaleValueType,
   UpdateInventorySettingsInput,
 } from '../../domain/inventory-settings.entity';
 
@@ -13,6 +14,11 @@ function toDomain(row: Selectable<InventorySettingsTable>): InventorySettings {
     itemCodeMode: row.item_code_mode as ItemCodeMode,
     barcodeMode: row.barcode_mode as BarcodeMode,
     barcodePrefix: row.barcode_prefix,
+    scaleBarcodeEnabled: row.scale_barcode_enabled,
+    scaleBarcodePrefix: row.scale_barcode_prefix,
+    scaleItemCodeLength: row.scale_item_code_length,
+    scaleValueType: row.scale_value_type as ScaleValueType,
+    scaleValueDecimals: row.scale_value_decimals,
     updatedAt: row.updated_at,
   };
 }
@@ -30,6 +36,11 @@ export class KyselyInventorySettingsRepository implements InventorySettingsRepos
         ...(input.itemCodeMode !== undefined ? { item_code_mode: input.itemCodeMode } : {}),
         ...(input.barcodeMode !== undefined ? { barcode_mode: input.barcodeMode } : {}),
         ...(input.barcodePrefix !== undefined ? { barcode_prefix: input.barcodePrefix } : {}),
+        ...(input.scaleBarcodeEnabled !== undefined ? { scale_barcode_enabled: input.scaleBarcodeEnabled } : {}),
+        ...(input.scaleBarcodePrefix !== undefined ? { scale_barcode_prefix: input.scaleBarcodePrefix } : {}),
+        ...(input.scaleItemCodeLength !== undefined ? { scale_item_code_length: input.scaleItemCodeLength } : {}),
+        ...(input.scaleValueType !== undefined ? { scale_value_type: input.scaleValueType } : {}),
+        ...(input.scaleValueDecimals !== undefined ? { scale_value_decimals: input.scaleValueDecimals } : {}),
         updated_at: sql`now()`,
       })
       .where('singleton', '=', true)

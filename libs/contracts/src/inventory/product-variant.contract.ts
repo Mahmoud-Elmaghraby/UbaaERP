@@ -63,5 +63,31 @@ export const productVariantLookupSchema = z.object({
   salePrice: moneySchema.nullable(),
   purchasePrice: moneySchema.nullable(),
   taxRuleId: z.string().uuid().nullable(),
+  /** Extra / pack barcodes; `quantity` = base units one scan stands for. */
+  extraBarcodes: z.array(z.object({ barcode: z.string(), quantity: z.number(), label: z.string().nullable() })),
 });
 export type ProductVariantLookupDto = z.infer<typeof productVariantLookupSchema>;
+
+export const productBarcodeSchema = z.object({
+  id: z.string().uuid(),
+  productVariantId: z.string().uuid(),
+  barcode: z.string(),
+  quantity: z.number(),
+  label: z.string().nullable(),
+  createdAt: z.coerce.date(),
+});
+export type ProductBarcodeDto = z.infer<typeof productBarcodeSchema>;
+
+export const createProductBarcodeSchema = z.object({
+  barcode: z.string().trim().min(1).max(64),
+  /** Base units one scan stands for — 1 for an alternate code, 12 for a carton of 12. */
+  quantity: z.number().positive().max(1_000_000).optional(),
+  label: z.string().trim().max(60).nullable().optional(),
+});
+export type CreateProductBarcodeDto = z.infer<typeof createProductBarcodeSchema>;
+
+/** Variant matrix: attribute name → values, e.g. { "المقاس": ["S","M"], "اللون": ["أحمر"] }. */
+export const generateProductVariantsSchema = z.object({
+  options: z.record(z.array(z.string().trim().min(1).max(60)).max(100)),
+});
+export type GenerateProductVariantsDto = z.infer<typeof generateProductVariantsSchema>;

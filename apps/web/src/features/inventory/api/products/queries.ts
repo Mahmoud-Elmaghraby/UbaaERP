@@ -9,6 +9,9 @@ import type {
   ProductWithVariantsDto,
   UpdateProductDto,
   UpdateProductVariantDto,
+  CreateProductBarcodeDto,
+  GenerateProductVariantsDto,
+  ProductBarcodeDto,
 } from '@erp-platform/contracts';
 
 import { apiDelete, apiGet, apiPatch, apiPost } from '../../../../lib/api-client';
@@ -81,6 +84,48 @@ export function useUpdateProductVariant(productId: string) {
   return useMutation({
     mutationFn: ({ variantId, input }: { variantId: string; input: UpdateProductVariantDto }) =>
       apiPatch<ProductVariantDto>(`/products/${productId}/variants/${variantId}`, input),
+    onSuccess: () => invalidateCatalogue(queryClient, productId),
+  });
+}
+
+export function useVariantBarcodes(productId: string, variantId: string | undefined) {
+  return useQuery({
+    queryKey: ['products', productId, 'variants', variantId, 'barcodes'],
+    queryFn: () => apiGet<ProductBarcodeDto[]>(`/products/${productId}/variants/${variantId}/barcodes`),
+    enabled: Boolean(variantId),
+  });
+}
+
+export function useAddVariantBarcode(productId: string, variantId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: CreateProductBarcodeDto) =>
+      apiPost<ProductBarcodeDto>(`/products/${productId}/variants/${variantId}/barcodes`, input),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['products', productId, 'variants', variantId, 'barcodes'] });
+      queryClient.invalidateQueries({ queryKey: VARIANT_LOOKUP_QUERY_KEY });
+    },
+  });
+}
+
+export function useDeleteVariantBarcode(productId: string, variantId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (barcodeId: string) =>
+      apiDelete<void>(`/products/${productId}/variants/${variantId}/barcodes/${barcodeId}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['products', productId, 'variants', variantId, 'barcodes'] });
+      queryClient.invalidateQueries({ queryKey: VARIANT_LOOKUP_QUERY_KEY });
+    },
+  });
+}
+
+/** Variant matrix — creates every missing combination of the given option values. */
+export function useGenerateVariants(productId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: GenerateProductVariantsDto) =>
+      apiPost<ProductVariantDto[]>(`/products/${productId}/variants/generate`, input),
     onSuccess: () => invalidateCatalogue(queryClient, productId),
   });
 }

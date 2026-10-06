@@ -228,8 +228,24 @@ export interface InventorySettingsTable {
   item_code_mode: Generated<string>;
   barcode_mode: Generated<string>;
   barcode_prefix: Generated<string>;
+  /** Migration 0076 — scale (weighing) barcodes. */
+  scale_barcode_enabled: Generated<boolean>;
+  scale_barcode_prefix: Generated<string>;
+  scale_item_code_length: Generated<number>;
+  scale_value_type: Generated<string>;
+  scale_value_decimals: Generated<number>;
   created_at: Generated<Date>;
   updated_at: Generated<Date>;
+}
+
+/** Migration 0076 — extra / pack barcodes per variant. */
+export interface ProductBarcodesTable {
+  id: string;
+  product_variant_id: string;
+  barcode: string;
+  quantity: Generated<string>;
+  label: string | null;
+  created_at: Generated<Date>;
 }
 
 /** Migration 0075. */
@@ -815,6 +831,7 @@ export interface TenantDatabase {
   inventory_settings: InventorySettingsTable;
   product_categories: ProductCategoriesTable;
   product_brands: ProductBrandsTable;
+  product_barcodes: ProductBarcodesTable;
   product_variants: ProductVariantsTable;
   warehouse_locations: WarehouseLocationsTable;
   stock_levels: StockLevelsTable;

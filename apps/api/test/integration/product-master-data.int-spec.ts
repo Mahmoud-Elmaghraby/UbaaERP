@@ -118,4 +118,58 @@ describe('Product master data (integration, real Postgres)', () => {
     });
     await expect(catalog.deleteCategory(db, child.id)).rejects.toMatchObject({ code: 'PRODUCT_CATEGORY.IN_USE' });
   });
+
+  it('adds pack barcodes that resolve in the catalogue lookup and can never collide with another code', async () => {
+    const code = `PK-${uniqueSuffix()}`;
+    const product = await products.create(db, {
+      code,
+      name: 'Juice',
+      unitOfMeasureId: unitId,
+      defaultVariantBarcode: `P1${uniqueSuffix()}`,
+    });
+    const variant = product.variants[0];
+    const cartonCode = `C${uniqueSuffix()}`;
+    const carton = await products.addVariantBarcode(db, product.id, variant.id, {
+      barcode: cartonCode,
+      quantity: 12,
+      label: 'كرتونة',
+    });
+    expect(carton.quantity).toBe(12);
+
+    const row = (await new KyselyProductVariantRepository().listLookup(db)).find((v) => v.id === variant.id);
+    expect(row?.extraBarcodes).toEqual([{ barcode: cartonCode, quantity: 12, label: 'كرتونة' }]);
+
+    // the primary barcode and an existing extra one are both refused
+    await expect(
+      products.addVariantBarcode(db, product.id, variant.id, { barcode: variant.barcode ?? '' }),
+    ).rejects.toMatchObject({ code: 'PRODUCT_VARIANT.DUPLICATE_BARCODE' });
+    await expect(
+      products.updateVariant(db, product.id, variant.id, { barcode: cartonCode }),
+    ).rejects.toMatchObject({ code: 'PRODUCT_VARIANT.DUPLICATE_BARCODE' });
+
+    await products.removeVariantBarcode(db, product.id, variant.id, carton.id);
+    expect(await products.listVariantBarcodes(db, product.id, variant.id)).toEqual([]);
+  });
+
+  it('generates a size × colour matrix once, skipping combinations that already exist', async () => {
+    const code = `TS-${uniqueSuffix()}`;
+    const product = await products.create(db, {
+      code,
+      name: 'T-shirt',
+      unitOfMeasureId: unitId,
+      trackVariants: true,
+      attributes: ['المقاس', 'اللون'],
+    });
+    const first = await products.generateVariants(db, product.id, { المقاس: ['S', 'M'], اللون: ['أحمر', 'أزرق'] });
+    expect(first).toHaveLength(4);
+    expect(first.map((v) => v.sku)).toEqual([code, `${code}-2`, `${code}-3`, `${code}-4`]);
+
+    const again = await products.generateVariants(db, product.id, { المقاس: ['S', 'M', 'L'], اللون: ['أحمر', 'أزرق'] });
+    expect(again).toHaveLength(2);
+    expect(again.every((v) => v.attributeValues['المقاس'] === 'L')).toBe(true);
+
+    await expect(products.generateVariants(db, product.id, { الخامة: ['قطن'] })).rejects.toMatchObject({
+      code: 'PRODUCT_VARIANT.MATRIX_INVALID_OPTIONS',
+    });
+  });
 });

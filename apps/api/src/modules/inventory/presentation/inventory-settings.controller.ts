@@ -15,9 +15,9 @@ import { InventorySettingsService } from '../application/services/inventory-sett
 
 /**
  * Inventory module settings (Settings › Modules › Inventory). Read by the
- * product form (to know whether the code/barcode fields are optional), so
- * GET accepts inventory or settings managers; changing them is a settings
- * action.
+ * product form (code/barcode modes) and by POS / document pickers (scale
+ * barcode layout), so GET accepts any role that works with products;
+ * changing them is a settings action.
  */
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller('inventory-settings')
@@ -28,7 +28,7 @@ export class InventorySettingsController {
   ) {}
 
   @Get()
-  @RequireAnyPermission('inventory.manage', 'settings.manage')
+  @RequireAnyPermission('inventory.manage', 'settings.manage', 'sales.manage', 'purchases.manage')
   async get(@CurrentTenantSchema() schema: string): Promise<InventorySettingsDto> {
     const settings = await this.service.get(this.connections.getClient(schema));
     return inventorySettingsSchema.parse(settings);

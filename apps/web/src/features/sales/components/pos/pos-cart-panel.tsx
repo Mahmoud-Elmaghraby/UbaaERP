@@ -29,9 +29,10 @@ import {
 import { useCustomers } from '../../api/customers/queries';
 import { usePosCheckout } from '../../api/pos/queries';
 import { useVariantLookup } from '../../../inventory/api/products/queries';
+import { useInventorySettings } from '../../../inventory/api/catalog/queries';
 import {
   defaultPriceText,
-  findVariantByCode,
+  resolveScan,
   searchVariants,
   variantDisplayName,
 } from '../../../../components/product/variant-search';
@@ -96,6 +97,7 @@ export function PosCartPanel({ session }: { session: PosSessionDto }) {
   const currency = session.openingCashAmount.currency;
   const { data: customers } = useCustomers();
   const { data: catalogue } = useVariantLookup();
+  const { data: inventorySettings } = useInventorySettings();
   const checkout = usePosCheckout();
 
   const [search, setSearch] = useState('');
@@ -119,11 +121,15 @@ export function PosCartPanel({ session }: { session: PosSessionDto }) {
       .map((variant) => ({ productVariantId: variant.id, label: `${variantDisplayName(variant)} — ${variant.sku}` }));
   }, [sellable, search]);
 
-  /** Enter in the search box: exact barcode/SKU/code first (scanner), else the top result. */
+  /**
+   * Enter in the search box: a scanned code first — primary barcode, pack barcode
+   * (a carton adds its 12 pieces), SKU/code, or a weighing-scale barcode with the
+   * weight inside — else the top search result.
+   */
   function addFromSearch() {
-    const exact = findVariantByCode(sellable, search);
-    if (exact) {
-      addToCart(exact.id, `${variantDisplayName(exact)} — ${exact.sku}`);
+    const scan = resolveScan(sellable, search, inventorySettings);
+    if (scan) {
+      addToCart(scan.variant.id, `${variantDisplayName(scan.variant)} — ${scan.variant.sku}`, scan.quantity);
       return;
     }
     const first = searchResults[0];
@@ -131,13 +137,13 @@ export function PosCartPanel({ session }: { session: PosSessionDto }) {
     else if (search.trim() !== '') toast.error(t('pos.cart.notFound'));
   }
 
-  function addToCart(productVariantId: string, label: string) {
+  function addToCart(productVariantId: string, label: string, quantity = 1) {
     const variant = sellable.find((entry) => entry.id === productVariantId);
     const defaultPrice = variant ? defaultPriceText(variant, 'sale', currency) : null;
     setLines((prev) => {
       const existing = prev.find((l) => l.productVariantId === productVariantId);
       if (existing) {
-        const nextQuantity = (Number(existing.quantity) || 0) + 1;
+        const nextQuantity = Math.round(((Number(existing.quantity) || 0) + quantity) * 1000) / 1000;
         return prev.map((l) => (l.key === existing.key ? { ...l, quantity: String(nextQuantity) } : l));
       }
       return [
@@ -146,7 +152,7 @@ export function PosCartPanel({ session }: { session: PosSessionDto }) {
           key: makeKey('line'),
           productVariantId,
           label,
-          quantity: '1',
+          quantity: String(quantity),
           unitPrice: defaultPrice ?? '',
           discount: createEmptyDiscountDraft(),
         },

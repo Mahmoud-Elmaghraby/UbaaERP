@@ -8,6 +8,7 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  Checkbox,
   Input,
   Select,
   SelectContent,
@@ -30,18 +31,31 @@ export function InventorySettingsSection() {
   const { t } = useTranslation();
   const { data: settings, isLoading } = useInventorySettings();
   const update = useUpdateInventorySettings();
-  const [draft, setDraft] = useState<Pick<InventorySettingsDto, 'itemCodeMode' | 'barcodeMode' | 'barcodePrefix'> | null>(
-    null,
-  );
+  const [draft, setDraft] = useState<Omit<InventorySettingsDto, 'updatedAt'> | null>(null);
 
   useEffect(() => {
-    if (settings) setDraft({ itemCodeMode: settings.itemCodeMode, barcodeMode: settings.barcodeMode, barcodePrefix: settings.barcodePrefix });
+    if (settings) {
+      setDraft({
+        itemCodeMode: settings.itemCodeMode,
+        barcodeMode: settings.barcodeMode,
+        barcodePrefix: settings.barcodePrefix,
+        scaleBarcodeEnabled: settings.scaleBarcodeEnabled,
+        scaleBarcodePrefix: settings.scaleBarcodePrefix,
+        scaleItemCodeLength: settings.scaleItemCodeLength,
+        scaleValueType: settings.scaleValueType,
+        scaleValueDecimals: settings.scaleValueDecimals,
+      });
+    }
   }, [settings]);
 
   const prefixValid = draft ? /^[0-9]{1,7}$/.test(draft.barcodePrefix) : true;
+  // EAN-13 = prefix + item code + value + check digit; the value needs ≥ 3 digits.
+  const scaleValid = draft
+    ? /^[0-9]{1,3}$/.test(draft.scaleBarcodePrefix) && 12 - draft.scaleBarcodePrefix.length - draft.scaleItemCodeLength >= 3
+    : true;
 
   async function save() {
-    if (!draft || !prefixValid) return;
+    if (!draft || !prefixValid || !scaleValid) return;
     try {
       await update.mutateAsync(draft);
       toast.success(t('settings.inventory.saved'));
@@ -109,8 +123,77 @@ export function InventorySettingsSection() {
                 </p>
               </div>
             ) : null}
+            <div className="grid gap-3 border-t pt-5">
+              <label className="flex items-center gap-2 text-sm font-medium">
+                <Checkbox
+                  checked={draft.scaleBarcodeEnabled}
+                  onCheckedChange={(checked) => setDraft({ ...draft, scaleBarcodeEnabled: checked === true })}
+                />
+                {t('settings.inventory.scaleEnabled')}
+              </label>
+              <p className="text-xs text-muted-foreground">{t('settings.inventory.scaleHint')}</p>
+              {draft.scaleBarcodeEnabled ? (
+                <div className="grid gap-4 sm:grid-cols-4">
+                  <div className="grid gap-1.5">
+                    <label className="text-sm font-medium">{t('settings.inventory.scalePrefix')}</label>
+                    <Input
+                      dir="ltr"
+                      inputMode="numeric"
+                      value={draft.scaleBarcodePrefix}
+                      onChange={(e) => setDraft({ ...draft, scaleBarcodePrefix: e.target.value.trim() })}
+                    />
+                  </div>
+                  <div className="grid gap-1.5">
+                    <label className="text-sm font-medium">{t('settings.inventory.scaleCodeLength')}</label>
+                    <Input
+                      dir="ltr"
+                      type="number"
+                      min={3}
+                      max={7}
+                      value={draft.scaleItemCodeLength}
+                      onChange={(e) => setDraft({ ...draft, scaleItemCodeLength: Number(e.target.value) || 0 })}
+                    />
+                  </div>
+                  <div className="grid gap-1.5">
+                    <label className="text-sm font-medium">{t('settings.inventory.scaleValueType')}</label>
+                    <Select
+                      value={draft.scaleValueType}
+                      onValueChange={(value) =>
+                        setDraft({ ...draft, scaleValueType: value as InventorySettingsDto['scaleValueType'] })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="weight">{t('settings.inventory.scaleWeight')}</SelectItem>
+                        <SelectItem value="price">{t('settings.inventory.scalePrice')}</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="grid gap-1.5">
+                    <label className="text-sm font-medium">{t('settings.inventory.scaleDecimals')}</label>
+                    <Input
+                      dir="ltr"
+                      type="number"
+                      min={0}
+                      max={3}
+                      value={draft.scaleValueDecimals}
+                      onChange={(e) => setDraft({ ...draft, scaleValueDecimals: Number(e.target.value) || 0 })}
+                    />
+                  </div>
+                  <p className={`text-xs sm:col-span-4 ${scaleValid ? 'text-muted-foreground' : 'text-destructive'}`}>
+                    {t('settings.inventory.scaleLayout', {
+                      prefix: draft.scaleBarcodePrefix.length,
+                      code: draft.scaleItemCodeLength,
+                      value: 12 - draft.scaleBarcodePrefix.length - draft.scaleItemCodeLength,
+                    })}
+                  </p>
+                </div>
+              ) : null}
+            </div>
             <div>
-              <Button onClick={save} disabled={update.isPending || !prefixValid}>
+              <Button onClick={save} disabled={update.isPending || !prefixValid || !scaleValid}>
                 {t('common.save')}
               </Button>
             </div>

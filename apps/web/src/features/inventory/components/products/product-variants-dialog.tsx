@@ -37,6 +37,7 @@ import {
 
 import { useAddProductVariant, useProduct, useUpdateProductVariant } from '../../api/products/queries';
 import { ApiError } from '../../../../lib/api-client';
+import { ExtraBarcodesForm, GenerateVariantsForm } from './variant-tools';
 
 /**
  * Nested variants management for one product: list, add, and edit (SKU,
@@ -56,6 +57,8 @@ export function ProductVariantsDialog({
   const { data: full, isLoading } = useProduct(product?.id);
   const [addOpen, setAddOpen] = useState(false);
   const [editing, setEditing] = useState<ProductVariantDto | null>(null);
+  const [barcodesFor, setBarcodesFor] = useState<ProductVariantDto | null>(null);
+  const [matrixOpen, setMatrixOpen] = useState(false);
 
   return (
     <Dialog open={product !== null} onOpenChange={(open) => !open && onClose()}>
@@ -67,7 +70,14 @@ export function ProductVariantsDialog({
         </DialogHeader>
         {product ? (
           <div className="grid gap-4">
-            <div className="flex justify-end">
+            <div className="flex flex-wrap justify-end gap-2">
+              {product.attributes.length > 0 ? (
+                <Can permission="inventory.manage">
+                  <Button variant="outline" onClick={() => setMatrixOpen(true)}>
+                    {t('inventory.products.matrix.open')}
+                  </Button>
+                </Can>
+              ) : null}
               <Can permission="inventory.manage">
                 <Dialog open={addOpen} onOpenChange={setAddOpen}>
                   <DialogTrigger asChild>
@@ -97,7 +107,7 @@ export function ProductVariantsDialog({
                     <TableHead>{t('inventory.products.barcode')}</TableHead>
                     <TableHead>{t('inventory.products.attributes')}</TableHead>
                     <TableHead>{t('common.status')}</TableHead>
-                    <TableHead className="w-16" />
+                    <TableHead className="w-40" />
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -123,9 +133,14 @@ export function ProductVariantsDialog({
                       </TableCell>
                       <TableCell>
                         <Can permission="inventory.manage">
-                          <Button variant="ghost" size="sm" onClick={() => setEditing(variant)}>
-                            {t('common.edit')}
-                          </Button>
+                          <div className="flex justify-end gap-1">
+                            <Button variant="ghost" size="sm" onClick={() => setBarcodesFor(variant)}>
+                              {t('inventory.products.barcodes.manage')}
+                            </Button>
+                            <Button variant="ghost" size="sm" onClick={() => setEditing(variant)}>
+                              {t('common.edit')}
+                            </Button>
+                          </div>
                         </Can>
                       </TableCell>
                     </TableRow>
@@ -140,6 +155,30 @@ export function ProductVariantsDialog({
                 </TableBody>
               </Table>
             )}
+            <Dialog open={barcodesFor !== null} onOpenChange={(open) => !open && setBarcodesFor(null)}>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>
+                    {t('inventory.products.barcodes.title')} — {barcodesFor?.sku}
+                  </DialogTitle>
+                </DialogHeader>
+                {barcodesFor ? <ExtraBarcodesForm key={barcodesFor.id} productId={product.id} variant={barcodesFor} /> : null}
+              </DialogContent>
+            </Dialog>
+            <Dialog open={matrixOpen} onOpenChange={setMatrixOpen}>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>{t('inventory.products.matrix.title')}</DialogTitle>
+                </DialogHeader>
+                {matrixOpen ? (
+                  <GenerateVariantsForm
+                    productId={product.id}
+                    attributeNames={product.attributes}
+                    onDone={() => setMatrixOpen(false)}
+                  />
+                ) : null}
+              </DialogContent>
+            </Dialog>
             <Dialog open={editing !== null} onOpenChange={(open) => !open && setEditing(null)}>
               <DialogContent>
                 <DialogHeader>

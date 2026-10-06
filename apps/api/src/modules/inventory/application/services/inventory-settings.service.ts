@@ -17,10 +17,19 @@ export class InventorySettingsService {
     return this.repository.get(db);
   }
 
-  update(db: Kysely<TenantDatabase>, input: UpdateInventorySettingsInput): Promise<InventorySettings> {
+  async update(db: Kysely<TenantDatabase>, input: UpdateInventorySettingsInput): Promise<InventorySettings> {
     if (input.barcodePrefix !== undefined && !/^[0-9]{1,7}$/.test(input.barcodePrefix)) {
       throw new BusinessRuleError('Barcode prefix must be 1 to 7 digits.', {
         code: 'INVENTORY_SETTINGS.INVALID_BARCODE_PREFIX',
+      });
+    }
+    const current = await this.repository.get(db);
+    const prefix = input.scaleBarcodePrefix ?? current.scaleBarcodePrefix;
+    const codeLength = input.scaleItemCodeLength ?? current.scaleItemCodeLength;
+    if (!/^[0-9]{1,3}$/.test(prefix) || 12 - prefix.length - codeLength < 3) {
+      // EAN-13 = prefix + item code + embedded value + check digit; the value needs at least 3 digits.
+      throw new BusinessRuleError('Scale barcode prefix + item code length leave no room for the weight/price.', {
+        code: 'INVENTORY_SETTINGS.INVALID_SCALE_LAYOUT',
       });
     }
     return this.repository.update(db, input);

@@ -53,4 +53,26 @@ export interface ProductVariantLookup {
   /** Prefilled on purchase lines. */
   purchasePrice: Money | null;
   taxRuleId: string | null;
+  /** Extra / pack barcodes (the primary one is `barcode`). */
+  extraBarcodes: { barcode: string; quantity: number; label: string | null }[];
+}
+
+/**
+ * An extra barcode for a variant (migration 0076): an alternate code, or a
+ * pack/carton code where one scan means `quantity` base units.
+ */
+export interface ProductBarcode {
+  id: string;
+  productVariantId: string;
+  barcode: string;
+  quantity: number;
+  label: string | null;
+  createdAt: Date;
+}
+
+export interface CreateProductBarcodeInput {
+  productVariantId: string;
+  barcode: string;
+  quantity?: number;
+  label?: string | null;
 }

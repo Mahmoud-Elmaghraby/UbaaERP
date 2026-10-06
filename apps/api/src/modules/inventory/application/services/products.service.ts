@@ -5,6 +5,7 @@ import { PRODUCT_REPOSITORY, type ProductRepository } from '../ports/product.rep
 import { PRODUCT_VARIANT_REPOSITORY, type ProductVariantRepository } from '../ports/product-variant.repository';
 import type { Product, CreateProductInput, UpdateProductInput } from '../../domain/product.entity';
 import type {
+  ProductBarcode,
   ProductVariant,
   ProductVariantLookup,
   UpdateProductVariantInput,
@@ -166,6 +167,117 @@ export class ProductsService {
     }
   }
 
+  listVariantBarcodes(db: Kysely<TenantDatabase>, productId: string, variantId: string): Promise<ProductBarcode[]> {
+    return this.requireVariantOf(db, productId, variantId).then(() => this.variants.listBarcodes(db, variantId));
+  }
+
+  /**
+   * Adds an alternate or pack barcode. A code must resolve to exactly one
+   * item on scan, so it may not already be any variant's primary barcode or
+   * another extra barcode.
+   */
+  async addVariantBarcode(
+    db: Kysely<TenantDatabase>,
+    productId: string,
+    variantId: string,
+    input: { barcode: string; quantity?: number; label?: string | null },
+  ): Promise<ProductBarcode> {
+    await this.requireVariantOf(db, productId, variantId);
+    const barcode = input.barcode.trim();
+    if (await this.variants.barcodeExists(db, barcode)) {
+      throw duplicateEntity('PRODUCT_VARIANT', 'barcode', barcode);
+    }
+    try {
+      return await this.variants.addBarcode(db, {
+        productVariantId: variantId,
+        barcode,
+        quantity: input.quantity,
+        label: input.label?.trim() || null,
+      });
+    } catch (err) {
+      if (isPostgresUniqueViolation(err)) throw duplicateEntity('PRODUCT_VARIANT', 'barcode', barcode);
+      throw err;
+    }
+  }
+
+  async removeVariantBarcode(
+    db: Kysely<TenantDatabase>,
+    productId: string,
+    variantId: string,
+    barcodeId: string,
+  ): Promise<void> {
+    await this.requireVariantOf(db, productId, variantId);
+    if (!(await this.variants.deleteBarcode(db, variantId, barcodeId))) {
+      throw entityNotFound('PRODUCT_VARIANT', barcodeId);
+    }
+  }
+
+  /**
+   * Variant matrix: creates every missing combination of the given option
+   * values (e.g. sizes × colours) in one go, each with an auto SKU (code-2,
+   * code-3…) and — in auto barcode mode — its own barcode. Combinations
+   * that already exist are skipped, so it can be re-run after adding a new
+   * size. Option names must be among the product's declared attributes.
+   */
+  async generateVariants(
+    db: Kysely<TenantDatabase>,
+    productId: string,
+    options: Record<string, string[]>,
+  ): Promise<ProductVariant[]> {
+    const product = await this.getById(db, productId);
+    const names = Object.keys(options).filter((name) => (options[name] ?? []).some((value) => value.trim()));
+    const unknown = names.filter((name) => !product.attributes.includes(name));
+    if (names.length === 0 || unknown.length > 0) {
+      throw new BusinessRuleError('Pick values for the product\'s own attributes (e.g. size, colour).', {
+        code: 'PRODUCT_VARIANT.MATRIX_INVALID_OPTIONS',
+        params: { attributes: unknown.join('، ') },
+      });
+    }
+    const valueLists = names.map((name) => [...new Set(options[name].map((value) => value.trim()).filter(Boolean))]);
+    const total = valueLists.reduce((count, list) => count * list.length, 1);
+    if (total > MAX_MATRIX_VARIANTS) {
+      throw new BusinessRuleError(`At most ${MAX_MATRIX_VARIANTS} combinations can be generated at once.`, {
+        code: 'PRODUCT_VARIANT.MATRIX_TOO_LARGE',
+        params: { max: MAX_MATRIX_VARIANTS, requested: total },
+      });
+    }
+
+    let combinations: Record<string, string>[] = [{}];
+    names.forEach((name, index) => {
+      combinations = combinations.flatMap((combo) => valueLists[index].map((value) => ({ ...combo, [name]: value })));
+    });
+
+    const keyOf = (values: Record<string, unknown>) => names.map((name) => String(values[name] ?? '').trim()).join('\u0000');
+    const existing = new Set(product.variants.map((variant) => keyOf(variant.attributeValues)));
+
+    try {
+      return await withTransaction(db, async (trx) => {
+        const created: ProductVariant[] = [];
+        for (const combo of combinations) {
+          if (existing.has(keyOf(combo))) continue;
+          created.push(
+            await this.variants.create(trx, {
+              productId,
+              attributeValues: combo,
+              sku: await this.codes.resolveVariantSku(trx, undefined, product.code),
+              barcode: await this.codes.resolveBarcode(trx, undefined),
+            }),
+          );
+        }
+        return created;
+      });
+    } catch (err) {
+      if (isPostgresUniqueViolation(err)) throw variantUniqueViolation(err, {});
+      throw err;
+    }
+  }
+
+  private async requireVariantOf(db: Kysely<TenantDatabase>, productId: string, variantId: string): Promise<ProductVariant> {
+    const variant = await this.variants.findById(db, variantId);
+    if (!variant || variant.productId !== productId) throw entityNotFound('PRODUCT_VARIANT', variantId);
+    return variant;
+  }
+
   /** The whole catalogue as flat variant rows — see ProductVariantLookup. */
   listVariantLookup(db: Kysely<TenantDatabase>): Promise<ProductVariantLookup[]> {
     return this.variants.listLookup(db);
@@ -179,6 +291,9 @@ export class ProductsService {
   ): Promise<ProductVariant> {
     const existing = await this.variants.findById(db, variantId);
     if (!existing || existing.productId !== productId) throw entityNotFound('PRODUCT_VARIANT', variantId);
+    if (input.barcode && (await this.variants.extraBarcodeExists(db, input.barcode))) {
+      throw duplicateEntity('PRODUCT_VARIANT', 'barcode', input.barcode);
+    }
     try {
       const updated = await this.variants.update(db, variantId, input);
       if (!updated) throw entityNotFound('PRODUCT_VARIANT', variantId);
@@ -201,6 +316,9 @@ function productReferenceNotFound(
   if (constraint.includes('tax_rule')) return entityNotFound('TAX_RULE', input.taxRuleId);
   return entityNotFound('UNIT_OF_MEASURE', input.unitOfMeasureId);
 }
+
+/** Upper bound for one matrix generation (e.g. 10 sizes × 20 colours = 200). */
+const MAX_MATRIX_VARIANTS = 300;
 
 function violatedConstraint(err: unknown): string | undefined {
   return typeof err === 'object' && err !== null && 'constraint' in err

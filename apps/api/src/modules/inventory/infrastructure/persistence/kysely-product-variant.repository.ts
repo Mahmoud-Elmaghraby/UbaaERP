@@ -1,13 +1,19 @@
 import { randomUUID } from 'node:crypto';
 import { sql, type Kysely, type Selectable } from 'kysely';
 import { Money } from '@erp-platform/shared-kernel';
-import type { ProductVariantsTable, TenantDatabase } from '../../../../database/tenant/kysely-client';
+import type {
+  ProductBarcodesTable,
+  ProductVariantsTable,
+  TenantDatabase,
+} from '../../../../database/tenant/kysely-client';
 import type { ProductVariantRepository } from '../../application/ports/product-variant.repository';
 import type {
   ProductVariant,
   CreateProductVariantInput,
   UpdateProductVariantInput,
   ProductVariantLookup,
+  ProductBarcode,
+  CreateProductBarcodeInput,
 } from '../../domain/product-variant.entity';
 
 function toDomain(row: Selectable<ProductVariantsTable>): ProductVariant {
@@ -20,6 +26,17 @@ function toDomain(row: Selectable<ProductVariantsTable>): ProductVariant {
     isActive: row.is_active,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+  };
+}
+
+function barcodeToDomain(row: Selectable<ProductBarcodesTable>): ProductBarcode {
+  return {
+    id: row.id,
+    productVariantId: row.product_variant_id,
+    barcode: row.barcode,
+    quantity: Number(row.quantity),
+    label: row.label,
+    createdAt: row.created_at,
   };
 }
 
@@ -66,7 +83,46 @@ export class KyselyProductVariantRepository implements ProductVariantRepository 
 
   async barcodeExists(db: Kysely<TenantDatabase>, barcode: string): Promise<boolean> {
     const row = await db.selectFrom('product_variants').select('id').where('barcode', '=', barcode).executeTakeFirst();
+    return row !== undefined || (await this.extraBarcodeExists(db, barcode));
+  }
+
+  async extraBarcodeExists(db: Kysely<TenantDatabase>, barcode: string): Promise<boolean> {
+    const row = await db.selectFrom('product_barcodes').select('id').where('barcode', '=', barcode).executeTakeFirst();
     return row !== undefined;
+  }
+
+  async listBarcodes(db: Kysely<TenantDatabase>, productVariantId: string): Promise<ProductBarcode[]> {
+    const rows = await db
+      .selectFrom('product_barcodes')
+      .selectAll()
+      .where('product_variant_id', '=', productVariantId)
+      .orderBy('created_at')
+      .execute();
+    return rows.map(barcodeToDomain);
+  }
+
+  async addBarcode(db: Kysely<TenantDatabase>, input: CreateProductBarcodeInput): Promise<ProductBarcode> {
+    const row = await db
+      .insertInto('product_barcodes')
+      .values({
+        id: randomUUID(),
+        product_variant_id: input.productVariantId,
+        barcode: input.barcode,
+        quantity: String(input.quantity ?? 1),
+        label: input.label ?? null,
+      })
+      .returningAll()
+      .executeTakeFirstOrThrow();
+    return barcodeToDomain(row);
+  }
+
+  async deleteBarcode(db: Kysely<TenantDatabase>, productVariantId: string, barcodeId: string): Promise<boolean> {
+    const result = await db
+      .deleteFrom('product_barcodes')
+      .where('id', '=', barcodeId)
+      .where('product_variant_id', '=', productVariantId)
+      .executeTakeFirst();
+    return result.numDeletedRows > 0n;
   }
 
   async listLookup(db: Kysely<TenantDatabase>): Promise<ProductVariantLookup[]> {
@@ -99,9 +155,21 @@ export class KyselyProductVariantRepository implements ProductVariantRepository 
       .orderBy('products.name')
       .orderBy('product_variants.sku')
       .execute();
+    const extras = await db
+      .selectFrom('product_barcodes')
+      .select(['product_variant_id', 'barcode', 'quantity', 'label'])
+      .orderBy('created_at')
+      .execute();
+    const extrasByVariant = new Map<string, ProductVariantLookup['extraBarcodes']>();
+    for (const extra of extras) {
+      const list = extrasByVariant.get(extra.product_variant_id) ?? [];
+      list.push({ barcode: extra.barcode, quantity: Number(extra.quantity), label: extra.label });
+      extrasByVariant.set(extra.product_variant_id, list);
+    }
     return rows.map((row) => ({
       id: row.id,
       productId: row.product_id,
+      extraBarcodes: extrasByVariant.get(row.id) ?? [],
       productCode: row.product_code,
       productName: row.product_name,
       sku: row.sku,

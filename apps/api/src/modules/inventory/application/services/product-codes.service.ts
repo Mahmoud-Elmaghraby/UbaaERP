@@ -8,6 +8,7 @@ import {
 } from '../ports/inventory-settings.repository';
 import { PRODUCT_VARIANT_REPOSITORY, type ProductVariantRepository } from '../ports/product-variant.repository';
 import { BusinessRuleError } from '../errors';
+import { duplicateEntity } from '../../../../shared/errors/entity-errors';
 
 /** numbering_sequences document types owned by Inventory (prefix/padding editable in Settings › Numbering). */
 export const PRODUCT_CODE_SEQUENCE = 'product';
@@ -74,7 +75,11 @@ export class ProductCodesService {
   /** The barcode to save: the typed one, a generated EAN-13 in auto mode, or none. */
   async resolveBarcode(trx: Kysely<TenantDatabase>, typed: string | null | undefined): Promise<string | null> {
     const trimmed = typed?.trim();
-    if (trimmed) return trimmed;
+    if (trimmed) {
+      // Primary barcodes are unique by DB constraint; extra/pack barcodes live in another table.
+      if (await this.variants.extraBarcodeExists(trx, trimmed)) throw duplicateEntity('PRODUCT_VARIANT', 'barcode', trimmed);
+      return trimmed;
+    }
     const settings = await this.settings.get(trx);
     if (settings.barcodeMode !== 'auto') return null;
     return this.generateBarcode(trx, settings.barcodePrefix);
