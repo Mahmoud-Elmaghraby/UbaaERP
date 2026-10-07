@@ -60,6 +60,14 @@ export function GoodsReceiptDetailsView({ receipt }: { receipt: GoodsReceiptWith
           <p className="text-muted-foreground">{t('purchases.goodsReceipts.receivedDate')}</p>
           <p className="font-medium">{receipt.receivedDate ?? '—'}</p>
         </div>
+        {receipt.exchangeRate ? (
+          <div>
+            <p className="text-muted-foreground">{t('purchases.goodsReceipts.exchangeRateShort')}</p>
+            <p className="font-medium">
+              <bdi dir="ltr">{receipt.exchangeRate}</bdi>
+            </p>
+          </div>
+        ) : null}
         <div className="col-span-2 sm:col-span-3">
           <p className="text-muted-foreground">{t('purchases.goodsReceipts.notes')}</p>
           <p className="font-medium">{receipt.notes ?? '—'}</p>

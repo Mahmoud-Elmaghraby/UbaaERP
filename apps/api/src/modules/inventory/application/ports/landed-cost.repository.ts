@@ -19,6 +19,7 @@ export interface CreateLandedCostAllocationInput {
   locationId: string;
   warehouseId: string;
   allocatedAmount: Money;
+  expensedAmount: Money;
   resultingAverageCost: Money;
 }
 

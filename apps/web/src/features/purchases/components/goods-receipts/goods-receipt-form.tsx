@@ -30,13 +30,14 @@ import {
   toast,
 } from '@erp-platform/ui';
 
-import { useCustomFieldDefinitions } from '../../../settings/queries';
+import { useCustomFieldDefinitions, useTenantSettings } from '../../../settings/queries';
 import { useWarehouses } from '../../../inventory/api/warehouses/queries';
 import { usePurchaseOrders } from '../../api/purchase-orders/queries';
 import { useCreateGoodsReceipt } from '../../api/goods-receipts/queries';
 import { usePurchaseOrderRemaining } from '../../hooks/goods-receipts/use-purchase-order-remaining';
 import { ApiError } from '../../../../lib/api-client';
 import { decimalToMinorUnits } from '../../../../lib/money';
+import { toWesternDigits } from '../../../../lib/search-normalize';
 import {
   receiptLotsToDto,
   withImplicitSingleLotQuantity,
@@ -142,6 +143,11 @@ export function CreateGoodsReceiptForm({ onDone }: { onDone: () => void }) {
 
   const selectedPurchaseOrderId = form.watch('purchaseOrderId');
   const { lines: remainingLines, isLoading: remainingLoading } = usePurchaseOrderRemaining(selectedPurchaseOrderId);
+  const { data: tenantSettings } = useTenantSettings();
+  const tenantCurrency = tenantSettings?.currencyCode ?? 'EGP';
+  // A foreign-currency order is valued in the tenant's currency at a rate.
+  const orderCurrency = remainingLines[0]?.unitPrice.currency;
+  const foreignCurrency = orderCurrency && orderCurrency !== tenantCurrency ? orderCurrency : null;
 
   // The receiving worksheet's rows depend entirely on which PO is selected — reset the
   // drafts whenever that changes (including the very first time remainingLines loads),
@@ -165,6 +171,7 @@ export function CreateGoodsReceiptForm({ onDone }: { onDone: () => void }) {
       await createReceipt.mutateAsync({
         ...headerValues,
         receivedDate: headerValues.receivedDate || undefined,
+        exchangeRate: foreignCurrency ? headerValues.exchangeRate || undefined : undefined,
         lines: preparedLines,
       });
       toast.success(t('purchases.goodsReceipts.createSuccess'));
@@ -246,6 +253,34 @@ export function CreateGoodsReceiptForm({ onDone }: { onDone: () => void }) {
             </FormItem>
           )}
         />
+        {foreignCurrency ? (
+          <FormField
+            control={form.control}
+            name="exchangeRate"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>
+                  {t('purchases.goodsReceipts.exchangeRate', { from: foreignCurrency, to: tenantCurrency })}
+                </FormLabel>
+                <FormControl>
+                  <Input
+                    inputMode="decimal"
+                    dir="ltr"
+                    className="text-end"
+                    placeholder={t('purchases.goodsReceipts.exchangeRatePlaceholder')}
+                    value={field.value ?? ''}
+                    onChange={(e) => {
+                      const value = toWesternDigits(e.target.value).trim();
+                      field.onChange(value === '' ? null : value);
+                    }}
+                  />
+                </FormControl>
+                <p className="text-xs text-muted-foreground">{t('purchases.goodsReceipts.exchangeRateHelp')}</p>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        ) : null}
         <FormField
           control={form.control}
           name="notes"

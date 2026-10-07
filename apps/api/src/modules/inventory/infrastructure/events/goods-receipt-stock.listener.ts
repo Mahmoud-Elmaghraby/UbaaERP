@@ -15,6 +15,8 @@ interface GoodsReceiptConfirmedLine {
   productVariantId: string;
   quantity: number;
   unitCost: { amountMinorUnits: string; currency: string };
+  /** Exact line value in the tenant's currency (migration 0081); absent on older events. */
+  totalCost?: { amountMinorUnits: string; currency: string };
   /** Lot/serial split (migration 0077) — non-empty for tracked items; absent on events written before it. */
   lots?: { lotNumber: string; expiryDate: string | null; quantity: number }[];
 }
@@ -111,13 +113,20 @@ export class GoodsReceiptStockListener {
                   expiryDate: lot.expiryDate ? new Date(`${lot.expiryDate}T00:00:00`) : null,
                 }))
               : [{ quantity: line.quantity, lotNumber: undefined, expiryDate: undefined }];
-          for (const piece of pieces) {
+          const pieceCosts = line.totalCost
+            ? splitByQuantity(
+                Money.fromMinorUnits(BigInt(line.totalCost.amountMinorUnits), line.totalCost.currency),
+                pieces.map((piece) => piece.quantity),
+              )
+            : pieces.map(() => undefined);
+          for (const [index, piece] of pieces.entries()) {
             await this.stockMovements.recordMovement(trx, {
               productVariantId: line.productVariantId,
               locationId: defaultLocation.id,
               movementType: 'in',
               quantity: piece.quantity,
               unitCost,
+              totalCost: pieceCosts[index],
               lotNumber: piece.lotNumber,
               expiryDate: piece.expiryDate,
               referenceType: 'goods_receipt',
@@ -135,4 +144,16 @@ export class GoodsReceiptStockListener {
       throw err;
     }
   }
+}
+
+/** Splits a line value across its lots by quantity; the last lot takes the rounding remainder. */
+function splitByQuantity(total: Money, quantities: number[]): Money[] {
+  const sum = quantities.reduce((acc, quantity) => acc + quantity, 0);
+  let left = total.toMinorUnits();
+  return quantities.map((quantity, index) => {
+    if (index === quantities.length - 1 || sum <= 0) return Money.fromMinorUnits(left, total.currency);
+    const share = BigInt(Math.round((Number(total.toMinorUnits()) * quantity) / sum));
+    left -= share;
+    return Money.fromMinorUnits(share, total.currency);
+  });
 }

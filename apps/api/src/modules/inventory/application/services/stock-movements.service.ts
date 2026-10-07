@@ -38,6 +38,8 @@ interface IncomingParams {
   movementType: Extract<StockMovementType, 'in' | 'adjustment_increase' | 'transfer_in'>;
   quantity: number;
   unitCost?: Money;
+  /** Exact value of the whole incoming movement (overrides unitCost × quantity for the stock value). */
+  totalCost?: Money;
   product: Product;
   /** 'in'/'adjustment_increase' on a lot-tracked product: the lot to receive into (created if new). */
   lotNumber?: string;
@@ -349,6 +351,18 @@ export class StockMovementsService {
     return pieces;
   }
 
+  /** Average per-base-unit cost a document moved a variant at (e.g. a delivery's COGS), or null. */
+  async unitCostOfReference(
+    db: Kysely<TenantDatabase>,
+    referenceType: string,
+    referenceId: string,
+    productVariantId: string,
+  ): Promise<Money | null> {
+    const sum = await this.movements.sumForReference(db, referenceType, referenceId, productVariantId);
+    if (!sum) return null;
+    return Money.fromMinorUnits(sum.totalCostMinorUnits, sum.currency).divideByQuantity(sum.quantity);
+  }
+
   /** See StockLotRepository.lotsMovedByReference. */
   lotsMovedByReference(
     db: Kysely<TenantDatabase>,
@@ -464,6 +478,7 @@ export class StockMovementsService {
         movementType: 'transfer_in',
         quantity: input.quantity,
         unitCost: transferOut.unitCost ?? undefined,
+        totalCost: transferOut.totalCost ?? undefined,
         product,
         lotId: input.lotId,
         notes: input.notes,
@@ -515,11 +530,17 @@ export class StockMovementsService {
 
     const stockLotId = await this.resolveIncomingStockLotId(trx, params, warehouseId, unitCost);
 
+    // Value-based weighted average (migration 0081): the location's total
+    // value is the source of truth; the per-unit average is derived.
     const previousQuantity = hasStock ? current.quantityOnHand : 0;
-    const previousValue = hasStock ? current.averageCost.multiplyByQuantity(previousQuantity) : Money.zero(unitCost.currency);
-    const incomingValue = unitCost.multiplyByQuantity(params.quantity);
+    const previousValue = hasStock ? current.inventoryValue : Money.zero(unitCost.currency);
+    const incomingValue =
+      params.totalCost && params.totalCost.currency === unitCost.currency
+        ? params.totalCost
+        : unitCost.multiplyByQuantity(params.quantity);
     const newQuantity = previousQuantity + params.quantity;
-    const newAverageCost = previousValue.add(incomingValue).divideByQuantity(newQuantity);
+    const newValue = previousValue.add(incomingValue);
+    const newAverageCost = newValue.divideByQuantity(newQuantity);
 
     await this.stockLevels.upsert(trx, {
       productVariantId: params.productVariantId,
@@ -527,6 +548,7 @@ export class StockMovementsService {
       warehouseId,
       quantityOnHand: newQuantity,
       averageCost: newAverageCost,
+      inventoryValue: newValue,
     });
 
     return this.movements.create(trx, {
@@ -536,6 +558,7 @@ export class StockMovementsService {
       movementType: params.movementType,
       quantity: params.quantity,
       unitCost,
+      totalCost: incomingValue,
       resultingAverageCost: newAverageCost,
       stockLotId,
       referenceType: params.referenceType,
@@ -625,14 +648,24 @@ export class StockMovementsService {
 
     const { stockLotId, multiLotConsumptions } = await this.resolveOutgoingStockLotConsumption(trx, params, warehouseId);
 
-    const newQuantity = current.quantityOnHand - params.quantity;
+    const newQuantity = Math.round((current.quantityOnHand - params.quantity) * 10_000) / 10_000;
+    // The value leaving is the exact share of the location's value (rounded
+    // once); emptying the location takes whatever value is left, so stock
+    // value never drifts from zero through rounding.
+    const outgoingValue =
+      newQuantity <= 0
+        ? current.inventoryValue
+        : proportionOf(current.inventoryValue, params.quantity, current.quantityOnHand);
+    const remainingValue = current.inventoryValue.subtract(outgoingValue);
+    const averageCost = newQuantity > 0 ? remainingValue.divideByQuantity(newQuantity) : current.averageCost;
 
     await this.stockLevels.upsert(trx, {
       productVariantId: params.productVariantId,
       locationId: params.locationId,
       warehouseId,
       quantityOnHand: newQuantity,
-      averageCost: current.averageCost,
+      averageCost,
+      inventoryValue: newQuantity > 0 ? remainingValue : Money.zero(current.inventoryValue.currency),
     });
 
     const movement = await this.movements.create(trx, {
@@ -641,8 +674,9 @@ export class StockMovementsService {
       warehouseId,
       movementType: params.movementType,
       quantity: params.quantity,
-      unitCost: current.averageCost,
-      resultingAverageCost: current.averageCost,
+      unitCost: outgoingValue.divideByQuantity(params.quantity),
+      totalCost: outgoingValue,
+      resultingAverageCost: averageCost,
       stockLotId,
       referenceType: params.referenceType,
       referenceId: params.referenceId,
@@ -732,4 +766,16 @@ export class StockMovementsService {
     }
     return { stockLotId: null, multiLotConsumptions: consumed };
   }
+}
+
+/** value × part / whole, in minor units, rounded half-up once (quantities kept to 4 decimals). */
+function proportionOf(value: Money, part: number, whole: number): Money {
+  const partScaled = BigInt(Math.round(part * 10_000));
+  const wholeScaled = BigInt(Math.round(whole * 10_000));
+  if (wholeScaled === 0n) return value;
+  const minor = value.toMinorUnits();
+  const negative = minor < 0n;
+  const numerator = (negative ? -minor : minor) * partScaled;
+  const rounded = (numerator * 2n + wholeScaled) / (wholeScaled * 2n);
+  return Money.fromMinorUnits(negative ? -rounded : rounded, value.currency);
 }

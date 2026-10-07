@@ -36,6 +36,7 @@ function landedCostToDto(landedCost: LandedCost): LandedCostDto {
       locationId: allocation.locationId,
       warehouseId: allocation.warehouseId,
       allocatedAmount: moneyToDto(allocation.allocatedAmount),
+      expensedAmount: moneyToDto(allocation.expensedAmount),
       resultingAverageCost: moneyToDto(allocation.resultingAverageCost),
       createdAt: allocation.createdAt,
     })),
@@ -73,11 +74,15 @@ export class LandedCostsController {
     @Body(new ZodValidationPipe(applyLandedCostSchema)) body: ApplyLandedCostDto,
   ): Promise<LandedCostDto> {
     const db = this.connections.getClient(schema);
-    const landedCost = await this.service.apply(db, {
-      ...body,
-      totalCost: moneyFromDto(body.totalCost),
-      createdBy: user.sub,
-    });
+    const landedCost = await this.service.apply(
+      db,
+      {
+        ...body,
+        totalCost: moneyFromDto(body.totalCost),
+        createdBy: user.sub,
+      },
+      { schema, actorUserId: user.sub },
+    );
     this.events.publish('landed_cost', 'applied', {
       schema,
       entityId: landedCost.id,

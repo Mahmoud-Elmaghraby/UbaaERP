@@ -28,6 +28,7 @@ export interface StockLevelRepository {
       warehouseId: string;
       quantityOnHand: number;
       averageCost: Money;
+      inventoryValue: Money;
     },
   ): Promise<StockLevel>;
   /**

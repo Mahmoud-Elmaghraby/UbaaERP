@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import type { Kysely, Selectable } from 'kysely';
+import { sql, type Kysely, type Selectable } from 'kysely';
 import { Money } from '@erp-platform/shared-kernel';
 import type { StockMovementsTable, TenantDatabase } from '../../../../database/tenant/kysely-client';
 import type {
@@ -24,6 +24,13 @@ function toDomain(row: Selectable<StockMovementsTable>): StockMovement {
       BigInt(row.resulting_average_cost_amount),
       row.resulting_average_cost_currency,
     ),
+    totalCost:
+      row.total_cost_amount === null
+        ? null
+        : Money.fromMinorUnits(
+            BigInt(row.total_cost_amount),
+            row.unit_cost_currency ?? row.resulting_average_cost_currency,
+          ),
     referenceType: row.reference_type,
     referenceId: row.reference_id,
     relatedMovementId: row.related_movement_id,
@@ -67,6 +74,7 @@ export class KyselyStockMovementRepository implements StockMovementRepository {
         unit_cost_currency: input.unitCost ? input.unitCost.currency : null,
         resulting_average_cost_amount: input.resultingAverageCost.toMinorUnits().toString(),
         resulting_average_cost_currency: input.resultingAverageCost.currency,
+        total_cost_amount: input.totalCost ? input.totalCost.toMinorUnits().toString() : null,
         reference_type: input.referenceType ?? null,
         reference_id: input.referenceId ?? null,
         related_movement_id: input.relatedMovementId ?? null,
@@ -77,6 +85,33 @@ export class KyselyStockMovementRepository implements StockMovementRepository {
       .returningAll()
       .executeTakeFirstOrThrow();
     return toDomain(row);
+  }
+
+  async sumForReference(
+    db: Kysely<TenantDatabase>,
+    referenceType: string,
+    referenceId: string,
+    productVariantId: string,
+  ): Promise<{ quantity: number; totalCostMinorUnits: bigint; currency: string } | null> {
+    const row = await db
+      .selectFrom('stock_movements')
+      .select([
+        sql<string>`SUM(quantity)`.as('quantity'),
+        sql<string>`SUM(COALESCE(total_cost_amount, ROUND(quantity * COALESCE(unit_cost_amount, resulting_average_cost_amount))))`.as(
+          'total',
+        ),
+        sql<string>`MIN(resulting_average_cost_currency)`.as('currency'),
+      ])
+      .where('reference_type', '=', referenceType)
+      .where('reference_id', '=', referenceId)
+      .where('product_variant_id', '=', productVariantId)
+      .executeTakeFirst();
+    if (!row || row.quantity === null || Number(row.quantity) <= 0) return null;
+    return {
+      quantity: Number(row.quantity),
+      totalCostMinorUnits: BigInt(String(row.total).split('.')[0]!),
+      currency: row.currency,
+    };
   }
 
   async existsForReference(db: Kysely<TenantDatabase>, referenceType: string, referenceId: string): Promise<boolean> {

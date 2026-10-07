@@ -8,6 +8,7 @@ import type { StockMovement } from '../../domain/stock-movement.entity';
 import type { StockLevel } from '../../domain/stock-level.entity';
 import type { LandedCost, LandedCostAllocation } from '../../domain/landed-cost.entity';
 import { BusinessRuleError, NotFoundError } from '../errors';
+import type { OutboxWriterService } from '../../../../shared/outbox/application/services/outbox-writer.service';
 import { LandedCostsService } from './landed-costs.service';
 
 const FAKE_TRX = { __trx: true } as unknown as Kysely<TenantDatabase>;
@@ -29,6 +30,7 @@ function makeMovement(overrides: Partial<StockMovement> = {}): StockMovement {
     quantity: 10,
     unitCost: Money.fromMinorUnits(1000, 'EGP'),
     resultingAverageCost: Money.fromMinorUnits(1000, 'EGP'),
+    totalCost: null,
     referenceType: null,
     referenceId: null,
     relatedMovementId: null,
@@ -41,7 +43,7 @@ function makeMovement(overrides: Partial<StockMovement> = {}): StockMovement {
 }
 
 function makeStockLevel(overrides: Partial<StockLevel> = {}): StockLevel {
-  return {
+  const level = {
     id: 'level-1',
     productVariantId: 'variant-1',
     locationId: 'loc-1',
@@ -52,6 +54,11 @@ function makeStockLevel(overrides: Partial<StockLevel> = {}): StockLevel {
     createdAt: new Date('2026-01-01T00:00:00Z'),
     updatedAt: new Date('2026-01-01T00:00:00Z'),
     ...overrides,
+  };
+  // The stock value follows quantity × average unless a test sets it.
+  return {
+    ...level,
+    inventoryValue: overrides.inventoryValue ?? level.averageCost.multiplyByQuantity(Math.max(level.quantityOnHand, 0)),
   };
 }
 
@@ -86,6 +93,7 @@ function makeMockMovementRepository(): jest.Mocked<StockMovementRepository> {
     create: jest.fn(),
     linkRelatedMovement: jest.fn(),
     existsForReference: jest.fn().mockResolvedValue(false),
+    sumForReference: jest.fn().mockResolvedValue(null),
   };
 }
 
@@ -104,13 +112,20 @@ describe('LandedCostsService', () => {
   let movements: jest.Mocked<StockMovementRepository>;
   let stockLevels: jest.Mocked<StockLevelRepository>;
   let service: LandedCostsService;
+  let outboxWriter: { write: jest.Mock };
 
   beforeEach(() => {
     movementCounter = 0;
     landedCosts = makeMockLandedCostRepository();
     movements = makeMockMovementRepository();
     stockLevels = makeMockStockLevelRepository();
-    service = new LandedCostsService(landedCosts, movements, stockLevels);
+    outboxWriter = { write: jest.fn().mockResolvedValue(undefined) };
+    service = new LandedCostsService(
+      landedCosts,
+      movements,
+      stockLevels,
+      outboxWriter as unknown as OutboxWriterService,
+    );
 
     landedCosts.createHeader.mockImplementation(async (_db, input) => makeHeader({ ...input }));
     landedCosts.createAllocation.mockImplementation(async (_db, input) => ({ ...input, id: 'alloc', createdAt: new Date() }) as LandedCostAllocation);
@@ -171,17 +186,48 @@ describe('LandedCostsService', () => {
       ).rejects.toThrow(BusinessRuleError);
     });
 
-    it('throws when the movement has no stock currently on hand (fully consumed)', async () => {
+    it('expenses the whole amount when the received goods were all sold', async () => {
       movements.findById.mockResolvedValue(makeMovement());
       stockLevels.findByVariantAndLocation.mockResolvedValue(null);
 
-      await expect(
-        service.apply(FAKE_DB, {
+      const result = await service.apply(
+        FAKE_DB,
+        {
           totalCost: Money.fromMinorUnits(1000, 'EGP'),
           allocationMethod: 'by_quantity',
           stockMovementIds: ['movement-1'],
-        }),
-      ).rejects.toThrow(BusinessRuleError);
+        },
+        { schema: 'tenant_x' },
+      );
+
+      expect(stockLevels.upsert).not.toHaveBeenCalled();
+      expect(result.allocations[0].expensedAmount.toMinorUnits()).toBe(1000n);
+      const event = outboxWriter.write.mock.calls[0];
+      expect(event[1]).toBe('inventory.landed_cost.posted');
+      expect(event[2].metadata).toMatchObject({
+        toInventory: { amountMinorUnits: '0' },
+        toCogs: { amountMinorUnits: '1000' },
+      });
+    });
+
+    it('loads only the on-hand share into stock and expenses the sold share', async () => {
+      // Received 10, 4 left: 40% of 500 stays in stock, 60% was sold.
+      movements.findById.mockResolvedValue(makeMovement({ id: 'movement-1', quantity: 10 }));
+      stockLevels.findByVariantAndLocation.mockResolvedValue(
+        makeStockLevel({ quantityOnHand: 4, averageCost: Money.fromMinorUnits(1000, 'EGP') }),
+      );
+
+      const result = await service.apply(FAKE_DB, {
+        totalCost: Money.fromMinorUnits(500, 'EGP'),
+        allocationMethod: 'by_quantity',
+        stockMovementIds: ['movement-1'],
+      });
+
+      const upsertArg = stockLevels.upsert.mock.calls[0][1];
+      expect(upsertArg.inventoryValue.toMinorUnits()).toBe(4200n); // 4 × 10.00 + 2.00
+      expect(upsertArg.averageCost.toMinorUnits()).toBe(1050n);
+      expect(result.allocations[0].expensedAmount.toMinorUnits()).toBe(300n);
+      expect(outboxWriter.write).not.toHaveBeenCalled(); // no context → no event
     });
 
     it('allocates the full amount to a single movement and raises its average cost', async () => {

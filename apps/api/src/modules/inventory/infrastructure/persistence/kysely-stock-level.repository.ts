@@ -14,6 +14,7 @@ function toDomain(row: Selectable<StockLevelsTable>): StockLevel {
     quantityOnHand: Number(row.quantity_on_hand),
     reorderPoint: row.reorder_point === null ? null : Number(row.reorder_point),
     averageCost: Money.fromMinorUnits(BigInt(row.average_cost_amount), row.average_cost_currency),
+    inventoryValue: Money.fromMinorUnits(BigInt(row.inventory_value_amount), row.average_cost_currency),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -54,6 +55,7 @@ export class KyselyStockLevelRepository implements StockLevelRepository {
       warehouseId: string;
       quantityOnHand: number;
       averageCost: Money;
+      inventoryValue: Money;
     },
   ): Promise<StockLevel> {
     const row = await db
@@ -66,12 +68,14 @@ export class KyselyStockLevelRepository implements StockLevelRepository {
         quantity_on_hand: input.quantityOnHand.toString(),
         average_cost_amount: input.averageCost.toMinorUnits().toString(),
         average_cost_currency: input.averageCost.currency,
+        inventory_value_amount: input.inventoryValue.toMinorUnits().toString(),
       })
       .onConflict((oc) =>
         oc.columns(['product_variant_id', 'location_id']).doUpdateSet({
           quantity_on_hand: input.quantityOnHand.toString(),
           average_cost_amount: input.averageCost.toMinorUnits().toString(),
           average_cost_currency: input.averageCost.currency,
+          inventory_value_amount: input.inventoryValue.toMinorUnits().toString(),
           updated_at: sql`now()`,
         }),
       )

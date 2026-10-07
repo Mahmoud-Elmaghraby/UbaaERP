@@ -125,7 +125,14 @@ export class SalesReturnStockListener {
             line.productVariantId,
             defaultLocation.id,
           );
-          if (!stockLevel) {
+          // Goods come back at the cost they left at (the delivery's own COGS),
+          // so a return exactly reverses the sale's cost even if the average
+          // moved since. Falls back to today's average for old deliveries.
+          const originalCost = metadata.deliveryId
+            ? await this.stockMovements.unitCostOfReference(trx, 'delivery', metadata.deliveryId, line.productVariantId)
+            : null;
+          const returnCost = originalCost ?? stockLevel?.averageCost;
+          if (!returnCost) {
             throw new Error(
               `No stock level found for product variant "${line.productVariantId}" at location ` +
                 `"${defaultLocation.id}" — cannot determine a valuation for the returned stock.`,
@@ -139,7 +146,7 @@ export class SalesReturnStockListener {
                 locationId: defaultLocation.id,
                 movementType: 'in',
                 quantity: piece.quantity,
-                unitCost: stockLevel.averageCost,
+                unitCost: returnCost,
                 lotNumber: piece.lotNumber,
                 referenceType: 'sales_return',
                 referenceId: payload.entityId,
@@ -160,7 +167,8 @@ export class SalesReturnStockListener {
         let totalCost = Money.zero(currency);
         const costLines = movements.map((movement) => {
           const unitCost = movement.unitCost ?? Money.zero(currency);
-          const lineCost = unitCost.multiplyByQuantity(movement.quantity);
+          // The movement's exact value (no unit-cost rounding) — matches what left/entered the stock value.
+          const lineCost = movement.totalCost ?? unitCost.multiplyByQuantity(movement.quantity);
           totalCost = totalCost.add(lineCost);
           return {
             productVariantId: movement.productVariantId,

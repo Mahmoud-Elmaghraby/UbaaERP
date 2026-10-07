@@ -10,6 +10,8 @@ export interface StockLevel {
   quantityOnHand: number;
   reorderPoint: number | null;
   averageCost: Money;
+  /** Total value of the stock at this location (source of truth; averageCost = value / quantity, rounded for display). */
+  inventoryValue: Money;
   createdAt: Date;
   updatedAt: Date;
 }

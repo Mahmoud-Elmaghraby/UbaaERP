@@ -12,6 +12,8 @@ export const landedCostAllocationSchema = z.object({
   locationId: z.string().uuid(),
   warehouseId: z.string().uuid(),
   allocatedAmount: moneySchema,
+  /** Part of allocatedAmount for goods already sold — charged to cost of goods sold. */
+  expensedAmount: moneySchema,
   resultingAverageCost: moneySchema,
   createdAt: z.coerce.date(),
 });

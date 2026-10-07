@@ -36,6 +36,7 @@ function allocationToDomain(row: Selectable<LandedCostAllocationsTable>): Landed
     locationId: row.location_id,
     warehouseId: row.warehouse_id,
     allocatedAmount: Money.fromMinorUnits(BigInt(row.allocated_amount_amount), row.allocated_amount_currency),
+    expensedAmount: Money.fromMinorUnits(BigInt(row.expensed_amount), row.allocated_amount_currency),
     resultingAverageCost: Money.fromMinorUnits(
       BigInt(row.resulting_average_cost_amount),
       row.resulting_average_cost_currency,
@@ -115,6 +116,7 @@ export class KyselyLandedCostRepository implements LandedCostRepository {
         warehouse_id: input.warehouseId,
         allocated_amount_amount: input.allocatedAmount.toMinorUnits().toString(),
         allocated_amount_currency: input.allocatedAmount.currency,
+        expensed_amount: input.expensedAmount.toMinorUnits().toString(),
         resulting_average_cost_amount: input.resultingAverageCost.toMinorUnits().toString(),
         resulting_average_cost_currency: input.resultingAverageCost.currency,
       })

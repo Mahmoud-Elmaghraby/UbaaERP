@@ -6,6 +6,7 @@ import type {
   CreateGoodsReceiptRow,
 } from '../../application/ports/goods-receipt.repository';
 import type { GoodsReceipt, GoodsReceiptStatus } from '../../domain/goods-receipt.entity';
+import { normalizeRate } from '../../../../shared/catalog/currency-rate-reader';
 
 function toDomain(row: Selectable<GoodsReceiptsTable>): GoodsReceipt {
   return {
@@ -15,6 +16,7 @@ function toDomain(row: Selectable<GoodsReceiptsTable>): GoodsReceipt {
     warehouseId: row.warehouse_id,
     status: row.status as GoodsReceiptStatus,
     receivedDate: row.received_date,
+    exchangeRate: row.exchange_rate === null ? null : normalizeRate(String(row.exchange_rate)),
     notes: row.notes,
     customFields: (row.custom_fields ?? {}) as Record<string, unknown>,
     createdAt: row.created_at,
@@ -53,6 +55,7 @@ export class KyselyGoodsReceiptRepository implements GoodsReceiptRepository {
         warehouse_id: input.warehouseId,
         status: 'draft',
         received_date: input.receivedDate,
+        exchange_rate: input.exchangeRate,
         notes: input.notes,
         custom_fields: JSON.stringify(input.customFields ?? {}),
       })
@@ -73,6 +76,10 @@ export class KyselyGoodsReceiptRepository implements GoodsReceiptRepository {
       .returningAll()
       .executeTakeFirst();
     return row ? toDomain(row) : null;
+  }
+
+  async setExchangeRate(db: Kysely<TenantDatabase>, id: string, rate: string): Promise<void> {
+    await db.updateTable('goods_receipts').set({ exchange_rate: rate }).where('id', '=', id).execute();
   }
 
   async delete(db: Kysely<TenantDatabase>, id: string): Promise<boolean> {

@@ -1,5 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import type { Kysely } from 'kysely';
+import { Money } from '@erp-platform/shared-kernel';
 import type { TenantDatabase } from '../../../../database/tenant/kysely-client';
 import { withTransaction } from '../../../../database/tenant/transaction.util';
 import { GOODS_RECEIPT_REPOSITORY, type GoodsReceiptRepository } from '../ports/goods-receipt.repository';
@@ -15,6 +16,7 @@ import {
 import type {
   GoodsReceipt,
   GoodsReceiptWithLines,
+  GoodsReceiptLine,
   GoodsReceiptStatus,
   CreateGoodsReceiptInput,
   ReceiptLot,
@@ -24,6 +26,7 @@ import { BusinessRuleError, NotFoundError, isPostgresForeignKeyViolation } from 
 import { entityNotFound } from '../../../../shared/errors/entity-errors';
 import { NumberingSequencesService } from '../../../settings/application/services/numbering-sequences.service';
 import { OutboxWriterService } from '../../../../shared/outbox/application/services/outbox-writer.service';
+import { CurrencyRateReader, applyRate } from '../../../../shared/catalog/currency-rate-reader';
 
 /**
  * Records physical receipt of goods against a purchase order (master doc
@@ -68,6 +71,9 @@ export class GoodsReceiptsService {
     private readonly outboxWriter: OutboxWriterService,
     @Inject(PRODUCT_TRACKING_READER) private readonly tracking: ProductTrackingReader,
   ) {}
+
+  /** Plain read helper (no dependencies) — not injected, so callers' wiring is unchanged. */
+  private readonly currencyRates = new CurrencyRateReader();
 
   list(db: Kysely<TenantDatabase>): Promise<GoodsReceipt[]> {
     return this.receipts.list(db);
@@ -169,6 +175,7 @@ export class GoodsReceiptsService {
           purchaseOrderId: po.id,
           warehouseId: input.warehouseId,
           receivedDate: input.receivedDate ?? null,
+          exchangeRate: input.exchangeRate ?? null,
           notes: input.notes ?? null,
           customFields: input.customFields ?? {},
         });
@@ -260,9 +267,15 @@ export class GoodsReceiptsService {
     }
 
     return withTransaction(db, async (trx) => {
+      const lines = await this.lines.listByGoodsReceiptId(trx, id);
+      // Stock is valued in the tenant's currency: a foreign-currency
+      // receipt is converted at its own (typed or effective) rate, frozen here.
+      const tenantCurrency = await this.currencyRates.tenantCurrency(trx);
+      const rate = await this.resolveExchangeRate(trx, existing, lines, tenantCurrency);
+      if (rate && rate !== existing.exchangeRate) await this.receipts.setExchangeRate(trx, id, rate);
+
       const updated = await this.receipts.updateStatus(trx, id, 'confirmed');
       if (!updated) throw entityNotFound('GOODS_RECEIPT', id);
-      const lines = await this.lines.listByGoodsReceiptId(trx, id);
 
       const po = await this.purchaseOrders.findById(trx, updated.purchaseOrderId);
       if (po) {
@@ -291,10 +304,7 @@ export class GoodsReceiptsService {
             productVariantId: line.productVariantId,
             // Inventory works in base units: a line of 2 cartons × 12 at 240/carton → 24 at 20.
             quantity: toBase(line.quantityReceived, line.unitFactor),
-            unitCost: (() => {
-              const perBase = line.unitFactor === 1 ? line.unitCost : line.unitCost.divideByQuantity(line.unitFactor);
-              return { amountMinorUnits: perBase.toMinorUnits().toString(), currency: perBase.currency };
-            })(),
+            ...valueInTenantCurrency(line, rate, tenantCurrency),
             lots: line.lots.map((lot) => ({ ...lot, quantity: toBase(lot.quantity, line.unitFactor) })),
           })),
         },
@@ -303,6 +313,39 @@ export class GoodsReceiptsService {
 
       return { ...updated, lines };
     });
+  }
+
+  /**
+   * The rate a foreign-currency receipt is valued at: the one typed on the
+   * receipt, else the effective rate on its date (receivedDate, else today).
+   * Null when every line is already in the tenant's currency.
+   */
+  private async resolveExchangeRate(
+    trx: Kysely<TenantDatabase>,
+    receipt: GoodsReceipt,
+    lines: GoodsReceiptLine[],
+    tenantCurrency: string,
+  ): Promise<string | null> {
+    const foreign = [...new Set(lines.map((line) => line.unitCost.currency))].filter(
+      (currency) => currency !== tenantCurrency,
+    );
+    if (foreign.length === 0) return null;
+    if (foreign.length > 1) {
+      throw new BusinessRuleError(`Goods receipt "${receipt.id}" mixes currencies ${foreign.join(', ')}.`, {
+        code: 'GOODS_RECEIPT.MIXED_CURRENCIES',
+        params: { currencies: foreign.join('، ') },
+      });
+    }
+    const date = calendarDate(receipt.receivedDate ?? new Date());
+    const rate =
+      receipt.exchangeRate ?? (await this.currencyRates.effectiveRate(trx, foreign[0], tenantCurrency, date));
+    if (!rate) {
+      throw new BusinessRuleError(
+        `No ${foreign[0]}→${tenantCurrency} exchange rate on or before ${date} for goods receipt "${receipt.id}".`,
+        { code: 'GOODS_RECEIPT.EXCHANGE_RATE_REQUIRED', params: { currency: foreign[0], date } },
+      );
+    }
+    return rate;
   }
 
   cancel(db: Kysely<TenantDatabase>, id: string): Promise<GoodsReceipt> {
@@ -405,6 +448,42 @@ export function normalizeReceiptLots(
     );
   }
   return result;
+}
+
+type MoneyJson = { amountMinorUnits: string; currency: string };
+
+/**
+ * A receipt line's cost for Inventory, in base units and the tenant's
+ * currency: unitCost per base unit (display/fallback) and totalCost — the
+ * exact line value (quantity × unit cost, converted once) that the stock
+ * value grows by, so no rounding is lost per unit.
+ */
+function valueInTenantCurrency(
+  line: GoodsReceiptLine,
+  rate: string | null,
+  tenantCurrency: string,
+): { unitCost: MoneyJson; totalCost: MoneyJson } {
+  const lineTotal = line.unitCost.multiplyByQuantity(line.quantityReceived);
+  const total =
+    line.unitCost.currency === tenantCurrency || !rate
+      ? lineTotal
+      : Money.fromMinorUnits(applyRate(lineTotal.toMinorUnits(), rate), tenantCurrency);
+  const baseQuantity = toBase(line.quantityReceived, line.unitFactor);
+  const perBase = baseQuantity > 0 ? total.divideByQuantity(baseQuantity) : total;
+  return {
+    unitCost: { amountMinorUnits: perBase.toMinorUnits().toString(), currency: perBase.currency },
+    totalCost: { amountMinorUnits: total.toMinorUnits().toString(), currency: total.currency },
+  };
+}
+
+/**
+ * YYYY-MM-DD of a DATE column value or a moment. pg hands DATE columns back
+ * as a Date at local midnight (despite the string type), so local parts.
+ */
+function calendarDate(value: string | Date): string {
+  if (typeof value === 'string') return value.slice(0, 10);
+  const pad = (part: number) => String(part).padStart(2, '0');
+  return `${value.getFullYear()}-${pad(value.getMonth() + 1)}-${pad(value.getDate())}`;
 }
 
 function toBase(quantity: number, unitFactor: number): number {

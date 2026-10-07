@@ -34,6 +34,7 @@ export function LandedCostAllocationsView({ landedCost }: { landedCost: LandedCo
             <TableHead>{t('inventory.products.sku')}</TableHead>
             <TableHead>{t('inventory.stock.location')}</TableHead>
             <TableHead>{t('inventory.landedCosts.allocatedAmount')}</TableHead>
+            <TableHead>{t('inventory.landedCosts.expensedAmount')}</TableHead>
             <TableHead>{t('inventory.stock.resultingAverageCost')}</TableHead>
           </TableRow>
         </TableHeader>
@@ -47,13 +48,16 @@ export function LandedCostAllocationsView({ landedCost }: { landedCost: LandedCo
               </TableCell>
               <TableCell>{formatMoney(allocation.allocatedAmount.amountMinorUnits, allocation.allocatedAmount.currency)}</TableCell>
               <TableCell>
+                {formatMoney(allocation.expensedAmount.amountMinorUnits, allocation.expensedAmount.currency)}
+              </TableCell>
+              <TableCell>
                 {formatMoney(allocation.resultingAverageCost.amountMinorUnits, allocation.resultingAverageCost.currency)}
               </TableCell>
             </TableRow>
           ))}
           {landedCost.allocations.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={5} className="py-6 text-center text-muted-foreground">
+              <TableCell colSpan={6} className="py-6 text-center text-muted-foreground">
                 {t('common.noResults')}
               </TableCell>
             </TableRow>

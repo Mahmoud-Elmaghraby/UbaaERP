@@ -37,7 +37,7 @@ function makeLocation(overrides: Partial<WarehouseLocation> = {}): WarehouseLoca
 }
 
 function makeStockLevel(overrides: Partial<StockLevel> = {}): StockLevel {
-  return {
+  const level = {
     id: 'level-1',
     productVariantId: 'variant-1',
     locationId: 'loc-1',
@@ -48,6 +48,11 @@ function makeStockLevel(overrides: Partial<StockLevel> = {}): StockLevel {
     createdAt: new Date('2026-01-01T00:00:00Z'),
     updatedAt: new Date('2026-01-01T00:00:00Z'),
     ...overrides,
+  };
+  // The stock value follows quantity × average unless a test sets it.
+  return {
+    ...level,
+    inventoryValue: overrides.inventoryValue ?? level.averageCost.multiplyByQuantity(Math.max(level.quantityOnHand, 0)),
   };
 }
 
@@ -63,6 +68,7 @@ function makeMovement(overrides: Partial<StockMovement> = {}): StockMovement {
     quantity: 10,
     unitCost: Money.fromMinorUnits(1000, 'EGP'),
     resultingAverageCost: Money.fromMinorUnits(1000, 'EGP'),
+    totalCost: null,
     referenceType: null,
     referenceId: null,
     relatedMovementId: null,
@@ -91,6 +97,7 @@ function makeMockMovementRepository(): jest.Mocked<StockMovementRepository> {
     create: jest.fn(),
     linkRelatedMovement: jest.fn(),
     existsForReference: jest.fn().mockResolvedValue(false),
+    sumForReference: jest.fn().mockResolvedValue(null),
   };
 }
 
@@ -284,6 +291,7 @@ describe('StockMovementsService', () => {
         warehouseId: 'wh-1',
         quantityOnHand: 10,
         averageCost: expect.objectContaining({ currency: 'EGP' }),
+        inventoryValue: expect.objectContaining({ currency: 'EGP' }),
       });
       const upsertArg = stockLevels.upsert.mock.calls[0][1];
       expect(upsertArg.averageCost.toMinorUnits()).toBe(1000n);
@@ -746,7 +754,9 @@ describe('StockMovementsService', () => {
         warehouseId: 'wh-source',
         quantityOnHand: 6,
         averageCost: expect.objectContaining({ currency: 'EGP' }),
+        inventoryValue: expect.objectContaining({ currency: 'EGP' }),
       });
+      expect(stockLevels.upsert.mock.calls[0][1].inventoryValue.toMinorUnits()).toBe(9000n);
       expect(stockLevels.upsert.mock.calls[0][1].averageCost.toMinorUnits()).toBe(1500n);
 
       expect(stockLevels.upsert.mock.calls[1][1]).toMatchObject({

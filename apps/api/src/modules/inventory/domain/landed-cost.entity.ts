@@ -10,6 +10,11 @@ export interface LandedCostAllocation {
   locationId: string;
   warehouseId: string;
   allocatedAmount: Money;
+  /**
+   * The part of allocatedAmount that belonged to goods already sold — sent
+   * to cost of goods sold, not to the stock value (same currency).
+   */
+  expensedAmount: Money;
   /** The (variant, location) average cost immediately after this allocation was applied. */
   resultingAverageCost: Money;
   createdAt: Date;
@@ -32,10 +37,9 @@ export interface ApplyLandedCostInput {
   allocationMethod: LandedCostAllocationMethod;
   /**
    * The incoming ('in') stock movements this cost is spread across — e.g.
-   * every receipt line on one purchase invoice's shipment. Each must still
-   * have stock on hand at its (variant, location): a landed cost raises
-   * the CURRENT average cost of what's still in stock, so it cannot be
-   * applied against a movement whose stock has since been fully consumed.
+   * every receipt line on one purchase invoice's shipment. The share of
+   * goods still on hand raises the stock value; the share of goods already
+   * sold is expensed to cost of goods sold.
    */
   stockMovementIds: string[];
   referenceType?: string | null;

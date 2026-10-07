@@ -42,6 +42,12 @@ export interface GoodsReceipt {
   warehouseId: string;
   status: GoodsReceiptStatus;
   receivedDate: string | null;
+  /**
+   * Tenant-currency units per 1 unit of the order's currency (migration
+   * 0081). Typed by the user, or frozen at confirm from the effective rate;
+   * null for a tenant-currency receipt.
+   */
+  exchangeRate: string | null;
   notes: string | null;
   customFields: Record<string, unknown>;
   createdAt: Date;
@@ -72,6 +78,8 @@ export interface CreateGoodsReceiptInput {
   warehouseId: string;
   lines: CreateGoodsReceiptLineInput[];
   receivedDate?: string | null;
+  /** Optional rate for a foreign-currency order; else the effective rate is used at confirm. */
+  exchangeRate?: string | null;
   notes?: string | null;
   customFields?: Record<string, unknown>;
 }

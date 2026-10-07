@@ -184,6 +184,10 @@ export const AR_MESSAGES: Record<string, string> = {
   'GOODS_RECEIPT.LOT_EXPIRY_CONFLICT': 'الدفعة "{lotNumber}" مُدخلة مرتين بتاريخي صلاحية مختلفين.',
   'GOODS_RECEIPT.LOTS_QUANTITY_MISMATCH': 'مجموع كميات الدفعات {total} لا يساوي الكمية المستلمة {quantity}.',
   'GOODS_RECEIPT.LOTS_NOT_TRACKED': 'هذا الصنف لا يُتتبع بالدفعات، فلا يجوز إدخال دفعات له.',
+  'GOODS_RECEIPT.EXCHANGE_RATE_REQUIRED':
+    'أمر الشراء بعملة {currency} ولا يوجد سعر صرف لها بتاريخ {date} أو قبله — اكتب سعر الصرف في إذن الاستلام أو أضفه من أسعار الصرف.',
+  'GOODS_RECEIPT.MIXED_CURRENCIES': 'لا يمكن أن يجمع إذن استلام واحد أكثر من عملة أجنبية ({currencies}).',
+  'LANDED_COST.CURRENCY_MISMATCH': 'عملة التكلفة الإضافية لازم تكون نفس عملة تقييم المخزون ({currency}).',
   'DELIVERY.INVALID_LOT': 'كل دفعة مختارة تحتاج رقمًا وكمية أكبر من صفر.',
   'DELIVERY.LOTS_QUANTITY_MISMATCH': 'مجموع كميات الدفعات المختارة {total} لا يساوي الكمية المسلّمة {quantity}.',
 

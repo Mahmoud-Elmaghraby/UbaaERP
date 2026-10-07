@@ -18,6 +18,8 @@ export interface StockMovement {
   movementType: StockMovementType;
   quantity: number;
   unitCost: Money | null;
+  /** Exact value this movement added / took (unitCost × quantity can differ by rounding). */
+  totalCost: Money | null;
   resultingAverageCost: Money;
   referenceType: string | null;
   referenceId: string | null;
@@ -77,6 +79,12 @@ export interface RecordStockMovementInput {
    * (e.g. cost per box), not per base unit — it is converted alongside quantity.
    */
   unitCost?: Money;
+  /**
+   * Incoming only, optional: the exact value of the whole movement (e.g. a
+   * receipt line's quantity × price before any per-unit rounding). When
+   * given, it — not unitCost × quantity — is what the stock value grows by.
+   */
+  totalCost?: Money;
   /**
    * Required for 'in'/'adjustment_increase' when the product is lot/serial
    * tracked: the lot/serial number being received into. Creates a new

@@ -10,6 +10,7 @@ export interface CreateStockMovementRow {
   movementType: StockMovement['movementType'];
   quantity: number;
   unitCost: Money | null;
+  totalCost?: Money | null;
   resultingAverageCost: Money;
   referenceType?: string | null;
   referenceId?: string | null;
@@ -30,6 +31,13 @@ export interface StockMovementRepository {
   /** Sets related_movement_id after both legs of a transfer exist (they reference each other). */
   /** True when any movement already carries this (reference_type, reference_id) — the document was already applied. */
   existsForReference(db: Kysely<TenantDatabase>, referenceType: string, referenceId: string): Promise<boolean>;
+  /** Σ quantity and Σ total cost of one variant's movements for a document (null when it has none). */
+  sumForReference(
+    db: Kysely<TenantDatabase>,
+    referenceType: string,
+    referenceId: string,
+    productVariantId: string,
+  ): Promise<{ quantity: number; totalCostMinorUnits: bigint; currency: string } | null>;
   linkRelatedMovement(db: Kysely<TenantDatabase>, id: string, relatedMovementId: string): Promise<void>;
 }
 

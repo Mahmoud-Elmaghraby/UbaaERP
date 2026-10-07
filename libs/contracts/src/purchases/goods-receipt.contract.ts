@@ -40,6 +40,8 @@ export const goodsReceiptSchema = z.object({
   warehouseId: z.string().uuid(),
   status: goodsReceiptStatusSchema,
   receivedDate: z.string().nullable(),
+  /** Tenant-currency units per 1 unit of the order's currency; null for a tenant-currency receipt. */
+  exchangeRate: z.string().nullable(),
   notes: z.string().nullable(),
   customFields: z.record(z.unknown()),
   createdAt: z.coerce.date(),
@@ -66,6 +68,13 @@ export const createGoodsReceiptSchema = z.object({
   warehouseId: z.string().uuid(),
   lines: z.array(createGoodsReceiptLineSchema).min(1),
   receivedDate: z.string().nullable().optional(),
+  /** Exchange rate for a foreign-currency order (e.g. "50.25"); left out = the rate on file for the date. */
+  exchangeRate: z
+    .string()
+    .regex(/^\d{1,10}(\.\d{1,8})?$/)
+    .refine((value) => Number(value) > 0)
+    .nullable()
+    .optional(),
   notes: z.string().nullable().optional(),
   customFields: z.record(z.unknown()).optional(),
 });

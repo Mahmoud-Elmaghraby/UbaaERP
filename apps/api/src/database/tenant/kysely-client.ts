@@ -297,6 +297,7 @@ export interface StockLevelsTable {
   reorder_point: string | null;
   average_cost_amount: string;
   average_cost_currency: string;
+  inventory_value_amount: Generated<string>;
   created_at: Generated<Date>;
   updated_at: Generated<Date>;
 }
@@ -319,6 +320,7 @@ export interface StockMovementsTable {
   notes: string | null;
   created_by: string | null;
   created_at: Generated<Date>;
+  total_cost_amount: string | null;
 }
 
 export interface StockCountsTable {
@@ -418,6 +420,7 @@ export interface LandedCostAllocationsTable {
   allocated_amount_currency: string;
   resulting_average_cost_amount: string;
   resulting_average_cost_currency: string;
+  expensed_amount: Generated<string>;
   created_at: Generated<Date>;
 }
 
@@ -775,6 +778,7 @@ export interface GoodsReceiptsTable {
   custom_fields: unknown;
   created_at: Generated<Date>;
   updated_at: Generated<Date>;
+  exchange_rate: string | null;
 }
 
 export interface GoodsReceiptLinesTable {

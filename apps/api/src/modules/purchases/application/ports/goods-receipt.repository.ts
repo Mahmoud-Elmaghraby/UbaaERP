@@ -7,6 +7,7 @@ export interface CreateGoodsReceiptRow {
   purchaseOrderId: string;
   warehouseId: string;
   receivedDate: string | null;
+  exchangeRate: string | null;
   notes: string | null;
   customFields: Record<string, unknown>;
 }
@@ -21,6 +22,7 @@ export interface GoodsReceiptRepository {
     id: string,
     status: GoodsReceiptStatus,
   ): Promise<GoodsReceipt | null>;
+  setExchangeRate(db: Kysely<TenantDatabase>, id: string, rate: string): Promise<void>;
   delete(db: Kysely<TenantDatabase>, id: string): Promise<boolean>;
 }
 

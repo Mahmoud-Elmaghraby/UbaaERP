@@ -163,7 +163,8 @@ export class DeliveryStockListener {
         let totalCost = Money.zero(currency);
         const costLines = movements.map((movement) => {
           const unitCost = movement.unitCost ?? Money.zero(currency);
-          const lineCost = unitCost.multiplyByQuantity(movement.quantity);
+          // The movement's exact value (no unit-cost rounding) — matches what left/entered the stock value.
+          const lineCost = movement.totalCost ?? unitCost.multiplyByQuantity(movement.quantity);
           totalCost = totalCost.add(lineCost);
           return {
             productVariantId: movement.productVariantId,
