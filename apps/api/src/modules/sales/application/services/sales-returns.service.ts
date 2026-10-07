@@ -228,6 +228,11 @@ export class SalesReturnsService {
       }
 
       const returnWithLines = { ...updated, lines };
+      // Earlier confirmed returns against the same delivery — Inventory
+      // needs them to know which of the delivery's lots are already back.
+      const earlierReturnIds = (await this.returns.listByDeliveryId(trx, updated.deliveryId))
+        .filter((other) => other.id !== updated.id && other.status === 'confirmed')
+        .map((other) => other.id);
       const creditNote = await this.creditNotes.createFromSalesReturn(trx, returnWithLines);
 
       await this.outboxWriter.write(trx, 'sales.sales_return.confirmed', {
@@ -239,6 +244,7 @@ export class SalesReturnsService {
         metadata: {
           deliveryId: updated.deliveryId,
           warehouseId: delivery.warehouseId,
+          earlierReturnIds,
           lines: lines.map((line) => ({
             productVariantId: line.productVariantId,
             // Base units for Inventory (line quantity is in the line's own unit).

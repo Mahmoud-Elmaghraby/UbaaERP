@@ -24,6 +24,8 @@ interface SalesReturnConfirmedLine {
 interface SalesReturnConfirmedMetadata {
   deliveryId: string;
   warehouseId: string;
+  /** Earlier confirmed returns of the same delivery (absent on old events). */
+  earlierReturnIds?: string[];
   lines: SalesReturnConfirmedLine[];
 }
 
@@ -139,7 +141,7 @@ export class SalesReturnStockListener {
             );
           }
 
-          for (const piece of await this.returnPieces(trx, metadata.deliveryId, line)) {
+          for (const piece of await this.returnPieces(trx, metadata, line)) {
             movements.push(
               await this.stockMovements.recordMovement(trx, {
                 productVariantId: line.productVariantId,
@@ -208,24 +210,39 @@ export class SalesReturnStockListener {
   /**
    * A tracked item comes back into the lots the original delivery took it
    * from (keeps expiry and recall traceability right); untracked items are
-   * one plain movement.
+   * one plain movement. Quantities earlier partial returns of the same
+   * delivery already brought back into a lot are not available again.
    */
   private async returnPieces(
     trx: Kysely<TenantDatabase>,
-    deliveryId: string | undefined,
+    metadata: SalesReturnConfirmedMetadata,
     line: SalesReturnConfirmedLine,
   ): Promise<{ quantity: number; lotNumber?: string }[]> {
     if ((await this.stockMovements.trackingTypeOf(trx, line.productVariantId)) === 'none') {
       return [{ quantity: line.quantity }];
     }
+    const deliveryId = metadata.deliveryId;
     const delivered = deliveryId
       ? await this.stockMovements.lotsMovedByReference(trx, 'delivery', deliveryId, line.productVariantId)
       : [];
+    const alreadyBack = new Map<string, number>();
+    for (const returnId of metadata.earlierReturnIds ?? []) {
+      for (const lot of await this.stockMovements.lotsMovedByReference(
+        trx,
+        'sales_return',
+        returnId,
+        line.productVariantId,
+      )) {
+        alreadyBack.set(lot.stockLotId, (alreadyBack.get(lot.stockLotId) ?? 0) + lot.quantity);
+      }
+    }
     const pieces: { quantity: number; lotNumber: string }[] = [];
     let remaining = line.quantity;
     for (const lot of delivered) {
       if (remaining <= 1e-9) break;
-      const take = Math.min(lot.quantity, remaining);
+      const available = lot.quantity - (alreadyBack.get(lot.stockLotId) ?? 0);
+      if (available <= 1e-9) continue;
+      const take = Math.min(available, remaining);
       pieces.push({ quantity: take, lotNumber: lot.lotNumber });
       remaining -= take;
     }

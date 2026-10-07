@@ -262,6 +262,30 @@ describe('Lots/expiry/serials on documents (integration, real Postgres)', () => 
     expect(await lotQuantities(variantId)).toEqual({ R1: 2, R2: 4 });
   });
 
+  it('a second partial return of the same delivery skips lots the first return already refilled', async () => {
+    const variantId = await createProduct('lot');
+    await receive(variantId, [
+      { lotNumber: 'Q1', expiryDate: isoDay(20), quantity: 2 },
+      { lotNumber: 'Q2', expiryDate: isoDay(200), quantity: 5 },
+    ]);
+    const deliveryId = randomUUID();
+    await deliveryListener.handle(event(deliveryId, { lines: [{ productVariantId: variantId, quantity: 4 }] }));
+    const firstReturnId = randomUUID();
+    await salesReturnListener.handle(
+      event(firstReturnId, { deliveryId, lines: [{ productVariantId: variantId, quantity: 2 }] }),
+    );
+    expect(await lotQuantities(variantId)).toEqual({ Q1: 2, Q2: 3 });
+    // Without earlierReturnIds the second return would refill Q1 again (4 > received 2).
+    await salesReturnListener.handle(
+      event(randomUUID(), {
+        deliveryId,
+        earlierReturnIds: [firstReturnId],
+        lines: [{ productVariantId: variantId, quantity: 2 }],
+      }),
+    );
+    expect(await lotQuantities(variantId)).toEqual({ Q1: 2, Q2: 5 });
+  });
+
   it('a purchase return takes back the lots of its own goods receipt, expired ones included', async () => {
     const variantId = await createProduct('lot');
     await receive(variantId, [{ lotNumber: 'EARLY', expiryDate: isoDay(5), quantity: 4 }]);
