@@ -73,8 +73,33 @@ export class InventoryReportsService {
     };
   }
 
-  valuation(db: Kysely<TenantDatabase>, warehouseId?: string | null): Promise<ValuationRow[]> {
-    return this.reports.valuation(db, warehouseId ?? null);
+  /** `asOf` = end of that day (exclusive moment); omitted = now. */
+  valuation(db: Kysely<TenantDatabase>, warehouseId?: string | null, asOf?: Date | null): Promise<ValuationRow[]> {
+    return this.reports.valuation(db, warehouseId ?? null, asOf ?? null);
+  }
+
+  /**
+   * The reconciliation an accountant does at month end: stock value (on the
+   * shelves + in transit) against the inventory account in the ledger.
+   * Differences come from postings outside the inventory flow (manual
+   * journal entries on the inventory account) or history from before the
+   * automatic postings existed.
+   */
+  async valuationSummary(
+    db: Kysely<TenantDatabase>,
+    asOf: Date | null,
+    asOfDate: string | null,
+  ): Promise<{ stockValue: string; inTransitValue: string; ledgerBalance: string | null; difference: string | null }> {
+    const rows = await this.reports.valuation(db, null, asOf);
+    const stockValue = rows.reduce((sum, row) => sum + BigInt(row.valueMinorUnits), 0n);
+    const inTransit = BigInt(await this.reports.inTransitValue(db, asOf));
+    const ledger = await this.reports.ledgerInventoryBalance(db, asOfDate);
+    return {
+      stockValue: stockValue.toString(),
+      inTransitValue: inTransit.toString(),
+      ledgerBalance: ledger,
+      difference: ledger === null ? null : (stockValue + inTransit - BigInt(ledger)).toString(),
+    };
   }
 
   lowStock(db: Kysely<TenantDatabase>, warehouseId?: string | null): Promise<LowStockRow[]> {

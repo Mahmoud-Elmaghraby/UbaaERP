@@ -3,7 +3,11 @@ import type { Kysely } from 'kysely';
 import { Money } from '@erp-platform/shared-kernel';
 import type { TenantDatabase } from '../../../../database/tenant/kysely-client';
 import { STOCK_LEVEL_REPOSITORY, type StockLevelRepository } from '../ports/stock-level.repository';
-import { STOCK_MOVEMENT_REPOSITORY, type StockMovementRepository } from '../ports/stock-movement.repository';
+import {
+  STOCK_MOVEMENT_REPOSITORY,
+  type StockMovementListFilter,
+  type StockMovementRepository,
+} from '../ports/stock-movement.repository';
 import {
   WAREHOUSE_LOCATION_REPOSITORY,
   type WarehouseLocationRepository,
@@ -111,7 +115,7 @@ export class StockMovementsService {
 
   list(
     db: Kysely<TenantDatabase>,
-    filter?: { productVariantId?: string; warehouseId?: string; locationId?: string; limit?: number },
+    filter?: StockMovementListFilter,
   ): Promise<StockMovement[]> {
     return this.movements.list(db, filter);
   }

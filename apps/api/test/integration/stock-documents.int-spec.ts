@@ -25,6 +25,8 @@ import { KyselyOutboxEventRepository } from '../../src/shared/outbox/infrastruct
 import { ProductUnitResolver } from '../../src/shared/catalog/product-unit-resolver';
 import { StockAvailabilityChecker } from '../../src/shared/catalog/stock-availability-checker';
 import type { InventoryValuationPostedMetadata } from '../../src/shared/events/inventory-valuation-event';
+import { InventoryReportsService } from '../../src/modules/inventory/application/services/inventory-reports.service';
+import { KyselyInventoryReportsRepository } from '../../src/modules/inventory/infrastructure/persistence/kysely-inventory-reports.repository';
 import { openIntegrationDb, uniqueSuffix } from './tenant-db';
 
 /** Warehouse transfers (0083), stock adjustments (0084), their valuation events and the permission migration (0082). */
@@ -389,6 +391,53 @@ describe('Stock transfer & adjustment documents (integration, real Postgres)', (
     expect(movement.referenceId).toBe(adjustment.id);
     const event = await valuationEvent(adjustment.id);
     expect(event?.entries[0]).toMatchObject({ kind: 'adjustment_gain', amount: { amountMinorUnits: '2100' } });
+  });
+
+  it('valuation as of a date is rebuilt from movements and matches the live value; in-transit counts until received', async () => {
+    const source = await createWarehouse();
+    const target = await createWarehouse();
+    const { variantId } = await createProduct();
+    await stock.recordMovement(db, {
+      productVariantId: variantId,
+      locationId: source.locationId,
+      movementType: 'in',
+      quantity: 9,
+      unitCost: egp(111n),
+      totalCost: egp(1000n),
+    });
+    await adjustments.quick(
+      db,
+      { productVariantId: variantId, locationId: source.locationId, movementType: 'adjustment_decrease', quantity: 2 },
+      actor,
+    );
+    const reports = new InventoryReportsService(new KyselyInventoryReportsRepository());
+    const tomorrow = new Date(Date.now() + 86_400_000);
+    const yesterday = new Date(Date.now() - 86_400_000);
+    const live = (await reports.valuation(db, source.warehouseId)).find((row) => row.productVariantId === variantId)!;
+    const rebuilt = (await reports.valuation(db, source.warehouseId, tomorrow)).find(
+      (row) => row.productVariantId === variantId,
+    )!;
+    expect(rebuilt.quantity).toBe(live.quantity);
+    expect(rebuilt.valueMinorUnits).toBe(live.valueMinorUnits);
+    expect(
+      (await reports.valuation(db, source.warehouseId, yesterday)).some((row) => row.productVariantId === variantId),
+    ).toBe(false);
+
+    const before = BigInt((await reports.valuationSummary(db, null, null)).inTransitValue);
+    const transfer = await transfers.create(
+      db,
+      {
+        fromWarehouseId: source.warehouseId,
+        toWarehouseId: target.warehouseId,
+        lines: [{ productVariantId: variantId, quantity: 7 }],
+      },
+      null,
+    );
+    await transfers.dispatch(db, transfer.id, actor);
+    const during = await reports.valuationSummary(db, null, null);
+    expect(BigInt(during.inTransitValue) - before).toBe(BigInt(live.valueMinorUnits));
+    await transfers.receive(db, transfer.id, {}, actor);
+    expect(BigInt((await reports.valuationSummary(db, null, null)).inTransitValue)).toBe(before);
   });
 
   it('migration 0082 replaced inventory.manage with granular permissions, all granted to Owner', async () => {

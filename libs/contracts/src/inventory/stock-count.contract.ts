@@ -116,6 +116,17 @@ export const stockValuationRowSchema = z.object({
 });
 export type StockValuationRowDto = z.infer<typeof stockValuationRowSchema>;
 
+/** Month-end reconciliation: stock (shelves + in transit) vs the ledger's inventory account. */
+export const stockValuationSummarySchema = z.object({
+  stockValue: z.string(),
+  inTransitValue: z.string(),
+  /** Null when no inventory account is mapped in Accounting settings. */
+  ledgerBalance: z.string().nullable(),
+  /** stock + in transit − ledger; null without a ledger balance. */
+  difference: z.string().nullable(),
+});
+export type StockValuationSummaryDto = z.infer<typeof stockValuationSummarySchema>;
+
 export const lowStockRowSchema = z.object({
   productVariantId: z.string().uuid(),
   productName: z.string(),

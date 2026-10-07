@@ -1,6 +1,6 @@
 import type { Kysely } from 'kysely';
 import type { TenantDatabase } from '../../../../database/tenant/kysely-client';
-import type { StockMovement } from '../../domain/stock-movement.entity';
+import type { StockMovementType, StockMovement } from '../../domain/stock-movement.entity';
 import type { Money } from '@erp-platform/shared-kernel';
 
 export interface CreateStockMovementRow {
@@ -23,7 +23,7 @@ export interface CreateStockMovementRow {
 export interface StockMovementRepository {
   list(
     db: Kysely<TenantDatabase>,
-    filter?: { productVariantId?: string; warehouseId?: string; locationId?: string; limit?: number },
+    filter?: StockMovementListFilter,
   ): Promise<StockMovement[]>;
   findById(db: Kysely<TenantDatabase>, id: string): Promise<StockMovement | null>;
   /** Inserted inside the same transaction as the StockLevelRepository.upsert() it accompanies. */
@@ -39,6 +39,18 @@ export interface StockMovementRepository {
     productVariantId: string,
   ): Promise<{ quantity: number; totalCostMinorUnits: bigint; currency: string } | null>;
   linkRelatedMovement(db: Kysely<TenantDatabase>, id: string, relatedMovementId: string): Promise<void>;
+}
+
+export interface StockMovementListFilter {
+  productVariantId?: string;
+  warehouseId?: string;
+  locationId?: string;
+  movementTypes?: StockMovementType[];
+  /** Inclusive lower bound on created_at. */
+  from?: Date;
+  /** Exclusive upper bound on created_at. */
+  to?: Date;
+  limit?: number;
 }
 
 export const STOCK_MOVEMENT_REPOSITORY = Symbol('STOCK_MOVEMENT_REPOSITORY');

@@ -16,7 +16,16 @@ import {
   type StockLotDto,
 } from '@erp-platform/contracts';
 import type { StockLevel } from '../domain/stock-level.entity';
-import type { StockMovement } from '../domain/stock-movement.entity';
+import type { StockMovement, StockMovementType } from '../domain/stock-movement.entity';
+
+const MOVEMENT_TYPES: StockMovementType[] = [
+  'in',
+  'out',
+  'transfer_in',
+  'transfer_out',
+  'adjustment_increase',
+  'adjustment_decrease',
+];
 import type { StockLotWithLevels } from '../domain/stock-lot.entity';
 import { TenantConnectionManager } from '../../../shared/tenancy/tenant-connection-manager';
 import { CurrentTenantSchema } from '../../../shared/auth/current-tenant-schema.decorator';
@@ -179,13 +188,29 @@ export class StockController {
     @Query('locationId') locationId?: string,
     @Query('productVariantId') productVariantId?: string,
     @Query('limit') limit?: string,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+    @Query('types') types?: string,
   ): Promise<StockMovementDto[]> {
     const db = this.connections.getClient(schema);
+    const day = (value: string | undefined, end = false) => {
+      if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return undefined;
+      const date = new Date(`${value}T00:00:00`);
+      if (end) date.setDate(date.getDate() + 1);
+      return date;
+    };
+    const parsedLimit = Number(limit);
     const movements = await this.service.list(db, {
       warehouseId,
       locationId,
       productVariantId,
-      limit: limit ? Number(limit) : undefined,
+      from: day(from),
+      to: day(to, true),
+      movementTypes: types
+        ? (types.split(',').filter((type) => MOVEMENT_TYPES.includes(type as StockMovementType)) as StockMovementType[])
+        : undefined,
+      // Bounded: one screen never pulls the whole history.
+      limit: Number.isFinite(parsedLimit) && parsedLimit > 0 ? Math.min(parsedLimit, 5000) : 200,
     });
     const showCost = canViewCosts(user.permissions);
     return movements.map((movement) => stockMovementToDto(movement, showCost));

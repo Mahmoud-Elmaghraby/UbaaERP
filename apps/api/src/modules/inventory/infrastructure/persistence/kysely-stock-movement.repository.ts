@@ -3,6 +3,7 @@ import { sql, type Kysely, type Selectable } from 'kysely';
 import { Money } from '@erp-platform/shared-kernel';
 import type { StockMovementsTable, TenantDatabase } from '../../../../database/tenant/kysely-client';
 import type {
+  StockMovementListFilter,
   CreateStockMovementRow,
   StockMovementRepository,
 } from '../../application/ports/stock-movement.repository';
@@ -44,12 +45,15 @@ function toDomain(row: Selectable<StockMovementsTable>): StockMovement {
 export class KyselyStockMovementRepository implements StockMovementRepository {
   async list(
     db: Kysely<TenantDatabase>,
-    filter?: { productVariantId?: string; warehouseId?: string; locationId?: string; limit?: number },
+    filter?: StockMovementListFilter,
   ): Promise<StockMovement[]> {
     let query = db.selectFrom('stock_movements').selectAll().orderBy('created_at', 'desc');
     if (filter?.productVariantId) query = query.where('product_variant_id', '=', filter.productVariantId);
     if (filter?.warehouseId) query = query.where('warehouse_id', '=', filter.warehouseId);
     if (filter?.locationId) query = query.where('location_id', '=', filter.locationId);
+    if (filter?.movementTypes?.length) query = query.where('movement_type', 'in', filter.movementTypes);
+    if (filter?.from) query = query.where('created_at', '>=', filter.from);
+    if (filter?.to) query = query.where('created_at', '<', filter.to);
     if (filter?.limit) query = query.limit(filter.limit);
     const rows = await query.execute();
     return rows.map(toDomain);

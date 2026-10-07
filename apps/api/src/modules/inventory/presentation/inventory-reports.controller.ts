@@ -3,6 +3,8 @@ import {
   itemCardSchema,
   lowStockRowSchema,
   stockValuationRowSchema,
+  stockValuationSummarySchema,
+  type StockValuationSummaryDto,
   type ItemCardDto,
   type LowStockRowDto,
   type StockValuationRowDto,
@@ -71,10 +73,12 @@ export class InventoryReportsController {
   async valuation(
     @CurrentTenantSchema() schema: string,
     @Query('warehouseId') warehouseId?: string,
+    @Query('asOf') asOf?: string,
   ): Promise<StockValuationRowDto[]> {
     const rows = await this.service.valuation(
       this.connections.getClient(schema),
       optionalUuid(warehouseId, 'warehouseId'),
+      optionalDay(asOf, true),
     );
     return rows.map((row) =>
       stockValuationRowSchema.parse({
@@ -82,6 +86,18 @@ export class InventoryReportsController {
         value: { amountMinorUnits: row.valueMinorUnits, currency: row.currency },
       }),
     );
+  }
+
+  /** Stock value vs the ledger's inventory account, at the end of `asOf` (default: now). */
+  @Get('valuation-summary')
+  @RequirePermissions(P.reportsView, P.costsView)
+  async valuationSummary(
+    @CurrentTenantSchema() schema: string,
+    @Query('asOf') asOf?: string,
+  ): Promise<StockValuationSummaryDto> {
+    const moment = optionalDay(asOf, true);
+    const summary = await this.service.valuationSummary(this.connections.getClient(schema), moment, moment ? asOf! : null);
+    return stockValuationSummarySchema.parse(summary);
   }
 
   @Get('low-stock')

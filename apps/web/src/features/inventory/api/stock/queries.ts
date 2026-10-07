@@ -51,6 +51,12 @@ export interface StockMovementFilters {
   warehouseId?: string;
   locationId?: string;
   productVariantId?: string;
+  /** YYYY-MM-DD, inclusive. */
+  from?: string;
+  /** YYYY-MM-DD, inclusive (whole day). */
+  to?: string;
+  /** Comma-separated movement types. */
+  types?: string;
   limit?: number;
 }
 

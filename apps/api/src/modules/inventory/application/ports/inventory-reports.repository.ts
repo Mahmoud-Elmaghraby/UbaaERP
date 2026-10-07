@@ -26,7 +26,7 @@ export interface ValuationRow {
   warehouseId: string;
   warehouseName: string;
   quantity: number;
-  /** Σ quantity × average cost across the warehouse's locations, minor units. */
+  /** Stock value across the warehouse's locations, minor units. */
   valueMinorUnits: string;
   currency: string;
 }
@@ -56,7 +56,11 @@ export interface InventoryReportsRepository {
     productVariantId: string,
     filter: { warehouseId: string | null; from: Date | null; to: Date | null; limit: number },
   ): Promise<ItemCardMovementRow[]>;
-  valuation(db: Kysely<TenantDatabase>, warehouseId: string | null): Promise<ValuationRow[]>;
+  valuation(db: Kysely<TenantDatabase>, warehouseId: string | null, asOf: Date | null): Promise<ValuationRow[]>;
+  /** Value of goods dispatched by a transfer and not yet received at `asOf` (default now). */
+  inTransitValue(db: Kysely<TenantDatabase>, asOf: Date | null): Promise<string>;
+  /** Accounting's inventory account balance up to the date, or null when unmapped. */
+  ledgerInventoryBalance(db: Kysely<TenantDatabase>, asOfDate: string | null): Promise<string | null>;
   lowStock(db: Kysely<TenantDatabase>, warehouseId: string | null): Promise<LowStockRow[]>;
 }
 

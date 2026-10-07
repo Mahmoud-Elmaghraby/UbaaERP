@@ -1,5 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
-import type { ItemCardDto, LowStockRowDto, StockValuationRowDto } from '@erp-platform/contracts';
+import type {
+  ItemCardDto,
+  LowStockRowDto,
+  StockValuationRowDto,
+  StockValuationSummaryDto,
+} from '@erp-platform/contracts';
 
 import { apiGet } from '../../../../lib/api-client';
 
@@ -18,10 +23,18 @@ export function useItemCard(filter: { productVariantId?: string; warehouseId?: s
   });
 }
 
-export function useStockValuation(warehouseId?: string) {
+export function useStockValuation(warehouseId?: string, asOf?: string) {
   return useQuery({
-    queryKey: ['inventory-reports', 'valuation', warehouseId ?? null],
-    queryFn: () => apiGet<StockValuationRowDto[]>(`/inventory-reports/valuation${query({ warehouseId })}`),
+    queryKey: ['inventory-reports', 'valuation', warehouseId ?? null, asOf ?? null],
+    queryFn: () => apiGet<StockValuationRowDto[]>(`/inventory-reports/valuation${query({ warehouseId, asOf })}`),
+  });
+}
+
+/** Stock + in transit vs the ledger's inventory account (month-end reconciliation). */
+export function useValuationSummary(asOf?: string) {
+  return useQuery({
+    queryKey: ['inventory-reports', 'valuation-summary', asOf ?? null],
+    queryFn: () => apiGet<StockValuationSummaryDto>(`/inventory-reports/valuation-summary${query({ asOf })}`),
   });
 }
 
