@@ -15,7 +15,6 @@ import {
   SelectValue,
   useHasAnyPermission,
 } from '@erp-platform/ui';
-import { Link } from 'react-router-dom';
 
 import { useStockMovements, type StockMovementFilters } from '../../api/stock/queries';
 import { useVariantIndex } from '../../hooks/stock/use-variant-index';
@@ -23,17 +22,11 @@ import { useLocationLookups } from '../../hooks/stock/use-location-lookups';
 import { formatMoney } from '../../../../lib/money';
 import { INV } from '../../../../lib/permissions';
 import { movementTypeLabel } from './stock-utils';
+import { DocumentReference } from '../document-reference';
 
 const MOVEMENT_TYPES = ['in', 'out', 'transfer_in', 'transfer_out', 'adjustment_increase', 'adjustment_decrease'] as const;
 const ALL = '__all__';
 
-/** Inventory documents with their own page — the reference column links to them. */
-const DOCUMENT_ROUTES: Record<string, string> = {
-  stock_transfer: '/inventory/transfers',
-  stock_adjustment: '/inventory/adjustments',
-  stock_count: '/inventory/counts',
-  opening_balance: '/inventory/counts',
-};
 
 export function StockMovementsView({ filters }: { filters: StockMovementFilters }) {
   const { t } = useTranslation();
@@ -102,19 +95,8 @@ export function StockMovementsView({ filters }: { filters: StockMovementFilters 
       {
         id: 'reference',
         header: t('inventory.stock.reference'),
-        cell: ({ row }: { row: Row<StockMovementDto> }) => {
-          const { referenceType, referenceId } = row.original;
-          if (!referenceType) return '—';
-          const label = t(`inventory.stock.references.${referenceType}`, { defaultValue: referenceType });
-          const route = DOCUMENT_ROUTES[referenceType];
-          return route && referenceId ? (
-            <Link className="text-primary hover:underline" to={`${route}/${referenceId}`}>
-              {label}
-            </Link>
-          ) : (
-            label
-          );
-        },
+        cell: ({ row }: { row: Row<StockMovementDto> }) =>
+          row.original.referenceType ? <DocumentReference {...row.original} /> : '—',
       },
       {
         id: 'notes',

@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import type {
   ItemCardDto,
+  LotTraceDto,
   LowStockRowDto,
   StockValuationRowDto,
   StockValuationSummaryDto,
@@ -42,5 +43,13 @@ export function useLowStock(warehouseId?: string) {
   return useQuery({
     queryKey: ['inventory-reports', 'low-stock', warehouseId ?? null],
     queryFn: () => apiGet<LowStockRowDto[]>(`/inventory-reports/low-stock${query({ warehouseId })}`),
+  });
+}
+
+export function useLotTrace(lotNumber: string) {
+  return useQuery({
+    queryKey: ['inventory-reports', 'lot-trace', lotNumber],
+    queryFn: () => apiGet<LotTraceDto[]>(`/inventory-reports/lot-trace${query({ lotNumber })}`),
+    enabled: lotNumber.trim().length > 0,
   });
 }

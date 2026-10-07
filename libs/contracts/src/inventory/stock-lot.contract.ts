@@ -40,3 +40,38 @@ export const expiringLotSchema = z.object({
   unitCost: moneySchema.nullable(),
 });
 export type ExpiringLotDto = z.infer<typeof expiringLotSchema>;
+
+/** One movement in a lot's life — where it came from and where it went. */
+export const lotTraceMovementSchema = z.object({
+  id: z.string().uuid(),
+  createdAt: z.coerce.date(),
+  movementType: z.string(),
+  /** Signed: + into stock, − out of stock. */
+  quantity: z.number(),
+  warehouseId: z.string().uuid(),
+  locationId: z.string().uuid(),
+  referenceType: z.string().nullable(),
+  referenceId: z.string().nullable(),
+  referenceNumber: z.string().nullable(),
+  partyName: z.string().nullable(),
+});
+export type LotTraceMovementDto = z.infer<typeof lotTraceMovementSchema>;
+
+/**
+ * Lot / serial traceability (recall): every lot with this number — across
+ * items — with its on-hand quantity and full movement history.
+ */
+export const lotTraceSchema = z.object({
+  stockLotId: z.string().uuid(),
+  lotNumber: z.string(),
+  expiryDate: z.coerce.date().nullable(),
+  productVariantId: z.string().uuid(),
+  productName: z.string(),
+  productCode: z.string(),
+  sku: z.string(),
+  quantityOnHand: z.number(),
+  received: z.number(),
+  shipped: z.number(),
+  movements: z.array(lotTraceMovementSchema),
+});
+export type LotTraceDto = z.infer<typeof lotTraceSchema>;

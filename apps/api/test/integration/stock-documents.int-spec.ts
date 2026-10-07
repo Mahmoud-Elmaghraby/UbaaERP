@@ -27,6 +27,10 @@ import { StockAvailabilityChecker } from '../../src/shared/catalog/stock-availab
 import type { InventoryValuationPostedMetadata } from '../../src/shared/events/inventory-valuation-event';
 import { InventoryReportsService } from '../../src/modules/inventory/application/services/inventory-reports.service';
 import { KyselyInventoryReportsRepository } from '../../src/modules/inventory/infrastructure/persistence/kysely-inventory-reports.repository';
+import {
+  documentReferenceKey,
+  resolveDocumentReferences,
+} from '../../src/shared/documents/document-reference-reader';
 import { openIntegrationDb, uniqueSuffix } from './tenant-db';
 
 /** Warehouse transfers (0083), stock adjustments (0084), their valuation events and the permission migration (0082). */
@@ -193,6 +197,16 @@ describe('Stock transfer & adjustment documents (integration, real Postgres)', (
       null,
     );
     expect(draft.transferNumber).toMatch(/^TRF-\d{5}$/);
+    const refs = await resolveDocumentReferences(db, [
+      { referenceType: 'stock_transfer', referenceId: draft.id },
+      { referenceType: 'unknown_doc', referenceId: draft.id },
+      { referenceType: 'delivery', referenceId: 'not-a-uuid' },
+    ]);
+    expect(refs.get(documentReferenceKey('stock_transfer', draft.id))).toEqual({
+      number: draft.transferNumber,
+      partyName: null,
+    });
+    expect(refs.size).toBe(1);
     expect(draft.lines[0]).toMatchObject({ quantity: 2, unitFactor: 12 });
 
     const inTransit = await transfers.dispatch(db, draft.id, actor);

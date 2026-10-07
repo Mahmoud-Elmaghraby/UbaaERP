@@ -24,6 +24,9 @@ export const stockMovementSchema = z.object({
   resultingAverageCost: moneySchema.nullable(),
   referenceType: z.string().nullable(),
   referenceId: z.string().nullable(),
+  /** Readable source document number and its customer/supplier (list endpoint only). */
+  referenceNumber: z.string().nullable().optional(),
+  partyName: z.string().nullable().optional(),
   relatedMovementId: z.string().uuid().nullable(),
   stockLotId: z.string().uuid().nullable(),
   notes: z.string().nullable(),

@@ -112,6 +112,11 @@ export const NAV_GROUPS: NavGroup[] = [
           { to: '/inventory/valuation', labelKey: 'inventory.tabs.valuation', permission: INV.costsView },
           { to: '/inventory/low-stock', labelKey: 'inventory.tabs.lowStock', permission: INV.reportsView },
           { to: '/inventory/expiry', labelKey: 'inventory.tabs.expiry', permission: INV.reportsView },
+          {
+            to: '/inventory/lot-trace',
+            labelKey: 'inventory.tabs.lotTrace',
+            permission: [INV.reportsView, INV.stockView],
+          },
           { to: '/inventory/landed-costs', labelKey: 'inventory.tabs.landedCosts', permission: INV.landedCostsManage },
           {
             to: '/inventory/warehouses',

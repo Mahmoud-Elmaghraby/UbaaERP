@@ -86,6 +86,8 @@ export const itemCardMovementSchema = z.object({
   referenceType: z.string().nullable(),
   referenceId: z.string().nullable(),
   referenceNumber: z.string().nullable(),
+  /** Customer / supplier of the source document, when it has one. */
+  partyName: z.string().nullable(),
   lotNumber: z.string().nullable(),
   notes: z.string().nullable(),
 });

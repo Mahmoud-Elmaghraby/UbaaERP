@@ -33,6 +33,10 @@ import { CurrentUser } from '../../../shared/auth/current-user.decorator';
 import type { JwtAccessPayload } from '../../../shared/auth/jwt-payload.type';
 import { JwtAuthGuard } from '../../../shared/auth/jwt-auth.guard';
 import { PermissionsGuard } from '../../../shared/auth/permissions.guard';
+import {
+  documentReferenceKey,
+  resolveDocumentReferences,
+} from '../../../shared/documents/document-reference-reader';
 import { RequireAnyPermission, RequirePermissions } from '../../../shared/auth/require-permissions.decorator';
 import { INVENTORY_PERMISSIONS as P, canViewCosts } from '../../../shared/auth/inventory-permissions';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
@@ -213,7 +217,18 @@ export class StockController {
       limit: Number.isFinite(parsedLimit) && parsedLimit > 0 ? Math.min(parsedLimit, 5000) : 200,
     });
     const showCost = canViewCosts(user.permissions);
-    return movements.map((movement) => stockMovementToDto(movement, showCost));
+    const references = await resolveDocumentReferences(db, movements);
+    return movements.map((movement) => {
+      const info =
+        movement.referenceType && movement.referenceId
+          ? references.get(documentReferenceKey(movement.referenceType, movement.referenceId))
+          : undefined;
+      return {
+        ...stockMovementToDto(movement, showCost),
+        referenceNumber: info?.number ?? null,
+        partyName: info?.partyName ?? null,
+      };
+    });
   }
 
   @Post('movements')

@@ -10,6 +10,7 @@ const UnitsOfMeasurePage = lazy(() =>
 );
 const CatalogPage = lazy(() => import('./components/catalog').then((m) => ({ default: m.CatalogPage })));
 const LabelsPage = lazy(() => import('./components/labels').then((m) => ({ default: m.LabelsPage })));
+const LotTracePage = lazy(() => import('./components/lot-trace').then((m) => ({ default: m.LotTracePage })));
 const ExpiryReportPage = lazy(() => import('./components/expiry').then((m) => ({ default: m.ExpiryReportPage })));
 const StockCountsPage = lazy(() => import('./components/counts').then((m) => ({ default: m.StockCountsPage })));
 const StockCountPage = lazy(() => import('./components/counts').then((m) => ({ default: m.StockCountPage })));
@@ -63,6 +64,7 @@ export const inventoryRoutes: RouteObject[] = [
       { path: 'valuation', element: <ValuationPage /> },
       { path: 'low-stock', element: <LowStockPage /> },
       { path: 'expiry', element: <ExpiryReportPage /> },
+      { path: 'lot-trace', element: <LotTracePage /> },
       { path: 'landed-costs', element: <LandedCostsPage /> },
       { path: 'transfers', element: <StockTransfersPage /> },
       { path: 'transfers/:id', element: <StockTransferPage /> },

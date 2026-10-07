@@ -26,6 +26,8 @@ import { OutboxWriterService } from '../../src/shared/outbox/application/service
 import { KyselyOutboxEventRepository } from '../../src/shared/outbox/infrastructure/persistence/kysely-outbox-event.repository';
 import type { TenantConnectionManager } from '../../src/shared/tenancy/tenant-connection-manager';
 import type { DomainEventPayload } from '../../src/shared/events/domain-event';
+import { KyselyInventoryReportsRepository } from '../../src/modules/inventory/infrastructure/persistence/kysely-inventory-reports.repository';
+import { InventoryReportsService } from '../../src/modules/inventory/application/services/inventory-reports.service';
 import { openIntegrationDb, uniqueSuffix } from './tenant-db';
 
 /**
@@ -284,6 +286,28 @@ describe('Lots/expiry/serials on documents (integration, real Postgres)', () => 
       }),
     );
     expect(await lotQuantities(variantId)).toEqual({ Q1: 2, Q2: 5 });
+  });
+
+  it('traces a lot from its receipt through deliveries and returns (recall report)', async () => {
+    const variantId = await createProduct('lot');
+    const lotNumber = `TR-${randomUUID().slice(0, 6)}`;
+    await receive(variantId, [{ lotNumber, expiryDate: isoDay(90), quantity: 6 }]);
+    const deliveryId = randomUUID();
+    await deliveryListener.handle(event(deliveryId, { lines: [{ productVariantId: variantId, quantity: 4 }] }));
+    await salesReturnListener.handle(
+      event(randomUUID(), { deliveryId, lines: [{ productVariantId: variantId, quantity: 1 }] }),
+    );
+
+    const reports = new InventoryReportsService(new KyselyInventoryReportsRepository());
+    const [trace, ...others] = await reports.lotTrace(db, lotNumber.toLowerCase());
+    expect(others).toHaveLength(0);
+    expect(trace).toMatchObject({ lotNumber, productVariantId: variantId, quantityOnHand: 3, received: 7, shipped: 4 });
+    expect(trace!.movements.map((movement) => [movement.referenceType, movement.quantity])).toEqual([
+      ['goods_receipt', 6],
+      ['delivery', -4],
+      ['sales_return', 1],
+    ]);
+    expect(await reports.lotTrace(db, 'no-such-lot')).toEqual([]);
   });
 
   it('a purchase return takes back the lots of its own goods receipt, expired ones included', async () => {

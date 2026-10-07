@@ -1,8 +1,14 @@
+import {
+  documentReferenceKey,
+  resolveDocumentReferences,
+  type DocumentReferenceInfo,
+} from '../../../../shared/documents/document-reference-reader';
 import { sql, type Kysely } from 'kysely';
 import type { TenantDatabase } from '../../../../database/tenant/kysely-client';
 import type {
   InventoryReportsRepository,
   ItemCardMovementRow,
+  LotTraceRow,
   LowStockRow,
   ValuationRow,
 } from '../../application/ports/inventory-reports.repository';
@@ -23,9 +29,9 @@ interface ValuationSqlRow {
 const SIGNED_QUANTITY = sql<string>`CASE WHEN m.movement_type IN ('in', 'transfer_in', 'adjustment_increase') THEN m.quantity ELSE -m.quantity END`;
 
 /**
- * Read-only report queries. The item card resolves the source document's
- * number by reference type with plain reads of the documents' own tables —
- * reporting, not behaviour, so it doesn't cross the event-bus rule (§2.6).
+ * Read-only report queries. Source document numbers and parties come from
+ * the shared read-only DocumentReferenceReader — reporting, not behaviour,
+ * so it doesn't cross the event-bus rule (§2.6).
  */
 export class KyselyInventoryReportsRepository implements InventoryReportsRepository {
   async quantityBefore(
@@ -59,25 +65,13 @@ export class KyselyInventoryReportsRepository implements InventoryReportsReposit
       unit_cost_currency: string | null;
       reference_type: string | null;
       reference_id: string | null;
-      reference_number: string | null;
       lot_number: string | null;
       notes: string | null;
     }>`
       SELECT m.id, m.created_at, m.warehouse_id, m.movement_type, ${SIGNED_QUANTITY} AS quantity,
              COALESCE(m.unit_cost_amount, m.resulting_average_cost_amount) AS unit_cost_amount,
              COALESCE(m.unit_cost_currency, m.resulting_average_cost_currency) AS unit_cost_currency,
-             m.reference_type, m.reference_id, m.notes, l.lot_number,
-             CASE m.reference_type
-               WHEN 'goods_receipt' THEN (SELECT receipt_number FROM goods_receipts WHERE id = m.reference_id)
-               WHEN 'delivery' THEN (SELECT delivery_number FROM deliveries WHERE id = m.reference_id)
-               WHEN 'purchase_return' THEN (SELECT return_number FROM purchase_returns WHERE id = m.reference_id)
-               WHEN 'sales_return' THEN (SELECT return_number FROM sales_returns WHERE id = m.reference_id)
-               WHEN 'stock_count' THEN (SELECT count_number FROM stock_counts WHERE id = m.reference_id)
-               WHEN 'opening_balance' THEN (SELECT count_number FROM stock_counts WHERE id = m.reference_id)
-               WHEN 'stock_transfer' THEN (SELECT transfer_number FROM stock_transfers WHERE id = m.reference_id)
-               WHEN 'stock_adjustment' THEN (SELECT adjustment_number FROM stock_adjustments WHERE id = m.reference_id)
-               ELSE NULL
-             END AS reference_number
+             m.reference_type, m.reference_id, m.notes, l.lot_number
         FROM stock_movements m
         LEFT JOIN stock_lots l ON l.id = m.stock_lot_id
        WHERE m.product_variant_id = ${productVariantId}
@@ -87,6 +81,10 @@ export class KyselyInventoryReportsRepository implements InventoryReportsReposit
        ORDER BY m.created_at, m.id
        LIMIT ${filter.limit}
     `.execute(db);
+    const references = await resolveDocumentReferences(
+      db,
+      result.rows.map((row) => ({ referenceType: row.reference_type, referenceId: row.reference_id })),
+    );
     return result.rows.map((row) => ({
       id: row.id,
       createdAt: row.created_at,
@@ -99,7 +97,7 @@ export class KyselyInventoryReportsRepository implements InventoryReportsReposit
           : null,
       referenceType: row.reference_type,
       referenceId: row.reference_id,
-      referenceNumber: row.reference_number,
+      ...referenceInfo(references, row.reference_type, row.reference_id),
       lotNumber: row.lot_number,
       notes: row.notes,
     }));
@@ -238,4 +236,94 @@ export class KyselyInventoryReportsRepository implements InventoryReportsReposit
       reorderPoint: Number(row.reorder_point),
     }));
   }
+
+  async lotTrace(db: Kysely<TenantDatabase>, lotNumber: string): Promise<LotTraceRow[]> {
+    const lots = await sql<{
+      id: string;
+      lot_number: string;
+      expiry_date: string | null;
+      product_variant_id: string;
+      product_name: string;
+      product_code: string;
+      sku: string;
+      on_hand: string | null;
+    }>`
+      SELECT l.id, l.lot_number, l.expiry_date, v.id AS product_variant_id, p.name AS product_name,
+             p.code AS product_code, v.sku,
+             (SELECT SUM(quantity_on_hand) FROM stock_lot_levels WHERE stock_lot_id = l.id) AS on_hand
+        FROM stock_lots l
+        JOIN product_variants v ON v.id = l.product_variant_id
+        JOIN products p ON p.id = v.product_id
+       WHERE lower(l.lot_number) = lower(${lotNumber.trim()})
+       ORDER BY p.name, l.created_at
+       LIMIT 50
+    `.execute(db);
+    if (lots.rows.length === 0) return [];
+    const lotIds = lots.rows.map((lot) => lot.id);
+
+    // A movement names its single lot (stock_lot_id) or, when FIFO spanned
+    // several lots, lists them in stock_lot_consumptions — both shapes here.
+    const moves = await sql<{
+      stock_lot_id: string;
+      id: string;
+      created_at: Date;
+      movement_type: string;
+      quantity: string;
+      warehouse_id: string;
+      location_id: string;
+      reference_type: string | null;
+      reference_id: string | null;
+    }>`
+      SELECT x.stock_lot_id, m.id, m.created_at, m.movement_type,
+             CASE WHEN m.movement_type IN ('in', 'transfer_in', 'adjustment_increase') THEN x.quantity ELSE -x.quantity END
+               AS quantity,
+             m.warehouse_id, m.location_id, m.reference_type, m.reference_id
+        FROM (
+          SELECT stock_lot_id, id AS movement_id, quantity FROM stock_movements
+           WHERE stock_lot_id IN (${sql.join(lotIds)})
+          UNION ALL
+          SELECT stock_lot_id, stock_movement_id, quantity FROM stock_lot_consumptions
+           WHERE stock_lot_id IN (${sql.join(lotIds)})
+        ) x
+        JOIN stock_movements m ON m.id = x.movement_id
+       ORDER BY m.created_at, m.id
+    `.execute(db);
+    const references = await resolveDocumentReferences(
+      db,
+      moves.rows.map((row) => ({ referenceType: row.reference_type, referenceId: row.reference_id })),
+    );
+
+    return lots.rows.map((lot) => ({
+      stockLotId: lot.id,
+      lotNumber: lot.lot_number,
+      expiryDate: lot.expiry_date ? new Date(`${lot.expiry_date}T00:00:00`) : null,
+      productVariantId: lot.product_variant_id,
+      productName: lot.product_name,
+      productCode: lot.product_code,
+      sku: lot.sku,
+      quantityOnHand: Number(lot.on_hand ?? 0),
+      movements: moves.rows
+        .filter((row) => row.stock_lot_id === lot.id)
+        .map((row) => ({
+          id: row.id,
+          createdAt: row.created_at,
+          movementType: row.movement_type,
+          quantity: Number(row.quantity),
+          warehouseId: row.warehouse_id,
+          locationId: row.location_id,
+          referenceType: row.reference_type,
+          referenceId: row.reference_id,
+          ...referenceInfo(references, row.reference_type, row.reference_id),
+        })),
+    }));
+  }
+}
+
+function referenceInfo(
+  references: Map<string, DocumentReferenceInfo>,
+  referenceType: string | null,
+  referenceId: string | null,
+): { referenceNumber: string | null; partyName: string | null } {
+  const info = referenceType && referenceId ? references.get(documentReferenceKey(referenceType, referenceId)) : undefined;
+  return { referenceNumber: info?.number ?? null, partyName: info?.partyName ?? null };
 }

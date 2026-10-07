@@ -102,6 +102,22 @@ export class InventoryReportsService {
     };
   }
 
+  /** Lot / serial trace (recall): where a lot came from and where every unit went. */
+  async lotTrace(db: Kysely<TenantDatabase>, lotNumber: string) {
+    const lots = await this.reports.lotTrace(db, lotNumber);
+    return lots.map((lot) => {
+      let received = 0;
+      let shipped = 0;
+      for (const movement of lot.movements) {
+        // Internal moves (transfers) net to zero; receipts/returns-in vs deliveries/returns-out.
+        if (movement.movementType === 'transfer_in' || movement.movementType === 'transfer_out') continue;
+        if (movement.quantity > 0) received += movement.quantity;
+        else shipped -= movement.quantity;
+      }
+      return { ...lot, received: round4(received), shipped: round4(shipped) };
+    });
+  }
+
   lowStock(db: Kysely<TenantDatabase>, warehouseId?: string | null): Promise<LowStockRow[]> {
     return this.reports.lowStock(db, warehouseId ?? null);
   }
@@ -110,3 +126,5 @@ export class InventoryReportsService {
 function round(value: number): number {
   return Math.round(value * 10_000) / 10_000;
 }
+
+const round4 = (value: number): number => Math.round(value * 10_000) / 10_000;

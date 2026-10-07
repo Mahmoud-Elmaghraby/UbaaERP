@@ -2,6 +2,8 @@ import { BadRequestException, Controller, Get, Query, UseGuards } from '@nestjs/
 import {
   itemCardSchema,
   lowStockRowSchema,
+  lotTraceSchema,
+  type LotTraceDto,
   stockValuationRowSchema,
   stockValuationSummarySchema,
   type StockValuationSummaryDto,
@@ -13,7 +15,7 @@ import { TenantConnectionManager } from '../../../shared/tenancy/tenant-connecti
 import { CurrentTenantSchema } from '../../../shared/auth/current-tenant-schema.decorator';
 import { JwtAuthGuard } from '../../../shared/auth/jwt-auth.guard';
 import { PermissionsGuard } from '../../../shared/auth/permissions.guard';
-import { RequirePermissions } from '../../../shared/auth/require-permissions.decorator';
+import { RequireAnyPermission, RequirePermissions } from '../../../shared/auth/require-permissions.decorator';
 import { INVENTORY_PERMISSIONS as P, canViewCosts } from '../../../shared/auth/inventory-permissions';
 import { CurrentUser } from '../../../shared/auth/current-user.decorator';
 import type { JwtAccessPayload } from '../../../shared/auth/jwt-payload.type';
@@ -98,6 +100,18 @@ export class InventoryReportsController {
     const moment = optionalDay(asOf, true);
     const summary = await this.service.valuationSummary(this.connections.getClient(schema), moment, moment ? asOf! : null);
     return stockValuationSummarySchema.parse(summary);
+  }
+
+  /** Lot / serial trace — any inventory report reader; also stock viewers (it shows no costs). */
+  @Get('lot-trace')
+  @RequirePermissions()
+  @RequireAnyPermission(P.reportsView, P.stockView)
+  async lotTrace(@CurrentTenantSchema() schema: string, @Query('lotNumber') lotNumber?: string): Promise<LotTraceDto[]> {
+    const value = (lotNumber ?? '').trim();
+    if (!value) throw new BadRequestException('lotNumber is required.');
+    if (value.length > 100) throw new BadRequestException('lotNumber is too long.');
+    const lots = await this.service.lotTrace(this.connections.getClient(schema), value);
+    return lots.map((lot) => lotTraceSchema.parse(lot));
   }
 
   @Get('low-stock')

@@ -25,6 +25,7 @@ import { ProductVariantPicker } from '../../../../components/product/product-var
 import { variantDisplayName } from '../../../../components/product/variant-search';
 import { downloadXlsx } from '../../../../lib/xlsx';
 import { formatAmount, minorUnitsToDecimalString } from '../../../../lib/money';
+import { DocumentReference, useDocumentReferenceLabel } from '../document-reference';
 import { ALL_WAREHOUSES, WarehouseFilter } from './warehouse-filter';
 
 function firstOfMonth(): string {
@@ -55,10 +56,7 @@ export function ItemCardPage() {
     to: to || undefined,
   });
 
-  const documentLabel = (type: string | null, movementType: string) =>
-    type
-      ? t(`inventory.itemCard.references.${type}`, { defaultValue: type })
-      : t(`inventory.itemCard.manual.${movementType}`);
+  const documentLabel = useDocumentReferenceLabel();
 
   function exportCsv() {
     if (!card || !variant) return;
@@ -68,6 +66,7 @@ export function ItemCardPage() {
         t('inventory.itemCard.date'),
         t('inventory.itemCard.document'),
         t('inventory.itemCard.number'),
+        t('inventory.itemCard.party'),
         t('documents.warehouse'),
         t('lots.lotNumber'),
         t('inventory.itemCard.in'),
@@ -76,11 +75,12 @@ export function ItemCardPage() {
         t('inventory.itemCard.unitCost'),
       ],
       [
-        ['', t('inventory.itemCard.opening'), '', '', '', '', '', card.openingQuantity, ''],
+        ['', t('inventory.itemCard.opening'), '', '', '', '', '', '', card.openingQuantity, ''],
         ...card.movements.map((row) => [
           new Date(row.createdAt).toLocaleString('en-CA'),
           documentLabel(row.referenceType, row.movementType),
           row.referenceNumber ?? '',
+          row.partyName ?? '',
           warehouseName.get(row.warehouseId) ?? '',
           row.lotNumber ?? '',
           row.quantity > 0 ? row.quantity : '',
@@ -184,12 +184,7 @@ export function ItemCardPage() {
                         </bdi>
                       </TableCell>
                       <TableCell>
-                        {documentLabel(row.referenceType, row.movementType)}
-                        {row.referenceNumber ? (
-                          <span dir="ltr" className="px-2 font-mono text-xs text-muted-foreground">
-                            {row.referenceNumber}
-                          </span>
-                        ) : null}
+                        <DocumentReference {...row} />
                       </TableCell>
                       <TableCell>{warehouseName.get(row.warehouseId) ?? '—'}</TableCell>
                       <TableCell dir="ltr" className="text-end font-mono text-xs">
