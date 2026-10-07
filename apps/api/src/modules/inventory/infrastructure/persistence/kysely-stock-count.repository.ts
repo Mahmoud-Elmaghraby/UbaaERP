@@ -271,9 +271,10 @@ export class KyselyStockCountRepository implements StockCountRepository {
   async listCountableStock(
     db: Kysely<TenantDatabase>,
     warehouseId: string,
-    filter: { categoryIds?: string[] },
+    filter: { categoryIds?: string[]; locationIds?: string[] },
   ): Promise<CountableStockRow[]> {
     const categoryIds = filter.categoryIds ?? [];
+    const locationIds = filter.locationIds ?? [];
     const result = await sql<{
       product_variant_id: string;
       location_id: string;
@@ -290,6 +291,7 @@ export class KyselyStockCountRepository implements StockCountRepository {
          AND sl.quantity_on_hand > 0
          AND p.tracking_type = 'none' AND p.item_type = 'stock'
          ${categoryIds.length ? sql`AND p.category_id IN (${sql.join(categoryIds)})` : sql``}
+         ${locationIds.length ? sql`AND sl.location_id IN (${sql.join(locationIds)})` : sql``}
       UNION ALL
       SELECT l.product_variant_id, ll.location_id, l.lot_number, to_char(l.expiry_date, 'YYYY-MM-DD'),
              ll.quantity_on_hand, p.name
@@ -301,6 +303,7 @@ export class KyselyStockCountRepository implements StockCountRepository {
          AND ll.quantity_on_hand > 0
          AND p.tracking_type <> 'none'
          ${categoryIds.length ? sql`AND p.category_id IN (${sql.join(categoryIds)})` : sql``}
+         ${locationIds.length ? sql`AND ll.location_id IN (${sql.join(locationIds)})` : sql``}
       ORDER BY product_name, product_variant_id, lot_number
     `.execute(db);
     return result.rows.map((row) => ({

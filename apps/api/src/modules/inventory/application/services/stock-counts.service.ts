@@ -189,11 +189,15 @@ export class StockCountsService {
     if (!(await this.counts.deleteLine(db, id, lineId))) throw entityNotFound('STOCK_COUNT_LINE', lineId);
   }
 
-  /** Stocktake: adds every item with stock in the warehouse (per lot for tracked items) that isn't on the count yet. */
+  /**
+   * Stocktake: adds every item with stock in the warehouse (per lot for
+   * tracked items) that isn't on the count yet — optionally only some
+   * locations (shelf-by-shelf cycle counting) and/or categories.
+   */
   async loadStock(
     db: Kysely<TenantDatabase>,
     id: string,
-    filter: { categoryIds?: string[] },
+    filter: { categoryIds?: string[]; locationIds?: string[] },
   ): Promise<StockCountWithLines> {
     const count = await this.draft(db, id);
     if (count.kind !== 'stocktake') {
@@ -206,6 +210,14 @@ export class StockCountsService {
         lineKey(line.productVariantId, line.locationId, line.lotNumber),
       ),
     );
+    if (filter.locationIds?.length) {
+      const own = new Set((await this.locations.listByWarehouseId(db, count.warehouseId)).map((location) => location.id));
+      if (filter.locationIds.some((locationId) => !own.has(locationId))) {
+        throw new BusinessRuleError('The location does not belong to this count’s warehouse.', {
+          code: 'STOCK_COUNT.LOCATION_NOT_IN_WAREHOUSE',
+        });
+      }
+    }
     const rows = await this.counts.listCountableStock(db, count.warehouseId, filter);
     await withTransaction(db, async (trx) => {
       for (const row of rows) {

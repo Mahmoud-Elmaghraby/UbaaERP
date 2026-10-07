@@ -71,6 +71,8 @@ export type UpsertStockCountLinesDto = z.infer<typeof upsertStockCountLinesSchem
 
 export const loadStockCountSchema = z.object({
   categoryIds: z.array(z.string().uuid()).max(500).optional(),
+  /** Only these locations of the count's warehouse (cycle counting shelf by shelf). */
+  locationIds: z.array(z.string().uuid()).max(500).optional(),
 });
 export type LoadStockCountDto = z.infer<typeof loadStockCountSchema>;
 

@@ -61,7 +61,7 @@ export interface StockCountRepository {
   listCountableStock(
     db: Kysely<TenantDatabase>,
     warehouseId: string,
-    filter: { categoryIds?: string[] },
+    filter: { categoryIds?: string[]; locationIds?: string[] },
   ): Promise<CountableStockRow[]>;
   /** On-hand at a location — for one lot when `lotNumber` is given. */
   currentQuantity(

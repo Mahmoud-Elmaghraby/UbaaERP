@@ -156,6 +156,39 @@ describe('Stock counts & inventory reports (integration, real Postgres)', () => 
     await expect(counts.post(db, opening.id, 'test', null)).rejects.toMatchObject({ code: 'STOCK_COUNT.NOT_DRAFT' });
   });
 
+  it('a stocktake can load one location only (cycle count shelf by shelf)', async () => {
+    const shelfId = randomUUID();
+    await db
+      .insertInto('warehouse_locations')
+      .values({ id: shelfId, warehouse_id: warehouseId, code: `SHELF-${shelfId.slice(0, 6)}`, name: 'Shelf', is_active: true })
+      .execute();
+    const onShelf = await createProduct();
+    const elsewhere = await createProduct();
+    await stock.recordMovement(db, {
+      productVariantId: onShelf,
+      locationId: shelfId,
+      movementType: 'in',
+      quantity: 4,
+      unitCost: egp(1000n),
+    });
+    await stock.recordMovement(db, {
+      productVariantId: elsewhere,
+      locationId,
+      movementType: 'in',
+      quantity: 9,
+      unitCost: egp(1000n),
+    });
+    const take = await counts.create(db, { kind: 'stocktake', warehouseId }, null);
+    const loaded = await counts.loadStock(db, take.id, { locationIds: [shelfId] });
+    expect(loaded.lines.map((line) => [line.productVariantId, line.locationId, line.systemQuantity])).toEqual([
+      [onShelf, shelfId, 4],
+    ]);
+    await expect(counts.loadStock(db, take.id, { locationIds: [randomUUID()] })).rejects.toMatchObject({
+      code: 'STOCK_COUNT.LOCATION_NOT_IN_WAREHOUSE',
+    });
+    await counts.cancel(db, take.id);
+  });
+
   it('a stocktake sets on-hand to the counted quantity against the live stock, skipping uncounted lines', async () => {
     const a = await createProduct();
     const b = await createProduct();

@@ -49,6 +49,7 @@ import { decimalToMinorUnits, formatAmount, minorUnitsToDecimalString } from '..
 import { toWesternDigits } from '../../../../lib/search-normalize';
 import { COUNT_STATUS_VARIANT, COUNTS_PATH } from './count-status';
 import { PasteLinesDialog } from './paste-lines-dialog';
+import { LoadStockDialog } from './load-stock-dialog';
 import { INV } from '../../../../lib/permissions';
 
 type LineFilter = 'all' | 'uncounted' | 'differences';
@@ -92,6 +93,7 @@ function StockCountEditor({ count, warehouseName }: { count: StockCountWithLines
   const [search, setSearch] = useState('');
   const [scan, setScan] = useState('');
   const [pasteOpen, setPasteOpen] = useState(false);
+  const [loadOpen, setLoadOpen] = useState(false);
   const scanRef = useRef<HTMLInputElement>(null);
 
   async function save(lines: UpsertStockCountLineDto[]) {
@@ -263,7 +265,7 @@ function StockCountEditor({ count, warehouseName }: { count: StockCountWithLines
                 <>
                   <Button
                     variant="outline"
-                    onClick={() => run(() => loadStock.mutateAsync({}), t('inventory.counts.loaded'))}
+                    onClick={() => setLoadOpen(true)}
                     disabled={loadStock.isPending}
                   >
                     <Upload />
@@ -411,6 +413,18 @@ function StockCountEditor({ count, warehouseName }: { count: StockCountWithLines
         </CardContent>
       </Card>
 
+      <LoadStockDialog
+        open={loadOpen}
+        onOpenChange={setLoadOpen}
+        warehouseId={count.warehouseId}
+        pending={loadStock.isPending}
+        onLoad={(filter) =>
+          void run(async () => {
+            await loadStock.mutateAsync(filter);
+            setLoadOpen(false);
+          }, t('inventory.counts.loaded'))
+        }
+      />
       <PasteLinesDialog
         open={pasteOpen}
         onOpenChange={setPasteOpen}
