@@ -172,6 +172,9 @@ importers:
       '@erp-platform/contracts':
         specifier: workspace:*
         version: link:../../libs/contracts
+      '@erp-platform/shared-kernel':
+        specifier: workspace:*
+        version: link:../../libs/shared-kernel
       '@erp-platform/ui':
         specifier: workspace:*
         version: link:../../libs/ui
