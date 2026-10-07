@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Optional } from '@nestjs/common';
 import type { Kysely } from 'kysely';
 import { Money } from '@erp-platform/shared-kernel';
 import type { TenantDatabase } from '../../../../database/tenant/kysely-client';
@@ -15,6 +15,7 @@ import type {
 import { BusinessRuleError } from '../errors';
 import { entityNotFound } from '../../../../shared/errors/entity-errors';
 import { withTransaction } from '../../../../database/tenant/transaction.util';
+import { InventoryValuationEventsService } from './inventory-valuation-events.service';
 import { OutboxWriterService } from '../../../../shared/outbox/application/services/outbox-writer.service';
 import { moneyToDto } from '../../presentation/money.mapper';
 
@@ -38,6 +39,8 @@ export class LandedCostsService {
     @Inject(STOCK_MOVEMENT_REPOSITORY) private readonly movements: StockMovementRepository,
     @Inject(STOCK_LEVEL_REPOSITORY) private readonly stockLevels: StockLevelRepository,
     private readonly outboxWriter: OutboxWriterService,
+    // Optional so unit tests that build the service by hand keep working; Nest always provides it.
+    @Optional() private readonly valuationEvents?: InventoryValuationEventsService,
   ) {}
 
   list(db: Kysely<TenantDatabase>): Promise<LandedCost[]> {
@@ -178,6 +181,19 @@ export class LandedCostsService {
             toCogs: moneyToDto(toCogs),
           },
           occurredAt: new Date(),
+        });
+        // The journal entry: Dr Inventory (on hand) + Dr COGS (already sold) / Cr landed-cost clearing.
+        await this.valuationEvents?.write(trx, {
+          schema: context.schema,
+          actorUserId: context.actorUserId ?? null,
+          sourceType: 'landed_cost',
+          sourceId: header.id,
+          documentNumber: null,
+          description: header.notes ? `مصاريف شراء إضافية — ${header.notes}` : 'مصاريف شراء إضافية',
+          entries: [
+            { kind: 'landed_cost_inventory', amount: toInventory },
+            { kind: 'landed_cost_cogs', amount: toCogs },
+          ],
         });
       }
 

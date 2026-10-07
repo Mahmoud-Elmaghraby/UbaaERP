@@ -58,6 +58,20 @@ import { ProductUnitsController } from './presentation/product-units.controller'
 import { PRODUCT_UNIT_REPOSITORY } from './application/ports/product-unit.repository';
 import { KyselyProductUnitRepository } from './infrastructure/persistence/kysely-product-unit.repository';
 import { InventoryReportsService } from './application/services/inventory-reports.service';
+import { STOCK_TRANSFER_REPOSITORY } from './application/ports/stock-transfer.repository';
+import { STOCK_ADJUSTMENT_REPOSITORY } from './application/ports/stock-adjustment.repository';
+import { KyselyStockTransferRepository } from './infrastructure/persistence/kysely-stock-transfer.repository';
+import { KyselyStockAdjustmentRepository } from './infrastructure/persistence/kysely-stock-adjustment.repository';
+import { StockTransfersService } from './application/services/stock-transfers.service';
+import { StockAdjustmentsService } from './application/services/stock-adjustments.service';
+import { InventoryValuationEventsService } from './application/services/inventory-valuation-events.service';
+import { StockTransfersController } from './presentation/stock-transfers.controller';
+import {
+  StockAdjustmentReasonsController,
+  StockAdjustmentsController,
+} from './presentation/stock-adjustments.controller';
+import { ProductUnitResolver } from '../../shared/catalog/product-unit-resolver';
+import { StockAvailabilityChecker } from '../../shared/catalog/stock-availability-checker';
 
 /**
  * Inventory module (CLAUDE.md §10: step 2). Mostly plain CRUD (units of
@@ -90,6 +104,9 @@ import { InventoryReportsService } from './application/services/inventory-report
     StockCountsController,
     ProductUnitsController,
     InventoryReportsController,
+    StockTransfersController,
+    StockAdjustmentsController,
+    StockAdjustmentReasonsController,
   ],
   providers: [
     { provide: UNIT_OF_MEASURE_REPOSITORY, useClass: KyselyUnitOfMeasureRepository },
@@ -117,6 +134,13 @@ import { InventoryReportsService } from './application/services/inventory-report
     StockCountsService,
     ProductUnitsService,
     InventoryReportsService,
+    { provide: STOCK_TRANSFER_REPOSITORY, useClass: KyselyStockTransferRepository },
+    { provide: STOCK_ADJUSTMENT_REPOSITORY, useClass: KyselyStockAdjustmentRepository },
+    StockTransfersService,
+    StockAdjustmentsService,
+    InventoryValuationEventsService,
+    ProductUnitResolver,
+    StockAvailabilityChecker,
     InventoryEventPublisher,
     GoodsReceiptStockListener,
     PurchaseReturnStockListener,

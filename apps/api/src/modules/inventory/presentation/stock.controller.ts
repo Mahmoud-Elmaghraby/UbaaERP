@@ -25,12 +25,14 @@ import type { JwtAccessPayload } from '../../../shared/auth/jwt-payload.type';
 import { JwtAuthGuard } from '../../../shared/auth/jwt-auth.guard';
 import { PermissionsGuard } from '../../../shared/auth/permissions.guard';
 import { RequireAnyPermission, RequirePermissions } from '../../../shared/auth/require-permissions.decorator';
+import { INVENTORY_PERMISSIONS as P, canViewCosts } from '../../../shared/auth/inventory-permissions';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 import { StockMovementsService } from '../application/services/stock-movements.service';
+import { StockAdjustmentsService } from '../application/services/stock-adjustments.service';
 import { InventoryEventPublisher } from '../infrastructure/events/inventory-event-publisher';
 import { moneyFromDto, moneyToDto } from './money.mapper';
 
-function stockLevelToDto(level: StockLevel): StockLevelDto {
+function stockLevelToDto(level: StockLevel, showCost = true): StockLevelDto {
   return stockLevelSchema.parse({
     id: level.id,
     productVariantId: level.productVariantId,
@@ -38,19 +40,19 @@ function stockLevelToDto(level: StockLevel): StockLevelDto {
     warehouseId: level.warehouseId,
     quantityOnHand: level.quantityOnHand,
     reorderPoint: level.reorderPoint,
-    averageCost: moneyToDto(level.averageCost),
+    averageCost: showCost ? moneyToDto(level.averageCost) : null,
     createdAt: level.createdAt,
     updatedAt: level.updatedAt,
   });
 }
 
-function stockLotToDto(lot: StockLotWithLevels): StockLotDto {
+function stockLotToDto(lot: StockLotWithLevels, showCost = true): StockLotDto {
   return stockLotSchema.parse({
     id: lot.id,
     productVariantId: lot.productVariantId,
     lotNumber: lot.lotNumber,
     expiryDate: lot.expiryDate,
-    unitCost: moneyToDto(lot.unitCost),
+    unitCost: showCost ? moneyToDto(lot.unitCost) : null,
     createdAt: lot.createdAt,
     updatedAt: lot.updatedAt,
     levels: lot.levels.map((level) => ({
@@ -65,7 +67,7 @@ function stockLotToDto(lot: StockLotWithLevels): StockLotDto {
   });
 }
 
-function stockMovementToDto(movement: StockMovement): StockMovementDto {
+function stockMovementToDto(movement: StockMovement, showCost = true): StockMovementDto {
   return stockMovementSchema.parse({
     id: movement.id,
     productVariantId: movement.productVariantId,
@@ -73,8 +75,8 @@ function stockMovementToDto(movement: StockMovement): StockMovementDto {
     warehouseId: movement.warehouseId,
     movementType: movement.movementType,
     quantity: movement.quantity,
-    unitCost: movement.unitCost ? moneyToDto(movement.unitCost) : null,
-    resultingAverageCost: moneyToDto(movement.resultingAverageCost),
+    unitCost: showCost && movement.unitCost ? moneyToDto(movement.unitCost) : null,
+    resultingAverageCost: showCost ? moneyToDto(movement.resultingAverageCost) : null,
     referenceType: movement.referenceType,
     referenceId: movement.referenceId,
     relatedMovementId: movement.relatedMovementId,
@@ -86,44 +88,50 @@ function stockMovementToDto(movement: StockMovement): StockMovementDto {
 }
 
 @UseGuards(JwtAuthGuard, PermissionsGuard)
-@RequirePermissions('inventory.manage')
+@RequirePermissions(P.stockView)
 @Controller('stock')
 export class StockController {
   constructor(
     private readonly service: StockMovementsService,
     private readonly connections: TenantConnectionManager,
     private readonly events: InventoryEventPublisher,
+    private readonly adjustments: StockAdjustmentsService,
   ) {}
 
   @Get('levels')
   async listStockLevels(
     @CurrentTenantSchema() schema: string,
+    @CurrentUser() user: JwtAccessPayload,
     @Query('warehouseId') warehouseId?: string,
     @Query('locationId') locationId?: string,
     @Query('productVariantId') productVariantId?: string,
   ): Promise<StockLevelDto[]> {
     const db = this.connections.getClient(schema);
     const levels = await this.service.listStockLevels(db, { warehouseId, locationId, productVariantId });
-    return levels.map(stockLevelToDto);
+    const showCost = canViewCosts(user.permissions);
+    return levels.map((level) => stockLevelToDto(level, showCost));
   }
 
   /** Read by sales/purchase users too — the delivery form lets them pick a lot. */
   @Get('lots')
   @RequirePermissions()
-  @RequireAnyPermission('inventory.manage', 'sales.manage', 'purchases.manage')
+  @RequireAnyPermission(P.stockView, 'sales.manage', 'purchases.manage')
   async listLots(
     @CurrentTenantSchema() schema: string,
+    @CurrentUser() user: JwtAccessPayload,
     @Query('productVariantId') productVariantId: string,
   ): Promise<StockLotDto[]> {
     const db = this.connections.getClient(schema);
     const lots = await this.service.listLots(db, productVariantId);
-    return lots.map(stockLotToDto);
+    const showCost = canViewCosts(user.permissions);
+    return lots.map((lot) => stockLotToDto(lot, showCost));
   }
 
   /** Near-expiry report: lots on hand expiring within `withinDays` (default 90, max 3650), expired ones included. */
   @Get('expiring-lots')
   async listExpiringLots(
     @CurrentTenantSchema() schema: string,
+    @CurrentUser() user: JwtAccessPayload,
     @Query('withinDays') withinDays?: string,
   ): Promise<ExpiringLotDto[]> {
     const parsed = Number.parseInt(withinDays ?? '', 10);
@@ -135,6 +143,7 @@ export class StockController {
     return rows.map((row) =>
       expiringLotSchema.parse({
         ...row,
+        unitCost: canViewCosts(user.permissions) ? row.unitCost : null,
         daysToExpiry: Math.round(
           (Date.UTC(row.expiryDate.getFullYear(), row.expiryDate.getMonth(), row.expiryDate.getDate()) - todayUtc) /
             86_400_000,
@@ -144,6 +153,7 @@ export class StockController {
   }
 
   @Patch('levels/:id/reorder-point')
+  @RequirePermissions(P.movementsManage)
   async setReorderPoint(
     @CurrentTenantSchema() schema: string,
     @CurrentUser() user: JwtAccessPayload,
@@ -164,6 +174,7 @@ export class StockController {
   @Get('movements')
   async listMovements(
     @CurrentTenantSchema() schema: string,
+    @CurrentUser() user: JwtAccessPayload,
     @Query('warehouseId') warehouseId?: string,
     @Query('locationId') locationId?: string,
     @Query('productVariantId') productVariantId?: string,
@@ -176,31 +187,35 @@ export class StockController {
       productVariantId,
       limit: limit ? Number(limit) : undefined,
     });
-    return movements.map(stockMovementToDto);
+    const showCost = canViewCosts(user.permissions);
+    return movements.map((movement) => stockMovementToDto(movement, showCost));
   }
 
   @Post('movements')
+  @RequirePermissions(P.movementsManage)
   async recordMovement(
     @CurrentTenantSchema() schema: string,
     @CurrentUser() user: JwtAccessPayload,
     @Body(new ZodValidationPipe(recordStockMovementSchema)) body: RecordStockMovementDto,
   ): Promise<StockMovementDto> {
     const db = this.connections.getClient(schema);
-    const movement = await this.service.recordMovement(db, {
-      ...body,
-      unitCost: body.unitCost ? moneyFromDto(body.unitCost) : undefined,
-      createdBy: user.sub,
-    });
+    // Every manual change is a numbered, posted stock adjustment (ADJ-) with a journal entry.
+    const { movement } = await this.adjustments.quick(
+      db,
+      { ...body, unitCost: body.unitCost ? moneyFromDto(body.unitCost) : undefined },
+      { schema, userId: user.sub },
+    );
     this.events.publish('stock_movement', 'recorded', {
       schema,
       entityId: movement.id,
       actorUserId: user.sub,
       metadata: { movementType: movement.movementType, quantity: movement.quantity },
     });
-    return stockMovementToDto(movement);
+    return stockMovementToDto(movement, canViewCosts(user.permissions));
   }
 
   @Post('transfers')
+  @RequirePermissions(P.transfersManage, P.transfersApprove)
   async transferStock(
     @CurrentTenantSchema() schema: string,
     @CurrentUser() user: JwtAccessPayload,
@@ -215,8 +230,8 @@ export class StockController {
       metadata: { relatedMovementId: result.transferIn.id, quantity: body.quantity },
     });
     return {
-      transferOut: stockMovementToDto(result.transferOut),
-      transferIn: stockMovementToDto(result.transferIn),
+      transferOut: stockMovementToDto(result.transferOut, canViewCosts(user.permissions)),
+      transferIn: stockMovementToDto(result.transferIn, canViewCosts(user.permissions)),
     };
   }
 }

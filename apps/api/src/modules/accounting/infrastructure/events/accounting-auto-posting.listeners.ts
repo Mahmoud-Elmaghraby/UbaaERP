@@ -10,6 +10,7 @@ import { JournalEntriesService } from '../../application/services/journal-entrie
 import { AccountingSettingsService } from '../../application/services/accounting-settings.service';
 import { CurrencyConversionService } from '../../application/services/currency-conversion.service';
 import { BusinessRuleError } from '../../application/errors';
+import { stockItemVariantIds } from '../../../../shared/catalog/stock-item-reader';
 import type { CreateJournalEntryLineInput } from '../../domain/journal-entry.entity';
 
 interface StockCostLine {
@@ -45,6 +46,14 @@ interface SalesCreditNoteIssuedMetadata {
  */
 interface InvoicePostedMetadata {
   totalAmount: { amountMinorUnits: string; currency: string };
+}
+
+interface PurchaseInvoicePostedMetadata extends InvoicePostedMetadata {
+  lines?: {
+    productVariantId: string;
+    quantity: number;
+    unitPrice: { amountMinorUnits: string; currency: string };
+  }[];
 }
 
 /** PosSessionsService.close()'s outbox metadata (sales.pos_session.closed) — see that method's own comment. */
@@ -364,7 +373,7 @@ export class AccountingAutoPostingListeners {
    */
   @OnEvent('purchases.purchase_invoice.posted')
   async handlePurchaseInvoicePosted(payload: DomainEventPayload): Promise<void> {
-    const metadata = payload.metadata as unknown as InvoicePostedMetadata | undefined;
+    const metadata = payload.metadata as unknown as PurchaseInvoicePostedMetadata | undefined;
     if (!metadata) {
       this.logger.warn(`Received 'purchases.purchase_invoice.posted' with no metadata — ignoring.`);
       return;
@@ -373,39 +382,95 @@ export class AccountingAutoPostingListeners {
 
     const db = this.connections.getClient(payload.schema);
     const settings = await this.accountingSettings.get(db);
-    if (!settings.purchaseExpenseAccountId || !settings.accountsPayableAccountId) {
+
+    // Inventory step 4 (perpetual inventory): stock lines were already put
+    // in stock by their goods receipt (Dr Inventory / Cr GRNI), so the
+    // invoice clears GRNI for them; only non-stock lines (services) are an
+    // expense. Events written before line details existed post everything
+    // to expense, as before.
+    const stockItems = metadata.lines?.length
+      ? await stockItemVariantIds(
+          db,
+          metadata.lines.map((line) => line.productVariantId),
+        )
+      : new Set<string>();
+    let stockPartMinorUnits = 0n;
+    for (const line of metadata.lines ?? []) {
+      if (!stockItems.has(line.productVariantId)) continue;
+      stockPartMinorUnits += Money.fromMinorUnits(BigInt(line.unitPrice.amountMinorUnits), line.unitPrice.currency)
+        .multiplyByQuantity(line.quantity)
+        .toMinorUnits();
+    }
+    const totalMinorUnits = BigInt(metadata.totalAmount.amountMinorUnits);
+    if (stockPartMinorUnits > totalMinorUnits) stockPartMinorUnits = totalMinorUnits;
+    const expensePartMinorUnits = totalMinorUnits - stockPartMinorUnits;
+
+    if (!settings.accountsPayableAccountId) {
       throw new BusinessRuleError(
-        'Cannot auto-post purchase invoice expense: accounting_settings has no ' +
-          'purchaseExpenseAccountId/accountsPayableAccountId configured yet. ' +
-          'Configure both via the Accounting Settings screen first.',
+        'Cannot auto-post purchase invoice: accounting_settings has no accountsPayableAccountId configured yet.',
+        { code: 'ACCOUNTING_SETTINGS.MAPPING_MISSING', params: { account: 'حساب الموردين (دائنون)' } },
+      );
+    }
+    if (stockPartMinorUnits > 0n && !settings.grniAccountId) {
+      throw new BusinessRuleError('Cannot auto-post purchase invoice: accounting_settings has no grniAccountId.', {
+        code: 'ACCOUNTING_SETTINGS.MAPPING_MISSING',
+        params: { account: 'حساب بضاعة مستلمة لم تصل فواتيرها' },
+      });
+    }
+    if (expensePartMinorUnits > 0n && !settings.purchaseExpenseAccountId) {
+      throw new BusinessRuleError(
+        'Cannot auto-post purchase invoice expense: accounting_settings has no purchaseExpenseAccountId configured yet. ' +
+          'Configure it via the Accounting Settings screen first.',
+        { code: 'ACCOUNTING_SETTINGS.MAPPING_MISSING', params: { account: 'حساب مصروفات المشتريات' } },
       );
     }
 
     const entryDate = payload.occurredAt.toISOString().slice(0, 10);
-    const { amountMinorUnits, tenantCurrency, wasConverted } = await this.convertToTenantCurrency(
-      db,
-      metadata.totalAmount,
-      entryDate,
-    );
+    const currency = metadata.totalAmount.currency;
+    const converted = await this.convertToTenantCurrency(db, metadata.totalAmount, entryDate);
+    // Convert the stock part on its own; the expense part takes the rest so the entry balances exactly.
+    const convertedStock =
+      stockPartMinorUnits === 0n
+        ? 0n
+        : stockPartMinorUnits === totalMinorUnits
+          ? BigInt(converted.amountMinorUnits)
+          : BigInt(
+              (
+                await this.convertToTenantCurrency(
+                  db,
+                  { amountMinorUnits: stockPartMinorUnits.toString(), currency },
+                  entryDate,
+                )
+              ).amountMinorUnits,
+            );
+    const convertedExpense = BigInt(converted.amountMinorUnits) - convertedStock;
 
-    const lines: CreateJournalEntryLineInput[] = [
-      {
-        accountId: settings.purchaseExpenseAccountId,
-        debitAmountMinorUnits: amountMinorUnits,
+    const lines: CreateJournalEntryLineInput[] = [];
+    if (convertedStock > 0n) {
+      lines.push({
+        accountId: settings.grniAccountId!,
+        debitAmountMinorUnits: convertedStock.toString(),
         creditAmountMinorUnits: '0',
-      },
-      {
-        accountId: settings.accountsPayableAccountId,
-        debitAmountMinorUnits: '0',
-        creditAmountMinorUnits: amountMinorUnits,
-      },
-    ];
+      });
+    }
+    if (convertedExpense > 0n) {
+      lines.push({
+        accountId: settings.purchaseExpenseAccountId!,
+        debitAmountMinorUnits: convertedExpense.toString(),
+        creditAmountMinorUnits: '0',
+      });
+    }
+    lines.push({
+      accountId: settings.accountsPayableAccountId,
+      debitAmountMinorUnits: '0',
+      creditAmountMinorUnits: converted.amountMinorUnits,
+    });
 
     await this.journalEntries.createAuto(db, {
       entryDate,
-      description: wasConverted
-        ? `Purchase invoice expense — invoice ${payload.entityId} (${metadata.totalAmount.currency} converted to ${tenantCurrency})`
-        : `Purchase invoice expense — invoice ${payload.entityId}`,
+      description: converted.wasConverted
+        ? `Purchase invoice — invoice ${payload.entityId} (${currency} converted to ${converted.tenantCurrency})`
+        : `Purchase invoice — invoice ${payload.entityId}`,
       lines,
       sourceReferenceType: 'purchase_invoice',
       sourceReferenceId: payload.entityId,

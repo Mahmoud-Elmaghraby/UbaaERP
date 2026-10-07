@@ -29,6 +29,7 @@ import { CreateProductForm, EditProductForm } from './product-form';
 import { ProductVariantsDialog } from './product-variants-dialog';
 import { ProductUnitsDialog } from './product-units-dialog';
 import { ApiError } from '../../../../lib/api-client';
+import { INV } from '../../../../lib/permissions';
 
 export function ProductsTab() {
   const { t } = useTranslation();
@@ -141,7 +142,7 @@ export function ProductsTab() {
         id: 'actions',
         header: '',
         cell: ({ row }: { row: Row<ProductDto> }) => (
-          <Can permission="inventory.manage">
+          <Can permission={INV.productsManage}>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon">
@@ -197,7 +198,7 @@ export function ProductsTab() {
               </Button>
             ) : null}
             <div className="ms-auto" />
-            <Can permission="inventory.manage">
+            <Can permission={INV.productsManage}>
               <Dialog open={createOpen} onOpenChange={setCreateOpen}>
                 <DialogTrigger asChild>
                   <Button>{t('inventory.products.newProduct')}</Button>

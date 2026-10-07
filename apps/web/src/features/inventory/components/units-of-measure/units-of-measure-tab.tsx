@@ -29,6 +29,7 @@ import { useDeleteUnitOfMeasure, useUnitsOfMeasure } from '../../api/units-of-me
 import { CreateUnitOfMeasureForm, EditUnitOfMeasureForm } from './unit-form';
 import { UnitConverter } from './unit-converter';
 import { ApiError } from '../../../../lib/api-client';
+import { INV } from '../../../../lib/permissions';
 
 export function UnitsOfMeasureTab() {
   const { t } = useTranslation();
@@ -52,7 +53,7 @@ export function UnitsOfMeasureTab() {
   return (
     <div className="grid gap-6">
       <div className="flex items-center justify-end gap-3">
-        <Can permission="inventory.manage">
+        <Can permission={INV.settingsManage}>
           <Dialog open={createOpen} onOpenChange={setCreateOpen}>
             <DialogTrigger asChild>
               <Button>{t('inventory.unitsOfMeasure.newUnit')}</Button>
@@ -103,7 +104,7 @@ export function UnitsOfMeasureTab() {
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    <Can permission="inventory.manage">
+                    <Can permission={INV.settingsManage}>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="ghost" size="icon">

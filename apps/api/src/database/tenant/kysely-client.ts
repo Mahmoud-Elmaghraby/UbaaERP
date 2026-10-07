@@ -883,6 +883,98 @@ export interface AttachmentsTable {
   created_at: Generated<Date>;
 }
 
+/** Migration 0083 — warehouse transfer document. */
+export interface StockTransfersTable {
+  id: string;
+  transfer_number: string;
+  status: Generated<string>;
+  from_warehouse_id: string;
+  from_location_id: string;
+  to_warehouse_id: string;
+  to_location_id: string;
+  transfer_date: Generated<string>;
+  notes: string | null;
+  created_by: string | null;
+  dispatched_by: string | null;
+  dispatched_at: Date | null;
+  received_by: string | null;
+  received_at: Date | null;
+  cancelled_by: string | null;
+  cancelled_at: Date | null;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
+export interface StockTransferLinesTable {
+  id: string;
+  stock_transfer_id: string;
+  line_number: number;
+  product_variant_id: string;
+  quantity: string;
+  unit_of_measure_id: string | null;
+  unit_factor: Generated<string>;
+  /** JSON array of { lotNumber, quantity } in the line's unit, or null (FEFO). */
+  lot_allocations: unknown;
+  /** JSON array of { stockLotId, quantity (base), valueMinorUnits } frozen at dispatch. */
+  dispatched: unknown;
+  dispatched_value_amount: string | null;
+  dispatched_value_currency: string | null;
+  received_quantity: string | null;
+  notes: string | null;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
+/** Migration 0084 — why stock was adjusted (optional own GL account). */
+export interface StockAdjustmentReasonsTable {
+  id: string;
+  name: string;
+  direction: Generated<string>;
+  account_id: string | null;
+  is_active: Generated<boolean>;
+  sort_order: Generated<number>;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
+/** Migration 0084 — stock adjustment document (ADJ-). */
+export interface StockAdjustmentsTable {
+  id: string;
+  adjustment_number: string;
+  status: Generated<string>;
+  warehouse_id: string;
+  location_id: string;
+  reason_id: string | null;
+  adjustment_date: Generated<string>;
+  notes: string | null;
+  created_by: string | null;
+  posted_by: string | null;
+  posted_at: Date | null;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
+export interface StockAdjustmentLinesTable {
+  id: string;
+  stock_adjustment_id: string;
+  line_number: number;
+  product_variant_id: string;
+  direction: string;
+  quantity: string;
+  unit_of_measure_id: string | null;
+  unit_factor: Generated<string>;
+  unit_cost_amount: string | null;
+  unit_cost_currency: string | null;
+  lot_number: string | null;
+  expiry_date: string | null;
+  reason_id: string | null;
+  posted_value_amount: string | null;
+  posted_value_currency: string | null;
+  notes: string | null;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
 export interface TenantDatabase {
   schema_migrations: SchemaMigrationsTable;
   tenant_settings: TenantSettingsTable;
@@ -920,6 +1012,11 @@ export interface TenantDatabase {
   stock_counts: StockCountsTable;
   product_units: ProductUnitsTable;
   stock_count_lines: StockCountLinesTable;
+  stock_transfers: StockTransfersTable;
+  stock_transfer_lines: StockTransferLinesTable;
+  stock_adjustment_reasons: StockAdjustmentReasonsTable;
+  stock_adjustments: StockAdjustmentsTable;
+  stock_adjustment_lines: StockAdjustmentLinesTable;
   suppliers: SuppliersTable;
   purchase_requisitions: PurchaseRequisitionsTable;
   purchase_requisition_lines: PurchaseRequisitionLinesTable;
@@ -1093,6 +1190,11 @@ export interface AccountingSettingsTable {
   cash_over_short_account_id: string | null;
   /** Migration 0073 — multi-currency Phase 1 (claude/multi-currency-strategy.md). Never auto-populated, same reasoning as purchase_expense_account_id; unused until Phase 4 wires realized gain/loss posting. */
   exchange_gain_loss_account_id: string | null;
+  /** Migration 0084 — inventory value postings. */
+  grni_account_id: string | null;
+  inventory_adjustment_account_id: string | null;
+  opening_balance_equity_account_id: string | null;
+  landed_cost_clearing_account_id: string | null;
   created_at: Generated<Date>;
   updated_at: Generated<Date>;
 }

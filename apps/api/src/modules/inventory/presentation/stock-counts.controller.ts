@@ -21,7 +21,8 @@ import { CurrentUser } from '../../../shared/auth/current-user.decorator';
 import type { JwtAccessPayload } from '../../../shared/auth/jwt-payload.type';
 import { JwtAuthGuard } from '../../../shared/auth/jwt-auth.guard';
 import { PermissionsGuard } from '../../../shared/auth/permissions.guard';
-import { RequirePermissions } from '../../../shared/auth/require-permissions.decorator';
+import { RequireAnyPermission, RequirePermissions } from '../../../shared/auth/require-permissions.decorator';
+import { INVENTORY_PERMISSIONS as P } from '../../../shared/auth/inventory-permissions';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 import { StockCountsService } from '../application/services/stock-counts.service';
 import { InventoryEventPublisher } from '../infrastructure/events/inventory-event-publisher';
@@ -40,7 +41,7 @@ function countWithLinesToDto(count: StockCountWithLines): StockCountWithLinesDto
 
 /** Opening balances (رصيد أول المدة) and stocktakes (الجرد) — see StockCountsService. */
 @UseGuards(JwtAuthGuard, PermissionsGuard)
-@RequirePermissions('inventory.manage')
+@RequirePermissions(P.countsManage)
 @Controller('stock-counts')
 export class StockCountsController {
   constructor(
@@ -50,6 +51,8 @@ export class StockCountsController {
   ) {}
 
   @Get()
+  @RequirePermissions()
+  @RequireAnyPermission(P.countsManage, P.countsPost)
   async list(@CurrentTenantSchema() schema: string, @Query('kind') kind?: string): Promise<StockCountDto[]> {
     const parsedKind = kind ? stockCountKindSchema.parse(kind) : undefined;
     const counts = await this.service.list(this.connections.getClient(schema), parsedKind);
@@ -57,6 +60,8 @@ export class StockCountsController {
   }
 
   @Get(':id')
+  @RequirePermissions()
+  @RequireAnyPermission(P.countsManage, P.countsPost)
   async getById(@CurrentTenantSchema() schema: string, @Param('id') id: string): Promise<StockCountWithLinesDto> {
     return countWithLinesToDto(await this.service.getById(this.connections.getClient(schema), id));
   }
@@ -126,6 +131,7 @@ export class StockCountsController {
 
   /** One-way: moves the stock. */
   @Post(':id/post')
+  @RequirePermissions(P.countsPost)
   async post(
     @CurrentTenantSchema() schema: string,
     @CurrentUser() user: JwtAccessPayload,

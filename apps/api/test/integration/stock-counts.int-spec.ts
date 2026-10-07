@@ -3,6 +3,7 @@ import { sql, type Kysely } from 'kysely';
 import { Money } from '@erp-platform/shared-kernel';
 import type { TenantDatabase } from '../../src/database/tenant/kysely-client';
 import { StockMovementsService } from '../../src/modules/inventory/application/services/stock-movements.service';
+import { InventoryValuationEventsService } from '../../src/modules/inventory/application/services/inventory-valuation-events.service';
 import { StockCountsService } from '../../src/modules/inventory/application/services/stock-counts.service';
 import { InventoryReportsService } from '../../src/modules/inventory/application/services/inventory-reports.service';
 import { UnitsOfMeasureService } from '../../src/modules/inventory/application/services/units-of-measure.service';
@@ -91,6 +92,7 @@ describe('Stock counts & inventory reports (integration, real Postgres)', () => 
       stock,
       new NumberingSequencesService(new KyselyNumberingSequenceRepository()),
       new OutboxWriterService(new KyselyOutboxEventRepository()),
+      new InventoryValuationEventsService(new OutboxWriterService(new KyselyOutboxEventRepository())),
     );
     reports = new InventoryReportsService(new KyselyInventoryReportsRepository());
     const suffix = uniqueSuffix();

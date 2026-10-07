@@ -41,9 +41,9 @@ export class StockAvailabilityChecker {
     db: Kysely<TenantDatabase>,
     warehouseId: string,
     lines: readonly StockNeedLine[],
-    options: { blockExpired: boolean; errorCode: string },
+    options: { blockExpired: boolean; errorCode: string; locationId?: string },
   ): Promise<void> {
-    const shortages = await this.findShortages(db, warehouseId, lines, options.blockExpired);
+    const shortages = await this.findShortages(db, warehouseId, lines, options.blockExpired, options.locationId);
     if (shortages.length === 0) return;
     const details = shortages
       .map((shortage) => {
@@ -65,16 +65,20 @@ export class StockAvailabilityChecker {
     warehouseId: string,
     lines: readonly StockNeedLine[],
     blockExpired: boolean,
+    /** A specific location of the warehouse; default = its DEFAULT location. */
+    locationId?: string,
   ): Promise<Shortage[]> {
     const variantIds = [...new Set(lines.map((line) => line.productVariantId))];
     if (variantIds.length === 0) return [];
 
-    const location = await db
-      .selectFrom('warehouse_locations')
-      .select('id')
-      .where('warehouse_id', '=', warehouseId)
-      .where('code', '=', 'DEFAULT')
-      .executeTakeFirst();
+    const location = locationId
+      ? { id: locationId }
+      : await db
+          .selectFrom('warehouse_locations')
+          .select('id')
+          .where('warehouse_id', '=', warehouseId)
+          .where('code', '=', 'DEFAULT')
+          .executeTakeFirst();
     if (!location) return []; // Inventory reports the missing location itself.
 
     const products = await db

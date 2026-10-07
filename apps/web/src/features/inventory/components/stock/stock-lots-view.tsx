@@ -46,7 +46,7 @@ export function StockLotsView({ productVariantId }: { productVariantId: string |
           <TableRow key={lot.id}>
             <TableCell className="font-medium">{lot.lotNumber}</TableCell>
             <TableCell>{lot.expiryDate ? new Date(lot.expiryDate).toLocaleDateString('ar-EG') : '—'}</TableCell>
-            <TableCell>{formatMoney(lot.unitCost.amountMinorUnits, lot.unitCost.currency)}</TableCell>
+            <TableCell>{lot.unitCost ? formatMoney(lot.unitCost.amountMinorUnits, lot.unitCost.currency) : '—'}</TableCell>
             <TableCell>
               <div className="flex flex-wrap gap-1">
                 {lot.levels.map((level) => (

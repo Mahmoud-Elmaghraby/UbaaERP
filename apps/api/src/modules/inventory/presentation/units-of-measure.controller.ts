@@ -17,7 +17,8 @@ import { CurrentUser } from '../../../shared/auth/current-user.decorator';
 import type { JwtAccessPayload } from '../../../shared/auth/jwt-payload.type';
 import { JwtAuthGuard } from '../../../shared/auth/jwt-auth.guard';
 import { PermissionsGuard } from '../../../shared/auth/permissions.guard';
-import { RequirePermissions } from '../../../shared/auth/require-permissions.decorator';
+import { RequireAnyPermission, RequirePermissions } from '../../../shared/auth/require-permissions.decorator';
+import { CATALOG_READ_PERMISSIONS, INVENTORY_PERMISSIONS as P } from '../../../shared/auth/inventory-permissions';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 import { UnitsOfMeasureService } from '../application/services/units-of-measure.service';
 import { InventoryEventPublisher } from '../infrastructure/events/inventory-event-publisher';
@@ -33,7 +34,7 @@ import { InventoryEventPublisher } from '../infrastructure/events/inventory-even
  * Plan model existed; it isn't one.
  */
 @UseGuards(JwtAuthGuard, PermissionsGuard)
-@RequirePermissions('inventory.manage')
+@RequirePermissions(P.settingsManage)
 @Controller('units-of-measure')
 export class UnitsOfMeasureController {
   constructor(
@@ -43,6 +44,8 @@ export class UnitsOfMeasureController {
   ) {}
 
   @Get()
+  @RequirePermissions()
+  @RequireAnyPermission(...CATALOG_READ_PERMISSIONS)
   async list(@CurrentTenantSchema() schema: string): Promise<UnitOfMeasureDto[]> {
     const db = this.connections.getClient(schema);
     const units = await this.service.list(db);
@@ -50,6 +53,8 @@ export class UnitsOfMeasureController {
   }
 
   @Get('convert')
+  @RequirePermissions()
+  @RequireAnyPermission(...CATALOG_READ_PERMISSIONS)
   async convert(
     @CurrentTenantSchema() schema: string,
     @Query(new ZodValidationPipe(convertUnitOfMeasureSchema)) query: ConvertUnitOfMeasureDto,
@@ -60,6 +65,8 @@ export class UnitsOfMeasureController {
   }
 
   @Get(':id')
+  @RequirePermissions()
+  @RequireAnyPermission(...CATALOG_READ_PERMISSIONS)
   async getById(@CurrentTenantSchema() schema: string, @Param('id') id: string): Promise<UnitOfMeasureDto> {
     const db = this.connections.getClient(schema);
     const unit = await this.service.getById(db, id);

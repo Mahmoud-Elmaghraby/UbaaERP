@@ -21,13 +21,14 @@ import { CurrentUser } from '../../../shared/auth/current-user.decorator';
 import type { JwtAccessPayload } from '../../../shared/auth/jwt-payload.type';
 import { JwtAuthGuard } from '../../../shared/auth/jwt-auth.guard';
 import { PermissionsGuard } from '../../../shared/auth/permissions.guard';
-import { RequirePermissions } from '../../../shared/auth/require-permissions.decorator';
+import { RequireAnyPermission, RequirePermissions } from '../../../shared/auth/require-permissions.decorator';
+import { INVENTORY_PERMISSIONS as P, WAREHOUSE_READ_PERMISSIONS } from '../../../shared/auth/inventory-permissions';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 import { WarehousesService } from '../application/services/warehouses.service';
 import { InventoryEventPublisher } from '../infrastructure/events/inventory-event-publisher';
 
 @UseGuards(JwtAuthGuard, PermissionsGuard)
-@RequirePermissions('inventory.manage')
+@RequirePermissions(P.settingsManage)
 @Controller('warehouses')
 export class WarehousesController {
   constructor(
@@ -37,6 +38,8 @@ export class WarehousesController {
   ) {}
 
   @Get()
+  @RequirePermissions()
+  @RequireAnyPermission(...WAREHOUSE_READ_PERMISSIONS)
   async list(@CurrentTenantSchema() schema: string): Promise<WarehouseDto[]> {
     const db = this.connections.getClient(schema);
     const warehouses = await this.service.list(db);
@@ -44,6 +47,8 @@ export class WarehousesController {
   }
 
   @Get(':id')
+  @RequirePermissions()
+  @RequireAnyPermission(...WAREHOUSE_READ_PERMISSIONS)
   async getById(@CurrentTenantSchema() schema: string, @Param('id') id: string): Promise<WarehouseDto> {
     const db = this.connections.getClient(schema);
     const warehouse = await this.service.getById(db, id);
@@ -93,6 +98,8 @@ export class WarehousesController {
   }
 
   @Get(':id/locations')
+  @RequirePermissions()
+  @RequireAnyPermission(...WAREHOUSE_READ_PERMISSIONS)
   async listLocations(
     @CurrentTenantSchema() schema: string,
     @Param('id') id: string,

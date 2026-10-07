@@ -8,7 +8,8 @@ export const stockLevelSchema = z.object({
   warehouseId: z.string().uuid(),
   quantityOnHand: z.number(),
   reorderPoint: z.number().nullable(),
-  averageCost: moneySchema,
+  /** Null when the caller lacks inventory.costs.view. */
+  averageCost: moneySchema.nullable(),
   createdAt: z.coerce.date(),
   updatedAt: z.coerce.date(),
 });

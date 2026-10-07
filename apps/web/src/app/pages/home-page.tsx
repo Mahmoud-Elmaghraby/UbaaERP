@@ -15,6 +15,7 @@ import {
 import { useAuthStore } from '../../lib/auth-store';
 import { NAV_ITEMS } from '../layout/nav-items';
 import { HomeAttention } from './home-attention';
+import { INV } from '../../lib/permissions';
 
 interface QuickAction {
   to: string;
@@ -47,7 +48,7 @@ const QUICK_ACTIONS: QuickAction[] = [
     to: '/inventory/products',
     labelKey: 'home.actions.products',
     icon: Package,
-    permission: 'inventory.manage',
+    permission: INV.productsView,
   },
   {
     to: '/sales/customers',

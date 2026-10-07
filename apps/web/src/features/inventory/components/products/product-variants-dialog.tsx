@@ -38,6 +38,7 @@ import {
 import { useAddProductVariant, useProduct, useUpdateProductVariant } from '../../api/products/queries';
 import { ApiError } from '../../../../lib/api-client';
 import { ExtraBarcodesForm, GenerateVariantsForm } from './variant-tools';
+import { INV } from '../../../../lib/permissions';
 
 /**
  * Nested variants management for one product: list, add, and edit (SKU,
@@ -72,13 +73,13 @@ export function ProductVariantsDialog({
           <div className="grid gap-4">
             <div className="flex flex-wrap justify-end gap-2">
               {product.attributes.length > 0 ? (
-                <Can permission="inventory.manage">
+                <Can permission={INV.productsManage}>
                   <Button variant="outline" onClick={() => setMatrixOpen(true)}>
                     {t('inventory.products.matrix.open')}
                   </Button>
                 </Can>
               ) : null}
-              <Can permission="inventory.manage">
+              <Can permission={INV.productsManage}>
                 <Dialog open={addOpen} onOpenChange={setAddOpen}>
                   <DialogTrigger asChild>
                     <Button>{t('inventory.products.newVariant')}</Button>
@@ -132,7 +133,7 @@ export function ProductVariantsDialog({
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        <Can permission="inventory.manage">
+                        <Can permission={INV.productsManage}>
                           <div className="flex justify-end gap-1">
                             <Button variant="ghost" size="sm" onClick={() => setBarcodesFor(variant)}>
                               {t('inventory.products.barcodes.manage')}

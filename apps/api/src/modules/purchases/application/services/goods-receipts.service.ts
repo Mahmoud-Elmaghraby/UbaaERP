@@ -300,6 +300,8 @@ export class GoodsReceiptsService {
         metadata: {
           purchaseOrderId: updated.purchaseOrderId,
           warehouseId: updated.warehouseId,
+          receiptNumber: updated.receiptNumber,
+          receivedDate: updated.receivedDate,
           lines: lines.map((line) => ({
             productVariantId: line.productVariantId,
             // Inventory works in base units: a line of 2 cartons × 12 at 240/carton → 24 at 20.

@@ -1,5 +1,7 @@
 import { lazy } from 'react';
-import { Navigate, Outlet, type RouteObject } from 'react-router-dom';
+import { Outlet, type RouteObject } from 'react-router-dom';
+
+import { FirstAllowedRedirect } from '../../app/layout/first-allowed-redirect';
 
 const ProductsPage = lazy(() => import('./components/products').then((m) => ({ default: m.ProductsPage })));
 const WarehousesPage = lazy(() => import('./components/warehouses').then((m) => ({ default: m.WarehousesPage })));
@@ -34,7 +36,7 @@ export const inventoryRoutes: RouteObject[] = [
     // below under one '/inventory' prefix, so it just renders <Outlet />.
     element: <Outlet />,
     children: [
-      { index: true, element: <Navigate to="products" replace /> },
+      { index: true, element: <FirstAllowedRedirect section="/inventory" fallback="/inventory/products" /> },
       { path: 'products', element: <ProductsPage /> },
       { path: 'catalog', element: <CatalogPage /> },
       { path: 'labels', element: <LabelsPage /> },

@@ -39,6 +39,7 @@ import {
   type CategoryOption,
 } from '../../api/catalog/queries';
 import { ApiError } from '../../../../lib/api-client';
+import { INV } from '../../../../lib/permissions';
 
 function errorMessage(err: unknown, fallback: string): string {
   return err instanceof ApiError ? err.message : fallback;
@@ -79,7 +80,7 @@ function CategoriesCard() {
     <Card>
       <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0">
         <CardTitle className="text-base">{t('inventory.catalog.categories')}</CardTitle>
-        <Can permission="inventory.manage">
+        <Can permission={INV.productsManage}>
           <Button
             size="sm"
             onClick={() => {
@@ -111,7 +112,7 @@ function CategoriesCard() {
                   <span className={option.depth === 0 ? 'font-medium' : undefined}>{option.category.name}</span>
                 </span>
                 {!option.isActive ? <Badge variant="neutral">{t('common.inactive')}</Badge> : null}
-                <Can permission="inventory.manage">
+                <Can permission={INV.productsManage}>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button variant="ghost" size="icon-sm" aria-label={t('common.actions')}>
@@ -254,7 +255,7 @@ function BrandsCard() {
     <Card>
       <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0">
         <CardTitle className="text-base">{t('inventory.catalog.brands')}</CardTitle>
-        <Can permission="inventory.manage">
+        <Can permission={INV.productsManage}>
           <Button size="sm" onClick={() => setEditing('new')}>
             <Plus />
             {t('inventory.catalog.newBrand')}
@@ -274,7 +275,7 @@ function BrandsCard() {
               <li key={brand.id} className="flex items-center gap-2 px-5 py-2.5">
                 <span className="min-w-0 flex-1 truncate text-sm font-medium">{brand.name}</span>
                 {!brand.isActive ? <Badge variant="neutral">{t('common.inactive')}</Badge> : null}
-                <Can permission="inventory.manage">
+                <Can permission={INV.productsManage}>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button variant="ghost" size="icon-sm" aria-label={t('common.actions')}>

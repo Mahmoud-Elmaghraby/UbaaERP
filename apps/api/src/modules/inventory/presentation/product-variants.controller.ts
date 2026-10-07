@@ -1,10 +1,13 @@
 import { Controller, Get, UseGuards } from '@nestjs/common';
 import type { ProductVariantLookupDto } from '@erp-platform/contracts';
+import { CurrentUser } from '../../../shared/auth/current-user.decorator';
+import type { JwtAccessPayload } from '../../../shared/auth/jwt-payload.type';
 import { TenantConnectionManager } from '../../../shared/tenancy/tenant-connection-manager';
 import { CurrentTenantSchema } from '../../../shared/auth/current-tenant-schema.decorator';
 import { JwtAuthGuard } from '../../../shared/auth/jwt-auth.guard';
 import { PermissionsGuard } from '../../../shared/auth/permissions.guard';
 import { RequireAnyPermission } from '../../../shared/auth/require-permissions.decorator';
+import { CATALOG_READ_PERMISSIONS, canViewPurchasePrices, withoutPurchasePrices } from '../../../shared/auth/inventory-permissions';
 import { ProductsService } from '../application/services/products.service';
 import { variantLookupToDto } from './product.mapper';
 
@@ -19,10 +22,10 @@ import { variantLookupToDto } from './product.mapper';
  * buyers out of the product list they need to create documents. Reading
  * the catalogue needs any one of the three permissions that create
  * documents with product lines; managing products still needs
- * 'inventory.manage'.
+ * 'inventory.products.manage'.
  */
 @UseGuards(JwtAuthGuard, PermissionsGuard)
-@RequireAnyPermission('inventory.manage', 'sales.manage', 'purchases.manage')
+@RequireAnyPermission(...CATALOG_READ_PERMISSIONS)
 @Controller('product-variants')
 export class ProductVariantsController {
   constructor(
@@ -31,9 +34,12 @@ export class ProductVariantsController {
   ) {}
 
   @Get()
-  async list(@CurrentTenantSchema() schema: string): Promise<ProductVariantLookupDto[]> {
+  async list(
+    @CurrentTenantSchema() schema: string,
+    @CurrentUser() user: JwtAccessPayload,
+  ): Promise<ProductVariantLookupDto[]> {
     const db = this.connections.getClient(schema);
-    const variants = await this.service.listVariantLookup(db);
-    return variants.map(variantLookupToDto);
+    const variants = (await this.service.listVariantLookup(db)).map(variantLookupToDto);
+    return canViewPurchasePrices(user.permissions) ? variants : withoutPurchasePrices(variants);
   }
 }

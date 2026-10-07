@@ -26,6 +26,7 @@ import type {
 } from '../../domain/stock-count.entity';
 import { BusinessRuleError } from '../errors';
 import { StockMovementsService } from './stock-movements.service';
+import { InventoryValuationEventsService } from './inventory-valuation-events.service';
 
 const NUMBERING: Record<StockCountKind, { documentType: string; prefix: string }> = {
   opening: { documentType: 'stock_opening', prefix: 'OPN-' },
@@ -56,6 +57,7 @@ export class StockCountsService {
     private readonly stockMovements: StockMovementsService,
     private readonly numbering: NumberingSequencesService,
     private readonly outbox: OutboxWriterService,
+    private readonly valuationEvents: InventoryValuationEventsService,
   ) {}
 
   list(db: Kysely<TenantDatabase>, kind?: StockCountKind): Promise<StockCount[]> {
@@ -263,11 +265,28 @@ export class StockCountsService {
         const currency = result[0]!.unitCost.currency;
         let increase = Money.zero(currency);
         let decrease = Money.zero(currency);
-        for (const change of result.filter((candidate) => candidate.unitCost.currency === currency)) {
-          const value = change.unitCost.multiplyByQuantity(Math.abs(change.quantityDelta));
-          if (change.quantityDelta > 0) increase = increase.add(value);
-          else decrease = decrease.add(value);
+        for (const change of result.filter((candidate) => candidate.value.currency === currency)) {
+          if (change.quantityDelta > 0) increase = increase.add(change.value);
+          else decrease = decrease.add(change.value);
         }
+        // The journal entry: opening → Inventory / Opening balances; stocktake → gain / loss.
+        await this.valuationEvents.write(trx, {
+          schema,
+          actorUserId,
+          sourceType: count.kind === 'opening' ? 'opening_balance' : 'stock_count',
+          sourceId: id,
+          documentNumber: count.countNumber,
+          entryDate: count.countDate,
+          description:
+            count.kind === 'opening' ? `رصيد أول المدة ${count.countNumber}` : `فروق جرد ${count.countNumber}`,
+          entries:
+            count.kind === 'opening'
+              ? [{ kind: 'opening', amount: increase }]
+              : [
+                  { kind: 'adjustment_gain', amount: increase },
+                  { kind: 'adjustment_loss', amount: decrease },
+                ],
+        });
         await this.outbox.write(trx, 'inventory.stock_count.posted', {
           schema,
           entityType: 'stock_count',
@@ -343,6 +362,7 @@ export class StockCountsService {
         lotNumber: line.lotNumber,
         quantityDelta: line.countedQuantity!,
         unitCost: movement.unitCost ?? line.unitCost,
+        value: movement.totalCost ?? line.unitCost.multiplyByQuantity(line.countedQuantity!),
       });
     }
     return changes;
@@ -382,6 +402,7 @@ export class StockCountsService {
         lotNumber: line.lotNumber,
         quantityDelta: delta,
         unitCost: movement.unitCost ?? movement.resultingAverageCost,
+        value: movement.totalCost ?? (movement.unitCost ?? movement.resultingAverageCost).multiplyByQuantity(Math.abs(delta)),
       });
     }
     return changes;

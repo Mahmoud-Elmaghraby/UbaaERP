@@ -9,7 +9,8 @@ import { TenantConnectionManager } from '../../../shared/tenancy/tenant-connecti
 import { CurrentTenantSchema } from '../../../shared/auth/current-tenant-schema.decorator';
 import { JwtAuthGuard } from '../../../shared/auth/jwt-auth.guard';
 import { PermissionsGuard } from '../../../shared/auth/permissions.guard';
-import { RequireAnyPermission, RequirePermissions } from '../../../shared/auth/require-permissions.decorator';
+import { RequireAnyPermission } from '../../../shared/auth/require-permissions.decorator';
+import { CATALOG_READ_PERMISSIONS, INVENTORY_PERMISSIONS as P } from '../../../shared/auth/inventory-permissions';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 import { InventorySettingsService } from '../application/services/inventory-settings.service';
 
@@ -28,14 +29,14 @@ export class InventorySettingsController {
   ) {}
 
   @Get()
-  @RequireAnyPermission('inventory.manage', 'settings.manage', 'sales.manage', 'purchases.manage')
+  @RequireAnyPermission(...CATALOG_READ_PERMISSIONS, 'settings.manage')
   async get(@CurrentTenantSchema() schema: string): Promise<InventorySettingsDto> {
     const settings = await this.service.get(this.connections.getClient(schema));
     return inventorySettingsSchema.parse(settings);
   }
 
   @Patch()
-  @RequirePermissions('settings.manage')
+  @RequireAnyPermission('settings.manage', P.settingsManage)
   async update(
     @CurrentTenantSchema() schema: string,
     @Body(new ZodValidationPipe(updateInventorySettingsSchema)) body: UpdateInventorySettingsDto,

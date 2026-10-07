@@ -12,7 +12,8 @@ import { CurrentUser } from '../../../shared/auth/current-user.decorator';
 import type { JwtAccessPayload } from '../../../shared/auth/jwt-payload.type';
 import { JwtAuthGuard } from '../../../shared/auth/jwt-auth.guard';
 import { PermissionsGuard } from '../../../shared/auth/permissions.guard';
-import { RequirePermissions } from '../../../shared/auth/require-permissions.decorator';
+import { RequireAnyPermission, RequirePermissions } from '../../../shared/auth/require-permissions.decorator';
+import { CATALOG_READ_PERMISSIONS, INVENTORY_PERMISSIONS as P, canViewPurchasePrices, withoutPurchasePrices } from '../../../shared/auth/inventory-permissions';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 import { ProductUnitsService } from '../application/services/product-units.service';
 import { InventoryEventPublisher } from '../infrastructure/events/inventory-event-publisher';
@@ -28,7 +29,7 @@ function unitToDto(unit: ProductUnit): ProductUnitDto {
 
 /** A product's extra trading units (carton, sack, box…). */
 @UseGuards(JwtAuthGuard, PermissionsGuard)
-@RequirePermissions('inventory.manage')
+@RequirePermissions(P.productsManage)
 @Controller('products/:id/units')
 export class ProductUnitsController {
   constructor(
@@ -38,8 +39,15 @@ export class ProductUnitsController {
   ) {}
 
   @Get()
-  async list(@CurrentTenantSchema() schema: string, @Param('id') id: string): Promise<ProductUnitDto[]> {
-    return (await this.service.list(this.connections.getClient(schema), id)).map(unitToDto);
+  @RequirePermissions()
+  @RequireAnyPermission(...CATALOG_READ_PERMISSIONS)
+  async list(
+    @CurrentTenantSchema() schema: string,
+    @CurrentUser() user: JwtAccessPayload,
+    @Param('id') id: string,
+  ): Promise<ProductUnitDto[]> {
+    const units = (await this.service.list(this.connections.getClient(schema), id)).map(unitToDto);
+    return canViewPurchasePrices(user.permissions) ? units : withoutPurchasePrices(units);
   }
 
   /** Replaces the whole list. */
@@ -50,13 +58,22 @@ export class ProductUnitsController {
     @Param('id') id: string,
     @Body(new ZodValidationPipe(replaceProductUnitsSchema)) body: ReplaceProductUnitsDto,
   ): Promise<ProductUnitDto[]> {
+    const db = this.connections.getClient(schema);
+    // Users who can't see purchase prices keep whatever was stored for a unit.
+    const keptPurchasePrices = canViewPurchasePrices(user.permissions)
+      ? null
+      : new Map((await this.service.list(db, id)).map((unit) => [unit.unitOfMeasureId, unit.purchasePrice]));
     const units = await this.service.replace(
-      this.connections.getClient(schema),
+      db,
       id,
       body.units.map((unit) => ({
         ...unit,
         salePrice: unit.salePrice ? moneyFromDto(unit.salePrice) : null,
-        purchasePrice: unit.purchasePrice ? moneyFromDto(unit.purchasePrice) : null,
+        purchasePrice: keptPurchasePrices
+          ? (keptPurchasePrices.get(unit.unitOfMeasureId) ?? null)
+          : unit.purchasePrice
+            ? moneyFromDto(unit.purchasePrice)
+            : null,
       })),
     );
     this.events.publish('product', 'units_updated', { schema, entityId: id, actorUserId: user.sub });

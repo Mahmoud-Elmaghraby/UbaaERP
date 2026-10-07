@@ -31,6 +31,7 @@ import { useVariantIndex } from '../../hooks/stock/use-variant-index';
 import { useLocationLookups } from '../../hooks/stock/use-location-lookups';
 import { formatMoney } from '../../../../lib/money';
 import { ApiError } from '../../../../lib/api-client';
+import { INV } from '../../../../lib/permissions';
 
 export function StockLevelsView({ filters }: { filters: StockLevelFilters }) {
   const { t } = useTranslation();
@@ -70,13 +71,16 @@ export function StockLevelsView({ filters }: { filters: StockLevelFilters }) {
       {
         id: 'averageCost',
         header: t('inventory.stock.averageCost'),
-        cell: ({ row }: { row: Row<StockLevelDto> }) => formatMoney(row.original.averageCost.amountMinorUnits, row.original.averageCost.currency),
+        cell: ({ row }: { row: Row<StockLevelDto> }) =>
+          row.original.averageCost
+            ? formatMoney(row.original.averageCost.amountMinorUnits, row.original.averageCost.currency)
+            : '—',
       },
       {
         id: 'actions',
         header: '',
         cell: ({ row }: { row: Row<StockLevelDto> }) => (
-          <Can permission="inventory.manage">
+          <Can permission={INV.movementsManage}>
             <Button variant="ghost" size="sm" onClick={() => setEditingLevel(row.original)}>
               {t('inventory.stock.setReorderPoint')}
             </Button>

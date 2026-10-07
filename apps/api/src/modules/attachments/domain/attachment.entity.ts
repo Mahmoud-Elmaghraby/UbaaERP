@@ -42,7 +42,7 @@ export function isAttachmentEntityType(value: string): value is AttachmentEntity
  * @RequirePermissions(...): suppliers.controller.ts and the Purchases
  * order/invoice controllers require 'purchases.manage'; customers.
  * controller.ts and the Sales order/invoice controllers require
- * 'sales.manage'; products.controller.ts requires 'inventory.manage'.
+ * 'sales.manage'; products.controller.ts requires 'inventory.products.manage' (migration 0082).
  */
 export const ATTACHMENT_ENTITY_PERMISSIONS: Record<AttachmentEntityType, string> = {
   sales_invoice: 'sales.manage',
@@ -51,7 +51,7 @@ export const ATTACHMENT_ENTITY_PERMISSIONS: Record<AttachmentEntityType, string>
   purchase_invoice: 'purchases.manage',
   purchase_order: 'purchases.manage',
   supplier: 'purchases.manage',
-  product: 'inventory.manage',
+  product: 'inventory.products.manage',
 };
 
 /** 10 MB — the user's confirmed limit (claude/attachments-strategy.md). */

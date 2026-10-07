@@ -23,6 +23,10 @@ export const accountingSettingsSchema = z.object({
   cashAccountId: z.string().uuid().nullable(),
   cashOverShortAccountId: z.string().uuid().nullable(),
   exchangeGainLossAccountId: z.string().uuid().nullable(),
+  grniAccountId: z.string().uuid().nullable(),
+  inventoryAdjustmentAccountId: z.string().uuid().nullable(),
+  openingBalanceEquityAccountId: z.string().uuid().nullable(),
+  landedCostClearingAccountId: z.string().uuid().nullable(),
   createdAt: z.coerce.date(),
   updatedAt: z.coerce.date(),
 });
@@ -39,5 +43,9 @@ export const updateAccountingSettingsSchema = z.object({
   cashAccountId: z.string().uuid().nullable().optional(),
   cashOverShortAccountId: z.string().uuid().nullable().optional(),
   exchangeGainLossAccountId: z.string().uuid().nullable().optional(),
+  grniAccountId: z.string().uuid().nullable().optional(),
+  inventoryAdjustmentAccountId: z.string().uuid().nullable().optional(),
+  openingBalanceEquityAccountId: z.string().uuid().nullable().optional(),
+  landedCostClearingAccountId: z.string().uuid().nullable().optional(),
 });
 export type UpdateAccountingSettingsDto = z.infer<typeof updateAccountingSettingsSchema>;

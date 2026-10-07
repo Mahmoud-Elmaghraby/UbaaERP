@@ -118,7 +118,38 @@
     "permissions": "الصلاحيات",
     "createSuccess": "تم إنشاء الدور بنجاح",
     "createError": "تعذّر إنشاء الدور",
-    "updateSuccess": "تم تحديث صلاحيات الدور"
+    "updateSuccess": "تم تحديث صلاحيات الدور",
+    "permissionGroups": {
+      "inventory": "المخزون",
+      "sales": "المبيعات",
+      "purchases": "المشتريات",
+      "accounting": "المحاسبة",
+      "settings": "الإعدادات",
+      "users": "المستخدمون",
+      "roles": "الأدوار",
+      "audit_logs": "سجل التدقيق"
+    },
+    "permissionLabels": {
+      "inventory__products__view": "عرض الأصناف ووحداتها وتصنيفاتها",
+      "inventory__products__manage": "إضافة وتعديل واستيراد وحذف الأصناف (والوحدات والباركود والصور)",
+      "inventory__costs__view": "رؤية التكلفة وقيمة المخزون",
+      "inventory__stock__view": "عرض الأرصدة والدفعات وحركات المخزون",
+      "inventory__movements__manage": "تسويات المخزون اليدوية وحد الطلب",
+      "inventory__transfers__manage": "إنشاء وتعديل مسودات التحويل بين المخازن",
+      "inventory__transfers__approve": "صرف واستلام التحويلات بين المخازن",
+      "inventory__counts__manage": "تجهيز الجرد ورصيد أول المدة",
+      "inventory__counts__post": "ترحيل الجرد ورصيد أول المدة",
+      "inventory__landed_costs__manage": "تحميل المصاريف الإضافية على التكلفة",
+      "inventory__reports__view": "تقارير المخزون",
+      "inventory__settings__manage": "إدارة المخازن ووحدات القياس وأسباب التسوية وإعدادات المخزون",
+      "sales__manage": "إدارة المبيعات",
+      "purchases__manage": "إدارة المشتريات",
+      "accounting__manage": "إدارة المحاسبة",
+      "settings__manage": "إدارة الإعدادات",
+      "users__manage": "إدارة المستخدمين",
+      "roles__manage": "إدارة الأدوار والصلاحيات",
+      "audit_logs__view": "عرض سجل التدقيق"
+    }
   },
   "auditLogs": {
     "title": "سجل التدقيق",

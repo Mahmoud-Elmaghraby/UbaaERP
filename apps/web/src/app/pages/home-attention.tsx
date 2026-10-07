@@ -9,6 +9,7 @@ import { usePurchaseInvoices } from '../../features/purchases/api/purchase-invoi
 import { useJournalEntries } from '../../features/accounting/api/journal-entries/queries';
 import { useStockLevels } from '../../features/inventory/api/stock/queries';
 import { FEATURE_KEYS } from '../../lib/feature-keys';
+import { INV } from '../../lib/permissions';
 
 type Tone = 'warning' | 'info' | 'danger';
 
@@ -142,7 +143,7 @@ export function HomeAttention() {
             <DraftJournalEntries />
           </Can>
         ) : null}
-        <Can permission="inventory.manage">
+        <Can permission={INV.reportsView}>
           <LowStock />
         </Can>
       </div>

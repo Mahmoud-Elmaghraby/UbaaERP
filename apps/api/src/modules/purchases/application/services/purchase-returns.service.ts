@@ -234,6 +234,8 @@ export class PurchaseReturnsService {
         metadata: {
           goodsReceiptId: updated.goodsReceiptId,
           warehouseId: goodsReceipt.warehouseId,
+          returnNumber: updated.returnNumber,
+          returnDate: updated.returnDate,
           lines: lines.map((line) => ({
             productVariantId: line.productVariantId,
             // Base units for Inventory (line quantity is in the line's own unit).

@@ -1,4 +1,6 @@
 import type { LucideIcon } from 'lucide-react';
+
+import { ANY_INVENTORY_PERMISSION, INV } from '../../lib/permissions';
 import {
   Calculator,
   History,
@@ -16,10 +18,10 @@ export interface NavItem {
   to: string;
   labelKey: string;
   icon?: LucideIcon;
-  /** Permission key required to see this item — omit for permission-free items. Applies to
-   * the whole group (item + children): sub-sections don't have their own permission in this
-   * MVP, `inventory.manage` covers all of Inventory's sub-sections together. */
-  permission?: string;
+  /** Permission key(s) required to see this item — any one of them is enough. Omit for
+   * permission-free items. On a parent it gates the whole group; children can narrow it
+   * further with their own key(s). */
+  permission?: string | string[];
   /** Plan feature key (see lib/feature-keys.ts) — hidden when the tenant doesn't have it
    * or turned it off. UX only; the API enforces it (PlanFeatureGuard). */
   feature?: string;
@@ -88,20 +90,34 @@ export const NAV_GROUPS: NavGroup[] = [
         to: '/inventory',
         labelKey: 'nav.inventory',
         icon: Package,
-        permission: 'inventory.manage',
+        permission: ANY_INVENTORY_PERMISSION,
         children: [
-          { to: '/inventory/products', labelKey: 'inventory.tabs.products' },
-          { to: '/inventory/catalog', labelKey: 'inventory.tabs.catalog' },
-          { to: '/inventory/labels', labelKey: 'inventory.tabs.labels' },
-          { to: '/inventory/warehouses', labelKey: 'inventory.tabs.warehouses' },
-          { to: '/inventory/units-of-measure', labelKey: 'inventory.tabs.unitsOfMeasure' },
-          { to: '/inventory/stock', labelKey: 'inventory.tabs.stock' },
-          { to: '/inventory/counts', labelKey: 'inventory.tabs.counts' },
-          { to: '/inventory/item-card', labelKey: 'inventory.tabs.itemCard' },
-          { to: '/inventory/valuation', labelKey: 'inventory.tabs.valuation' },
-          { to: '/inventory/low-stock', labelKey: 'inventory.tabs.lowStock' },
-          { to: '/inventory/expiry', labelKey: 'inventory.tabs.expiry' },
-          { to: '/inventory/landed-costs', labelKey: 'inventory.tabs.landedCosts' },
+          { to: '/inventory/products', labelKey: 'inventory.tabs.products', permission: INV.productsView },
+          { to: '/inventory/catalog', labelKey: 'inventory.tabs.catalog', permission: INV.productsView },
+          { to: '/inventory/labels', labelKey: 'inventory.tabs.labels', permission: INV.productsView },
+          { to: '/inventory/stock', labelKey: 'inventory.tabs.stock', permission: INV.stockView },
+          {
+            to: '/inventory/transfers',
+            labelKey: 'inventory.tabs.transfers',
+            permission: [INV.transfersManage, INV.transfersApprove],
+          },
+          { to: '/inventory/counts', labelKey: 'inventory.tabs.counts', permission: [INV.countsManage, INV.countsPost] },
+          { to: '/inventory/item-card', labelKey: 'inventory.tabs.itemCard', permission: INV.reportsView },
+          { to: '/inventory/valuation', labelKey: 'inventory.tabs.valuation', permission: INV.costsView },
+          { to: '/inventory/low-stock', labelKey: 'inventory.tabs.lowStock', permission: INV.reportsView },
+          { to: '/inventory/expiry', labelKey: 'inventory.tabs.expiry', permission: INV.reportsView },
+          { to: '/inventory/landed-costs', labelKey: 'inventory.tabs.landedCosts', permission: INV.landedCostsManage },
+          {
+            to: '/inventory/warehouses',
+            labelKey: 'inventory.tabs.warehouses',
+            permission: [INV.settingsManage, INV.stockView],
+          },
+          {
+            to: '/inventory/units-of-measure',
+            labelKey: 'inventory.tabs.unitsOfMeasure',
+            permission: [INV.settingsManage, INV.productsView],
+          },
+          { to: '/inventory/adjustment-reasons', labelKey: 'inventory.tabs.adjustmentReasons', permission: INV.settingsManage },
         ],
       },
       { to: '/pos', labelKey: 'nav.pos', icon: MonitorSmartphone, permission: 'sales.manage' },

@@ -495,6 +495,66 @@ export class StockMovementsService {
     });
   }
 
+  /**
+   * One leg of a document-driven transfer (the transfer document, 0083):
+   * 'out' takes stock from the source at its current value; 'in' puts it
+   * at the destination at the exact value that left (the dispatched value
+   * is the caller's to carry — it may have spent days in transit). Unlike
+   * transferStock(), the two legs can happen in different transactions.
+   * `db` must be the document's transaction; variants are locked here.
+   */
+  async recordTransferLeg(
+    db: Kysely<TenantDatabase>,
+    input: {
+      direction: 'out' | 'in';
+      productVariantId: string;
+      locationId: string;
+      /** Base units. */
+      quantity: number;
+      lotId?: string | null;
+      /** 'in' only: the value arriving (required). */
+      totalCost?: Money;
+      referenceType: string;
+      referenceId: string;
+      notes?: string | null;
+      createdBy?: string | null;
+    },
+  ): Promise<StockMovement> {
+    if (!Number.isFinite(input.quantity) || input.quantity <= 0) {
+      throw new BusinessRuleError('Stock transfer quantity must be a positive number.', {
+        code: 'STOCK_MOVEMENT.TRANSFER_QUANTITY_MUST_BE_POSITIVE',
+      });
+    }
+    return withTransaction(db, async (trx) => {
+      await this.stockLevels.lockVariants(trx, [input.productVariantId]);
+      const product = await this.resolveProduct(trx, input.productVariantId);
+      this.assertStockItem(product);
+      const common = {
+        productVariantId: input.productVariantId,
+        locationId: input.locationId,
+        quantity: input.quantity,
+        product,
+        lotId: input.lotId ?? undefined,
+        referenceType: input.referenceType,
+        referenceId: input.referenceId,
+        notes: input.notes,
+        createdBy: input.createdBy,
+      };
+      if (input.direction === 'out') return this.applyOutgoing(trx, { ...common, movementType: 'transfer_out' });
+      if (!input.totalCost) {
+        throw new BusinessRuleError('An incoming transfer leg needs the value that left the source.', {
+          code: 'STOCK_MOVEMENT.INCOMING_REQUIRES_UNIT_COST',
+        });
+      }
+      return this.applyIncoming(trx, {
+        ...common,
+        movementType: 'transfer_in',
+        unitCost: input.totalCost.divideByQuantity(input.quantity),
+        totalCost: input.totalCost,
+      });
+    });
+  }
+
   private async resolveWarehouseId(trx: Kysely<TenantDatabase>, locationId: string): Promise<string> {
     const location = await this.locations.findById(trx, locationId);
     if (!location) throw entityNotFound('WAREHOUSE_LOCATION', locationId);

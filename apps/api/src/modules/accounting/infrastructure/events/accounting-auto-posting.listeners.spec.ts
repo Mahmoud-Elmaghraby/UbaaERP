@@ -9,6 +9,9 @@ import type { TenantSettingsService } from '../../../settings/application/servic
 import type { AccountingSettings } from '../../domain/accounting-settings.entity';
 import { BusinessRuleError } from '../../application/errors';
 import { AccountingAutoPostingListeners } from './accounting-auto-posting.listeners';
+import { stockItemVariantIds } from '../../../../shared/catalog/stock-item-reader';
+
+jest.mock('../../../../shared/catalog/stock-item-reader', () => ({ stockItemVariantIds: jest.fn() }));
 
 const FAKE_DB = {} as Kysely<TenantDatabase>;
 
@@ -38,6 +41,10 @@ function makeAccountingSettings(overrides: Partial<AccountingSettings> = {}): Ac
     cashAccountId: 'cash-account',
     cashOverShortAccountId: 'cash-over-short-account',
     exchangeGainLossAccountId: null,
+    grniAccountId: 'grni-account',
+    inventoryAdjustmentAccountId: 'adjustment-account',
+    openingBalanceEquityAccountId: 'opening-account',
+    landedCostClearingAccountId: null,
     createdAt: new Date('2026-01-01T00:00:00Z'),
     updatedAt: new Date('2026-01-01T00:00:00Z'),
     ...overrides,
@@ -192,7 +199,74 @@ describe('AccountingAutoPostingListeners — multi-currency Phase 3 (invoice/cre
             expect.objectContaining({ accountId: 'expense-account', debitAmountMinorUnits: '250000' }),
             expect.objectContaining({ accountId: 'ap-account', creditAmountMinorUnits: '250000' }),
           ],
-          description: 'Purchase invoice expense — invoice invoice-2 (EUR converted to EGP)',
+          description: 'Purchase invoice — invoice invoice-2 (EUR converted to EGP)',
+        }),
+      );
+    });
+  });
+
+  describe('handlePurchaseInvoicePosted — perpetual inventory (inventory step 4)', () => {
+    it('clears goods-received-not-invoiced for stock lines and expenses only the service lines', async () => {
+      (stockItemVariantIds as jest.Mock).mockResolvedValue(new Set(['stock-variant']));
+      currencyConversion.convert.mockImplementation(async (_db, amount) => ({
+        convertedAmount: amount,
+        rateUsed: '1',
+        rateDate: '2026-09-13',
+        rateSource: 'manual',
+      }));
+
+      await listeners.handlePurchaseInvoicePosted(
+        makePayload(
+          {
+            totalAmount: { amountMinorUnits: '130000', currency: 'EGP' },
+            lines: [
+              { productVariantId: 'stock-variant', quantity: 10, unitPrice: { amountMinorUnits: '10000', currency: 'EGP' } },
+              { productVariantId: 'service-variant', quantity: 1, unitPrice: { amountMinorUnits: '30000', currency: 'EGP' } },
+            ],
+          },
+          { entityType: 'purchase_invoice', entityId: 'invoice-3' },
+        ),
+      );
+
+      expect(journalEntries.createAuto).toHaveBeenCalledWith(
+        FAKE_DB,
+        expect.objectContaining({
+          lines: [
+            { accountId: 'grni-account', debitAmountMinorUnits: '100000', creditAmountMinorUnits: '0' },
+            { accountId: 'expense-account', debitAmountMinorUnits: '30000', creditAmountMinorUnits: '0' },
+            { accountId: 'ap-account', debitAmountMinorUnits: '0', creditAmountMinorUnits: '130000' },
+          ],
+        }),
+      );
+    });
+
+    it('does not need a purchase expense account when every line is a stock item', async () => {
+      (stockItemVariantIds as jest.Mock).mockResolvedValue(new Set(['stock-variant']));
+      accountingSettings.get.mockResolvedValue(makeAccountingSettings({ purchaseExpenseAccountId: null }));
+      currencyConversion.convert.mockImplementation(async (_db, amount) => ({
+        convertedAmount: amount,
+        rateUsed: '1',
+        rateDate: '2026-09-13',
+        rateSource: 'manual',
+      }));
+
+      await listeners.handlePurchaseInvoicePosted(
+        makePayload(
+          {
+            totalAmount: { amountMinorUnits: '50000', currency: 'EGP' },
+            lines: [{ productVariantId: 'stock-variant', quantity: 5, unitPrice: { amountMinorUnits: '10000', currency: 'EGP' } }],
+          },
+          { entityType: 'purchase_invoice', entityId: 'invoice-4' },
+        ),
+      );
+
+      expect(journalEntries.createAuto).toHaveBeenCalledWith(
+        FAKE_DB,
+        expect.objectContaining({
+          lines: [
+            { accountId: 'grni-account', debitAmountMinorUnits: '50000', creditAmountMinorUnits: '0' },
+            { accountId: 'ap-account', debitAmountMinorUnits: '0', creditAmountMinorUnits: '50000' },
+          ],
         }),
       );
     });

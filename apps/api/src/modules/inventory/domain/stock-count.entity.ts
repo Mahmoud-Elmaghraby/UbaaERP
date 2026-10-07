@@ -67,4 +67,6 @@ export interface StockCountPostingLine {
   /** Signed: + increase, − decrease. */
   quantityDelta: number;
   unitCost: Money;
+  /** Exact stock value the posting added (+) or removed, unsigned. */
+  value: Money;
 }

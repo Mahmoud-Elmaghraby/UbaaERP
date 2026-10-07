@@ -1,8 +1,9 @@
 import { NavLink, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Can, cn, useFeatureChecker } from '@erp-platform/ui';
+import { Can, cn, useFeatureChecker, usePermissions } from '@erp-platform/ui';
 import { PanelRightClose, PanelRightOpen } from 'lucide-react';
 
+import { hasAny } from '../../lib/permissions';
 import { NAV_GROUPS, isPathActive, type NavItem } from './nav-items';
 
 interface SidebarProps {
@@ -16,6 +17,7 @@ export function Sidebar({ collapsed, onNavigate, onToggleCollapsed }: SidebarPro
   const { t } = useTranslation();
   const { pathname } = useLocation();
   const hasFeature = useFeatureChecker();
+  const granted = usePermissions();
 
   function renderItem(item: NavItem) {
     if (item.feature && !hasFeature(item.feature)) return null;
@@ -47,7 +49,9 @@ export function Sidebar({ collapsed, onNavigate, onToggleCollapsed }: SidebarPro
         {hasChildren && active && !collapsed ? (
           <div className="ms-[21px] flex flex-col gap-0.5 border-s border-sidebar-border ps-2.5 pb-1 pt-0.5">
             {item
-              .children!.filter((child) => !child.feature || hasFeature(child.feature))
+              .children!.filter(
+                (child) => (!child.feature || hasFeature(child.feature)) && hasAny(granted, child.permission),
+              )
               .map((child) => (
                 <NavLink
                   key={child.to}
@@ -98,7 +102,8 @@ export function Sidebar({ collapsed, onNavigate, onToggleCollapsed }: SidebarPro
         {NAV_GROUPS.map((group) => {
           const permissions = group.items
             .map((item) => item.permission)
-            .filter((p): p is string => Boolean(p));
+            .filter((p): p is string | string[] => Boolean(p))
+            .flat();
           const heading = group.labelKey ? (
             collapsed ? (
               <div className="mx-auto my-2 h-px w-6 bg-sidebar-border" aria-hidden="true" />
@@ -111,7 +116,7 @@ export function Sidebar({ collapsed, onNavigate, onToggleCollapsed }: SidebarPro
 
           return (
             <div key={group.key} className="flex flex-col gap-0.5">
-              {heading && permissions.length === group.items.length ? (
+              {heading && group.items.every((item) => item.permission) ? (
                 // Only show a section heading when the user can see at least one item in it.
                 <Can permission={permissions}>{heading}</Can>
               ) : (

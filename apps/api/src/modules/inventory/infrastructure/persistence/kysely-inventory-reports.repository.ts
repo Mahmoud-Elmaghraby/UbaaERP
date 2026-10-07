@@ -61,6 +61,8 @@ export class KyselyInventoryReportsRepository implements InventoryReportsReposit
                WHEN 'sales_return' THEN (SELECT return_number FROM sales_returns WHERE id = m.reference_id)
                WHEN 'stock_count' THEN (SELECT count_number FROM stock_counts WHERE id = m.reference_id)
                WHEN 'opening_balance' THEN (SELECT count_number FROM stock_counts WHERE id = m.reference_id)
+               WHEN 'stock_transfer' THEN (SELECT transfer_number FROM stock_transfers WHERE id = m.reference_id)
+               WHEN 'stock_adjustment' THEN (SELECT adjustment_number FROM stock_adjustments WHERE id = m.reference_id)
                ELSE NULL
              END AS reference_number
         FROM stock_movements m

@@ -30,6 +30,10 @@ export const AR_MESSAGES: Record<string, string> = {
   'LANDED_COST.NOT_FOUND': 'لم يتم العثور على التكلفة الإضافية (Landed Cost) المطلوبة.',
   'STOCK_COUNT.NOT_FOUND': 'لم يتم العثور على مستند الجرد / رصيد أول المدة المطلوب.',
   'STOCK_COUNT_LINE.NOT_FOUND': 'لم يتم العثور على سطر الجرد المطلوب.',
+  'STOCK_TRANSFER.NOT_FOUND': 'لم يتم العثور على التحويل المخزني المطلوب.',
+  'STOCK_TRANSFER_LINE.NOT_FOUND': 'لم يتم العثور على سطر التحويل المطلوب.',
+  'STOCK_ADJUSTMENT.NOT_FOUND': 'لم يتم العثور على تسوية المخزون المطلوبة.',
+  'STOCK_ADJUSTMENT_REASON.NOT_FOUND': 'لم يتم العثور على سبب التسوية المطلوب.',
   'FISCAL_YEAR.NOT_FOUND': 'لم يتم العثور على السنة المالية المطلوبة.',
   'CHART_OF_ACCOUNT.NOT_FOUND': 'لم يتم العثور على الحساب المحاسبي المطلوب.',
   'BANK_ACCOUNT.NOT_FOUND': 'لم يتم العثور على الحساب البنكي المطلوب.',
@@ -488,6 +492,26 @@ export const AR_MESSAGES: Record<string, string> = {
   // ---- generic fallbacks ----
   'VALIDATION.INVALID_INPUT': 'البيانات المُدخلة غير صحيحة. يرجى مراجعة الحقول والمحاولة مرة أخرى.',
   'UNEXPECTED.INTERNAL_ERROR': 'حدث خطأ غير متوقع. يرجى المحاولة مرة أخرى أو التواصل مع الدعم الفني.',
+  // ---- warehouse transfers (migration 0083) ----
+  'STOCK_TRANSFER.NO_LINES': 'التحويل لا يحتوي على أي أصناف.',
+  'STOCK_TRANSFER.TOO_MANY_LINES': 'الحد الأقصى {max} سطر في التحويل الواحد.',
+  'STOCK_TRANSFER.INSUFFICIENT_STOCK': 'لا يوجد رصيد كافٍ في مخزن الصرف — {details}.',
+  'STOCK_TRANSFER.WRONG_STATUS': 'لا يمكن تنفيذ هذا الإجراء على التحويل {number} في حالته الحالية.',
+  'STOCK_TRANSFER.LOCATION_NOT_IN_WAREHOUSE': 'الموقع المختار لا يتبع هذا المخزن.',
+  'STOCK_TRANSFER.WAREHOUSE_INACTIVE': 'المخزن "{name}" غير نشط.',
+  'STOCK_TRANSFER.RECEIVED_QUANTITY_INVALID': 'الكمية المستلمة يجب أن تكون بين صفر والكمية المصروفة ({dispatched}).',
+  'STOCK_TRANSFER.NOT_DISPATCHED': 'لم يتم صرف هذا التحويل بعد.',
+  // ---- stock adjustments (migration 0084) ----
+  'STOCK_ADJUSTMENT.NO_LINES': 'التسوية لا تحتوي على أي أصناف.',
+  'STOCK_ADJUSTMENT.TOO_MANY_LINES': 'الحد الأقصى {max} سطر في التسوية الواحدة.',
+  'STOCK_ADJUSTMENT.NOT_DRAFT': 'التسوية {number} لم تعد مسودة، ولا يمكن تعديلها.',
+  'STOCK_ADJUSTMENT.REASON_DIRECTION': 'السبب "{name}" لا يصلح لهذا النوع من التسوية (إضافة/صرف).',
+  'STOCK_ADJUSTMENT.REASON_INACTIVE': 'السبب "{name}" غير نشط.',
+  'STOCK_ADJUSTMENT.REASON_DUPLICATE': 'يوجد سبب تسوية بنفس الاسم "{name}".',
+  // ---- inventory journal entries (migration 0084) ----
+  'ACCOUNTING_SETTINGS.MAPPING_MISSING': 'لم يتم تحديد "{account}" في إعدادات المحاسبة — حدده من المحاسبة › الإعدادات ثم أعد المحاولة.',
+  'ACCOUNTING_SETTINGS.ACCOUNT_NOT_POSTABLE': 'الحساب "{name}" غير نشط أو حساب رئيسي، ولا يقبل قيودًا.',
+
 };
 
 /** Fallback text for a `code` with no catalog entry — see file header. */

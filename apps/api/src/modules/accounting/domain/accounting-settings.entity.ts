@@ -34,6 +34,14 @@ export interface AccountingSettings {
   cashAccountId: string | null;
   cashOverShortAccountId: string | null;
   exchangeGainLossAccountId: string | null;
+  /** Migration 0084: goods received not invoiced — receipts credit it, purchase invoices clear it. */
+  grniAccountId: string | null;
+  /** Migration 0084: default counter-account of stock adjustments, count differences and transfer shortages. */
+  inventoryAdjustmentAccountId: string | null;
+  /** Migration 0084: opening stock balances. */
+  openingBalanceEquityAccountId: string | null;
+  /** Migration 0084: landed costs are credited here; null = purchaseExpenseAccountId. */
+  landedCostClearingAccountId: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -49,4 +57,8 @@ export interface UpdateAccountingSettingsInput {
   cashAccountId?: string | null;
   cashOverShortAccountId?: string | null;
   exchangeGainLossAccountId?: string | null;
+  grniAccountId?: string | null;
+  inventoryAdjustmentAccountId?: string | null;
+  openingBalanceEquityAccountId?: string | null;
+  landedCostClearingAccountId?: string | null;
 }

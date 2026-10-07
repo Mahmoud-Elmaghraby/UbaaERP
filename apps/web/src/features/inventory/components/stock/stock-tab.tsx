@@ -21,6 +21,7 @@ import { StockMovementsView } from './stock-movements-view';
 import { StockLotsView } from './stock-lots-view';
 import { RecordMovementForm } from './record-movement-form';
 import { TransferStockForm } from './transfer-stock-form';
+import { INV } from '../../../../lib/permissions';
 
 export function StockTab() {
   const { t } = useTranslation();
@@ -81,7 +82,7 @@ export function StockTab() {
               {t('inventory.stock.clearFilters')}
             </Button>
           ) : null}
-        <Can permission="inventory.manage">
+        <Can permission={INV.movementsManage}>
           <div className="flex flex-wrap gap-2">
             <Button onClick={() => setMovementOpen(true)}>
               {t('inventory.stock.recordMovement')}

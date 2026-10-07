@@ -17,7 +17,7 @@ export const stockLotSchema = z.object({
   productVariantId: z.string().uuid(),
   lotNumber: z.string(),
   expiryDate: z.coerce.date().nullable(),
-  unitCost: moneySchema,
+  unitCost: moneySchema.nullable(),
   createdAt: z.coerce.date(),
   updatedAt: z.coerce.date(),
   levels: z.array(stockLotLevelSchema),
@@ -37,6 +37,6 @@ export const expiringLotSchema = z.object({
   warehouseId: z.string().uuid(),
   warehouseName: z.string(),
   quantityOnHand: z.number(),
-  unitCost: moneySchema,
+  unitCost: moneySchema.nullable(),
 });
 export type ExpiringLotDto = z.infer<typeof expiringLotSchema>;

@@ -1,4 +1,4 @@
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 import { Money } from '@erp-platform/shared-kernel';
 import { TenantConnectionManager } from '../../../../shared/tenancy/tenant-connection-manager';
@@ -10,6 +10,7 @@ import {
 import { DEFAULT_LOCATION_CODE } from '../../domain/warehouse-location.entity';
 import type { DomainEventPayload } from '../../../../shared/events/domain-event';
 import { withTransaction } from '../../../../database/tenant/transaction.util';
+import { InventoryValuationEventsService } from '../../application/services/inventory-valuation-events.service';
 
 interface GoodsReceiptConfirmedLine {
   productVariantId: string;
@@ -24,6 +25,8 @@ interface GoodsReceiptConfirmedLine {
 interface GoodsReceiptConfirmedMetadata {
   purchaseOrderId: string;
   warehouseId: string;
+  receiptNumber?: string;
+  receivedDate?: string | null;
   lines: GoodsReceiptConfirmedLine[];
 }
 
@@ -63,6 +66,7 @@ export class GoodsReceiptStockListener {
     private readonly stockMovements: StockMovementsService,
     @Inject(WAREHOUSE_LOCATION_REPOSITORY) private readonly locations: WarehouseLocationRepository,
     private readonly connections: TenantConnectionManager,
+    @Optional() private readonly valuationEvents?: InventoryValuationEventsService,
   ) {}
 
   @OnEvent('purchases.goods_receipt.confirmed')
@@ -98,6 +102,7 @@ export class GoodsReceiptStockListener {
           metadata.lines.map((line) => line.productVariantId),
         );
         const stockLines = metadata.lines.filter((line) => stockItems.has(line.productVariantId));
+        let receivedValue: Money | null = null;
 
         for (const line of stockLines) {
           const unitCost = Money.fromMinorUnits(BigInt(line.unitCost.amountMinorUnits), line.unitCost.currency);
@@ -120,7 +125,7 @@ export class GoodsReceiptStockListener {
               )
             : pieces.map(() => undefined);
           for (const [index, piece] of pieces.entries()) {
-            await this.stockMovements.recordMovement(trx, {
+            const movement = await this.stockMovements.recordMovement(trx, {
               productVariantId: line.productVariantId,
               locationId: defaultLocation.id,
               movementType: 'in',
@@ -132,7 +137,24 @@ export class GoodsReceiptStockListener {
               referenceType: 'goods_receipt',
               referenceId: payload.entityId,
             });
+            if (movement.totalCost) {
+              receivedValue = receivedValue ? receivedValue.add(movement.totalCost) : movement.totalCost;
+            }
           }
+        }
+
+        // Dr Inventory / Cr Goods received not invoiced — the purchase invoice clears it.
+        if (receivedValue) {
+          await this.valuationEvents?.write(trx, {
+            schema: payload.schema,
+            actorUserId: payload.actorUserId ?? null,
+            sourceType: 'goods_receipt',
+            sourceId: payload.entityId,
+            documentNumber: metadata.receiptNumber ?? null,
+            entryDate: metadata.receivedDate ?? null,
+            description: `استلام بضاعة ${metadata.receiptNumber ?? ''}`.trim(),
+            entries: [{ kind: 'receipt', amount: receivedValue }],
+          });
         }
       });
     } catch (err) {

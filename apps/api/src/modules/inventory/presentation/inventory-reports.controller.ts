@@ -12,6 +12,9 @@ import { CurrentTenantSchema } from '../../../shared/auth/current-tenant-schema.
 import { JwtAuthGuard } from '../../../shared/auth/jwt-auth.guard';
 import { PermissionsGuard } from '../../../shared/auth/permissions.guard';
 import { RequirePermissions } from '../../../shared/auth/require-permissions.decorator';
+import { INVENTORY_PERMISSIONS as P, canViewCosts } from '../../../shared/auth/inventory-permissions';
+import { CurrentUser } from '../../../shared/auth/current-user.decorator';
+import type { JwtAccessPayload } from '../../../shared/auth/jwt-payload.type';
 import { InventoryReportsService } from '../application/services/inventory-reports.service';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -33,7 +36,7 @@ function optionalDay(value: string | undefined, endOfDay = false): Date | null {
 
 /** Inventory reports: item card (كارت الصنف), valuation (تقييم المخزون), low stock (تحت حد الطلب). */
 @UseGuards(JwtAuthGuard, PermissionsGuard)
-@RequirePermissions('inventory.manage')
+@RequirePermissions(P.reportsView)
 @Controller('inventory-reports')
 export class InventoryReportsController {
   constructor(
@@ -44,6 +47,7 @@ export class InventoryReportsController {
   @Get('item-card')
   async itemCard(
     @CurrentTenantSchema() schema: string,
+    @CurrentUser() user: JwtAccessPayload,
     @Query('productVariantId') productVariantId: string,
     @Query('warehouseId') warehouseId?: string,
     @Query('from') from?: string,
@@ -56,10 +60,14 @@ export class InventoryReportsController {
       from: optionalDay(from),
       to: optionalDay(to, true),
     });
-    return itemCardSchema.parse(card);
+    const showCost = canViewCosts(user.permissions);
+    return itemCardSchema.parse(
+      showCost ? card : { ...card, movements: card.movements.map((movement) => ({ ...movement, unitCost: null })) },
+    );
   }
 
   @Get('valuation')
+  @RequirePermissions(P.reportsView, P.costsView)
   async valuation(
     @CurrentTenantSchema() schema: string,
     @Query('warehouseId') warehouseId?: string,

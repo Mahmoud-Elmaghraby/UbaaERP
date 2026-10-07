@@ -18,10 +18,11 @@ import { CurrentTenantSchema } from '../../../shared/auth/current-tenant-schema.
 import { JwtAuthGuard } from '../../../shared/auth/jwt-auth.guard';
 import { PermissionsGuard } from '../../../shared/auth/permissions.guard';
 import { RequireAnyPermission, RequirePermissions } from '../../../shared/auth/require-permissions.decorator';
+import { CATALOG_READ_PERMISSIONS, INVENTORY_PERMISSIONS as P } from '../../../shared/auth/inventory-permissions';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 import { ProductCatalogService } from '../application/services/product-catalog.service';
 
-const READ_PERMISSIONS = ['inventory.manage', 'sales.manage', 'purchases.manage'] as const;
+const READ_PERMISSIONS = CATALOG_READ_PERMISSIONS;
 
 /** Product categories (tree) — readable by anyone who works with products, managed by inventory. */
 @UseGuards(JwtAuthGuard, PermissionsGuard)
@@ -40,7 +41,7 @@ export class ProductCategoriesController {
   }
 
   @Post()
-  @RequirePermissions('inventory.manage')
+  @RequirePermissions(P.productsManage)
   async create(
     @CurrentTenantSchema() schema: string,
     @Body(new ZodValidationPipe(createProductCategorySchema)) body: CreateProductCategoryDto,
@@ -49,7 +50,7 @@ export class ProductCategoriesController {
   }
 
   @Patch(':id')
-  @RequirePermissions('inventory.manage')
+  @RequirePermissions(P.productsManage)
   async update(
     @CurrentTenantSchema() schema: string,
     @Param('id') id: string,
@@ -60,7 +61,7 @@ export class ProductCategoriesController {
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @RequirePermissions('inventory.manage')
+  @RequirePermissions(P.productsManage)
   async delete(@CurrentTenantSchema() schema: string, @Param('id') id: string): Promise<void> {
     await this.service.deleteCategory(this.connections.getClient(schema), id);
   }
@@ -83,7 +84,7 @@ export class ProductBrandsController {
   }
 
   @Post()
-  @RequirePermissions('inventory.manage')
+  @RequirePermissions(P.productsManage)
   async create(
     @CurrentTenantSchema() schema: string,
     @Body(new ZodValidationPipe(createProductBrandSchema)) body: CreateProductBrandDto,
@@ -92,7 +93,7 @@ export class ProductBrandsController {
   }
 
   @Patch(':id')
-  @RequirePermissions('inventory.manage')
+  @RequirePermissions(P.productsManage)
   async update(
     @CurrentTenantSchema() schema: string,
     @Param('id') id: string,
@@ -103,7 +104,7 @@ export class ProductBrandsController {
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @RequirePermissions('inventory.manage')
+  @RequirePermissions(P.productsManage)
   async delete(@CurrentTenantSchema() schema: string, @Param('id') id: string): Promise<void> {
     await this.service.deleteBrand(this.connections.getClient(schema), id);
   }

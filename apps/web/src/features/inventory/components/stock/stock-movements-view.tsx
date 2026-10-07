@@ -58,7 +58,9 @@ export function StockMovementsView({ filters }: { filters: StockMovementFilters 
         id: 'resultingAverageCost',
         header: t('inventory.stock.resultingAverageCost'),
         cell: ({ row }: { row: Row<StockMovementDto> }) =>
-          formatMoney(row.original.resultingAverageCost.amountMinorUnits, row.original.resultingAverageCost.currency),
+          row.original.resultingAverageCost
+            ? formatMoney(row.original.resultingAverageCost.amountMinorUnits, row.original.resultingAverageCost.currency)
+            : '—',
       },
       {
         id: 'notes',

@@ -21,7 +21,7 @@ export const stockMovementSchema = z.object({
   movementType: stockMovementTypeSchema,
   quantity: z.number().positive(),
   unitCost: moneySchema.nullable(),
-  resultingAverageCost: moneySchema,
+  resultingAverageCost: moneySchema.nullable(),
   referenceType: z.string().nullable(),
   referenceId: z.string().nullable(),
   relatedMovementId: z.string().uuid().nullable(),
@@ -57,6 +57,8 @@ export const recordStockMovementSchema = z.object({
   referenceType: z.string().nullable().optional(),
   referenceId: z.string().nullable().optional(),
   notes: z.string().nullable().optional(),
+  /** Why (stock adjustment reason, migration 0084) — drives the journal entry's counter-account. */
+  reasonId: z.string().uuid().nullable().optional(),
 });
 export type RecordStockMovementDto = z.infer<typeof recordStockMovementSchema>;
 

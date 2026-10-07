@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { hasAny } from '../../lib/permissions';
 import { Dialog, DialogContent, DialogTitle, cn, useFeatureChecker, usePermissions } from '@erp-platform/ui';
 import { CornerDownLeft, Search } from 'lucide-react';
 
@@ -44,12 +45,13 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
   const destinations = useMemo<Destination[]>(() => {
     const result: Destination[] = [];
     for (const item of NAV_ITEMS) {
-      if (item.permission && !permissions.includes(item.permission)) continue;
+      if (!hasAny(permissions, item.permission)) continue;
       if (item.feature && !hasFeature(item.feature)) continue;
       const section = t(item.labelKey);
       if (item.children?.length) {
         for (const child of item.children) {
           if (child.feature && !hasFeature(child.feature)) continue;
+          if (!hasAny(permissions, child.permission)) continue;
           result.push({ to: child.to, label: t(child.labelKey), section });
         }
       } else {

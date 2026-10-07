@@ -13,6 +13,7 @@ import type { JwtAccessPayload } from '../../../shared/auth/jwt-payload.type';
 import { JwtAuthGuard } from '../../../shared/auth/jwt-auth.guard';
 import { PermissionsGuard } from '../../../shared/auth/permissions.guard';
 import { RequirePermissions } from '../../../shared/auth/require-permissions.decorator';
+import { INVENTORY_PERMISSIONS as P } from '../../../shared/auth/inventory-permissions';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 import { LandedCostsService } from '../application/services/landed-costs.service';
 import { InventoryEventPublisher } from '../infrastructure/events/inventory-event-publisher';
@@ -44,7 +45,7 @@ function landedCostToDto(landedCost: LandedCost): LandedCostDto {
 }
 
 @UseGuards(JwtAuthGuard, PermissionsGuard)
-@RequirePermissions('inventory.manage')
+@RequirePermissions(P.landedCostsManage, P.costsView)
 @Controller('landed-costs')
 export class LandedCostsController {
   constructor(

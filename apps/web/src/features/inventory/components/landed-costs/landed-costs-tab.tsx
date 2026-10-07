@@ -17,6 +17,7 @@ import { useLandedCosts } from '../../api/landed-costs/queries';
 import { LandedCostAllocationsView } from './landed-cost-allocations-view';
 import { ApplyLandedCostForm } from './apply-landed-cost-form';
 import { formatMoney } from '../../../../lib/money';
+import { INV } from '../../../../lib/permissions';
 
 export function LandedCostsTab() {
   const { t } = useTranslation();
@@ -80,7 +81,7 @@ export function LandedCostsTab() {
   return (
     <div className="grid gap-4">
       <div className="flex flex-wrap items-center justify-end gap-2">
-        <Can permission="inventory.manage">
+        <Can permission={INV.landedCostsManage}>
           <Button onClick={() => setApplyOpen(true)}>{t('inventory.landedCosts.apply')}</Button>
         </Can>
       </div>

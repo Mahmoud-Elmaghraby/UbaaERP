@@ -18,6 +18,10 @@ function toDomain(row: Selectable<AccountingSettingsTable>): AccountingSettings 
     cashAccountId: row.cash_account_id,
     cashOverShortAccountId: row.cash_over_short_account_id,
     exchangeGainLossAccountId: row.exchange_gain_loss_account_id,
+    grniAccountId: row.grni_account_id,
+    inventoryAdjustmentAccountId: row.inventory_adjustment_account_id,
+    openingBalanceEquityAccountId: row.opening_balance_equity_account_id,
+    landedCostClearingAccountId: row.landed_cost_clearing_account_id,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -37,6 +41,9 @@ const DEFAULT_CODES = {
   revenue_account_id: '41',
   accounts_payable_account_id: '211',
   cash_account_id: '111',
+  grni_account_id: '217',
+  inventory_adjustment_account_id: '54',
+  opening_balance_equity_account_id: '35',
 } as const;
 
 export class KyselyAccountingSettingsRepository implements AccountingSettingsRepository {
@@ -71,6 +78,10 @@ export class KyselyAccountingSettingsRepository implements AccountingSettingsRep
           cash_account_id: accountIdByCode.get(DEFAULT_CODES.cash_account_id) ?? null,
           cash_over_short_account_id: null,
           exchange_gain_loss_account_id: null,
+          grni_account_id: accountIdByCode.get(DEFAULT_CODES.grni_account_id) ?? null,
+          inventory_adjustment_account_id: accountIdByCode.get(DEFAULT_CODES.inventory_adjustment_account_id) ?? null,
+          opening_balance_equity_account_id: accountIdByCode.get(DEFAULT_CODES.opening_balance_equity_account_id) ?? null,
+          landed_cost_clearing_account_id: null,
         })
         .returningAll()
         .executeTakeFirstOrThrow();
@@ -112,6 +123,16 @@ export class KyselyAccountingSettingsRepository implements AccountingSettingsRep
           : {}),
         ...(input.exchangeGainLossAccountId !== undefined
           ? { exchange_gain_loss_account_id: input.exchangeGainLossAccountId }
+          : {}),
+        ...(input.grniAccountId !== undefined ? { grni_account_id: input.grniAccountId } : {}),
+        ...(input.inventoryAdjustmentAccountId !== undefined
+          ? { inventory_adjustment_account_id: input.inventoryAdjustmentAccountId }
+          : {}),
+        ...(input.openingBalanceEquityAccountId !== undefined
+          ? { opening_balance_equity_account_id: input.openingBalanceEquityAccountId }
+          : {}),
+        ...(input.landedCostClearingAccountId !== undefined
+          ? { landed_cost_clearing_account_id: input.landedCostClearingAccountId }
           : {}),
         updated_at: new Date(),
       })

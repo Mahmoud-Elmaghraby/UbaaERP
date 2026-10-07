@@ -49,6 +49,7 @@ import {
   useWarehouseLocations,
 } from '../../api/warehouses/queries';
 import { ApiError } from '../../../../lib/api-client';
+import { INV } from '../../../../lib/permissions';
 
 /**
  * Nested "storage locations" management for one warehouse (CLAUDE.md Stage 3
@@ -90,7 +91,7 @@ export function WarehouseLocationsDialog({
         {warehouse ? (
           <div className="grid gap-4">
             <div className="flex justify-end">
-              <Can permission="inventory.manage">
+              <Can permission={INV.settingsManage}>
                 <Dialog open={addOpen} onOpenChange={setAddOpen}>
                   <DialogTrigger asChild>
                     <Button>{t('inventory.warehouses.newLocation')}</Button>
@@ -131,7 +132,7 @@ export function WarehouseLocationsDialog({
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        <Can permission="inventory.manage">
+                        <Can permission={INV.settingsManage}>
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                               <Button variant="ghost" size="icon">

@@ -45,6 +45,7 @@ import { BankAccountsController } from './presentation/bank-accounts.controller'
 import { ExchangeRatesController } from './presentation/exchange-rates.controller';
 
 import { AccountingEventPublisher } from './infrastructure/events/accounting-event-publisher';
+import { AccountingInventoryPostingListener } from './infrastructure/events/accounting-inventory-posting.listener';
 import { AccountingAutoPostingListeners } from './infrastructure/events/accounting-auto-posting.listeners';
 
 /**
@@ -218,6 +219,7 @@ import { AccountingAutoPostingListeners } from './infrastructure/events/accounti
     CurrencyConversionService,
     AccountingEventPublisher,
     AccountingAutoPostingListeners,
+    AccountingInventoryPostingListener,
   ],
   exports: [
     ChartOfAccountsService,

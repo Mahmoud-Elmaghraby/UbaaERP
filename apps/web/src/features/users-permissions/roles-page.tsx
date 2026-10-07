@@ -200,20 +200,57 @@ function PermissionMatrixForm({
     }
   }
 
+  // Grouped by module (the key's first segment), Arabic labels from i18n with the
+  // stored English description as a fallback for keys the UI doesn't know yet.
+  const groups = new Map<string, { key: string; description: string }[]>();
+  for (const permission of permissions) {
+    const module = permission.key.split('.')[0] ?? permission.key;
+    groups.set(module, [...(groups.get(module) ?? []), permission]);
+  }
+  const labelOf = (key: string, fallback: string) =>
+    t(`roles.permissionLabels.${key.replace(/\./g, '__')}`, { defaultValue: fallback });
+
+  function toggleGroup(keys: string[], checked: boolean) {
+    setSelected((prev) => (checked ? [...new Set([...prev, ...keys])] : prev.filter((k) => !keys.includes(k))));
+  }
+
   return (
     <div className="grid gap-4">
-      <div className="grid gap-2">
-        {permissions.map((permission) => (
-          <label key={permission.key} className="flex items-center gap-2 text-sm">
-            <Checkbox
-              checked={selected.includes(permission.key)}
-              onCheckedChange={(checked) => toggle(permission.key, checked === true)}
-              disabled={role.isSystem}
-            />
-            <span>{permission.description}</span>
-            <span className="ms-auto text-xs text-muted-foreground">{permission.key}</span>
-          </label>
-        ))}
+      <div className="grid max-h-[60vh] gap-4 overflow-y-auto pe-1">
+        {[...groups.entries()].map(([module, items]) => {
+          const keys = items.map((item) => item.key);
+          const selectedCount = keys.filter((key) => selected.includes(key)).length;
+          return (
+            <fieldset key={module} className="grid gap-2 rounded-lg border p-3">
+              <legend className="px-1 text-sm font-semibold">
+                <label className="flex items-center gap-2">
+                  <Checkbox
+                    checked={selectedCount === keys.length ? true : selectedCount > 0 ? 'indeterminate' : false}
+                    onCheckedChange={(checked) => toggleGroup(keys, checked === true)}
+                    disabled={role.isSystem}
+                  />
+                  {t(`roles.permissionGroups.${module}`, { defaultValue: module })}
+                  <span className="text-xs font-normal text-muted-foreground">
+                    {selectedCount}/{keys.length}
+                  </span>
+                </label>
+              </legend>
+              {items.map((permission) => (
+                <label key={permission.key} className="flex items-center gap-2 text-sm">
+                  <Checkbox
+                    checked={selected.includes(permission.key)}
+                    onCheckedChange={(checked) => toggle(permission.key, checked === true)}
+                    disabled={role.isSystem}
+                  />
+                  <span>{labelOf(permission.key, permission.description)}</span>
+                  <span className="ms-auto text-xs text-muted-foreground" dir="ltr">
+                    {permission.key}
+                  </span>
+                </label>
+              ))}
+            </fieldset>
+          );
+        })}
       </div>
       <Button onClick={save} disabled={updateRole.isPending || role.isSystem} className="mt-2">
         {t('common.save')}

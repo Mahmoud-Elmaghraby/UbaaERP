@@ -25,14 +25,15 @@ import { CurrentUser } from '../../../shared/auth/current-user.decorator';
 import type { JwtAccessPayload } from '../../../shared/auth/jwt-payload.type';
 import { JwtAuthGuard } from '../../../shared/auth/jwt-auth.guard';
 import { PermissionsGuard } from '../../../shared/auth/permissions.guard';
-import { RequirePermissions } from '../../../shared/auth/require-permissions.decorator';
+import { RequireAnyPermission, RequirePermissions } from '../../../shared/auth/require-permissions.decorator';
+import { CATALOG_READ_PERMISSIONS, INVENTORY_PERMISSIONS as P, canViewPurchasePrices, withoutPurchasePrices } from '../../../shared/auth/inventory-permissions';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 import { ProductsService } from '../application/services/products.service';
 import { InventoryEventPublisher } from '../infrastructure/events/inventory-event-publisher';
 import { productInputFromDto, productToDto, productWithVariantsToDto } from './product.mapper';
 
 @UseGuards(JwtAuthGuard, PermissionsGuard)
-@RequirePermissions('inventory.manage')
+@RequirePermissions(P.productsManage)
 @Controller('products')
 export class ProductsController {
   constructor(
@@ -42,17 +43,25 @@ export class ProductsController {
   ) {}
 
   @Get()
-  async list(@CurrentTenantSchema() schema: string): Promise<ProductDto[]> {
+  @RequirePermissions()
+  @RequireAnyPermission(...CATALOG_READ_PERMISSIONS)
+  async list(@CurrentTenantSchema() schema: string, @CurrentUser() user: JwtAccessPayload): Promise<ProductDto[]> {
     const db = this.connections.getClient(schema);
-    const products = await this.service.list(db);
-    return products.map(productToDto);
+    const products = (await this.service.list(db)).map(productToDto);
+    return canViewPurchasePrices(user.permissions) ? products : withoutPurchasePrices(products);
   }
 
   @Get(':id')
-  async getById(@CurrentTenantSchema() schema: string, @Param('id') id: string): Promise<ProductWithVariantsDto> {
+  @RequirePermissions()
+  @RequireAnyPermission(...CATALOG_READ_PERMISSIONS)
+  async getById(
+    @CurrentTenantSchema() schema: string,
+    @CurrentUser() user: JwtAccessPayload,
+    @Param('id') id: string,
+  ): Promise<ProductWithVariantsDto> {
     const db = this.connections.getClient(schema);
-    const product = await this.service.getById(db, id);
-    return productWithVariantsToDto(product);
+    const product = productWithVariantsToDto(await this.service.getById(db, id));
+    return canViewPurchasePrices(user.permissions) ? product : withoutPurchasePrices(product);
   }
 
   @Post()
@@ -80,7 +89,9 @@ export class ProductsController {
     @Body(new ZodValidationPipe(updateProductSchema)) body: UpdateProductDto,
   ): Promise<ProductDto> {
     const db = this.connections.getClient(schema);
-    const product = await this.service.update(db, id, productInputFromDto(body));
+    // A user who can't see purchase prices got null in the form — never let that wipe the stored price.
+    const input = canViewPurchasePrices(user.permissions) ? body : { ...body, purchasePrice: undefined };
+    const product = await this.service.update(db, id, productInputFromDto(input));
     this.events.publish('product', 'updated', { schema, entityId: product.id, actorUserId: user.sub });
     return productToDto(product);
   }
@@ -156,6 +167,8 @@ export class ProductsController {
   }
 
   @Get(':id/variants/:variantId/barcodes')
+  @RequirePermissions()
+  @RequireAnyPermission(...CATALOG_READ_PERMISSIONS)
   async listBarcodes(
     @CurrentTenantSchema() schema: string,
     @Param('id') id: string,

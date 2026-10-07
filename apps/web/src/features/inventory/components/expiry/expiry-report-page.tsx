@@ -47,7 +47,9 @@ export function ExpiryReportPage() {
   );
   const expiredRows = rows.filter((row) => row.daysToExpiry < 0);
   const valueOf = (list: typeof rows) =>
-    sumMinorUnits(list.map((row) => multiplyMinorUnits(row.unitCost.amountMinorUnits, String(row.quantityOnHand))));
+    sumMinorUnits(
+      list.map((row) => (row.unitCost ? multiplyMinorUnits(row.unitCost.amountMinorUnits, String(row.quantityOnHand)) : '0')),
+    );
 
   return (
     <div className="grid gap-6">
@@ -146,7 +148,9 @@ export function ExpiryReportPage() {
                     </TableCell>
                     <TableCell className="text-end">{row.quantityOnHand}</TableCell>
                     <TableCell className="text-end">
-                      {formatAmount(multiplyMinorUnits(row.unitCost.amountMinorUnits, String(row.quantityOnHand)))}
+                      {row.unitCost
+                        ? formatAmount(multiplyMinorUnits(row.unitCost.amountMinorUnits, String(row.quantityOnHand)))
+                        : '—'}
                     </TableCell>
                   </TableRow>
                 ))}
