@@ -1,0 +1,107 @@
+import { localIsoDate } from '../../../../shared/time/local-date';
+import { Injectable, Logger } from '@nestjs/common';
+import type { Kysely } from 'kysely';
+import { OnOutboxEvent } from '../../../../shared/events/on-outbox-event.decorator';
+import type { TenantDatabase } from '../../../../database/tenant/kysely-client';
+import { TenantConnectionManager } from '../../../../shared/tenancy/tenant-connection-manager';
+import type { DomainEventPayload } from '../../../../shared/events/domain-event';
+import { JournalEntriesService } from '../../application/services/journal-entries.service';
+import { AccountingSettingsService } from '../../application/services/accounting-settings.service';
+import { LedgerAmountService } from '../../application/services/ledger-amount.service';
+import { BusinessRuleError } from '../../application/errors';
+import type { AccountingSettings } from '../../domain/accounting-settings.entity';
+
+/** PaymentsReceivedService.post()'s outbox metadata (sales.payment_received.posted). */
+export interface PaymentPostedMetadata {
+  customerId?: string;
+  paymentNumber?: string;
+  paymentDate?: string | null;
+  paymentMethod?: string;
+  bankAccountId?: string | null;
+  amount: { amountMinorUnits: string; currency: string };
+}
+
+/**
+ * Money actually changing hands. A customer receipt debits where the money
+ * went — the chosen bank account's ledger account, else cash for a cash
+ * receipt, else the default bank account — and credits Accounts
+ * Receivable for the whole amount (an unallocated remainder is simply the
+ * customer's credit balance). Allocation to invoices is sub-ledger
+ * bookkeeping in Sales and posts nothing.
+ */
+@Injectable()
+export class AccountingPaymentPostingListener {
+  private readonly logger = new Logger(AccountingPaymentPostingListener.name);
+
+  constructor(
+    private readonly connections: TenantConnectionManager,
+    private readonly journalEntries: JournalEntriesService,
+    private readonly accountingSettings: AccountingSettingsService,
+    private readonly ledgerAmounts: LedgerAmountService,
+  ) {}
+
+  @OnOutboxEvent('sales.payment_received.posted')
+  async handlePaymentReceived(payload: DomainEventPayload): Promise<void> {
+    const metadata = payload.metadata as unknown as PaymentPostedMetadata | undefined;
+    if (!metadata?.amount) {
+      this.logger.warn(`Received 'sales.payment_received.posted' with no amount — ignoring.`);
+      return;
+    }
+    if (metadata.amount.amountMinorUnits === '0') return;
+
+    const db = this.connections.getClient(payload.schema);
+    const settings = await this.accountingSettings.get(db);
+    const receivable = required(settings.accountsReceivableAccountId, 'حساب العملاء');
+    const treasury = await this.treasuryAccount(db, settings, metadata);
+
+    const entryDate = metadata.paymentDate ?? localIsoDate(payload.occurredAt);
+    const { amountMinorUnits, tenantCurrency, wasConverted } = await this.ledgerAmounts.toLedger(
+      db,
+      metadata.amount,
+      entryDate,
+    );
+    const number = metadata.paymentNumber ?? payload.entityId;
+    await this.journalEntries.createAuto(db, {
+      entryDate,
+      description: wasConverted
+        ? `تحصيل من عميل — ${number} (${metadata.amount.currency} → ${tenantCurrency})`
+        : `تحصيل من عميل — ${number}`,
+      lines: [
+        { accountId: treasury, debitAmountMinorUnits: amountMinorUnits, creditAmountMinorUnits: '0' },
+        { accountId: receivable, debitAmountMinorUnits: '0', creditAmountMinorUnits: amountMinorUnits },
+      ],
+      sourceReferenceType: 'payment_received',
+      sourceReferenceId: payload.entityId,
+    });
+  }
+
+  /** Where the money sits: the chosen bank account, else cash (cash method) or the default bank account. */
+  private async treasuryAccount(
+    db: Kysely<TenantDatabase>,
+    settings: AccountingSettings,
+    metadata: { paymentMethod?: string; bankAccountId?: string | null },
+  ): Promise<string> {
+    if (metadata.bankAccountId) {
+      const bank = await db
+        .selectFrom('bank_accounts')
+        .select(['chart_of_account_id'])
+        .where('id', '=', metadata.bankAccountId)
+        .executeTakeFirst();
+      if (bank) return bank.chart_of_account_id;
+    }
+    if (!metadata.paymentMethod || metadata.paymentMethod === 'cash') {
+      return required(settings.cashAccountId, 'حساب النقدية');
+    }
+    return required(settings.defaultBankAccountId ?? settings.cashAccountId, 'حساب البنك الافتراضي');
+  }
+}
+
+function required(accountId: string | null, label: string): string {
+  if (!accountId) {
+    throw new BusinessRuleError(`Account mapping "${label}" is not configured.`, {
+      code: 'ACCOUNTING_SETTINGS.MAPPING_MISSING',
+      params: { account: label },
+    });
+  }
+  return accountId;
+}

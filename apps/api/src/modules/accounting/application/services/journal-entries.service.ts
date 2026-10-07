@@ -1,3 +1,4 @@
+import { localIsoDate } from '../../../../shared/time/local-date';
 import { Inject, Injectable } from '@nestjs/common';
 import type { Kysely } from 'kysely';
 import { Money } from '@erp-platform/shared-kernel';
@@ -238,7 +239,7 @@ export class JournalEntriesService {
       );
     }
 
-    const reversalDate = options?.reversalDate ?? new Date().toISOString().slice(0, 10);
+    const reversalDate = options?.reversalDate ?? localIsoDate();
     const description = options?.description ?? `Reversal of ${original.entryNumber}`;
 
     const swappedLines: JournalEntryLineToPersist[] = original.lines.map((line) => ({

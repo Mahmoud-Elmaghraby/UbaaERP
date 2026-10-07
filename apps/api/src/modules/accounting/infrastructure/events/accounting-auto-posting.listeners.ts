@@ -1,3 +1,4 @@
+import { localIsoDate } from '../../../../shared/time/local-date';
 import { Injectable, Logger } from '@nestjs/common';
 import { OnOutboxEvent } from '../../../../shared/events/on-outbox-event.decorator';
 import type { Kysely } from 'kysely';
@@ -9,6 +10,7 @@ import { TenantSettingsService } from '../../../settings/application/services/te
 import { JournalEntriesService } from '../../application/services/journal-entries.service';
 import { AccountingSettingsService } from '../../application/services/accounting-settings.service';
 import { CurrencyConversionService } from '../../application/services/currency-conversion.service';
+import { LedgerAmountService, type LedgerAmount } from '../../application/services/ledger-amount.service';
 import { BusinessRuleError } from '../../application/errors';
 import { stockItemVariantIds } from '../../../../shared/catalog/stock-item-reader';
 import type { CreateJournalEntryLineInput } from '../../domain/journal-entry.entity';
@@ -31,6 +33,7 @@ interface StockCostEventMetadata {
 
 interface SalesCreditNoteIssuedMetadata {
   salesReturnId: string;
+  creditNoteNumber?: string;
   customerId: string;
   currency: string;
   totalAmount: { amountMinorUnits: string; currency: string };
@@ -46,9 +49,13 @@ interface SalesCreditNoteIssuedMetadata {
  */
 interface InvoicePostedMetadata {
   totalAmount: { amountMinorUnits: string; currency: string };
+  /** Present on events written after 2026-10-08; the entry is dated on the invoice, not on when it was posted. */
+  invoiceNumber?: string;
+  invoiceDate?: string | null;
 }
 
 interface PurchaseInvoicePostedMetadata extends InvoicePostedMetadata {
+  supplierInvoiceNumber?: string | null;
   lines?: {
     productVariantId: string;
     quantity: number;
@@ -150,24 +157,12 @@ export class AccountingAutoPostingListeners {
    * missing account mapping does elsewhere in this class — a visible,
    * retry-then-fail-loud outcome, never a silent guess.
    */
-  private async convertToTenantCurrency(
+  private convertToTenantCurrency(
     db: Kysely<TenantDatabase>,
     amount: { amountMinorUnits: string; currency: string },
     asOfDate: string,
-  ): Promise<{ amountMinorUnits: string; tenantCurrency: string; wasConverted: boolean }> {
-    const tenantSettings = await this.tenantSettings.get(db);
-    const sourceAmount = Money.fromMinorUnits(BigInt(amount.amountMinorUnits), amount.currency);
-    const { convertedAmount } = await this.currencyConversion.convert(
-      db,
-      sourceAmount,
-      tenantSettings.currencyCode,
-      asOfDate,
-    );
-    return {
-      amountMinorUnits: convertedAmount.toMinorUnits().toString(),
-      tenantCurrency: tenantSettings.currencyCode,
-      wasConverted: amount.currency !== tenantSettings.currencyCode,
-    };
+  ): Promise<LedgerAmount> {
+    return new LedgerAmountService(this.tenantSettings, this.currencyConversion).toLedger(db, amount, asOfDate);
   }
 
   /** COGS recognition: debit COGS, credit Inventory. */
@@ -203,8 +198,8 @@ export class AccountingAutoPostingListeners {
     ];
 
     await this.journalEntries.createAuto(db, {
-      entryDate: payload.occurredAt.toISOString().slice(0, 10),
-      description: `Cost of goods sold — ${metadata.referenceType} ${metadata.referenceId}`,
+      entryDate: localIsoDate(payload.occurredAt),
+      description: `تكلفة البضاعة المباعة — ${referenceLabel(metadata.referenceType)} ${metadata.referenceId}`,
       lines,
       sourceReferenceType: 'stock_consumption',
       sourceReferenceId: metadata.referenceId,
@@ -244,8 +239,8 @@ export class AccountingAutoPostingListeners {
     ];
 
     await this.journalEntries.createAuto(db, {
-      entryDate: payload.occurredAt.toISOString().slice(0, 10),
-      description: `Cost of goods sold reversal — ${metadata.referenceType} ${metadata.referenceId}`,
+      entryDate: localIsoDate(payload.occurredAt),
+      description: `عكس تكلفة البضاعة المباعة — ${referenceLabel(metadata.referenceType)} ${metadata.referenceId}`,
       lines,
       sourceReferenceType: 'stock_restoration',
       sourceReferenceId: metadata.referenceId,
@@ -272,7 +267,7 @@ export class AccountingAutoPostingListeners {
       );
     }
 
-    const entryDate = payload.occurredAt.toISOString().slice(0, 10);
+    const entryDate = localIsoDate(payload.occurredAt);
     const { amountMinorUnits, tenantCurrency, wasConverted } = await this.convertToTenantCurrency(
       db,
       metadata.totalAmount,
@@ -294,10 +289,9 @@ export class AccountingAutoPostingListeners {
 
     await this.journalEntries.createAuto(db, {
       entryDate,
-      description: wasConverted
-        ? `Sales credit note revenue reversal — sales return ${metadata.salesReturnId} ` +
-          `(${metadata.totalAmount.currency} converted to ${tenantCurrency})`
-        : `Sales credit note revenue reversal — sales return ${metadata.salesReturnId}`,
+      description:
+        `إشعار دائن — مرتجع مبيعات ${metadata.creditNoteNumber ?? metadata.salesReturnId}` +
+        conversionNote(wasConverted, metadata.totalAmount.currency, tenantCurrency),
       lines,
       sourceReferenceType: 'sales_credit_note',
       sourceReferenceId: payload.entityId,
@@ -330,7 +324,7 @@ export class AccountingAutoPostingListeners {
       );
     }
 
-    const entryDate = payload.occurredAt.toISOString().slice(0, 10);
+    const entryDate = metadata.invoiceDate ?? localIsoDate(payload.occurredAt);
     const { amountMinorUnits, tenantCurrency, wasConverted } = await this.convertToTenantCurrency(
       db,
       metadata.totalAmount,
@@ -352,9 +346,9 @@ export class AccountingAutoPostingListeners {
 
     await this.journalEntries.createAuto(db, {
       entryDate,
-      description: wasConverted
-        ? `Sales invoice revenue — invoice ${payload.entityId} (${metadata.totalAmount.currency} converted to ${tenantCurrency})`
-        : `Sales invoice revenue — invoice ${payload.entityId}`,
+      description:
+        `فاتورة بيع ${metadata.invoiceNumber ?? payload.entityId}` +
+        conversionNote(wasConverted, metadata.totalAmount.currency, tenantCurrency),
       lines,
       sourceReferenceType: 'sales_invoice',
       sourceReferenceId: payload.entityId,
@@ -425,7 +419,7 @@ export class AccountingAutoPostingListeners {
       );
     }
 
-    const entryDate = payload.occurredAt.toISOString().slice(0, 10);
+    const entryDate = metadata.invoiceDate ?? localIsoDate(payload.occurredAt);
     const currency = metadata.totalAmount.currency;
     const converted = await this.convertToTenantCurrency(db, metadata.totalAmount, entryDate);
     // Convert the stock part on its own; the expense part takes the rest so the entry balances exactly.
@@ -468,9 +462,10 @@ export class AccountingAutoPostingListeners {
 
     await this.journalEntries.createAuto(db, {
       entryDate,
-      description: converted.wasConverted
-        ? `Purchase invoice — invoice ${payload.entityId} (${currency} converted to ${converted.tenantCurrency})`
-        : `Purchase invoice — invoice ${payload.entityId}`,
+      description:
+        `فاتورة شراء ${metadata.invoiceNumber ?? payload.entityId}` +
+        (metadata.supplierInvoiceNumber ? ` (فاتورة المورد ${metadata.supplierInvoiceNumber})` : '') +
+        conversionNote(converted.wasConverted, currency, converted.tenantCurrency),
       lines,
       sourceReferenceType: 'purchase_invoice',
       sourceReferenceId: payload.entityId,
@@ -527,11 +522,25 @@ export class AccountingAutoPostingListeners {
         ];
 
     await this.journalEntries.createAuto(db, {
-      entryDate: payload.occurredAt.toISOString().slice(0, 10),
-      description: `POS cash session ${isOver ? 'overage' : 'shortage'} — session ${payload.entityId}`,
+      entryDate: localIsoDate(payload.occurredAt),
+      description: `${isOver ? 'زيادة' : 'عجز'} نقدية وردية نقطة البيع — ${payload.entityId}`,
       lines,
       sourceReferenceType: 'pos_session',
       sourceReferenceId: payload.entityId,
     });
   }
+}
+
+const REFERENCE_LABELS: Record<string, string> = {
+  delivery: 'تسليم',
+  sales_return: 'مرتجع مبيعات',
+  pos_sale: 'بيع نقطة البيع',
+};
+
+function referenceLabel(referenceType: string | undefined): string {
+  return (referenceType && REFERENCE_LABELS[referenceType]) ?? referenceType ?? '';
+}
+
+function conversionNote(wasConverted: boolean, from: string, to: string): string {
+  return wasConverted ? ` (${from} → ${to})` : '';
 }

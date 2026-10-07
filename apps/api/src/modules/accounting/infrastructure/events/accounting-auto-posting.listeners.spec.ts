@@ -46,6 +46,7 @@ function makeAccountingSettings(overrides: Partial<AccountingSettings> = {}): Ac
     inventoryAdjustmentAccountId: 'adjustment-account',
     openingBalanceEquityAccountId: 'opening-account',
     landedCostClearingAccountId: null,
+    defaultBankAccountId: null,
     createdAt: new Date('2026-01-01T00:00:00Z'),
     updatedAt: new Date('2026-01-01T00:00:00Z'),
     ...overrides,
@@ -102,7 +103,7 @@ describe('AccountingAutoPostingListeners — multi-currency Phase 3 (invoice/cre
             expect.objectContaining({ accountId: 'ar-account', debitAmountMinorUnits: '500000', creditAmountMinorUnits: '0' }),
             expect.objectContaining({ accountId: 'revenue-account', debitAmountMinorUnits: '0', creditAmountMinorUnits: '500000' }),
           ],
-          description: 'Sales invoice revenue — invoice invoice-1',
+          description: 'فاتورة بيع invoice-1',
         }),
       );
     });
@@ -133,7 +134,7 @@ describe('AccountingAutoPostingListeners — multi-currency Phase 3 (invoice/cre
             expect.objectContaining({ accountId: 'ar-account', debitAmountMinorUnits: '513410' }),
             expect.objectContaining({ accountId: 'revenue-account', creditAmountMinorUnits: '513410' }),
           ],
-          description: 'Sales invoice revenue — invoice invoice-1 (USD converted to EGP)',
+          description: 'فاتورة بيع invoice-1 (USD → EGP)',
         }),
       );
       // The critical regression this whole phase exists to prevent: the raw,
@@ -200,7 +201,7 @@ describe('AccountingAutoPostingListeners — multi-currency Phase 3 (invoice/cre
             expect.objectContaining({ accountId: 'expense-account', debitAmountMinorUnits: '250000' }),
             expect.objectContaining({ accountId: 'ap-account', creditAmountMinorUnits: '250000' }),
           ],
-          description: 'Purchase invoice — invoice invoice-2 (EUR converted to EGP)',
+          description: 'فاتورة شراء invoice-2 (EUR → EGP)',
         }),
       );
     });
@@ -301,7 +302,7 @@ describe('AccountingAutoPostingListeners — multi-currency Phase 3 (invoice/cre
             expect.objectContaining({ accountId: 'contra-account', debitAmountMinorUnits: '51341' }),
             expect.objectContaining({ accountId: 'ar-account', creditAmountMinorUnits: '51341' }),
           ],
-          description: 'Sales credit note revenue reversal — sales return return-1 (USD converted to EGP)',
+          description: 'إشعار دائن — مرتجع مبيعات return-1 (USD → EGP)',
         }),
       );
     });

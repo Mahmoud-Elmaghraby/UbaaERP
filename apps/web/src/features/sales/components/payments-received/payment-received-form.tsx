@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
+import { BankAccountSelect } from '../../../../components/document/bank-account-select';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
@@ -96,6 +97,7 @@ export function CreatePaymentReceivedForm({ onDone }: { onDone: () => void }) {
   );
   const [allocationDrafts, setAllocationDrafts] = useState<PaymentAllocationDraft[]>([]);
   const [allocationsError, setAllocationsError] = useState<string | null>(null);
+  const [bankAccountId, setBankAccountId] = useState<string | null>(null);
 
   const formSchema = useMemo(() => {
     const staticSchema = createPaymentReceivedSchema
@@ -143,6 +145,7 @@ export function CreatePaymentReceivedForm({ onDone }: { onDone: () => void }) {
         paymentMethod: values.paymentMethod,
         paymentDate: values.paymentDate || undefined,
         referenceNumber: values.referenceNumber || undefined,
+        bankAccountId: values.paymentMethod === 'cash' ? null : bankAccountId,
         notes: values.notes,
         customFields: values.customFields,
         allocations: preparedAllocations.length > 0 ? preparedAllocations : undefined,
@@ -243,6 +246,12 @@ export function CreatePaymentReceivedForm({ onDone }: { onDone: () => void }) {
               <FormMessage />
             </FormItem>
           )}
+        />
+        <BankAccountSelect
+          value={bankAccountId}
+          onChange={setBankAccountId}
+          currency={form.watch('currency')}
+          paymentMethod={form.watch('paymentMethod')}
         />
         <FormField
           control={form.control}

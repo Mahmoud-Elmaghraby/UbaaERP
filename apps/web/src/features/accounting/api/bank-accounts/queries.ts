@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type {
   BankAccountDto,
+  BankAccountLookupDto,
   BankAccountRegisterDto,
   BankAccountRegisterLineDto,
   CreateBankAccountDto,
@@ -13,6 +14,18 @@ const LIST_KEY = ['bank-accounts'];
 
 export function useBankAccounts() {
   return useQuery({ queryKey: LIST_KEY, queryFn: () => apiGet<BankAccountDto[]>('/bank-accounts') });
+}
+
+/**
+ * Active bank accounts for receipt / payment forms (sales and purchases users
+ * may read it). Empty — not an error — when the plan has no Accounting.
+ */
+export function useBankAccountLookup() {
+  return useQuery({
+    queryKey: ['bank-accounts', 'lookup'],
+    queryFn: () => apiGet<BankAccountLookupDto[]>('/bank-accounts/lookup').catch(() => [] as BankAccountLookupDto[]),
+    staleTime: 60_000,
+  });
 }
 
 export function useBankAccount(id: string | null | undefined) {

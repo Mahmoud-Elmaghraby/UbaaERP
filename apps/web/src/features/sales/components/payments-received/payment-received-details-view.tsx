@@ -13,6 +13,7 @@ import {
 
 import { useCustomers } from '../../api/customers/queries';
 import { formatMoney } from '../../../../lib/money';
+import { useBankAccountLookup } from '../../../accounting/api/bank-accounts/queries';
 import {
   PAYMENT_RECEIVED_STATUS_VARIANT,
   paymentReceivedStatusLabelKey,
@@ -27,6 +28,8 @@ export function PaymentReceivedDetailsView({
   payment: PaymentReceivedWithAllocationsDto;
 }) {
   const { t } = useTranslation();
+  const { data: bankAccounts } = useBankAccountLookup();
+  const bankName = bankAccounts?.find((account) => account.id === payment.bankAccountId)?.name;
   const { data: customers } = useCustomers();
 
   const customerById = useMemo(() => new Map((customers ?? []).map((c) => [c.id, c])), [customers]);
@@ -73,6 +76,12 @@ export function PaymentReceivedDetailsView({
           <p className="text-muted-foreground">{t('sales.paymentsReceived.referenceNumber')}</p>
           <p className="font-medium">{payment.referenceNumber ?? '—'}</p>
         </div>
+        {payment.bankAccountId ? (
+          <div>
+            <p className="text-muted-foreground">{t('payments.bankAccount')}</p>
+            <p className="font-medium">{bankName ?? '—'}</p>
+          </div>
+        ) : null}
         <div>
           <p className="text-muted-foreground">{t('sales.paymentsReceived.paymentDate')}</p>
           <p className="font-medium">{payment.paymentDate ?? '—'}</p>

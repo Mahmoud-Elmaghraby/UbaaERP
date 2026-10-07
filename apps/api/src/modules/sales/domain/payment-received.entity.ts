@@ -32,6 +32,8 @@ export interface PaymentReceived {
   customFields: Record<string, unknown>;
   /** Migration 0060 — set when this payment was recorded within a POS cash session (Stage 3 checkout); null otherwise. */
   posSessionId: string | null;
+  /** Migration 0089 — bank account a non-cash receipt was deposited to; null = cash / default bank. */
+  bankAccountId: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -63,6 +65,7 @@ export interface CreatePaymentReceivedInput {
   customFields?: Record<string, unknown>;
   /** Set by PosSalesService.checkout() (Stage 3) to tag this payment as belonging to a POS cash session; omitted/undefined for every non-POS payment. */
   posSessionId?: string | null;
+  bankAccountId?: string | null;
 }
 
 export function calculateUnallocatedAmount(

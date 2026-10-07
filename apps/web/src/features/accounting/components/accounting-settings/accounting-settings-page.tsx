@@ -67,6 +67,7 @@ const MAPPING_GROUPS: { titleKey: string; fields: { name: MappingName; labelKey:
     titleKey: 'accounting.settings.groups.cash',
     fields: [
       { name: 'cashAccountId', labelKey: 'accounting.settings.cash' },
+      { name: 'defaultBankAccountId', labelKey: 'accounting.settings.defaultBank' },
       { name: 'cashOverShortAccountId', labelKey: 'accounting.settings.cashOverShort' },
       { name: 'exchangeGainLossAccountId', labelKey: 'accounting.settings.exchangeGainLoss' },
     ],

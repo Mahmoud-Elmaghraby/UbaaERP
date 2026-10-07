@@ -262,6 +262,7 @@ export class SalesReturnsService {
         actorUserId,
         metadata: {
           salesReturnId: updated.id,
+          creditNoteNumber: creditNote.creditNoteNumber,
           customerId: creditNote.customerId,
           currency: creditNote.currency,
           totalAmount: {

@@ -1,3 +1,4 @@
+import { localIsoDate } from '../../../../shared/time/local-date';
 import { Inject, Injectable, Optional } from '@nestjs/common';
 import type { Kysely } from 'kysely';
 import { Money } from '@erp-platform/shared-kernel';
@@ -385,7 +386,7 @@ export class StockMovementsService {
 
   /** Near-expiry report: lots on hand expiring within `withinDays` days (expired ones included). */
   listExpiringLots(db: Kysely<TenantDatabase>, withinDays: number): Promise<ExpiringLotRow[]> {
-    const until = new Date(Date.now() + withinDays * 86_400_000).toISOString().slice(0, 10);
+    const until = localIsoDate(new Date(Date.now() + withinDays * 86_400_000));
     return this.stockLots.listExpiring(db, until);
   }
 

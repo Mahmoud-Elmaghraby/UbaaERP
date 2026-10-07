@@ -566,6 +566,8 @@ export interface PaymentsReceivedTable {
   custom_fields: unknown;
   /** Migration 0060 — tags a payment as recorded within a POS cash session; null for every non-POS payment. */
   pos_session_id: string | null;
+  /** Migration 0089 — bank account a non-cash receipt was deposited to. */
+  bank_account_id: string | null;
   created_at: Generated<Date>;
   updated_at: Generated<Date>;
 }
@@ -1229,6 +1231,8 @@ export interface AccountingSettingsTable {
   inventory_adjustment_account_id: string | null;
   opening_balance_equity_account_id: string | null;
   landed_cost_clearing_account_id: string | null;
+  /** Migration 0089 — non-cash receipts/payments without a chosen bank account. */
+  default_bank_account_id: string | null;
   created_at: Generated<Date>;
   updated_at: Generated<Date>;
 }

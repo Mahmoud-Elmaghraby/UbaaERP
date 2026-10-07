@@ -1,6 +1,8 @@
 import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import {
   bankAccountSchema,
+  bankAccountLookupSchema,
+  type BankAccountLookupDto,
   bankAccountRegisterSchema,
   bankAccountRegisterLineSchema,
   createBankAccountSchema,
@@ -19,7 +21,7 @@ import type { JwtAccessPayload } from '../../../shared/auth/jwt-payload.type';
 import { JwtAuthGuard } from '../../../shared/auth/jwt-auth.guard';
 import { PermissionsGuard } from '../../../shared/auth/permissions.guard';
 import { PlanFeatureGuard } from '../../../shared/auth/plan-feature.guard';
-import { RequirePermissions } from '../../../shared/auth/require-permissions.decorator';
+import { RequireAnyPermission, RequirePermissions } from '../../../shared/auth/require-permissions.decorator';
 import { RequireFeature } from '../../../shared/auth/require-feature.decorator';
 import { FEATURE_KEYS } from '../../../shared/plans/feature-catalog';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
@@ -84,6 +86,22 @@ export class BankAccountsController {
       isActive: isActive === undefined ? undefined : isActive === 'true',
     });
     return bankAccounts.map(toDto);
+  }
+
+  /** Active bank accounts for the receipt / payment forms — readable by sales and purchases users too. */
+  @Get('lookup')
+  @RequirePermissions()
+  @RequireAnyPermission('accounting.manage', 'sales.manage', 'purchases.manage')
+  async lookup(@CurrentTenantSchema() schema: string): Promise<BankAccountLookupDto[]> {
+    const bankAccounts = await this.service.list(this.connections.getClient(schema), { isActive: true });
+    return bankAccounts.map((account) =>
+      bankAccountLookupSchema.parse({
+        id: account.id,
+        name: account.name,
+        bankName: account.bankName,
+        currency: account.currency,
+      }),
+    );
   }
 
   @Get(':id')

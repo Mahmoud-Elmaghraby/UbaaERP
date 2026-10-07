@@ -47,6 +47,7 @@ function settings(overrides: Partial<AccountingSettings> = {}): AccountingSettin
     inventoryAdjustmentAccountId: 'adj',
     openingBalanceEquityAccountId: 'opening',
     landedCostClearingAccountId: null,
+    defaultBankAccountId: null,
     createdAt: new Date(),
     updatedAt: new Date(),
     ...overrides,

@@ -475,6 +475,8 @@ export class PurchaseInvoicesService {
         metadata: {
           purchaseOrderId: updated.purchaseOrderId,
           supplierInvoiceNumber: updated.supplierInvoiceNumber,
+          invoiceNumber: updated.invoiceNumber,
+          invoiceDate: updated.invoiceDate,
           totalAmount: { amountMinorUnits: totalAmount.toMinorUnits().toString(), currency: totalAmount.currency },
           lines: lines.map((line) => ({
             productVariantId: line.productVariantId,

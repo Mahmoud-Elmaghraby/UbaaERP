@@ -430,6 +430,8 @@ export class SalesInvoicesService {
         actorUserId,
         metadata: {
           salesOrderId: updated.salesOrderId,
+          invoiceNumber: updated.invoiceNumber,
+          invoiceDate: updated.invoiceDate,
           totalAmount: { amountMinorUnits: totalAmount.toMinorUnits().toString(), currency: totalAmount.currency },
           lines: lines.map((line) => ({
             productVariantId: line.productVariantId,

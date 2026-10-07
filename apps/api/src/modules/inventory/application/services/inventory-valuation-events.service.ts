@@ -17,12 +17,9 @@ export interface ValuationEntryInput {
   counterAccountId?: string | null;
 }
 
-/** Today's calendar date on the server, YYYY-MM-DD (not UTC: a 1 a.m. Cairo posting belongs to today). */
-export function localIsoDate(date = new Date()): string {
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${date.getFullYear()}-${month}-${day}`;
-}
+import { localIsoDate } from '../../../../shared/time/local-date';
+
+export { localIsoDate };
 
 /**
  * The single writer of 'inventory.valuation.posted' (see the event file for

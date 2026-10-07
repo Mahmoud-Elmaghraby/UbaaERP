@@ -22,6 +22,15 @@ export const bankAccountSchema = z.object({
 });
 export type BankAccountDto = z.infer<typeof bankAccountSchema>;
 
+/** Active bank account as the receipt / payment forms list it (GET /bank-accounts/lookup). */
+export const bankAccountLookupSchema = z.object({
+  id: z.string().uuid(),
+  name: z.string(),
+  bankName: z.string(),
+  currency: z.string(),
+});
+export type BankAccountLookupDto = z.infer<typeof bankAccountLookupSchema>;
+
 export const createBankAccountSchema = z.object({
   name: z.string().min(1),
   bankName: z.string().min(1),

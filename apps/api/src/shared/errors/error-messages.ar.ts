@@ -366,6 +366,9 @@ export const AR_MESSAGES: Record<string, string> = {
   'PAYMENT.ALLOCATION_EXCEEDS_AVAILABLE':
     'إجمالي المبلغ المخصَّص ({requested}) يتجاوز المبلغ المتاح للتخصيص ({available}).',
   'PAYMENT.INVOICE_NOT_POSTED': 'فاتورة البيع "{id}" في حالة "{status}" — يمكن استلام دفعة فقط مقابل فاتورة مرحّلة.',
+  'PAYMENT.BANK_ACCOUNT_FOR_CASH': 'الدفع النقدي لا يمر بحساب بنكي — اختر طريقة دفع أخرى أو احذف الحساب البنكي.',
+  'PAYMENT.BANK_ACCOUNT_UNUSABLE': 'الحساب البنكي المختار غير موجود أو موقوف.',
+  'PAYMENT.BANK_ACCOUNT_CURRENCY': 'الحساب البنكي "{name}" بعملة {accountCurrency} والدفعة بعملة {currency}.',
   'PAYMENT.INVOICE_CUSTOMER_MISMATCH': 'فاتورة البيع "{invoiceId}" لا تخص العميل "{customerId}".',
   'PAYMENT.INVOICE_CURRENCY_MISMATCH': 'عملة التخصيص "{requestedCurrency}" لا تطابق عملة فاتورة البيع "{invoiceCurrency}".',
   'PAYMENT.ALLOCATION_EXCEEDS_OUTSTANDING':

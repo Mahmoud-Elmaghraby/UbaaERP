@@ -27,6 +27,7 @@ export const accountingSettingsSchema = z.object({
   inventoryAdjustmentAccountId: z.string().uuid().nullable(),
   openingBalanceEquityAccountId: z.string().uuid().nullable(),
   landedCostClearingAccountId: z.string().uuid().nullable(),
+  defaultBankAccountId: z.string().uuid().nullable(),
   createdAt: z.coerce.date(),
   updatedAt: z.coerce.date(),
 });
@@ -47,5 +48,6 @@ export const updateAccountingSettingsSchema = z.object({
   inventoryAdjustmentAccountId: z.string().uuid().nullable().optional(),
   openingBalanceEquityAccountId: z.string().uuid().nullable().optional(),
   landedCostClearingAccountId: z.string().uuid().nullable().optional(),
+  defaultBankAccountId: z.string().uuid().nullable().optional(),
 });
 export type UpdateAccountingSettingsDto = z.infer<typeof updateAccountingSettingsSchema>;

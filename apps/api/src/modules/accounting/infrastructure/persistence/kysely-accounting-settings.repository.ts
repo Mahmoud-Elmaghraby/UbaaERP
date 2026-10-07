@@ -22,6 +22,7 @@ function toDomain(row: Selectable<AccountingSettingsTable>): AccountingSettings 
     inventoryAdjustmentAccountId: row.inventory_adjustment_account_id,
     openingBalanceEquityAccountId: row.opening_balance_equity_account_id,
     landedCostClearingAccountId: row.landed_cost_clearing_account_id,
+    defaultBankAccountId: row.default_bank_account_id,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -29,9 +30,9 @@ function toDomain(row: Selectable<AccountingSettingsTable>): AccountingSettings 
 
 /**
  * The default template's own codes for each purpose (migration 0048) —
- * see migration 0052's own comment. purchase_expense_account_id is
- * deliberately absent here — migration 0054's comment explains why it
- * has no safe default to auto-populate from.
+ * see migration 0052's own comment. 55/56/57 are the dedicated accounts
+ * migration 0088 adds (purchase expense, cash over/short, FX differences);
+ * 112 البنوك is the default for non-cash receipts (migration 0089).
  */
 const DEFAULT_CODES = {
   accounts_receivable_account_id: '113',
@@ -44,6 +45,10 @@ const DEFAULT_CODES = {
   grni_account_id: '217',
   inventory_adjustment_account_id: '54',
   opening_balance_equity_account_id: '35',
+  purchase_expense_account_id: '55',
+  cash_over_short_account_id: '56',
+  exchange_gain_loss_account_id: '57',
+  default_bank_account_id: '112',
 } as const;
 
 export class KyselyAccountingSettingsRepository implements AccountingSettingsRepository {
@@ -74,14 +79,15 @@ export class KyselyAccountingSettingsRepository implements AccountingSettingsRep
           sales_returns_contra_account_id: accountIdByCode.get(DEFAULT_CODES.sales_returns_contra_account_id) ?? null,
           revenue_account_id: accountIdByCode.get(DEFAULT_CODES.revenue_account_id) ?? null,
           accounts_payable_account_id: accountIdByCode.get(DEFAULT_CODES.accounts_payable_account_id) ?? null,
-          purchase_expense_account_id: null,
+          purchase_expense_account_id: accountIdByCode.get(DEFAULT_CODES.purchase_expense_account_id) ?? null,
           cash_account_id: accountIdByCode.get(DEFAULT_CODES.cash_account_id) ?? null,
-          cash_over_short_account_id: null,
-          exchange_gain_loss_account_id: null,
+          cash_over_short_account_id: accountIdByCode.get(DEFAULT_CODES.cash_over_short_account_id) ?? null,
+          exchange_gain_loss_account_id: accountIdByCode.get(DEFAULT_CODES.exchange_gain_loss_account_id) ?? null,
           grni_account_id: accountIdByCode.get(DEFAULT_CODES.grni_account_id) ?? null,
           inventory_adjustment_account_id: accountIdByCode.get(DEFAULT_CODES.inventory_adjustment_account_id) ?? null,
           opening_balance_equity_account_id: accountIdByCode.get(DEFAULT_CODES.opening_balance_equity_account_id) ?? null,
           landed_cost_clearing_account_id: null,
+          default_bank_account_id: accountIdByCode.get(DEFAULT_CODES.default_bank_account_id) ?? null,
         })
         .returningAll()
         .executeTakeFirstOrThrow();
@@ -134,6 +140,7 @@ export class KyselyAccountingSettingsRepository implements AccountingSettingsRep
         ...(input.landedCostClearingAccountId !== undefined
           ? { landed_cost_clearing_account_id: input.landedCostClearingAccountId }
           : {}),
+        ...(input.defaultBankAccountId !== undefined ? { default_bank_account_id: input.defaultBankAccountId } : {}),
         updated_at: new Date(),
       })
       .where('id', '=', settings.id)

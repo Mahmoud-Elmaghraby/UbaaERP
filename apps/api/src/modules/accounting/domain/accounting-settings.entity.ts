@@ -7,9 +7,10 @@
  * auto-posting listeners built so far actually need, not a generic
  * open-ended mapping table.
  *
- * purchaseExpenseAccountId is never auto-populated (see migration
- * 0054's comment) — it legitimately starts NULL and stays that way
- * until a tenant admin configures it here.
+ * purchaseExpenseAccountId, cashOverShortAccountId and
+ * exchangeGainLossAccountId started out never auto-populated (migrations
+ * 0054/0061/0073); since migration 0088 they default to the dedicated
+ * accounts 55/56/57 (see that migration for why).
  *
  * cashAccountId/cashOverShortAccountId (migration 0061 — POS feature
  * Stage 1, claude/sales-pos-research.md) follow the exact same
@@ -42,6 +43,8 @@ export interface AccountingSettings {
   openingBalanceEquityAccountId: string | null;
   /** Migration 0084: landed costs are credited here; null = purchaseExpenseAccountId. */
   landedCostClearingAccountId: string | null;
+  /** Migration 0089: non-cash receipts/payments when no bank account was chosen (default 112). */
+  defaultBankAccountId: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -61,4 +64,5 @@ export interface UpdateAccountingSettingsInput {
   inventoryAdjustmentAccountId?: string | null;
   openingBalanceEquityAccountId?: string | null;
   landedCostClearingAccountId?: string | null;
+  defaultBankAccountId?: string | null;
 }
