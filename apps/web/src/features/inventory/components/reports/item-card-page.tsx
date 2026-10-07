@@ -23,8 +23,8 @@ import { useVariantLookupMap } from '../../api/products/queries';
 import { useWarehouses } from '../../api/warehouses/queries';
 import { ProductVariantPicker } from '../../../../components/product/product-variant-picker';
 import { variantDisplayName } from '../../../../components/product/variant-search';
-import { downloadCsv } from '../../../../lib/csv';
-import { formatAmount } from '../../../../lib/money';
+import { downloadXlsx } from '../../../../lib/xlsx';
+import { formatAmount, minorUnitsToDecimalString } from '../../../../lib/money';
 import { ALL_WAREHOUSES, WarehouseFilter } from './warehouse-filter';
 
 function firstOfMonth(): string {
@@ -62,7 +62,7 @@ export function ItemCardPage() {
 
   function exportCsv() {
     if (!card || !variant) return;
-    downloadCsv(
+    downloadXlsx(
       `${t('inventory.itemCard.title')} ${variant.sku}`,
       [
         t('inventory.itemCard.date'),
@@ -86,7 +86,7 @@ export function ItemCardPage() {
           row.quantity > 0 ? row.quantity : '',
           row.quantity < 0 ? -row.quantity : '',
           row.balance,
-          row.unitCost ? formatAmount(row.unitCost.amountMinorUnits) : '',
+          row.unitCost ? Number(minorUnitsToDecimalString(row.unitCost.amountMinorUnits)) : '',
         ]),
       ],
     );

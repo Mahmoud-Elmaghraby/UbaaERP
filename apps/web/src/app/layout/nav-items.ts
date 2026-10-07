@@ -94,6 +94,7 @@ export const NAV_GROUPS: NavGroup[] = [
         children: [
           { to: '/inventory/products', labelKey: 'inventory.tabs.products', permission: INV.productsView },
           { to: '/inventory/catalog', labelKey: 'inventory.tabs.catalog', permission: INV.productsView },
+          { to: '/inventory/import', labelKey: 'inventory.tabs.import', permission: INV.productsManage },
           { to: '/inventory/labels', labelKey: 'inventory.tabs.labels', permission: INV.productsView },
           { to: '/inventory/stock', labelKey: 'inventory.tabs.stock', permission: INV.stockView },
           {

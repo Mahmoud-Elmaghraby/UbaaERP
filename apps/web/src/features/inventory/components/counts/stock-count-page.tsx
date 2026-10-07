@@ -44,7 +44,7 @@ import { useTenantSettings } from '../../../settings/queries';
 import { ProductVariantPicker } from '../../../../components/product/product-variant-picker';
 import { resolveScan, variantDisplayName } from '../../../../components/product/variant-search';
 import { ApiError } from '../../../../lib/api-client';
-import { downloadCsv } from '../../../../lib/csv';
+import { downloadXlsx } from '../../../../lib/xlsx';
 import { decimalToMinorUnits, formatAmount, minorUnitsToDecimalString } from '../../../../lib/money';
 import { toWesternDigits } from '../../../../lib/search-normalize';
 import { COUNT_STATUS_VARIANT, COUNTS_PATH } from './count-status';
@@ -201,7 +201,7 @@ function StockCountEditor({ count, warehouseName }: { count: StockCountWithLines
   }
 
   function exportCsv() {
-    downloadCsv(
+    downloadXlsx(
       count.countNumber,
       [
         t('inventory.counts.csv.code'),

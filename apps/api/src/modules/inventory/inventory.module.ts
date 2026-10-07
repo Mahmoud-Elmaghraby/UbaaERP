@@ -74,6 +74,8 @@ import { PRODUCT_IMAGE_REPOSITORY } from './application/ports/product-image.repo
 import { KyselyProductImageRepository } from './infrastructure/persistence/kysely-product-image.repository';
 import { ProductImagesService } from './application/services/product-images.service';
 import { ProductImagesController } from './presentation/product-images.controller';
+import { ProductImportService } from './application/services/product-import.service';
+import { ProductImportController } from './presentation/product-import.controller';
 import { ProductUnitResolver } from '../../shared/catalog/product-unit-resolver';
 import { StockAvailabilityChecker } from '../../shared/catalog/stock-availability-checker';
 
@@ -96,6 +98,7 @@ import { StockAvailabilityChecker } from '../../shared/catalog/stock-availabilit
   // (Settings is the foundation module — same dependency Purchases/Sales already take).
   imports: [SettingsModule],
   controllers: [
+    ProductImportController,
     InventorySettingsController,
     ProductCategoriesController,
     ProductBrandsController,
@@ -146,6 +149,7 @@ import { StockAvailabilityChecker } from '../../shared/catalog/stock-availabilit
     InventoryValuationEventsService,
     { provide: PRODUCT_IMAGE_REPOSITORY, useClass: KyselyProductImageRepository },
     ProductImagesService,
+    ProductImportService,
     ProductUnitResolver,
     StockAvailabilityChecker,
     InventoryEventPublisher,

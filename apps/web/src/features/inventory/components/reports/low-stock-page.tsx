@@ -19,7 +19,7 @@ import {
 } from '@erp-platform/ui';
 
 import { useLowStock } from '../../api/reports/queries';
-import { downloadCsv } from '../../../../lib/csv';
+import { downloadXlsx } from '../../../../lib/xlsx';
 import { ALL_WAREHOUSES, WarehouseFilter } from './warehouse-filter';
 
 /** الأصناف تحت حد الطلب: stock at or below its reorder point — the reorder list for purchasing. */
@@ -29,7 +29,7 @@ export function LowStockPage() {
   const { data: rows, isLoading } = useLowStock(warehouseId === ALL_WAREHOUSES ? undefined : warehouseId);
 
   function exportCsv() {
-    downloadCsv(
+    downloadXlsx(
       t('inventory.lowStock.title'),
       [
         t('inventory.counts.csv.code'),

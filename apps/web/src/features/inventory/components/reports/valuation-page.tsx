@@ -20,8 +20,10 @@ import {
 
 import { useStockValuation } from '../../api/reports/queries';
 import { useInTransitValue } from '../../api/stock-documents/queries';
-import { downloadCsv } from '../../../../lib/csv';
-import { formatAmount, sumMinorUnits } from '../../../../lib/money';
+import { downloadXlsx } from '../../../../lib/xlsx';
+import { formatAmount, minorUnitsToDecimalString, sumMinorUnits } from '../../../../lib/money';
+
+const toNumber = (minor: string) => Number(minorUnitsToDecimalString(minor));
 import { normalizeForSearch } from '../../../../lib/search-normalize';
 import { ALL_WAREHOUSES, WarehouseFilter } from './warehouse-filter';
 
@@ -50,7 +52,7 @@ export function ValuationPage() {
     row.quantity > 0 ? (BigInt(row.value.amountMinorUnits) * 10_000n) / BigInt(Math.round(row.quantity * 10_000)) : 0n;
 
   function exportCsv() {
-    downloadCsv(
+    downloadXlsx(
       t('inventory.valuation.title'),
       [
         t('inventory.counts.csv.code'),
@@ -66,10 +68,10 @@ export function ValuationPage() {
           row.productName,
           row.warehouseName,
           row.quantity,
-          formatAmount(averageOf(row).toString()),
-          formatAmount(row.value.amountMinorUnits),
+          toNumber(averageOf(row).toString()),
+          toNumber(row.value.amountMinorUnits),
         ]),
-        ['', t('documents.total'), '', '', '', formatAmount(total)],
+        ['', t('documents.total'), '', '', '', toNumber(total)],
       ],
     );
   }

@@ -88,3 +88,56 @@ export type UploadProductImageDto = z.infer<typeof uploadProductImageSchema>;
 
 export const reorderProductImagesSchema = z.object({ imageIds: z.array(z.string().uuid()).min(1).max(50) });
 export type ReorderProductImagesDto = z.infer<typeof reorderProductImagesSchema>;
+
+// ---- Excel import of the item master ----
+const importCell = z.string().max(2000).nullable().optional();
+export const productImportRowSchema = z.object({
+  rowNumber: z.number().int().min(1),
+  code: importCell,
+  name: importCell,
+  description: importCell,
+  barcode: importCell,
+  category: importCell,
+  brand: importCell,
+  unit: importCell,
+  itemType: importCell,
+  trackingType: importCell,
+  salePrice: importCell,
+  purchasePrice: importCell,
+  isActive: importCell,
+  openingQuantity: importCell,
+  openingCost: importCell,
+});
+export type ProductImportRowDto = z.infer<typeof productImportRowSchema>;
+
+export const productImportRequestSchema = z.object({
+  rows: z.array(productImportRowSchema).min(1).max(5000),
+  mode: z.enum(['create', 'upsert']).default('create'),
+  dryRun: z.boolean().default(true),
+  skipInvalid: z.boolean().default(false),
+  createMissingCategories: z.boolean().default(true),
+  createMissingBrands: z.boolean().default(true),
+  createMissingUnits: z.boolean().default(false),
+  openingWarehouseId: z.string().uuid().nullable().optional(),
+});
+export type ProductImportRequestDto = z.input<typeof productImportRequestSchema>;
+
+export const productImportResultSchema = z.object({
+  dryRun: z.boolean(),
+  committed: z.boolean(),
+  created: z.number().int(),
+  updated: z.number().int(),
+  failed: z.number().int(),
+  openingCountId: z.string().uuid().nullable(),
+  rows: z.array(
+    z.object({
+      rowNumber: z.number().int(),
+      status: z.enum(['create', 'update', 'error']),
+      code: z.string().nullable(),
+      name: z.string().nullable(),
+      errors: z.array(z.object({ field: z.string(), message: z.string() })),
+      productId: z.string().uuid().nullable(),
+    }),
+  ),
+});
+export type ProductImportResultDto = z.infer<typeof productImportResultSchema>;

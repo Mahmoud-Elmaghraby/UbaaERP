@@ -30,6 +30,7 @@ const StockAdjustmentPage = lazy(() =>
 const AdjustmentReasonsPage = lazy(() =>
   import('./components/adjustments').then((m) => ({ default: m.AdjustmentReasonsPage })),
 );
+const ProductImportPage = lazy(() => import('./components/import').then((m) => ({ default: m.ProductImportPage })));
 const LandedCostsPage = lazy(() =>
   import('./components/landed-costs').then((m) => ({ default: m.LandedCostsPage })),
 );
@@ -68,6 +69,7 @@ export const inventoryRoutes: RouteObject[] = [
       { path: 'adjustments', element: <StockAdjustmentsPage /> },
       { path: 'adjustments/:id', element: <StockAdjustmentPage /> },
       { path: 'adjustment-reasons', element: <AdjustmentReasonsPage /> },
+      { path: 'import', element: <ProductImportPage /> },
     ],
   },
 ];

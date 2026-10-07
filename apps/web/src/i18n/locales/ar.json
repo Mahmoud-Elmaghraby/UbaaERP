@@ -381,7 +381,8 @@
       "lowStock": "تحت حد الطلب",
       "transfers": "التحويلات بين المخازن",
       "adjustments": "تسويات المخزون",
-      "adjustmentReasons": "أسباب التسوية"
+      "adjustmentReasons": "أسباب التسوية",
+      "import": "استيراد الأصناف"
     },
     "unitsOfMeasure": {
       "subtitle": "وحدات القياس المستخدمة في المنتجات، مع دعم تحويل الوحدات (مثل الكرتونة إلى القطعة)",
@@ -921,6 +922,78 @@
       "makePrimary": "اجعلها الصورة الرئيسية",
       "deleteConfirm": "حذف هذه الصورة؟",
       "uploadError": "تعذّر رفع الصورة {{name}}"
+    },
+    "import": {
+      "title": "استيراد الأصناف من Excel",
+      "description": "أضف أو حدّث مئات الأصناف مرة واحدة. جرّب الاستيراد أولًا لتراجع الأخطاء — لا يُحفظ شيء حتى تضغط استيراد.",
+      "template": "تحميل النموذج",
+      "templateName": "نموذج استيراد الأصناف",
+      "fileHint": "ملف Excel (.xlsx) أو CSV — الصف الأول عناوين الأعمدة. لو ملفك .xls قديم احفظه كـ .xlsx أولًا.",
+      "chooseFile": "اختيار ملف",
+      "changeFile": "اختيار ملف آخر",
+      "rowsCount": "{{count}} صف",
+      "emptyFile": "الملف لا يحتوي على بيانات بعد صف العناوين.",
+      "readError": "تعذّرت قراءة الملف — تأكد أنه .xlsx أو .csv",
+      "oldXls": "صيغة .xls القديمة غير مدعومة — افتح الملف في Excel واحفظه بصيغة .xlsx",
+      "mappingTitle": "ربط الأعمدة",
+      "column": "عمود {{number}}",
+      "ignore": "— تجاهل —",
+      "fields": {
+        "code": "الكود",
+        "name": "الاسم",
+        "description": "الوصف",
+        "barcode": "الباركود",
+        "category": "التصنيف",
+        "brand": "الماركة",
+        "unit": "الوحدة",
+        "itemType": "النوع",
+        "trackingType": "التتبع",
+        "salePrice": "سعر البيع",
+        "purchasePrice": "سعر الشراء",
+        "isActive": "نشط",
+        "openingQuantity": "رصيد أول المدة",
+        "openingCost": "تكلفة الرصيد"
+      },
+      "mode": "طريقة الاستيراد",
+      "modes": {
+        "create": "إضافة أصناف جديدة فقط",
+        "upsert": "إضافة الجديد وتحديث الموجود (بالكود)"
+      },
+      "openingWarehouse": "مخزن رصيد أول المدة",
+      "openingHint": "تُنشأ الكميات كمسودة رصيد أول المدة لتراجعها ثم ترحلها.",
+      "openingWarehouseRequired": "اختر مخزن رصيد أول المدة.",
+      "options": {
+        "createMissingCategories": "إنشاء التصنيفات غير الموجودة (يدعم المسار: رئيسي > فرعي)",
+        "createMissingBrands": "إنشاء الماركات غير الموجودة",
+        "createMissingUnits": "إنشاء وحدات القياس غير الموجودة",
+        "skipInvalid": "استيراد الصفوف السليمة وتجاهل الصفوف التي بها أخطاء"
+      },
+      "test": "اختبار الاستيراد",
+      "testFirst": "اختبر الاستيراد أولًا",
+      "import": "استيراد ({{count}} صف)",
+      "nameRequired": "اربط عمود الاسم (أو الكود عند التحديث).",
+      "testResult": "نتيجة الاختبار (لم يُحفظ شيء)",
+      "result": "نتيجة الاستيراد",
+      "createdCount": "جديد: {{count}}",
+      "updatedCount": "تحديث: {{count}}",
+      "failedCount": "أخطاء: {{count}}",
+      "errorsOnly": "الأخطاء فقط",
+      "downloadErrors": "تحميل الأخطاء Excel",
+      "errorsFile": "أخطاء الاستيراد",
+      "row": "الصف",
+      "status": "الحالة",
+      "error": "الخطأ",
+      "autoCode": "تلقائي",
+      "statuses": {
+        "create": "جديد",
+        "update": "تحديث",
+        "error": "خطأ"
+      },
+      "readyHint": "كل الصفوف سليمة — اضغط استيراد للحفظ.",
+      "done": "تم الاستيراد: {{created}} جديد و {{updated}} تحديث",
+      "notCommitted": "لم يتم الاستيراد بسبب الأخطاء — صححها أو فعّل تجاهل الصفوف التي بها أخطاء.",
+      "openingCreated": "تم إنشاء مسودة رصيد أول المدة بالكميات المستوردة.",
+      "openOpening": "فتحها للمراجعة والترحيل"
     }
   },
   "purchases": {
