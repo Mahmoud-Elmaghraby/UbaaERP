@@ -101,6 +101,11 @@ export const NAV_GROUPS: NavGroup[] = [
             labelKey: 'inventory.tabs.transfers',
             permission: [INV.transfersManage, INV.transfersApprove],
           },
+          {
+            to: '/inventory/adjustments',
+            labelKey: 'inventory.tabs.adjustments',
+            permission: [INV.movementsManage, INV.stockView],
+          },
           { to: '/inventory/counts', labelKey: 'inventory.tabs.counts', permission: [INV.countsManage, INV.countsPost] },
           { to: '/inventory/item-card', labelKey: 'inventory.tabs.itemCard', permission: INV.reportsView },
           { to: '/inventory/valuation', labelKey: 'inventory.tabs.valuation', permission: INV.costsView },

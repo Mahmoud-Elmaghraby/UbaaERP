@@ -15,6 +15,7 @@ import {
 import { useProduct } from '../../api/products/queries';
 import { useUnitsOfMeasure } from '../../api/units-of-measure/queries';
 import { useRecordStockMovement, useStockLots } from '../../api/stock/queries';
+import { useAdjustmentReasons } from '../../api/stock-documents/queries';
 import { useTenantSettings } from '../../../settings/queries';
 import { ApiError } from '../../../../lib/api-client';
 import { decimalToMinorUnits } from '../../../../lib/money';
@@ -48,6 +49,8 @@ export function RecordMovementForm({ onDone }: { onDone: () => void }) {
   const [expiryDate, setExpiryDate] = useState('');
   const [lotId, setLotId] = useState<string | undefined>();
   const [notes, setNotes] = useState('');
+  const [reasonId, setReasonId] = useState<string | null>(null);
+  const { data: reasons } = useAdjustmentReasons();
   const [error, setError] = useState<string | null>(null);
 
   const trackingType = productDetail?.trackingType ?? 'none';
@@ -93,6 +96,7 @@ export function RecordMovementForm({ onDone }: { onDone: () => void }) {
         expiryDate: trackingType === 'lot' && isReceiving && expiryDate ? new Date(expiryDate) : undefined,
         lotId: trackingType !== 'none' && !isReceiving && lotId ? lotId : undefined,
         notes: notes || undefined,
+        reasonId,
       });
       toast.success(t('inventory.stock.recordMovementSuccess'));
       onDone();
@@ -198,6 +202,29 @@ export function RecordMovementForm({ onDone }: { onDone: () => void }) {
           </Select>
         </div>
       ) : null}
+      <div className="grid gap-1.5">
+        <label className="text-sm font-medium">{t('inventory.documents.reason')}</label>
+        <Select value={reasonId ?? '__none__'} onValueChange={(value) => setReasonId(value === '__none__' ? null : value)}>
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__none__">{t('inventory.documents.noReason')}</SelectItem>
+            {(reasons ?? [])
+              .filter(
+                (reason) =>
+                  reason.isActive &&
+                  (reason.direction === 'both' || reason.direction === (isReceiving ? 'increase' : 'decrease')),
+              )
+              .map((reason) => (
+                <SelectItem key={reason.id} value={reason.id}>
+                  {reason.name}
+                </SelectItem>
+              ))}
+          </SelectContent>
+        </Select>
+        <p className="text-xs text-muted-foreground">{t('inventory.stock.quickAdjustmentHint')}</p>
+      </div>
       <div className="grid gap-1.5">
         <label className="text-sm font-medium">{t('inventory.stock.notesOptional')}</label>
         <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} />

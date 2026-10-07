@@ -17,6 +17,19 @@ const ItemCardPage = lazy(() => import('./components/reports').then((m) => ({ de
 const ValuationPage = lazy(() => import('./components/reports').then((m) => ({ default: m.ValuationPage })));
 const LowStockPage = lazy(() => import('./components/reports').then((m) => ({ default: m.LowStockPage })));
 const StockPage = lazy(() => import('./components/stock').then((m) => ({ default: m.StockPage })));
+const StockTransfersPage = lazy(() =>
+  import('./components/transfers').then((m) => ({ default: m.StockTransfersPage })),
+);
+const StockTransferPage = lazy(() => import('./components/transfers').then((m) => ({ default: m.StockTransferPage })));
+const StockAdjustmentsPage = lazy(() =>
+  import('./components/adjustments').then((m) => ({ default: m.StockAdjustmentsPage })),
+);
+const StockAdjustmentPage = lazy(() =>
+  import('./components/adjustments').then((m) => ({ default: m.StockAdjustmentPage })),
+);
+const AdjustmentReasonsPage = lazy(() =>
+  import('./components/adjustments').then((m) => ({ default: m.AdjustmentReasonsPage })),
+);
 const LandedCostsPage = lazy(() =>
   import('./components/landed-costs').then((m) => ({ default: m.LandedCostsPage })),
 );
@@ -50,6 +63,11 @@ export const inventoryRoutes: RouteObject[] = [
       { path: 'low-stock', element: <LowStockPage /> },
       { path: 'expiry', element: <ExpiryReportPage /> },
       { path: 'landed-costs', element: <LandedCostsPage /> },
+      { path: 'transfers', element: <StockTransfersPage /> },
+      { path: 'transfers/:id', element: <StockTransferPage /> },
+      { path: 'adjustments', element: <StockAdjustmentsPage /> },
+      { path: 'adjustments/:id', element: <StockAdjustmentPage /> },
+      { path: 'adjustment-reasons', element: <AdjustmentReasonsPage /> },
     ],
   },
 ];

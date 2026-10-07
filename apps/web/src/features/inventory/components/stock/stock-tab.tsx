@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 import { X } from 'lucide-react';
 import {
   Button,
@@ -20,18 +21,17 @@ import { StockLevelsView } from './stock-levels-view';
 import { StockMovementsView } from './stock-movements-view';
 import { StockLotsView } from './stock-lots-view';
 import { RecordMovementForm } from './record-movement-form';
-import { TransferStockForm } from './transfer-stock-form';
 import { INV } from '../../../../lib/permissions';
 
 export function StockTab() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const [activeView, setActiveView] = useState('levels');
   const [filterProductId, setFilterProductId] = useState<string | undefined>();
   const [filterVariantId, setFilterVariantId] = useState<string | undefined>();
   const [filterWarehouseId, setFilterWarehouseId] = useState<string | undefined>();
   const [filterLocationId, setFilterLocationId] = useState<string | undefined>();
   const [movementOpen, setMovementOpen] = useState(false);
-  const [transferOpen, setTransferOpen] = useState(false);
 
   const levelFilters = useMemo<StockLevelFilters>(
     () => ({
@@ -87,10 +87,15 @@ export function StockTab() {
             <Button onClick={() => setMovementOpen(true)}>
               {t('inventory.stock.recordMovement')}
             </Button>
-            <Button variant="outline" onClick={() => setTransferOpen(true)}>
-              {t('inventory.stock.transfer')}
+            <Button variant="outline" onClick={() => navigate('/inventory/adjustments/new')}>
+              {t('inventory.adjustments.new')}
             </Button>
           </div>
+        </Can>
+        <Can permission={INV.transfersManage}>
+          <Button variant="outline" onClick={() => navigate('/inventory/transfers/new')}>
+            {t('inventory.transfers.new')}
+          </Button>
         </Can>
         </div>
       </div>
@@ -123,14 +128,6 @@ export function StockTab() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={transferOpen} onOpenChange={setTransferOpen}>
-        <DialogContent className="max-h-[85vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>{t('inventory.stock.transfer')}</DialogTitle>
-          </DialogHeader>
-          <TransferStockForm onDone={() => setTransferOpen(false)} />
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

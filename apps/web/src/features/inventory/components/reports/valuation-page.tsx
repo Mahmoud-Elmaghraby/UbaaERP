@@ -19,6 +19,7 @@ import {
 } from '@erp-platform/ui';
 
 import { useStockValuation } from '../../api/reports/queries';
+import { useInTransitValue } from '../../api/stock-documents/queries';
 import { downloadCsv } from '../../../../lib/csv';
 import { formatAmount, sumMinorUnits } from '../../../../lib/money';
 import { normalizeForSearch } from '../../../../lib/search-normalize';
@@ -38,6 +39,13 @@ export function ValuationPage() {
     );
   }, [data, search]);
   const total = sumMinorUnits(rows.map((row) => row.value.amountMinorUnits));
+  // Goods dispatched to a warehouse but not received yet — part of stock value, not on any shelf.
+  const { data: inTransit } = useInTransitValue();
+  const inTransitTotal = sumMinorUnits(
+    (inTransit ?? [])
+      .filter((row) => warehouseId === ALL_WAREHOUSES || row.toWarehouseId === warehouseId)
+      .map((row) => row.value.amountMinorUnits),
+  );
   const averageOf = (row: (typeof rows)[number]) =>
     row.quantity > 0 ? (BigInt(row.value.amountMinorUnits) * 10_000n) / BigInt(Math.round(row.quantity * 10_000)) : 0n;
 
@@ -86,8 +94,15 @@ export function ValuationPage() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
-        <div className="ms-auto text-sm">
-          {t('inventory.valuation.total')}: <span className="text-lg font-bold">{formatAmount(total)}</span>
+        <div className="ms-auto flex flex-wrap items-baseline gap-4 text-sm">
+          {inTransitTotal !== '0' ? (
+            <Link to="/inventory/transfers?status=in_transit" className="text-muted-foreground hover:underline">
+              {t('inventory.valuation.inTransit')}: <span className="font-semibold">{formatAmount(inTransitTotal)}</span>
+            </Link>
+          ) : null}
+          <span>
+            {t('inventory.valuation.total')}: <span className="text-lg font-bold">{formatAmount(total)}</span>
+          </span>
         </div>
       </div>
       <Card>

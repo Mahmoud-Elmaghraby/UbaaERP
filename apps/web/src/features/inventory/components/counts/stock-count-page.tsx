@@ -11,6 +11,7 @@ import type {
 import {
   Badge,
   Button,
+  Can,
   Card,
   CardContent,
   CardHeader,
@@ -48,6 +49,7 @@ import { decimalToMinorUnits, formatAmount, minorUnitsToDecimalString } from '..
 import { toWesternDigits } from '../../../../lib/search-normalize';
 import { COUNT_STATUS_VARIANT, COUNTS_PATH } from './count-status';
 import { PasteLinesDialog } from './paste-lines-dialog';
+import { INV } from '../../../../lib/permissions';
 
 type LineFilter = 'all' | 'uncounted' | 'differences';
 
@@ -289,9 +291,11 @@ function StockCountEditor({ count, warehouseName }: { count: StockCountWithLines
               >
                 {t('inventory.counts.cancel')}
               </Button>
-              <Button onClick={onPost} disabled={post.isPending || counted.length === 0}>
-                {t('inventory.counts.post')}
-              </Button>
+              <Can permission={INV.countsPost}>
+                <Button onClick={onPost} disabled={post.isPending || counted.length === 0}>
+                  {t('inventory.counts.post')}
+                </Button>
+              </Can>
             </>
           ) : null}
         </div>
