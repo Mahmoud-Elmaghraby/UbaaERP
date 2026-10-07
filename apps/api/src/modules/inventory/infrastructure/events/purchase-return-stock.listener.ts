@@ -1,6 +1,6 @@
 import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import type { Money } from '@erp-platform/shared-kernel';
-import { OnEvent } from '@nestjs/event-emitter';
+import { OnOutboxEvent } from '../../../../shared/events/on-outbox-event.decorator';
 import { TenantConnectionManager } from '../../../../shared/tenancy/tenant-connection-manager';
 import { StockMovementsService } from '../../application/services/stock-movements.service';
 import {
@@ -72,7 +72,7 @@ export class PurchaseReturnStockListener {
     @Optional() private readonly valuationEvents?: InventoryValuationEventsService,
   ) {}
 
-  @OnEvent('purchases.purchase_return.confirmed')
+  @OnOutboxEvent('purchases.purchase_return.confirmed')
   async handle(payload: DomainEventPayload): Promise<void> {
     const metadata = payload.metadata as unknown as PurchaseReturnConfirmedMetadata | undefined;
     if (!metadata || !metadata.lines || metadata.lines.length === 0) {

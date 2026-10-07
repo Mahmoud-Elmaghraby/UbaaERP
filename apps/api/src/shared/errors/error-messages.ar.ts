@@ -74,6 +74,7 @@ export const AR_MESSAGES: Record<string, string> = {
     'يوجد بالفعل قالب افتراضي لنوع المستند "{documentType}" — يجب إلغاء تعيين القالب الافتراضي الحالي أولاً قبل تعيين قالب آخر.',
   'DOCUMENT_TEMPLATE.DUPLICATE_DEFAULT_ON_UPDATE':
     'يوجد بالفعل قالب آخر مُعيَّن كافتراضي لهذا النوع من المستندات.',
+  'NUMBERING_SEQUENCE.NOT_CONFIGURED': 'لا يوجد تسلسل ترقيم لنوع المستند "{documentType}" — أضفه من الإعدادات › الترقيم.',
   'NUMBERING_SEQUENCE.DUPLICATE': 'يوجد بالفعل تسلسل ترقيم لنوع المستند "{documentType}".',
   'FEATURE_TOGGLES.UNKNOWN_FEATURE_KEY': 'مفتاح الميزة "{featureKey}" غير معروف.',
   'FEATURE_TOGGLES.NOT_GRANTED_BY_PLAN':

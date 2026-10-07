@@ -28,7 +28,7 @@ import {
 } from '../../domain/stock-transfer.entity';
 import { BusinessRuleError } from '../errors';
 import { StockMovementsService } from './stock-movements.service';
-import { InventoryValuationEventsService } from './inventory-valuation-events.service';
+import { InventoryValuationEventsService, localIsoDate } from './inventory-valuation-events.service';
 
 const REFERENCE_TYPE = 'stock_transfer';
 const MAX_LINES = 1000;
@@ -82,7 +82,8 @@ export class StockTransfersService {
       const transfer = await this.transfers.create(trx, {
         transferNumber: allocated.formatted,
         ...route,
-        transferDate: input.transferDate ?? null,
+        // The app's calendar day, not the DB server's CURRENT_DATE (UTC around midnight in Cairo).
+        transferDate: input.transferDate ?? localIsoDate(),
         notes: input.notes ?? null,
         createdBy,
       });

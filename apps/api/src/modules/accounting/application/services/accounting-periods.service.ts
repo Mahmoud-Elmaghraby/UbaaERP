@@ -1,10 +1,11 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Optional } from '@nestjs/common';
 import type { Kysely } from 'kysely';
 import type { TenantDatabase } from '../../../../database/tenant/kysely-client';
 import { ACCOUNTING_PERIOD_REPOSITORY, type AccountingPeriodRepository } from '../ports/accounting-period.repository';
 import type { AccountingPeriod } from '../../domain/accounting-period.entity';
 import { BusinessRuleError } from '../errors';
 import { entityNotFound } from '../../../../shared/errors/entity-errors';
+import { FiscalYearsService } from './fiscal-years.service';
 
 /**
  * Accounting periods (CLAUDE.md §10 — step 5, Accounting, Stage 1). No
@@ -15,7 +16,11 @@ import { entityNotFound } from '../../../../shared/errors/entity-errors';
  */
 @Injectable()
 export class AccountingPeriodsService {
-  constructor(@Inject(ACCOUNTING_PERIOD_REPOSITORY) private readonly repository: AccountingPeriodRepository) {}
+  constructor(
+    @Inject(ACCOUNTING_PERIOD_REPOSITORY) private readonly repository: AccountingPeriodRepository,
+    // Optional so unit tests that build the service by hand keep working; Nest always provides it.
+    @Optional() private readonly fiscalYears?: FiscalYearsService,
+  ) {}
 
   list(db: Kysely<TenantDatabase>, fiscalYearId?: string): Promise<AccountingPeriod[]> {
     return this.repository.list(db, fiscalYearId);
@@ -58,7 +63,22 @@ export class AccountingPeriodsService {
    * postings") live here, once, rather than being re-derived per caller.
    */
   async assertOpenForDate(db: Kysely<TenantDatabase>, date: string): Promise<AccountingPeriod> {
-    const period = await this.repository.findByDate(db, date);
+    let period = await this.repository.findByDate(db, date);
+    // A tenant that never set up a fiscal year gets the calendar year of its
+    // first posting (with its 12 monthly periods) instead of every automatic
+    // entry failing — Egyptian companies mostly keep a January–December year,
+    // and it stays fully editable. Once ANY fiscal year exists, a date outside
+    // all of them is a real error the accountant must fix, never guessed.
+    if (!period && this.fiscalYears && (await this.fiscalYears.list(db)).length === 0) {
+      const year = date.slice(0, 4);
+      await this.fiscalYears.create(db, {
+        name: `السنة المالية ${year}`,
+        startDate: `${year}-01-01`,
+        endDate: `${year}-12-31`,
+        notes: 'أُنشئت تلقائيًا مع أول قيد محاسبي.',
+      });
+      period = await this.repository.findByDate(db, date);
+    }
     if (!period) {
       throw new BusinessRuleError(
         `No accounting period covers ${date} — set up a fiscal year covering this date first.`,

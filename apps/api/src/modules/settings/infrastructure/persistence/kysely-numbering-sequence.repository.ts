@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { sql } from 'kysely';
 import type { Kysely, Selectable } from 'kysely';
 import type { NumberingSequencesTable, TenantDatabase } from '../../../../database/tenant/kysely-client';
+import { BusinessRuleError } from '../../../../shared/errors/domain-errors';
 import type { NumberingSequenceRepository } from '../../application/ports/numbering-sequence.repository';
 import type {
   AllocatedDocumentNumber,
@@ -124,10 +125,11 @@ export class KyselyNumberingSequenceRepository implements NumberingSequenceRepos
 
     const row = result.rows[0];
     if (!row) {
-      throw new Error(
+      throw new BusinessRuleError(
         `No numbering sequence configured for document_type "${documentType}"` +
           (branchId ? ` and branch "${branchId}"` : ' (tenant-wide)') +
           '. Create one via the numbering-sequences API first.',
+        { code: 'NUMBERING_SEQUENCE.NOT_CONFIGURED', params: { documentType } },
       );
     }
 

@@ -1,5 +1,5 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
-import { OnEvent } from '@nestjs/event-emitter';
+import { OnOutboxEvent } from '../../../../shared/events/on-outbox-event.decorator';
 import { Money } from '@erp-platform/shared-kernel';
 import { TenantConnectionManager } from '../../../../shared/tenancy/tenant-connection-manager';
 import { StockMovementsService } from '../../application/services/stock-movements.service';
@@ -89,7 +89,7 @@ export class DeliveryStockListener {
    * recordMovement() now joins the caller's transaction (withTransaction)
    * and this handler rethrows, so a failure is retried by the outbox.
    */
-  @OnEvent('sales.delivery.confirmed')
+  @OnOutboxEvent('sales.delivery.confirmed')
   async handle(payload: DomainEventPayload): Promise<void> {
     const metadata = payload.metadata as unknown as DeliveryConfirmedMetadata | undefined;
     if (!metadata || !metadata.lines || metadata.lines.length === 0) {

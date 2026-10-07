@@ -47,7 +47,7 @@ export class KyselyOutboxEventRepository implements OutboxEventRepository {
       SET status = 'processing', claimed_at = now()
       WHERE id IN (
         SELECT id FROM outbox_events
-        WHERE status = 'pending'
+        WHERE (status = 'pending' AND (next_attempt_at IS NULL OR next_attempt_at <= now()))
            -- A claim older than this belongs to a process that died mid-dispatch.
            OR (status = 'processing' AND claimed_at < now() - interval '5 minutes')
         ORDER BY created_at
@@ -96,7 +96,7 @@ export class KyselyOutboxEventRepository implements OutboxEventRepository {
   async requeueFailed(db: Kysely<TenantDatabase>, id: string): Promise<boolean> {
     const result = await db
       .updateTable('outbox_events')
-      .set({ status: 'pending', attempts: 0 })
+      .set({ status: 'pending', attempts: 0, next_attempt_at: null })
       .where('id', '=', id)
       .where('status', '=', 'failed')
       .executeTakeFirst();
@@ -114,7 +114,9 @@ export class KyselyOutboxEventRepository implements OutboxEventRepository {
       SET
         attempts = attempts + 1,
         last_error = ${error},
-        status = CASE WHEN attempts + 1 >= ${maxAttempts} THEN 'failed' ELSE 'pending' END
+        status = CASE WHEN attempts + 1 >= ${maxAttempts} THEN 'failed' ELSE 'pending' END,
+        -- Exponential back-off: 10 s, 20 s, 40 s … capped at one hour (migration 0087).
+        next_attempt_at = now() + LEAST(interval '10 seconds' * power(2, attempts), interval '1 hour')
       WHERE id = ${id}
     `.execute(db);
   }

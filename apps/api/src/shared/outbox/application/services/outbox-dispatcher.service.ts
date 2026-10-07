@@ -12,7 +12,8 @@ const POLL_INTERVAL_MS = 5000;
 /** Rows claimed per tenant per tick — a soft cap so one very backed-up tenant can't starve the rest within a single tick. */
 const BATCH_SIZE = 20;
 /** A row is marked permanently 'failed' (not retried again) once it has failed this many times. */
-const MAX_ATTEMPTS = 10;
+/** With the back-off of migration 0087 (10 s doubling, capped at 1 h) this is about 4.5 hours of retries. */
+const MAX_ATTEMPTS = 12;
 
 /**
  * The read/dispatch side of the Outbox Pattern (master doc §5/§2.7

@@ -21,12 +21,24 @@ import type {
   StockLotConsumption,
 } from '../../domain/stock-lot.entity';
 
+/** DATE text ('YYYY-MM-DD', see TENANT_PG_TYPES) → Date at local midnight, as the domain uses. */
+function fromDateOnly(value: string | null): Date | null {
+  return value ? new Date(`${value}T00:00:00`) : null;
+}
+
+/** Date → 'YYYY-MM-DD' from its LOCAL parts (no UTC shift around midnight). */
+function toDateOnly(value: Date | null | undefined): string | null {
+  if (!value) return null;
+  const pad = (part: number) => String(part).padStart(2, '0');
+  return `${value.getFullYear()}-${pad(value.getMonth() + 1)}-${pad(value.getDate())}`;
+}
+
 function lotToDomain(row: Selectable<StockLotsTable>): StockLot {
   return {
     id: row.id,
     productVariantId: row.product_variant_id,
     lotNumber: row.lot_number,
-    expiryDate: row.expiry_date,
+    expiryDate: fromDateOnly(row.expiry_date),
     unitCost: Money.fromMinorUnits(BigInt(row.unit_cost_amount), row.unit_cost_currency),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -112,7 +124,7 @@ export class KyselyStockLotRepository implements StockLotRepository {
         id: randomUUID(),
         product_variant_id: input.productVariantId,
         lot_number: input.lotNumber,
-        expiry_date: input.expiryDate ?? null,
+        expiry_date: toDateOnly(input.expiryDate),
         unit_cost_amount: input.unitCost.toMinorUnits().toString(),
         unit_cost_currency: input.unitCost.currency,
       })
@@ -189,7 +201,7 @@ export class KyselyStockLotRepository implements StockLotRepository {
       .where('stock_lot_levels.quantity_on_hand', '>', '0');
     if (options.excludeExpired) {
       query = query.where((eb) =>
-        eb.or([eb('stock_lots.expiry_date', 'is', null), eb('stock_lots.expiry_date', '>=', sql<Date>`CURRENT_DATE`)]),
+        eb.or([eb('stock_lots.expiry_date', 'is', null), eb('stock_lots.expiry_date', '>=', sql<string>`CURRENT_DATE`)]),
       );
     }
     const rows = await query
@@ -200,7 +212,7 @@ export class KyselyStockLotRepository implements StockLotRepository {
     return rows.map((row) => ({
       stockLotId: row.stock_lot_id,
       lotNumber: row.lot_number,
-      expiryDate: row.expiry_date,
+      expiryDate: fromDateOnly(row.expiry_date),
       quantityAvailable: Number(row.quantity_on_hand),
     }));
   }
@@ -226,7 +238,7 @@ export class KyselyStockLotRepository implements StockLotRepository {
     const result = await sql<{
       stock_lot_id: string;
       lot_number: string;
-      expiry_date: Date | null;
+      expiry_date: string | null;
       quantity: string;
       first_moved: Date;
     }>`
@@ -250,7 +262,7 @@ export class KyselyStockLotRepository implements StockLotRepository {
     return result.rows.map((row) => ({
       stockLotId: row.stock_lot_id,
       lotNumber: row.lot_number,
-      expiryDate: row.expiry_date,
+      expiryDate: fromDateOnly(row.expiry_date),
       quantity: Number(row.quantity),
     }));
   }
@@ -277,7 +289,7 @@ export class KyselyStockLotRepository implements StockLotRepository {
         sql<string>`SUM(stock_lot_levels.quantity_on_hand)`.as('quantity_on_hand'),
       ])
       .where('stock_lots.expiry_date', 'is not', null)
-      .where('stock_lots.expiry_date', '<=', sql<Date>`${untilDate}::date`)
+      .where('stock_lots.expiry_date', '<=', sql<string>`${untilDate}::date`)
       .where('stock_lot_levels.quantity_on_hand', '>', '0')
       .groupBy([
         'stock_lots.id',
@@ -293,7 +305,7 @@ export class KyselyStockLotRepository implements StockLotRepository {
     return rows.map((row) => ({
       stockLotId: row.stock_lot_id,
       lotNumber: row.lot_number,
-      expiryDate: row.expiry_date as Date,
+      expiryDate: fromDateOnly(row.expiry_date)!,
       productVariantId: row.product_variant_id,
       productName: row.product_name,
       productCode: row.product_code,

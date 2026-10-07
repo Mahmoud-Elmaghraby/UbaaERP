@@ -1,5 +1,5 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
-import { OnEvent } from '@nestjs/event-emitter';
+import { OnOutboxEvent } from '../../../../shared/events/on-outbox-event.decorator';
 import { Money } from '@erp-platform/shared-kernel';
 import { TenantConnectionManager } from '../../../../shared/tenancy/tenant-connection-manager';
 import { StockMovementsService } from '../../application/services/stock-movements.service';
@@ -83,7 +83,7 @@ export class SalesReturnStockListener {
    * (debit Inventory, credit COGS — the exact reverse of a delivery's
    * COGS entry) is the consumer.
    */
-  @OnEvent('sales.sales_return.confirmed')
+  @OnOutboxEvent('sales.sales_return.confirmed')
   async handle(payload: DomainEventPayload): Promise<void> {
     const metadata = payload.metadata as unknown as SalesReturnConfirmedMetadata | undefined;
     if (!metadata || !metadata.lines || metadata.lines.length === 0) {

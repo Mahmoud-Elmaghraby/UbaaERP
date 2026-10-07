@@ -13,6 +13,7 @@ import type {
 } from '../../domain/numbering-sequence.entity';
 import { ConflictError, isPostgresUniqueViolation } from '../errors';
 import { entityNotFound } from '../../../../shared/errors/entity-errors';
+import { DEFAULT_DOCUMENT_NUMBERING } from '../../domain/numbering-defaults';
 
 @Injectable()
 export class NumberingSequencesService {
@@ -73,12 +74,19 @@ export class NumberingSequencesService {
     return this.repository.ensureTenantWide(db, documentType, defaults);
   }
 
-  /** Used by later modules (Sales, Purchases, ...) to number a new document. */
-  allocateNext(
+  /**
+   * Used by every module to number a new document. A known document type
+   * gets its tenant-wide sequence created on first use (see
+   * DEFAULT_DOCUMENT_NUMBERING) — a fresh tenant can issue its first
+   * invoice / receipt / journal entry without visiting Settings first.
+   */
+  async allocateNext(
     db: Kysely<TenantDatabase>,
     documentType: string,
     branchId: string | null = null,
   ): Promise<AllocatedDocumentNumber> {
+    const defaults = DEFAULT_DOCUMENT_NUMBERING[documentType];
+    if (defaults && branchId === null) await this.repository.ensureTenantWide(db, documentType, defaults);
     return this.repository.allocateNext(db, documentType, branchId);
   }
 }

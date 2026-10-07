@@ -1,5 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import type { Kysely } from 'kysely';
+import { withTransaction } from '../../../../database/tenant/transaction.util';
 import type { TenantDatabase } from '../../../../database/tenant/kysely-client';
 import { FISCAL_YEAR_REPOSITORY, type FiscalYearRepository } from '../ports/fiscal-year.repository';
 import { ACCOUNTING_PERIOD_REPOSITORY, type AccountingPeriodRepository } from '../ports/accounting-period.repository';
@@ -51,7 +52,7 @@ export class FiscalYearsService {
       });
     }
 
-    return db.transaction().execute(async (trx) => {
+    return withTransaction(db, async (trx) => {
       const fiscalYear = await this.fiscalYears.create(trx, input);
       const generated = generateMonthlyPeriods(input.startDate, input.endDate);
       for (const period of generated) {

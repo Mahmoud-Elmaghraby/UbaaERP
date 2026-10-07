@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { OnEvent } from '@nestjs/event-emitter';
+import { OnOutboxEvent } from '../../../../shared/events/on-outbox-event.decorator';
 import type { Kysely } from 'kysely';
 import type { TenantDatabase } from '../../../../database/tenant/kysely-client';
 import { TenantConnectionManager } from '../../../../shared/tenancy/tenant-connection-manager';
@@ -65,7 +65,7 @@ export class AccountingInventoryPostingListener {
     private readonly accountingSettings: AccountingSettingsService,
   ) {}
 
-  @OnEvent(INVENTORY_VALUATION_POSTED)
+  @OnOutboxEvent(INVENTORY_VALUATION_POSTED)
   async handle(payload: DomainEventPayload): Promise<void> {
     const metadata = payload.metadata as unknown as InventoryValuationPostedMetadata | undefined;
     if (!metadata?.entries?.length) {

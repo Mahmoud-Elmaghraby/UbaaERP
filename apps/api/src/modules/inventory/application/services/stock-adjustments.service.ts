@@ -31,7 +31,7 @@ import type {
 } from '../../domain/stock-adjustment.entity';
 import { BusinessRuleError, ConflictError } from '../errors';
 import { StockMovementsService } from './stock-movements.service';
-import { InventoryValuationEventsService, type ValuationEntryInput } from './inventory-valuation-events.service';
+import { InventoryValuationEventsService, localIsoDate, type ValuationEntryInput } from './inventory-valuation-events.service';
 
 const REFERENCE_TYPE = 'stock_adjustment';
 const MAX_LINES = 2000;
@@ -401,7 +401,7 @@ export class StockAdjustmentsService {
       warehouseId: input.warehouseId,
       locationId: input.locationId,
       reasonId: input.reasonId ?? null,
-      adjustmentDate: input.adjustmentDate ?? null,
+      adjustmentDate: input.adjustmentDate ?? localIsoDate(),
       notes: input.notes ?? null,
       createdBy,
     });

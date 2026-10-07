@@ -1,5 +1,5 @@
 import { Kysely, PostgresDialect, type Generated } from 'kysely';
-import { Pool } from 'pg';
+import { Pool, types, type CustomTypesConfig } from 'pg';
 
 /**
  * Tenant-schema Kysely client factory (CLAUDE.md §2.2, §2.3).
@@ -372,7 +372,7 @@ export interface StockLotsTable {
   id: string;
   product_variant_id: string;
   lot_number: string;
-  expiry_date: Date | null;
+  expiry_date: string | null;
   unit_cost_amount: string;
   unit_cost_currency: string;
   created_at: Generated<Date>;
@@ -832,6 +832,8 @@ export interface OutboxEventsTable {
   created_at: Generated<Date>;
   processed_at: Date | null;
   claimed_at: Date | null;
+  /** Migration 0087 — earliest time a failed attempt may be retried. */
+  next_attempt_at: Date | null;
 }
 
 export interface PurchaseInvoicesTable {
@@ -1097,6 +1099,21 @@ export function assertValidSchemaName(schemaName: string): void {
   }
 }
 
+/**
+ * DATE columns come back as the 'YYYY-MM-DD' text Postgres sent, not as a
+ * JS Date. node-postgres' default turns a DATE into a Date at LOCAL
+ * midnight, which disagreed with every table type above (`string`) and
+ * every contract (`z.string()`): reading any document with a date set —
+ * a purchase invoice's invoice date, a journal entry's entry date — failed
+ * the response schema with a 500, and dates near midnight could shift a
+ * day when re-serialised in UTC. Found 2026-10-08 (journal entries list).
+ * Only DATE (OID 1082) changes; TIMESTAMPTZ stays a Date.
+ */
+const TENANT_PG_TYPES: CustomTypesConfig = {
+  getTypeParser: ((oid: number, format?: 'text' | 'binary') =>
+    oid === types.builtins.DATE ? (value: string) => value : types.getTypeParser(oid, format)) as CustomTypesConfig['getTypeParser'],
+};
+
 export function createTenantKyselyClient(
   connectionString: string,
   schemaName: string,
@@ -1108,6 +1125,7 @@ export function createTenantKyselyClient(
       pool: new Pool({
         connectionString,
         options: `-c search_path="${schemaName}"`,
+        types: TENANT_PG_TYPES,
       }),
     }),
   });
