@@ -70,6 +70,10 @@ import {
   StockAdjustmentReasonsController,
   StockAdjustmentsController,
 } from './presentation/stock-adjustments.controller';
+import { PRODUCT_IMAGE_REPOSITORY } from './application/ports/product-image.repository';
+import { KyselyProductImageRepository } from './infrastructure/persistence/kysely-product-image.repository';
+import { ProductImagesService } from './application/services/product-images.service';
+import { ProductImagesController } from './presentation/product-images.controller';
 import { ProductUnitResolver } from '../../shared/catalog/product-unit-resolver';
 import { StockAvailabilityChecker } from '../../shared/catalog/stock-availability-checker';
 
@@ -107,6 +111,7 @@ import { StockAvailabilityChecker } from '../../shared/catalog/stock-availabilit
     StockTransfersController,
     StockAdjustmentsController,
     StockAdjustmentReasonsController,
+    ProductImagesController,
   ],
   providers: [
     { provide: UNIT_OF_MEASURE_REPOSITORY, useClass: KyselyUnitOfMeasureRepository },
@@ -139,6 +144,8 @@ import { StockAvailabilityChecker } from '../../shared/catalog/stock-availabilit
     StockTransfersService,
     StockAdjustmentsService,
     InventoryValuationEventsService,
+    { provide: PRODUCT_IMAGE_REPOSITORY, useClass: KyselyProductImageRepository },
+    ProductImagesService,
     ProductUnitResolver,
     StockAvailabilityChecker,
     InventoryEventPublisher,

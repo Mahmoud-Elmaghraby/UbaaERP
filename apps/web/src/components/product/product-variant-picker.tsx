@@ -5,6 +5,7 @@ import type { ProductVariantLookupDto } from '@erp-platform/contracts';
 
 import { useVariantLookup } from '../../features/inventory/api/products/queries';
 import { searchVariants, variantDisplayName } from './variant-search';
+import { ProductThumb } from './product-thumb';
 
 export interface ProductVariantPickerProps {
   /** Selected variant id; '' / undefined = nothing selected. */
@@ -53,13 +54,16 @@ export function ProductVariantPicker({
       getLabel={variantDisplayName}
       search={searchVariants}
       renderItem={(variant) => (
-        <div className="flex min-w-0 flex-col">
-          <span className="truncate font-medium">{variantDisplayName(variant)}</span>
-          <span className="truncate text-xs text-muted-foreground" dir="ltr">
-            {[variant.sku, variant.barcode].filter(Boolean).join(' · ')}
-            {' · '}
-            {variant.unitOfMeasureSymbol}
-          </span>
+        <div className="flex min-w-0 items-center gap-2">
+          <ProductThumb url={variant.imageUrl} name={variant.productName} size={28} />
+          <div className="flex min-w-0 flex-col">
+            <span className="truncate font-medium">{variantDisplayName(variant)}</span>
+            <span className="truncate text-xs text-muted-foreground" dir="ltr">
+              {[variant.sku, variant.barcode].filter(Boolean).join(' · ')}
+              {' · '}
+              {variant.unitOfMeasureSymbol}
+            </span>
+          </div>
         </div>
       )}
       placeholder={isLoading ? t('common.loading') : t('documents.selectProduct')}

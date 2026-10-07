@@ -63,6 +63,8 @@ export const productVariantLookupSchema = z.object({
   salePrice: moneySchema.nullable(),
   purchasePrice: moneySchema.nullable(),
   taxRuleId: z.string().uuid().nullable(),
+  /** Thumbnail of the item's primary image, or null (migration 0085). */
+  imageUrl: z.string().nullable().optional(),
   /** Extra / pack barcodes; `quantity` = base units one scan stands for. */
   extraBarcodes: z.array(z.object({ barcode: z.string(), quantity: z.number(), label: z.string().nullable() })),
   /** Extra trading units of the product (carton, sack…); the base unit is unitOfMeasureId (factor 1). */

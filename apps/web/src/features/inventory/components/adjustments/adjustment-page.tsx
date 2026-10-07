@@ -54,7 +54,7 @@ import { variantDisplayName } from '../../../../components/product/variant-searc
 import { ApiError } from '../../../../lib/api-client';
 import { formatMoney, minorUnitsToDecimalString, sumMinorUnits } from '../../../../lib/money';
 import { INV } from '../../../../lib/permissions';
-import { ADJUSTMENT_STATUS_VARIANT, ADJUSTMENTS_PATH } from '../transfers/transfer-status';
+import { ADJUSTMENT_STATUS_VARIANT, ADJUSTMENTS_PATH } from '../../lib/document-status';
 
 const NO_REASON = '__none__';
 

@@ -975,6 +975,21 @@ export interface StockAdjustmentLinesTable {
   updated_at: Generated<Date>;
 }
 
+/** Migration 0085 — item images (objects in the shared MinIO bucket). */
+export interface ProductImagesTable {
+  id: string;
+  product_id: string;
+  product_variant_id: string | null;
+  storage_key: string;
+  thumbnail_key: string;
+  mime_type: string;
+  size_bytes: number;
+  is_primary: Generated<boolean>;
+  sort_order: Generated<number>;
+  created_by: string | null;
+  created_at: Generated<Date>;
+}
+
 export interface TenantDatabase {
   schema_migrations: SchemaMigrationsTable;
   tenant_settings: TenantSettingsTable;
@@ -1017,6 +1032,7 @@ export interface TenantDatabase {
   stock_adjustment_reasons: StockAdjustmentReasonsTable;
   stock_adjustments: StockAdjustmentsTable;
   stock_adjustment_lines: StockAdjustmentLinesTable;
+  product_images: ProductImagesTable;
   suppliers: SuppliersTable;
   purchase_requisitions: PurchaseRequisitionsTable;
   purchase_requisition_lines: PurchaseRequisitionLinesTable;

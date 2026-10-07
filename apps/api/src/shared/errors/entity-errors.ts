@@ -33,6 +33,7 @@ export const ENTITY_LABELS = {
   STOCK_TRANSFER_LINE: 'Stock transfer line',
   STOCK_ADJUSTMENT: 'Stock adjustment',
   STOCK_ADJUSTMENT_REASON: 'Stock adjustment reason',
+  PRODUCT_IMAGE: 'Product image',
   FISCAL_YEAR: 'Fiscal year',
   CHART_OF_ACCOUNT: 'Chart of accounts entry',
   BANK_ACCOUNT: 'Bank account',

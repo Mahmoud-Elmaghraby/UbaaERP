@@ -1,4 +1,5 @@
 import type { Kysely } from 'kysely';
+import type { Money } from '@erp-platform/shared-kernel';
 import type { TenantDatabase } from '../../../../database/tenant/kysely-client';
 import type { DomainEventPayload } from '../../../../shared/events/domain-event';
 import type { TenantConnectionManager } from '../../../../shared/tenancy/tenant-connection-manager';
@@ -78,7 +79,7 @@ describe('AccountingAutoPostingListeners — multi-currency Phase 3 (invoice/cre
   describe('handleSalesInvoicePosted', () => {
     it('passes the raw amount through unchanged when the invoice is already in the tenant currency', async () => {
       currencyConversion.convert.mockResolvedValue({
-        convertedAmount: { toMinorUnits: () => 500000n } as any,
+        convertedAmount: { toMinorUnits: () => 500000n } as unknown as Money,
         rateUsed: '1',
         rateDate: '2026-09-13',
         rateSource: 'manual',
@@ -109,7 +110,7 @@ describe('AccountingAutoPostingListeners — multi-currency Phase 3 (invoice/cre
     it('posts the CONVERTED amount, not the raw source amount, for a foreign-currency invoice', async () => {
       // 100.00 USD converted at 51.341 -> 5134.10 EGP (513410 minor units).
       currencyConversion.convert.mockResolvedValue({
-        convertedAmount: { toMinorUnits: () => 513410n } as any,
+        convertedAmount: { toMinorUnits: () => 513410n } as unknown as Money,
         rateUsed: '51.341',
         rateDate: '2026-09-13',
         rateSource: 'api',
@@ -179,7 +180,7 @@ describe('AccountingAutoPostingListeners — multi-currency Phase 3 (invoice/cre
   describe('handlePurchaseInvoicePosted', () => {
     it('converts a foreign-currency purchase invoice before posting the expense/payable lines', async () => {
       currencyConversion.convert.mockResolvedValue({
-        convertedAmount: { toMinorUnits: () => 250000n } as any,
+        convertedAmount: { toMinorUnits: () => 250000n } as unknown as Money,
         rateUsed: '25.0',
         rateDate: '2026-09-13',
         rateSource: 'manual',
@@ -275,7 +276,7 @@ describe('AccountingAutoPostingListeners — multi-currency Phase 3 (invoice/cre
   describe('handleSalesCreditNoteIssued', () => {
     it('converts a credit note issued against a foreign-currency invoice', async () => {
       currencyConversion.convert.mockResolvedValue({
-        convertedAmount: { toMinorUnits: () => 51341n } as any,
+        convertedAmount: { toMinorUnits: () => 51341n } as unknown as Money,
         rateUsed: '51.341',
         rateDate: '2026-09-13',
         rateSource: 'api',

@@ -57,7 +57,7 @@ import { variantDisplayName } from '../../../../components/product/variant-searc
 import { ApiError } from '../../../../lib/api-client';
 import { formatMoney } from '../../../../lib/money';
 import { INV } from '../../../../lib/permissions';
-import { TRANSFER_STATUS_VARIANT, TRANSFERS_PATH } from './transfer-status';
+import { TRANSFER_STATUS_VARIANT, TRANSFERS_PATH } from '../../lib/document-status';
 
 interface HeaderDraft {
   fromWarehouseId: string;

@@ -25,7 +25,7 @@ import {
 import { useAdjustmentReasons, useStockAdjustments } from '../../api/stock-documents/queries';
 import { useWarehouses } from '../../api/warehouses/queries';
 import { INV } from '../../../../lib/permissions';
-import { ADJUSTMENT_STATUS_VARIANT, ADJUSTMENTS_PATH } from '../transfers/transfer-status';
+import { ADJUSTMENT_STATUS_VARIANT, ADJUSTMENTS_PATH } from '../../lib/document-status';
 
 const TABS = ['all', 'draft', 'posted', 'cancelled'] as const;
 

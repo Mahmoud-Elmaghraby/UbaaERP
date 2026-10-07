@@ -8,6 +8,7 @@ import { JwtAuthGuard } from '../../../shared/auth/jwt-auth.guard';
 import { PermissionsGuard } from '../../../shared/auth/permissions.guard';
 import { RequireAnyPermission } from '../../../shared/auth/require-permissions.decorator';
 import { CATALOG_READ_PERMISSIONS, canViewPurchasePrices, withoutPurchasePrices } from '../../../shared/auth/inventory-permissions';
+import { ProductImagesService } from '../application/services/product-images.service';
 import { ProductsService } from '../application/services/products.service';
 import { variantLookupToDto } from './product.mapper';
 
@@ -31,6 +32,7 @@ export class ProductVariantsController {
   constructor(
     private readonly service: ProductsService,
     private readonly connections: TenantConnectionManager,
+    private readonly images: ProductImagesService,
   ) {}
 
   @Get()
@@ -39,7 +41,11 @@ export class ProductVariantsController {
     @CurrentUser() user: JwtAccessPayload,
   ): Promise<ProductVariantLookupDto[]> {
     const db = this.connections.getClient(schema);
-    const variants = (await this.service.listVariantLookup(db)).map(variantLookupToDto);
+    const imageUrls = await this.images.primaryThumbnailUrls(db);
+    const variants = (await this.service.listVariantLookup(db)).map((variant) => ({
+      ...variantLookupToDto(variant),
+      imageUrl: imageUrls.get(variant.productId) ?? null,
+    }));
     return canViewPurchasePrices(user.permissions) ? variants : withoutPurchasePrices(variants);
   }
 }

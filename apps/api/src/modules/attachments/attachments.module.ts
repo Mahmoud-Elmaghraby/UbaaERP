@@ -3,12 +3,6 @@ import { ATTACHMENT_REPOSITORY } from './application/ports/attachment.repository
 import { ATTACHMENT_STORAGE_REPOSITORY } from './application/ports/attachment-storage.repository';
 import { KyselyAttachmentRepository } from './infrastructure/persistence/kysely-attachment.repository';
 import { MinioAttachmentStorageRepository } from './infrastructure/storage/minio-attachment-storage.repository';
-import {
-  MINIO_BUCKET,
-  MINIO_CLIENT,
-  createMinioClient,
-  getAttachmentsBucketName,
-} from './infrastructure/storage/minio-client.provider';
 import { AttachmentsService } from './application/services/attachments.service';
 import { AttachmentsController } from './presentation/attachments.controller';
 
@@ -33,8 +27,7 @@ import { AttachmentsController } from './presentation/attachments.controller';
 @Module({
   controllers: [AttachmentsController],
   providers: [
-    { provide: MINIO_CLIENT, useFactory: createMinioClient },
-    { provide: MINIO_BUCKET, useFactory: getAttachmentsBucketName },
+    // MINIO_CLIENT / MINIO_BUCKET come from the global StorageModule (shared/storage).
     { provide: ATTACHMENT_REPOSITORY, useClass: KyselyAttachmentRepository },
     { provide: ATTACHMENT_STORAGE_REPOSITORY, useClass: MinioAttachmentStorageRepository },
     AttachmentsService,

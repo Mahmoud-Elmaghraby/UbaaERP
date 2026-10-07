@@ -4,6 +4,7 @@ import { EventsModule } from './shared/events/events.module';
 import { TenancyModule } from './shared/tenancy/tenancy.module';
 import { PrismaModule } from './shared/database/prisma.module';
 import { OutboxModule } from './shared/outbox/outbox.module';
+import { StorageModule } from './shared/storage/storage.module';
 import { SecretsEncryptionModule } from './shared/crypto/secrets-encryption.module';
 import { AuthInfraModule } from './shared/auth/auth-infra.module';
 import { EmailModule } from './shared/email/email.module';
@@ -53,6 +54,7 @@ import { AttachmentsModule } from './modules/attachments/attachments.module';
     TenancyModule,
     PrismaModule,
     OutboxModule,
+    StorageModule,
     SecretsEncryptionModule,
     AuthInfraModule,
     EmailModule,

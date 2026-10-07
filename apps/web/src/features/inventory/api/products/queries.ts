@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import type {
+  ProductImageDto,
   CreateProductDto,
   CreateProductVariantDto,
   ProductDto,
@@ -16,7 +17,7 @@ import type {
   ProductUnitInputDto,
 } from '@erp-platform/contracts';
 
-import { apiDelete, apiGet, apiPatch, apiPost, apiPut } from '../../../../lib/api-client';
+import { apiDelete, apiGet, apiPatch, apiPost, apiPut, apiUpload } from '../../../../lib/api-client';
 
 export function useProducts() {
   return useQuery({ queryKey: ['products'], queryFn: () => apiGet<ProductDto[]>('/products') });
@@ -155,5 +156,55 @@ export function useReplaceProductUnits(productId: string) {
       queryClient.setQueryData(['products', productId, 'units'], data);
       void queryClient.invalidateQueries({ queryKey: VARIANT_LOOKUP_QUERY_KEY });
     },
+  });
+}
+
+// ---- item images (migration 0085) ------------------------------------------
+
+const imagesKey = (productId: string) => ['products', productId, 'images'] as const;
+
+export function useProductImages(productId: string | undefined) {
+  return useQuery({
+    queryKey: imagesKey(productId ?? ''),
+    queryFn: () => apiGet<ProductImageDto[]>(`/products/${productId}/images`),
+    enabled: Boolean(productId),
+  });
+}
+
+/** After any image change the lists' thumbnails change too. */
+function invalidateImages(queryClient: QueryClient, productId: string) {
+  void queryClient.invalidateQueries({ queryKey: imagesKey(productId) });
+  void queryClient.invalidateQueries({ queryKey: ['products'], exact: true });
+  void queryClient.invalidateQueries({ queryKey: VARIANT_LOOKUP_QUERY_KEY });
+}
+
+export function useUploadProductImage(productId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ image, thumbnail, productVariantId }: { image: Blob; thumbnail?: Blob; productVariantId?: string | null }) => {
+      const form = new FormData();
+      const extension = (blob: Blob) => (blob.type === 'image/webp' ? 'webp' : blob.type === 'image/png' ? 'png' : 'jpg');
+      form.append('image', image, `image.${extension(image)}`);
+      if (thumbnail) form.append('thumbnail', thumbnail, `thumbnail.${extension(thumbnail)}`);
+      if (productVariantId) form.append('productVariantId', productVariantId);
+      return apiUpload<ProductImageDto>(`/products/${productId}/images`, form);
+    },
+    onSuccess: () => invalidateImages(queryClient, productId),
+  });
+}
+
+export function useSetPrimaryProductImage(productId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (imageId: string) => apiPost<ProductImageDto[]>(`/products/${productId}/images/${imageId}/primary`),
+    onSuccess: () => invalidateImages(queryClient, productId),
+  });
+}
+
+export function useDeleteProductImage(productId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (imageId: string) => apiDelete<void>(`/products/${productId}/images/${imageId}`),
+    onSuccess: () => invalidateImages(queryClient, productId),
   });
 }

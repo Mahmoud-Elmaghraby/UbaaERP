@@ -25,7 +25,7 @@ import {
 import { useStockTransfers } from '../../api/stock-documents/queries';
 import { useWarehouses } from '../../api/warehouses/queries';
 import { INV } from '../../../../lib/permissions';
-import { TRANSFER_STATUS_VARIANT, TRANSFERS_PATH } from './transfer-status';
+import { TRANSFER_STATUS_VARIANT, TRANSFERS_PATH } from '../../lib/document-status';
 
 const TABS = ['all', 'draft', 'in_transit', 'received', 'cancelled'] as const;
 

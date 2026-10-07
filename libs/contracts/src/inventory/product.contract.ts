@@ -26,6 +26,8 @@ export const productSchema = z.object({
   salePrice: moneySchema.nullable(),
   purchasePrice: moneySchema.nullable(),
   taxRuleId: z.string().uuid().nullable(),
+  /** Thumbnail of the primary image (presigned, cache-friendly) — migration 0085. */
+  imageUrl: z.string().nullable().optional(),
   createdAt: z.coerce.date(),
   updatedAt: z.coerce.date(),
 });
@@ -63,3 +65,26 @@ export const updateProductSchema = createProductSchema
   .omit({ defaultVariantSku: true, defaultVariantBarcode: true })
   .partial();
 export type UpdateProductDto = z.infer<typeof updateProductSchema>;
+
+// ---- item images (migration 0085) ----
+export const productImageSchema = z.object({
+  id: z.string().uuid(),
+  productId: z.string().uuid(),
+  productVariantId: z.string().uuid().nullable(),
+  mimeType: z.string(),
+  sizeBytes: z.number().int(),
+  isPrimary: z.boolean(),
+  sortOrder: z.number().int(),
+  url: z.string(),
+  thumbnailUrl: z.string(),
+  createdAt: z.coerce.date(),
+});
+export type ProductImageDto = z.infer<typeof productImageSchema>;
+
+export const uploadProductImageSchema = z.object({
+  productVariantId: z.string().uuid().nullable().optional(),
+});
+export type UploadProductImageDto = z.infer<typeof uploadProductImageSchema>;
+
+export const reorderProductImagesSchema = z.object({ imageIds: z.array(z.string().uuid()).min(1).max(50) });
+export type ReorderProductImagesDto = z.infer<typeof reorderProductImagesSchema>;

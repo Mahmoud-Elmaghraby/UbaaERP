@@ -28,6 +28,7 @@ import { PermissionsGuard } from '../../../shared/auth/permissions.guard';
 import { RequireAnyPermission, RequirePermissions } from '../../../shared/auth/require-permissions.decorator';
 import { CATALOG_READ_PERMISSIONS, INVENTORY_PERMISSIONS as P, canViewPurchasePrices, withoutPurchasePrices } from '../../../shared/auth/inventory-permissions';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
+import { ProductImagesService } from '../application/services/product-images.service';
 import { ProductsService } from '../application/services/products.service';
 import { InventoryEventPublisher } from '../infrastructure/events/inventory-event-publisher';
 import { productInputFromDto, productToDto, productWithVariantsToDto } from './product.mapper';
@@ -40,6 +41,7 @@ export class ProductsController {
     private readonly service: ProductsService,
     private readonly connections: TenantConnectionManager,
     private readonly events: InventoryEventPublisher,
+    private readonly images: ProductImagesService,
   ) {}
 
   @Get()
@@ -47,7 +49,11 @@ export class ProductsController {
   @RequireAnyPermission(...CATALOG_READ_PERMISSIONS)
   async list(@CurrentTenantSchema() schema: string, @CurrentUser() user: JwtAccessPayload): Promise<ProductDto[]> {
     const db = this.connections.getClient(schema);
-    const products = (await this.service.list(db)).map(productToDto);
+    const imageUrls = await this.images.primaryThumbnailUrls(db);
+    const products = (await this.service.list(db)).map((product) => ({
+      ...productToDto(product),
+      imageUrl: imageUrls.get(product.id) ?? null,
+    }));
     return canViewPurchasePrices(user.permissions) ? products : withoutPurchasePrices(products);
   }
 
@@ -104,7 +110,9 @@ export class ProductsController {
     @Param('id') id: string,
   ): Promise<void> {
     const db = this.connections.getClient(schema);
+    const images = await this.images.snapshot(db, id);
     await this.service.delete(db, id);
+    await this.images.removeSnapshot(images);
     this.events.publish('product', 'deleted', { schema, entityId: id, actorUserId: user.sub });
   }
 

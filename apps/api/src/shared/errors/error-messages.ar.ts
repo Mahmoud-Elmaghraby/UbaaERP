@@ -34,6 +34,7 @@ export const AR_MESSAGES: Record<string, string> = {
   'STOCK_TRANSFER_LINE.NOT_FOUND': 'لم يتم العثور على سطر التحويل المطلوب.',
   'STOCK_ADJUSTMENT.NOT_FOUND': 'لم يتم العثور على تسوية المخزون المطلوبة.',
   'STOCK_ADJUSTMENT_REASON.NOT_FOUND': 'لم يتم العثور على سبب التسوية المطلوب.',
+  'PRODUCT_IMAGE.NOT_FOUND': 'لم يتم العثور على صورة الصنف المطلوبة.',
   'FISCAL_YEAR.NOT_FOUND': 'لم يتم العثور على السنة المالية المطلوبة.',
   'CHART_OF_ACCOUNT.NOT_FOUND': 'لم يتم العثور على الحساب المحاسبي المطلوب.',
   'BANK_ACCOUNT.NOT_FOUND': 'لم يتم العثور على الحساب البنكي المطلوب.',
@@ -501,6 +502,10 @@ export const AR_MESSAGES: Record<string, string> = {
   'STOCK_TRANSFER.WAREHOUSE_INACTIVE': 'المخزن "{name}" غير نشط.',
   'STOCK_TRANSFER.RECEIVED_QUANTITY_INVALID': 'الكمية المستلمة يجب أن تكون بين صفر والكمية المصروفة ({dispatched}).',
   'STOCK_TRANSFER.NOT_DISPATCHED': 'لم يتم صرف هذا التحويل بعد.',
+  // ---- item images (migration 0085) ----
+  'PRODUCT_IMAGE.TYPE_NOT_ALLOWED': 'نوع الصورة غير مدعوم — استخدم JPG أو PNG أو WebP.',
+  'PRODUCT_IMAGE.TOO_LARGE': 'حجم الصورة أكبر من {maxMb} ميجابايت.',
+  'PRODUCT_IMAGE.TOO_MANY': 'الحد الأقصى {max} صورة للصنف الواحد.',
   // ---- stock adjustments (migration 0084) ----
   'STOCK_ADJUSTMENT.NO_LINES': 'التسوية لا تحتوي على أي أصناف.',
   'STOCK_ADJUSTMENT.TOO_MANY_LINES': 'الحد الأقصى {max} سطر في التسوية الواحدة.',

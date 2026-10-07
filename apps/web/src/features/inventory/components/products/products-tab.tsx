@@ -27,6 +27,8 @@ import { useCategoryOptions } from '../../api/catalog/queries';
 import { formatMoney } from '../../../../lib/money';
 import { CreateProductForm, EditProductForm } from './product-form';
 import { ProductVariantsDialog } from './product-variants-dialog';
+import { ProductImagesDialog } from './product-images-dialog';
+import { ProductThumb } from '../../../../components/product/product-thumb';
 import { ProductUnitsDialog } from './product-units-dialog';
 import { ApiError } from '../../../../lib/api-client';
 import { INV } from '../../../../lib/permissions';
@@ -39,6 +41,7 @@ export function ProductsTab() {
   const [editing, setEditing] = useState<ProductDto | null>(null);
   const [managingVariantsFor, setManagingVariantsFor] = useState<ProductDto | null>(null);
   const [managingUnitsFor, setManagingUnitsFor] = useState<ProductDto | null>(null);
+  const [managingImagesFor, setManagingImagesFor] = useState<ProductDto | null>(null);
   const deleteProduct = useDeleteProduct();
 
   const unitById = useMemo(() => new Map((units ?? []).map((u) => [u.id, u])), [units]);
@@ -77,6 +80,7 @@ export function ProductsTab() {
         header: t('inventory.products.name'),
         cell: ({ row }: { row: Row<ProductDto> }) => (
           <span className="flex items-center gap-2">
+            <ProductThumb url={row.original.imageUrl} name={row.original.name} />
             <span className="font-medium">{row.original.name}</span>
             {row.original.itemType === 'service' ? (
               <Badge variant="info">{t('inventory.products.itemTypeService')}</Badge>
@@ -156,6 +160,9 @@ export function ProductsTab() {
                 <DropdownMenuItem onSelect={() => setManagingUnitsFor(row.original)}>
                   {t('inventory.productUnits.menu')}
                 </DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => setManagingImagesFor(row.original)}>
+                  {t('inventory.images.menu')}
+                </DropdownMenuItem>
                 <DropdownMenuItem onSelect={() => setEditing(row.original)}>
                   {t('common.edit')}
                 </DropdownMenuItem>
@@ -229,6 +236,7 @@ export function ProductsTab() {
         onClose={() => setManagingVariantsFor(null)}
       />
       <ProductUnitsDialog product={managingUnitsFor} onClose={() => setManagingUnitsFor(null)} />
+      <ProductImagesDialog product={managingImagesFor} onClose={() => setManagingImagesFor(null)} />
     </div>
   );
 }
