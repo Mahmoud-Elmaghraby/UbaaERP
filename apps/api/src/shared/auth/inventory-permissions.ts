@@ -32,22 +32,15 @@ export type InventoryPermission = (typeof INVENTORY_PERMISSIONS)[keyof typeof IN
 export const ALL_INVENTORY_PERMISSIONS: readonly InventoryPermission[] = Object.values(INVENTORY_PERMISSIONS);
 
 /**
- * Reading the item catalogue (products, variants, units, categories,
- * warehouses) is needed by every module that puts items on a document.
+ * Reading the item catalogue (products, variants, units, categories) is
+ * needed by every module that puts items on a document AND by every
+ * inventory role — a store keeper who may only count stock still has to see
+ * which item a line is.
  */
-export const CATALOG_READ_PERMISSIONS = [
-  INVENTORY_PERMISSIONS.productsView,
-  'sales.manage',
-  'purchases.manage',
-] as const;
+export const CATALOG_READ_PERMISSIONS = [...ALL_INVENTORY_PERMISSIONS, 'sales.manage', 'purchases.manage'] as const;
 
 /** Warehouses / locations are picked on sales and purchase documents and on every stock screen. */
-export const WAREHOUSE_READ_PERMISSIONS = [
-  INVENTORY_PERMISSIONS.productsView,
-  INVENTORY_PERMISSIONS.stockView,
-  'sales.manage',
-  'purchases.manage',
-] as const;
+export const WAREHOUSE_READ_PERMISSIONS = CATALOG_READ_PERMISSIONS;
 
 export function canViewCosts(permissions: readonly string[] | undefined): boolean {
   return Boolean(permissions?.includes(INVENTORY_PERMISSIONS.costsView));

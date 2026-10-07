@@ -2,12 +2,13 @@ import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ColumnDef, Row } from '@tanstack/react-table';
 import type { StockMovementDto } from '@erp-platform/contracts';
-import { Badge, DataTable } from '@erp-platform/ui';
+import { Badge, DataTable, useHasAnyPermission } from '@erp-platform/ui';
 
 import { useStockMovements, type StockMovementFilters } from '../../api/stock/queries';
 import { useVariantIndex } from '../../hooks/stock/use-variant-index';
 import { useLocationLookups } from '../../hooks/stock/use-location-lookups';
 import { formatMoney } from '../../../../lib/money';
+import { INV } from '../../../../lib/permissions';
 import { movementTypeLabel } from './stock-utils';
 
 export function StockMovementsView({ filters }: { filters: StockMovementFilters }) {
@@ -70,6 +71,12 @@ export function StockMovementsView({ filters }: { filters: StockMovementFilters 
     ],
     [t, variantIndex, warehouseById, locationById],
   );
+  // Users without inventory.costs.view get no cost columns at all (the API already sends null).
+  const showCost = useHasAnyPermission([INV.costsView]);
+  const visibleColumns = useMemo(
+    () => (showCost ? columns : columns.filter((column) => !['unitCost', 'resultingAverageCost'].includes(column.id ?? ''))),
+    [columns, showCost],
+  );
 
-  return <DataTable columns={columns} data={movements ?? []} isLoading={isLoading} pageSize={20} />;
+  return <DataTable columns={visibleColumns} data={movements ?? []} isLoading={isLoading} pageSize={20} />;
 }

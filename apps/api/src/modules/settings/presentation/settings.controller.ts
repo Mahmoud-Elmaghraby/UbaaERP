@@ -22,7 +22,13 @@ export class SettingsController {
     private readonly connections: TenantConnectionManager,
   ) {}
 
+  /**
+   * Readable by every signed-in user: the company name, address, tax number and
+   * currency are printed on every document anyway, and every screen that shows
+   * money needs the currency (a store keeper got 403s on stock pages).
+   */
   @Get()
+  @RequirePermissions()
   async get(@CurrentTenantSchema() schema: string): Promise<TenantSettingsDto> {
     const db = this.connections.getClient(schema);
     const settings = await this.service.get(db);

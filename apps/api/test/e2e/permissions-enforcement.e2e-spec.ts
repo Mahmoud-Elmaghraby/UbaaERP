@@ -48,7 +48,10 @@ describe('PermissionsGuard enforcement (e2e, real HTTP)', () => {
   it('a user with zero permissions is refused on every other Settings-family route too', async () => {
     const limited = await loginAs(app, schema(), E2E_LIMITED_EMAIL, E2E_LIMITED_PASSWORD);
     const server = app.getHttpServer();
-    await request(server).get('/settings').set(...authHeader(limited)).expect(403);
+    // Reading the company profile (name, currency) is open to every signed-in user —
+    // every screen that shows money needs the currency; changing it is not.
+    await request(server).get('/settings').set(...authHeader(limited)).expect(200);
+    await request(server).patch('/settings').set(...authHeader(limited)).send({ companyName: 'x' }).expect(403);
     await request(server).get('/numbering-sequences').set(...authHeader(limited)).expect(403);
     await request(server).get('/document-templates').set(...authHeader(limited)).expect(403);
     await request(server).get('/tax-rules').set(...authHeader(limited)).expect(403);

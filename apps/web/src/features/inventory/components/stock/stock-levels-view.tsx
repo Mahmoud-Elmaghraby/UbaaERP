@@ -24,6 +24,7 @@ import {
   FormMessage,
   Input,
   toast,
+  useHasAnyPermission,
 } from '@erp-platform/ui';
 
 import { useSetReorderPoint, useStockLevels, type StockLevelFilters } from '../../api/stock/queries';
@@ -90,10 +91,16 @@ export function StockLevelsView({ filters }: { filters: StockLevelFilters }) {
     ],
     [t, variantIndex, warehouseById, locationById],
   );
+  // Users without inventory.costs.view get no cost columns at all (the API already sends null).
+  const showCost = useHasAnyPermission([INV.costsView]);
+  const visibleColumns = useMemo(
+    () => (showCost ? columns : columns.filter((column) => !['averageCost'].includes(column.id ?? ''))),
+    [columns, showCost],
+  );
 
   return (
     <div className="grid gap-3">
-      <DataTable columns={columns} data={levels ?? []} isLoading={isLoading} />
+      <DataTable columns={visibleColumns} data={levels ?? []} isLoading={isLoading} />
       <Dialog open={editingLevel !== null} onOpenChange={(open) => !open && setEditingLevel(null)}>
         <DialogContent>
           <DialogHeader>
