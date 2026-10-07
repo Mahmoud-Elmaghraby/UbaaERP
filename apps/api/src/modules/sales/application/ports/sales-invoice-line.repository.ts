@@ -9,6 +9,9 @@ export interface CreateSalesInvoiceLineRow {
   quantityInvoiced: number;
   unitPrice: Money;
   notes: string | null;
+  /** Line unit (migration 0079); omitted = base unit, factor 1. */
+  unitOfMeasureId?: string | null;
+  unitFactor?: number;
 }
 
 export interface SalesInvoiceLineRepository {

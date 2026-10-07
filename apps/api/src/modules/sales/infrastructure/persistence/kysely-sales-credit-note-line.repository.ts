@@ -13,6 +13,8 @@ function toDomain(row: Selectable<SalesCreditNoteLinesTable>): SalesCreditNoteLi
     productVariantId: row.product_variant_id,
     quantity: Number(row.quantity),
     unitPrice: Money.fromMinorUnits(BigInt(row.unit_price_amount), row.unit_price_currency),
+    unitOfMeasureId: row.unit_of_measure_id,
+    unitFactor: Number(row.unit_factor),
     createdAt: row.created_at,
   };
 }
@@ -40,6 +42,8 @@ export class KyselySalesCreditNoteLineRepository implements SalesCreditNoteLineR
       .insertInto('sales_credit_note_lines')
       .values({
         id: randomUUID(),
+        unit_of_measure_id: input.unitOfMeasureId ?? null,
+        unit_factor: String(input.unitFactor ?? 1),
         sales_credit_note_id: salesCreditNoteId,
         sales_return_line_id: input.salesReturnLineId,
         product_variant_id: input.productVariantId,

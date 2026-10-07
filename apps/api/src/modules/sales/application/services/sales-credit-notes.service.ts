@@ -117,6 +117,8 @@ export class SalesCreditNotesService {
         productVariantId: returnLine.productVariantId,
         quantity: returnLine.quantityReturned,
         unitPrice: orderLine.unitPrice,
+        unitOfMeasureId: returnLine.unitOfMeasureId,
+        unitFactor: returnLine.unitFactor,
       };
     });
 

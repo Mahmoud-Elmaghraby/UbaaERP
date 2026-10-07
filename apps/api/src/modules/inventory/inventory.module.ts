@@ -53,6 +53,10 @@ import { INVENTORY_REPORTS_REPOSITORY } from './application/ports/inventory-repo
 import { KyselyStockCountRepository } from './infrastructure/persistence/kysely-stock-count.repository';
 import { KyselyInventoryReportsRepository } from './infrastructure/persistence/kysely-inventory-reports.repository';
 import { StockCountsService } from './application/services/stock-counts.service';
+import { ProductUnitsService } from './application/services/product-units.service';
+import { ProductUnitsController } from './presentation/product-units.controller';
+import { PRODUCT_UNIT_REPOSITORY } from './application/ports/product-unit.repository';
+import { KyselyProductUnitRepository } from './infrastructure/persistence/kysely-product-unit.repository';
 import { InventoryReportsService } from './application/services/inventory-reports.service';
 
 /**
@@ -84,6 +88,7 @@ import { InventoryReportsService } from './application/services/inventory-report
     StockController,
     LandedCostsController,
     StockCountsController,
+    ProductUnitsController,
     InventoryReportsController,
   ],
   providers: [
@@ -99,6 +104,7 @@ import { InventoryReportsService } from './application/services/inventory-report
     { provide: INVENTORY_SETTINGS_REPOSITORY, useClass: KyselyInventorySettingsRepository },
     { provide: PRODUCT_CATALOG_REPOSITORY, useClass: KyselyProductCatalogRepository },
     { provide: STOCK_COUNT_REPOSITORY, useClass: KyselyStockCountRepository },
+    { provide: PRODUCT_UNIT_REPOSITORY, useClass: KyselyProductUnitRepository },
     { provide: INVENTORY_REPORTS_REPOSITORY, useClass: KyselyInventoryReportsRepository },
     InventorySettingsService,
     ProductCodesService,
@@ -109,6 +115,7 @@ import { InventoryReportsService } from './application/services/inventory-report
     StockMovementsService,
     LandedCostsService,
     StockCountsService,
+    ProductUnitsService,
     InventoryReportsService,
     InventoryEventPublisher,
     GoodsReceiptStockListener,

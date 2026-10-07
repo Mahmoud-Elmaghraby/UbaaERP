@@ -351,6 +351,21 @@ export interface StockCountLinesTable {
   updated_at: Generated<Date>;
 }
 
+export interface ProductUnitsTable {
+  id: string;
+  product_id: string;
+  unit_of_measure_id: string;
+  factor: string;
+  sale_price_amount: string | null;
+  sale_price_currency: string | null;
+  purchase_price_amount: string | null;
+  purchase_price_currency: string | null;
+  is_default_sale: Generated<boolean>;
+  is_default_purchase: Generated<boolean>;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
 export interface StockLotsTable {
   id: string;
   product_variant_id: string;
@@ -476,6 +491,8 @@ export interface SalesOrderLinesTable {
   discount_fixed_amount: string | null;
   notes: string | null;
   created_at: Generated<Date>;
+  unit_of_measure_id: string | null;
+  unit_factor: Generated<string>;
 }
 
 export interface DeliveriesTable {
@@ -501,6 +518,8 @@ export interface DeliveryLinesTable {
   /** Migration 0077 — lot/serial split of this line (JSON array). */
   lot_allocations: Generated<unknown>;
   created_at: Generated<Date>;
+  unit_of_measure_id: string | null;
+  unit_factor: Generated<string>;
 }
 
 export interface SalesInvoicesTable {
@@ -526,6 +545,8 @@ export interface SalesInvoiceLinesTable {
   unit_price_currency: string;
   notes: string | null;
   created_at: Generated<Date>;
+  unit_of_measure_id: string | null;
+  unit_factor: Generated<string>;
 }
 
 export interface PaymentsReceivedTable {
@@ -576,6 +597,8 @@ export interface SalesReturnLinesTable {
   reason: string | null;
   notes: string | null;
   created_at: Generated<Date>;
+  unit_of_measure_id: string | null;
+  unit_factor: Generated<string>;
 }
 
 export interface SalesCreditNotesTable {
@@ -599,6 +622,8 @@ export interface SalesCreditNoteLinesTable {
   unit_price_amount: string;
   unit_price_currency: string;
   created_at: Generated<Date>;
+  unit_of_measure_id: string | null;
+  unit_factor: Generated<string>;
 }
 
 export interface QuotationsTable {
@@ -622,6 +647,8 @@ export interface QuotationLinesTable {
   unit_price_currency: string;
   notes: string | null;
   created_at: Generated<Date>;
+  unit_of_measure_id: string | null;
+  unit_factor: Generated<string>;
 }
 
 export interface EtaCredentialsTable {
@@ -707,6 +734,8 @@ export interface SupplierQuotationLinesTable {
   unit_price_currency: string;
   notes: string | null;
   created_at: Generated<Date>;
+  unit_of_measure_id: string | null;
+  unit_factor: Generated<string>;
 }
 
 export interface PurchaseOrdersTable {
@@ -731,6 +760,8 @@ export interface PurchaseOrderLinesTable {
   unit_price_currency: string;
   notes: string | null;
   created_at: Generated<Date>;
+  unit_of_measure_id: string | null;
+  unit_factor: Generated<string>;
 }
 
 export interface GoodsReceiptsTable {
@@ -758,6 +789,8 @@ export interface GoodsReceiptLinesTable {
   /** Migration 0077 — lot/serial split of this line (JSON array). */
   lot_allocations: Generated<unknown>;
   created_at: Generated<Date>;
+  unit_of_measure_id: string | null;
+  unit_factor: Generated<string>;
 }
 
 export interface PurchaseReturnsTable {
@@ -781,6 +814,8 @@ export interface PurchaseReturnLinesTable {
   reason: string | null;
   notes: string | null;
   created_at: Generated<Date>;
+  unit_of_measure_id: string | null;
+  unit_factor: Generated<string>;
 }
 
 export interface OutboxEventsTable {
@@ -818,6 +853,8 @@ export interface PurchaseInvoiceLinesTable {
   unit_price_currency: string;
   notes: string | null;
   created_at: Generated<Date>;
+  unit_of_measure_id: string | null;
+  unit_factor: Generated<string>;
 }
 
 /**
@@ -876,6 +913,7 @@ export interface TenantDatabase {
   stock_lot_levels: StockLotLevelsTable;
   stock_lot_consumptions: StockLotConsumptionsTable;
   stock_counts: StockCountsTable;
+  product_units: ProductUnitsTable;
   stock_count_lines: StockCountLinesTable;
   suppliers: SuppliersTable;
   purchase_requisitions: PurchaseRequisitionsTable;

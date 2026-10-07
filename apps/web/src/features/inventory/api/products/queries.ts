@@ -12,9 +12,11 @@ import type {
   CreateProductBarcodeDto,
   GenerateProductVariantsDto,
   ProductBarcodeDto,
+  ProductUnitDto,
+  ProductUnitInputDto,
 } from '@erp-platform/contracts';
 
-import { apiDelete, apiGet, apiPatch, apiPost } from '../../../../lib/api-client';
+import { apiDelete, apiGet, apiPatch, apiPost, apiPut } from '../../../../lib/api-client';
 
 export function useProducts() {
   return useQuery({ queryKey: ['products'], queryFn: () => apiGet<ProductDto[]>('/products') });
@@ -134,4 +136,24 @@ function invalidateCatalogue(queryClient: QueryClient, productId?: string) {
   queryClient.invalidateQueries({ queryKey: ['products'] });
   if (productId) queryClient.invalidateQueries({ queryKey: ['products', productId] });
   queryClient.invalidateQueries({ queryKey: VARIANT_LOOKUP_QUERY_KEY });
+}
+
+/** A product's extra trading units (carton, sack…). */
+export function useProductUnits(productId: string | undefined) {
+  return useQuery({
+    queryKey: ['products', productId, 'units'],
+    queryFn: () => apiGet<ProductUnitDto[]>(`/products/${productId}/units`),
+    enabled: Boolean(productId),
+  });
+}
+
+export function useReplaceProductUnits(productId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (units: ProductUnitInputDto[]) => apiPut<ProductUnitDto[]>(`/products/${productId}/units`, { units }),
+    onSuccess: (data) => {
+      queryClient.setQueryData(['products', productId, 'units'], data);
+      void queryClient.invalidateQueries({ queryKey: VARIANT_LOOKUP_QUERY_KEY });
+    },
+  });
 }

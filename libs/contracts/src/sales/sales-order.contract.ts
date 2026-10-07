@@ -32,6 +32,8 @@ export const salesOrderLineSchema = z
     id: z.string().uuid(),
     salesOrderId: z.string().uuid(),
     productVariantId: z.string().uuid(),
+    unitOfMeasureId: z.string().uuid().nullable().default(null),
+    unitFactor: z.number().positive().default(1),
     quantity: z.number().positive(),
     unitPrice: moneySchema,
     notes: z.string().nullable(),
@@ -69,6 +71,8 @@ export type SalesOrderWithLinesDto = z.infer<typeof salesOrderWithLinesSchema>;
 export const createSalesOrderLineSchema = z
   .object({
     productVariantId: z.string().uuid(),
+    /** Line unit (carton, sack…); omitted/null = the product's base unit. */
+    unitOfMeasureId: z.string().uuid().nullable().optional(),
     quantity: z.number().positive(),
     unitPrice: moneySchema,
     notes: z.string().nullable().optional(),

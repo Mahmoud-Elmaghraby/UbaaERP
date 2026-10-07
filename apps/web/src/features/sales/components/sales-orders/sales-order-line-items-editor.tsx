@@ -17,12 +17,16 @@ import {
 } from '@erp-platform/ui';
 
 import { ProductVariantPicker } from '../../../../components/product/product-variant-picker';
-import { defaultPriceText } from '../../../../components/product/variant-search';
+import { defaultUnitId, unitPriceText } from '../../../../components/product/variant-search';
+import { LineUnitSelect } from '../../../../components/product/unit-select';
+import { useVariantLookupMap } from '../../../inventory/api/products/queries';
 import { createEmptyDiscountDraft, DiscountDraft } from '../../lib/discount-fields';
 
 export interface SalesOrderLineDraft {
   key: string;
   productVariantId: string | undefined;
+  /** Line unit (carton, sack…); null = the product's base unit. */
+  unitOfMeasureId: string | null;
   quantity: string;
   /** Decimal string — converted to MoneyDto.amountMinorUnits via decimalToMinorUnits()
    * on submit, same convention as Quotations'/Purchase Orders' line editors. */
@@ -38,6 +42,7 @@ export function createEmptySalesOrderLine(): SalesOrderLineDraft {
   return {
     key: `new-${nextKey}`,
     productVariantId: undefined,
+    unitOfMeasureId: null,
     quantity: '',
     unitPrice: '',
     notes: '',
@@ -63,6 +68,7 @@ export function SalesOrderLineItemsEditor({
   currency: string;
 }) {
   const { t } = useTranslation();
+  const variants = useVariantLookupMap();
 
 
   function updateLine(key: string, patch: Partial<SalesOrderLineDraft>) {
@@ -98,8 +104,28 @@ export function SalesOrderLineItemsEditor({
                   <ProductVariantPicker
                     value={line.productVariantId}
                     onChange={(value, variant) => {
-                      const price = line.unitPrice.trim() === '' ? defaultPriceText(variant, 'sale', currency) : null;
-                      updateLine(line.key, { productVariantId: value, ...(price ? { unitPrice: price } : {}) });
+                      const unitOfMeasureId = defaultUnitId(variant, 'sale');
+                      const price =
+                        line.unitPrice.trim() === '' ? unitPriceText(variant, unitOfMeasureId, 'sale', currency) : null;
+                      updateLine(line.key, {
+                        productVariantId: value,
+                        unitOfMeasureId,
+                        ...(price ? { unitPrice: price } : {}),
+                      });
+                    }}
+                  />
+                  <LineUnitSelect
+                    className="mt-1 h-8 w-full"
+                    variant={variants.get(line.productVariantId ?? '')}
+                    value={line.unitOfMeasureId}
+                    onChange={(unitOfMeasureId) => {
+                      const price = unitPriceText(
+                        variants.get(line.productVariantId ?? ''),
+                        unitOfMeasureId,
+                        'sale',
+                        currency,
+                      );
+                      updateLine(line.key, { unitOfMeasureId, ...(price ? { unitPrice: price } : {}) });
                     }}
                   />
                 </TableCell>

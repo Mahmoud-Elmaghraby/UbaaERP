@@ -148,6 +148,7 @@ export class PosSalesService {
             discountPercentage: line.discountPercentage ?? null,
             discountFixedAmount: line.discountFixedAmount ?? null,
             notes: line.notes ?? null,
+            unitOfMeasureId: line.unitOfMeasureId ?? null,
           })),
           discountType: input.discountType ?? null,
           discountPercentage: input.discountPercentage ?? null,

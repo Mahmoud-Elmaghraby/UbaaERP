@@ -16,6 +16,8 @@ function toDomain(row: Selectable<SalesReturnLinesTable>): SalesReturnLine {
     quantityReturned: Number(row.quantity_returned),
     reason: row.reason,
     notes: row.notes,
+    unitOfMeasureId: row.unit_of_measure_id,
+    unitFactor: Number(row.unit_factor),
     createdAt: row.created_at,
   };
 }
@@ -40,6 +42,8 @@ export class KyselySalesReturnLineRepository implements SalesReturnLineRepositor
       .insertInto('sales_return_lines')
       .values({
         id: randomUUID(),
+        unit_of_measure_id: input.unitOfMeasureId ?? null,
+        unit_factor: String(input.unitFactor ?? 1),
         sales_return_id: salesReturnId,
         delivery_line_id: input.deliveryLineId,
         product_variant_id: input.productVariantId,

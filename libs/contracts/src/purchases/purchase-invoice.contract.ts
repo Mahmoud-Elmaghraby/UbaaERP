@@ -10,6 +10,8 @@ export const purchaseInvoiceLineSchema = z.object({
   purchaseInvoiceId: z.string().uuid(),
   purchaseOrderLineId: z.string().uuid(),
   productVariantId: z.string().uuid(),
+  unitOfMeasureId: z.string().uuid().nullable().default(null),
+  unitFactor: z.number().positive().default(1),
   quantityInvoiced: z.number().positive(),
   unitPrice: moneySchema,
   notes: z.string().nullable(),
@@ -50,6 +52,8 @@ export type CreatePurchaseInvoiceLineDto = z.infer<typeof createPurchaseInvoiceL
 
 export const createPurchaseInvoiceDirectLineSchema = z.object({
   productVariantId: z.string().uuid(),
+  /** Line unit (carton, sack…); omitted/null = the product's base unit. */
+  unitOfMeasureId: z.string().uuid().nullable().optional(),
   quantityInvoiced: z.number().positive(),
   unitPrice: moneySchema,
   notes: z.string().nullable().optional(),

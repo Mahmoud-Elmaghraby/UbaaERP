@@ -16,6 +16,8 @@ import { salesInvoiceWithLinesSchema } from './sales-invoice.contract';
 export const posCheckoutLineSchema = z
   .object({
     productVariantId: z.string().uuid(),
+    /** Line unit (carton, sack…); omitted/null = the product's base unit. */
+    unitOfMeasureId: z.string().uuid().nullable().optional(),
     quantity: z.number().positive(),
     unitPrice: moneySchema,
     notes: z.string().nullable().optional(),

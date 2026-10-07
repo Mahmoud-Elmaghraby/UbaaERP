@@ -13,7 +13,8 @@ import {
 import { Plus, Trash2 } from 'lucide-react';
 
 import { ProductVariantPicker } from '../product/product-variant-picker';
-import { defaultPriceText } from '../product/variant-search';
+import { defaultUnitId, unitPriceText } from '../product/variant-search';
+import { LineUnitSelect } from '../product/unit-select';
 import { decimalToMinorUnits, formatAmount, multiplyMinorUnits } from '../../lib/money';
 import { useVariantLookupMap } from '../../features/inventory/api/products/queries';
 import { emptyReceiptLotsDraft, ReceiptLotsEditor, type ReceiptLotsDraft } from './lot-entry';
@@ -21,6 +22,8 @@ import { emptyReceiptLotsDraft, ReceiptLotsEditor, type ReceiptLotsDraft } from 
 export interface DirectLineDraft {
   key: string;
   productVariantId: string;
+  /** Line unit (carton, sack…); null = the product's base unit. */
+  unitOfMeasureId: string | null;
   quantity: string;
   unitPrice: string;
   notes: string;
@@ -34,6 +37,7 @@ export function newDirectLine(): DirectLineDraft {
   return {
     key: `line-${Date.now()}-${keySeq}`,
     productVariantId: '',
+    unitOfMeasureId: null,
     quantity: '1',
     unitPrice: '',
     notes: '',
@@ -63,6 +67,7 @@ export function parseDirectLines(
 ):
   | {
       productVariantId: string;
+      unitOfMeasureId: string | null;
       quantity: number;
       unitPrice: { amountMinorUnits: string; currency: string };
       notes?: string;
@@ -82,6 +87,7 @@ export function parseDirectLines(
     if (BigInt(amountMinorUnits) < 0n) return null;
     result.push({
       productVariantId: line.productVariantId,
+      unitOfMeasureId: line.unitOfMeasureId,
       quantity,
       unitPrice: { amountMinorUnits, currency },
       notes: line.notes.trim() === '' ? undefined : line.notes,
@@ -143,8 +149,20 @@ export function DirectLinesEditor({
                         className="h-9"
                         value={line.productVariantId}
                         onChange={(value, variant) => {
-                          const price = line.unitPrice.trim() === '' ? defaultPriceText(variant, priceKind, currency) : null;
-                          update(line.key, { productVariantId: value, ...(price ? { unitPrice: price } : {}) });
+                          const unitOfMeasureId = defaultUnitId(variant, priceKind);
+                          const price =
+                            line.unitPrice.trim() === ''
+                              ? unitPriceText(variant, unitOfMeasureId, priceKind, currency)
+                              : null;
+                          update(line.key, { productVariantId: value, unitOfMeasureId, ...(price ? { unitPrice: price } : {}) });
+                        }}
+                      />
+                      <LineUnitSelect
+                        variant={variants.get(line.productVariantId)}
+                        value={line.unitOfMeasureId}
+                        onChange={(unitOfMeasureId) => {
+                          const price = unitPriceText(variants.get(line.productVariantId), unitOfMeasureId, priceKind, currency);
+                          update(line.key, { unitOfMeasureId, ...(price ? { unitPrice: price } : {}) });
                         }}
                       />
                       <Input

@@ -20,6 +20,9 @@ export interface SalesInvoiceLine {
   unitPrice: Money;
   notes: string | null;
   createdAt: Date;
+  /** Unit the line is in (null = product base unit) and base units per 1 of it — migration 0079. */
+  unitOfMeasureId: string | null;
+  unitFactor: number;
 }
 
 export interface SalesInvoice {
@@ -64,6 +67,8 @@ export interface CreateSalesInvoiceDirectLineInput {
   quantity: number;
   unitPrice: Money;
   notes?: string | null;
+  /** Line unit (migration 0079); omitted = base unit. */
+  unitOfMeasureId?: string | null;
 }
 
 export interface CreateSalesInvoiceInput {

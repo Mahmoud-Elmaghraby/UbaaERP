@@ -19,6 +19,9 @@ export interface PurchaseInvoiceLine {
   unitPrice: Money;
   notes: string | null;
   createdAt: Date;
+  /** Unit the line is in (null = product base unit) and base units per 1 of it — migration 0079. */
+  unitOfMeasureId: string | null;
+  unitFactor: number;
 }
 
 export interface PurchaseInvoice {
@@ -68,6 +71,8 @@ export interface CreatePurchaseInvoiceDirectLineInput {
   notes?: string | null;
   /** See CreatePurchaseInvoiceLineInput.lots. */
   lots?: ReceiptLot[];
+  /** Line unit (migration 0079); omitted = base unit. */
+  unitOfMeasureId?: string | null;
 }
 
 export interface CreatePurchaseInvoiceInput {

@@ -37,6 +37,7 @@ import { formatAmount, multiplyMinorUnits } from '../../../../lib/money';
 import { PURCHASE_INVOICE_STATUS_VARIANT, purchaseInvoiceStatusLabelKey } from './purchase-invoice-status';
 import { PURCHASE_INVOICES_PATH } from './purchase-invoices-tab';
 import { usePurchaseInvoiceActions } from './use-purchase-invoice-actions';
+import { QuantityWithUnit } from '../../../../components/product/unit-select';
 
 export function PurchaseInvoiceDetailsPage() {
   const { t } = useTranslation();
@@ -249,7 +250,7 @@ export function PurchaseInvoiceDetailsPage() {
                             </span>
                           </div>
                         </TableCell>
-                        <TableCell className="text-end">{line.quantityInvoiced}</TableCell>
+                        <TableCell className="text-end"><QuantityWithUnit quantity={line.quantityInvoiced} productVariantId={line.productVariantId} unitOfMeasureId={line.unitOfMeasureId} /></TableCell>
                         <TableCell className="text-end">
                           {formatAmount(line.unitPrice.amountMinorUnits)}
                         </TableCell>

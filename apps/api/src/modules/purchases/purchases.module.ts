@@ -55,6 +55,7 @@ import { PurchaseInvoicesController } from './presentation/purchase-invoices.con
 import { PurchasesEventPublisher } from './infrastructure/events/purchases-event-publisher';
 import { PRODUCT_TRACKING_READER } from './application/ports/product-tracking.reader';
 import { KyselyProductTrackingReader } from './infrastructure/persistence/kysely-product-tracking.reader';
+import { ProductUnitResolver } from '../../shared/catalog/product-unit-resolver';
 
 /**
  * Purchases module (CLAUDE.md §10: step 3). Stages so far — see
@@ -125,6 +126,7 @@ import { KyselyProductTrackingReader } from './infrastructure/persistence/kysely
     PurchaseInvoicesController,
   ],
   providers: [
+    ProductUnitResolver,
     { provide: SUPPLIER_REPOSITORY, useClass: KyselySupplierRepository },
     { provide: PURCHASE_REQUISITION_REPOSITORY, useClass: KyselyPurchaseRequisitionRepository },
     { provide: PURCHASE_REQUISITION_LINE_REPOSITORY, useClass: KyselyPurchaseRequisitionLineRepository },

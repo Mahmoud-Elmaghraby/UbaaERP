@@ -184,6 +184,8 @@ export class GoodsReceiptsService {
               unitCost: line.unitCost ?? poLine.unitPrice,
               notes: line.notes ?? null,
               lots: lotsByIndex[index]!,
+              unitOfMeasureId: poLine.unitOfMeasureId,
+              unitFactor: poLine.unitFactor,
             }),
           );
         }
@@ -287,9 +289,13 @@ export class GoodsReceiptsService {
           warehouseId: updated.warehouseId,
           lines: lines.map((line) => ({
             productVariantId: line.productVariantId,
-            quantity: line.quantityReceived,
-            unitCost: { amountMinorUnits: line.unitCost.toMinorUnits().toString(), currency: line.unitCost.currency },
-            lots: line.lots,
+            // Inventory works in base units: a line of 2 cartons × 12 at 240/carton → 24 at 20.
+            quantity: toBase(line.quantityReceived, line.unitFactor),
+            unitCost: (() => {
+              const perBase = line.unitFactor === 1 ? line.unitCost : line.unitCost.divideByQuantity(line.unitFactor);
+              return { amountMinorUnits: perBase.toMinorUnits().toString(), currency: perBase.currency };
+            })(),
+            lots: line.lots.map((lot) => ({ ...lot, quantity: toBase(lot.quantity, line.unitFactor) })),
           })),
         },
         occurredAt: new Date(),
@@ -399,4 +405,8 @@ export function normalizeReceiptLots(
     );
   }
   return result;
+}
+
+function toBase(quantity: number, unitFactor: number): number {
+  return Math.round(quantity * unitFactor * 10_000) / 10_000;
 }

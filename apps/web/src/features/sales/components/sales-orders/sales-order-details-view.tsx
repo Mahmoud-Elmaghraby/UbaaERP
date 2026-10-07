@@ -16,6 +16,7 @@ import { useCustomers } from '../../api/customers/queries';
 import { useVariantIndex } from '../../hooks/sales-orders/use-variant-index';
 import { formatMoney } from '../../../../lib/money';
 import { SALES_ORDER_STATUS_VARIANT, salesOrderStatusLabelKey } from './sales-order-status';
+import { QuantityWithUnit } from '../../../../components/product/unit-select';
 
 /** POS feature Stage 2/4 — a short display string for a header/line discount, or null when none is set. */
 function formatDiscountLabel(source: {
@@ -104,7 +105,7 @@ export function SalesOrderDetailsView({ order }: { order: SalesOrderWithLinesDto
                 {variantIndex.get(line.productVariantId)?.productName ?? '—'} (
                 {variantIndex.get(line.productVariantId)?.sku ?? '—'})
               </TableCell>
-              <TableCell>{line.quantity}</TableCell>
+              <TableCell><QuantityWithUnit quantity={line.quantity} productVariantId={line.productVariantId} unitOfMeasureId={line.unitOfMeasureId} /></TableCell>
               <TableCell>
                 {formatMoney(line.unitPrice.amountMinorUnits, line.unitPrice.currency)}
               </TableCell>

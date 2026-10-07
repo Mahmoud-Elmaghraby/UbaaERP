@@ -31,11 +31,12 @@ import { usePosCheckout } from '../../api/pos/queries';
 import { useVariantLookup } from '../../../inventory/api/products/queries';
 import { useInventorySettings } from '../../../inventory/api/catalog/queries';
 import {
-  defaultPriceText,
+  unitPriceText,
   resolveScan,
   searchVariants,
   variantDisplayName,
 } from '../../../../components/product/variant-search';
+import { LineUnitSelect } from '../../../../components/product/unit-select';
 import { ApiError } from '../../../../lib/api-client';
 import { decimalToMinorUnits, formatMoney } from '../../../../lib/money';
 import {
@@ -57,6 +58,8 @@ const WALK_IN_SENTINEL = '__walk_in__';
 interface CartLine {
   key: string;
   productVariantId: string;
+  /** Line unit (carton…); null = the product's base unit. */
+  unitOfMeasureId: string | null;
   label: string;
   quantity: string;
   unitPrice: string;
@@ -129,7 +132,14 @@ export function PosCartPanel({ session }: { session: PosSessionDto }) {
   function addFromSearch() {
     const scan = resolveScan(sellable, search, inventorySettings);
     if (scan) {
-      addToCart(scan.variant.id, `${variantDisplayName(scan.variant)} — ${scan.variant.sku}`, scan.quantity);
+      // A carton barcode whose count matches one of the item's own units adds 1 carton, not 12 pieces.
+      const packUnit = scan.fromScale ? undefined : scan.variant.units.find((unit) => unit.factor === scan.quantity);
+      addToCart(
+        scan.variant.id,
+        `${variantDisplayName(scan.variant)} — ${scan.variant.sku}`,
+        packUnit ? 1 : scan.quantity,
+        packUnit ? packUnit.unitOfMeasureId : null,
+      );
       return;
     }
     const first = searchResults[0];
@@ -137,11 +147,13 @@ export function PosCartPanel({ session }: { session: PosSessionDto }) {
     else if (search.trim() !== '') toast.error(t('pos.cart.notFound'));
   }
 
-  function addToCart(productVariantId: string, label: string, quantity = 1) {
+  function addToCart(productVariantId: string, label: string, quantity = 1, unitOfMeasureId: string | null = null) {
     const variant = sellable.find((entry) => entry.id === productVariantId);
-    const defaultPrice = variant ? defaultPriceText(variant, 'sale', currency) : null;
+    const defaultPrice = variant ? unitPriceText(variant, unitOfMeasureId, 'sale', currency) : null;
     setLines((prev) => {
-      const existing = prev.find((l) => l.productVariantId === productVariantId);
+      const existing = prev.find(
+        (l) => l.productVariantId === productVariantId && l.unitOfMeasureId === unitOfMeasureId,
+      );
       if (existing) {
         const nextQuantity = Math.round(((Number(existing.quantity) || 0) + quantity) * 1000) / 1000;
         return prev.map((l) => (l.key === existing.key ? { ...l, quantity: String(nextQuantity) } : l));
@@ -151,6 +163,7 @@ export function PosCartPanel({ session }: { session: PosSessionDto }) {
         {
           key: makeKey('line'),
           productVariantId,
+          unitOfMeasureId,
           label,
           quantity: String(quantity),
           unitPrice: defaultPrice ?? '',
@@ -222,6 +235,7 @@ export function PosCartPanel({ session }: { session: PosSessionDto }) {
       }
       preparedLines.push({
         productVariantId: line.productVariantId,
+        unitOfMeasureId: line.unitOfMeasureId,
         quantity,
         unitPrice: { amountMinorUnits, currency },
         ...resolvedDiscount,
@@ -365,7 +379,21 @@ export function PosCartPanel({ session }: { session: PosSessionDto }) {
                 <TableBody>
                   {lines.map((line) => (
                     <TableRow key={line.key}>
-                      <TableCell>{line.label}</TableCell>
+                      <TableCell>
+                        <div className="grid gap-1">
+                          <span>{line.label}</span>
+                          <LineUnitSelect
+                            className="h-7 w-full text-xs"
+                            variant={sellable.find((entry) => entry.id === line.productVariantId)}
+                            value={line.unitOfMeasureId}
+                            onChange={(unitOfMeasureId) => {
+                              const variant = sellable.find((entry) => entry.id === line.productVariantId);
+                              const price = variant ? unitPriceText(variant, unitOfMeasureId, 'sale', currency) : null;
+                              updateLine(line.key, { unitOfMeasureId, ...(price ? { unitPrice: price } : {}) });
+                            }}
+                          />
+                        </div>
+                      </TableCell>
                       <TableCell>
                         <Input
                           type="number"

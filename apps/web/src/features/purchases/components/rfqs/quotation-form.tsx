@@ -65,6 +65,7 @@ function prepareLines(
     }
     prepared.push({
       productVariantId: line.productVariantId,
+      unitOfMeasureId: line.unitOfMeasureId,
       quantity,
       unitPrice: { amountMinorUnits, currency },
       notes: line.notes.trim() === '' ? undefined : line.notes,
@@ -243,6 +244,7 @@ export function EditSupplierQuotationForm({
       ? quotation.lines.map((line) => ({
           key: line.id,
           productVariantId: line.productVariantId,
+          unitOfMeasureId: line.unitOfMeasureId ?? null,
           quantity: String(line.quantity),
           unitPrice: minorUnitsToDecimalString(line.unitPrice.amountMinorUnits),
           notes: line.notes ?? '',

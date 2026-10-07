@@ -1,7 +1,7 @@
 import type { InventorySettingsDto, ProductVariantLookupDto } from '@erp-platform/contracts';
 
 import { normalizeForSearch } from '../../lib/search-normalize';
-import { minorUnitsToDecimalString } from '../../lib/money';
+import { minorUnitsToDecimalString, multiplyMinorUnits } from '../../lib/money';
 
 /** The text a variant is shown as in pickers: name, plus its options when it has any. */
 export function variantDisplayName(variant: ProductVariantLookupDto): string {
@@ -124,4 +124,43 @@ export function defaultPriceText(
   const price = kind === 'sale' ? variant.salePrice : variant.purchasePrice;
   if (!price || (currency && price.currency !== currency)) return null;
   return minorUnitsToDecimalString(price.amountMinorUnits);
+}
+
+type LookupUnit = ProductVariantLookupDto['units'][number];
+
+/** The product unit a line is in (undefined = the base unit). */
+export function findUnit(variant: ProductVariantLookupDto | undefined, unitOfMeasureId: string | null | undefined) {
+  return unitOfMeasureId ? variant?.units.find((unit) => unit.unitOfMeasureId === unitOfMeasureId) : undefined;
+}
+
+/** Symbol to print next to a quantity: the line's unit, else the product's base unit. */
+export function unitSymbol(variant: ProductVariantLookupDto | undefined, unitOfMeasureId: string | null | undefined) {
+  return findUnit(variant, unitOfMeasureId)?.symbol ?? variant?.unitOfMeasureSymbol ?? '';
+}
+
+/** The unit a new sales / purchase line starts in: the product's default for that side, else the base unit. */
+export function defaultUnitId(variant: ProductVariantLookupDto | undefined, kind: 'sale' | 'purchase'): string | null {
+  const unit = variant?.units.find((candidate: LookupUnit) =>
+    kind === 'sale' ? candidate.isDefaultSale : candidate.isDefaultPurchase,
+  );
+  return unit?.unitOfMeasureId ?? null;
+}
+
+/**
+ * Default price for a line in a given unit: the unit's own price when set,
+ * else the base price × the unit's factor. Null = leave the price to the user.
+ */
+export function unitPriceText(
+  variant: ProductVariantLookupDto | undefined,
+  unitOfMeasureId: string | null | undefined,
+  kind: 'sale' | 'purchase',
+  currency: string,
+): string | null {
+  const unit = findUnit(variant, unitOfMeasureId);
+  if (!unit) return variant ? defaultPriceText(variant, kind, currency) : null;
+  const own = kind === 'sale' ? unit.salePrice : unit.purchasePrice;
+  if (own && (!currency || own.currency === currency)) return minorUnitsToDecimalString(own.amountMinorUnits);
+  const base = kind === 'sale' ? variant?.salePrice : variant?.purchasePrice;
+  if (!base || (currency && base.currency !== currency)) return null;
+  return minorUnitsToDecimalString(multiplyMinorUnits(base.amountMinorUnits, String(unit.factor)));
 }

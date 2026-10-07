@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Optional } from '@nestjs/common';
 import type { Kysely } from 'kysely';
 import { Money } from '@erp-platform/shared-kernel';
 import type { TenantDatabase } from '../../../../database/tenant/kysely-client';
@@ -10,6 +10,7 @@ import {
 } from '../ports/warehouse-location.repository';
 import { PRODUCT_REPOSITORY, type ProductRepository } from '../ports/product.repository';
 import { PRODUCT_VARIANT_REPOSITORY, type ProductVariantRepository } from '../ports/product-variant.repository';
+import { PRODUCT_UNIT_REPOSITORY, type ProductUnitRepository } from '../ports/product-unit.repository';
 import {
   STOCK_LOT_REPOSITORY,
   type ExpiringLotRow,
@@ -102,6 +103,8 @@ export class StockMovementsService {
     @Inject(PRODUCT_REPOSITORY) private readonly products: ProductRepository,
     @Inject(STOCK_LOT_REPOSITORY) private readonly stockLots: StockLotRepository,
     private readonly unitsOfMeasure: UnitsOfMeasureService,
+    // Optional so tests that build the service by hand keep working; Nest always provides it.
+    @Optional() @Inject(PRODUCT_UNIT_REPOSITORY) private readonly productUnits?: ProductUnitRepository,
   ) {}
 
   list(
@@ -400,6 +403,18 @@ export class StockMovementsService {
     unitCost: Money | undefined,
   ): Promise<{ quantity: number; unitCost: Money | undefined }> {
     if (!unitOfMeasureId || unitOfMeasureId === product.unitOfMeasureId) return { quantity, unitCost };
+
+    // The product's own pack unit (a carton of 12 for this item) wins over a
+    // global unit conversion.
+    const productUnit = this.productUnits
+      ? (await this.productUnits.listByProductId(trx, product.id)).find((unit) => unit.unitOfMeasureId === unitOfMeasureId)
+      : undefined;
+    if (productUnit) {
+      return {
+        quantity: Math.round(quantity * productUnit.factor * 10_000) / 10_000,
+        unitCost: unitCost ? unitCost.divideByQuantity(productUnit.factor) : undefined,
+      };
+    }
 
     const convertedQuantity = await this.unitsOfMeasure.convert(trx, unitOfMeasureId, product.unitOfMeasureId, quantity);
     const convertedUnitCost = unitCost

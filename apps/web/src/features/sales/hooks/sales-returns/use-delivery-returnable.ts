@@ -9,6 +9,8 @@ import { useSalesReturnsByDelivery } from '../../api/sales-returns/queries';
 export interface ReturnableDeliveryLine {
   deliveryLineId: string;
   productVariantId: string;
+  /** Unit of the source line (quantities here are in it); null = base unit. */
+  unitOfMeasureId: string | null;
   delivered: number;
   returned: number;
   remaining: number;
@@ -60,6 +62,7 @@ export function useDeliveryReturnable(deliveryId: string | null | undefined) {
       return {
         deliveryLineId: line.id,
         productVariantId: line.productVariantId,
+        unitOfMeasureId: line.unitOfMeasureId ?? null,
         delivered: line.quantityDelivered,
         returned,
         remaining: line.quantityDelivered - returned,

@@ -55,6 +55,7 @@ import {
   PurchaseOrderLineItemsEditor,
   type PurchaseOrderLineDraft,
 } from './purchase-order-line-items-editor';
+import { QuantityWithUnit } from '../../../../components/product/unit-select';
 
 const PURCHASE_ORDER_ENTITY_TYPE = 'purchase_order';
 
@@ -72,6 +73,7 @@ function prepareLines(lines: PurchaseOrderLineDraft[], currency: string): Create
     }
     prepared.push({
       productVariantId: line.productVariantId,
+      unitOfMeasureId: line.unitOfMeasureId,
       quantity,
       unitPrice: { amountMinorUnits, currency },
       notes: line.notes.trim() === '' ? undefined : line.notes,
@@ -221,7 +223,7 @@ export function CreatePurchaseOrderFromQuotationForm({ onDone }: { onDone: () =>
                       <TableCell>
                         {variant ? `${variant.productName} — ${variant.sku}` : line.productVariantId}
                       </TableCell>
-                      <TableCell>{line.quantity}</TableCell>
+                      <TableCell><QuantityWithUnit quantity={line.quantity} productVariantId={line.productVariantId} unitOfMeasureId={line.unitOfMeasureId} /></TableCell>
                       <TableCell>{formatMoney(line.unitPrice.amountMinorUnits, line.unitPrice.currency)}</TableCell>
                     </TableRow>
                   );
@@ -429,6 +431,7 @@ export function EditPurchaseOrderForm({
       ? order.lines.map((line) => ({
           key: line.id,
           productVariantId: line.productVariantId,
+          unitOfMeasureId: line.unitOfMeasureId ?? null,
           quantity: String(line.quantity),
           unitPrice: minorUnitsToDecimalString(line.unitPrice.amountMinorUnits),
           notes: line.notes ?? '',

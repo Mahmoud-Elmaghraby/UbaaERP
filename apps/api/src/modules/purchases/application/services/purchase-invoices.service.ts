@@ -211,6 +211,7 @@ export class PurchaseInvoicesService {
                 quantity: line.quantityInvoiced,
                 unitPrice: line.unitPrice,
                 notes: line.notes ?? null,
+                unitOfMeasureId: line.unitOfMeasureId ?? null,
               })),
               customFields: {},
             },
@@ -400,6 +401,8 @@ export class PurchaseInvoicesService {
               quantityInvoiced: line.quantityInvoiced,
               unitPrice: line.unitPrice,
               notes: line.notes ?? null,
+              unitOfMeasureId: poLine.unitOfMeasureId,
+              unitFactor: poLine.unitFactor,
             }),
           );
         }

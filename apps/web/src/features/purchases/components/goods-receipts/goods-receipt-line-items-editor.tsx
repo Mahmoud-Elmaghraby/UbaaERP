@@ -10,6 +10,7 @@ import {
   ReceiptLotsEditor,
   type ReceiptLotsDraft,
 } from '../../../../components/document/lot-entry';
+import { QuantityWithUnit } from '../../../../components/product/unit-select';
 
 export interface GoodsReceiptLineDraft {
   quantityReceived: string;
@@ -98,8 +99,20 @@ export function GoodsReceiptLineItemsEditor({
               <Fragment key={line.purchaseOrderLineId}>
                 <TableRow className={trackingType !== 'none' ? 'border-b-0' : undefined}>
                   <TableCell>{variant ? `${variant.productName} — ${variant.sku}` : line.productVariantId}</TableCell>
-                  <TableCell>{line.ordered}</TableCell>
-                  <TableCell>{line.remaining}</TableCell>
+                  <TableCell>
+                    <QuantityWithUnit
+                      quantity={line.ordered}
+                      productVariantId={line.productVariantId}
+                      unitOfMeasureId={line.unitOfMeasureId}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <QuantityWithUnit
+                      quantity={line.remaining}
+                      productVariantId={line.productVariantId}
+                      unitOfMeasureId={line.unitOfMeasureId}
+                    />
+                  </TableCell>
                   <TableCell>
                     <Input
                       type="number"

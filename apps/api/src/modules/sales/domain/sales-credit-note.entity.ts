@@ -16,6 +16,9 @@ export interface SalesCreditNoteLine {
   quantity: number;
   unitPrice: Money;
   createdAt: Date;
+  /** Unit the line is in (null = product base unit) and base units per 1 of it — migration 0079. */
+  unitOfMeasureId: string | null;
+  unitFactor: number;
 }
 
 export interface SalesCreditNote {
@@ -42,6 +45,9 @@ export interface CreateSalesCreditNoteLineInput {
   productVariantId: string;
   quantity: number;
   unitPrice: Money;
+  /** Line unit (migration 0079); omitted = base unit, factor 1. */
+  unitOfMeasureId?: string | null;
+  unitFactor?: number;
 }
 
 export interface CreateSalesCreditNoteInput {

@@ -18,6 +18,8 @@ function toDomain(row: Selectable<GoodsReceiptLinesTable>): GoodsReceiptLine {
     unitCost: Money.fromMinorUnits(BigInt(row.unit_cost_amount), row.unit_cost_currency),
     notes: row.notes,
     lots: (Array.isArray(row.lot_allocations) ? row.lot_allocations : []) as ReceiptLot[],
+    unitOfMeasureId: row.unit_of_measure_id,
+    unitFactor: Number(row.unit_factor),
     createdAt: row.created_at,
   };
 }
@@ -42,6 +44,8 @@ export class KyselyGoodsReceiptLineRepository implements GoodsReceiptLineReposit
       .insertInto('goods_receipt_lines')
       .values({
         id: randomUUID(),
+        unit_of_measure_id: input.unitOfMeasureId ?? null,
+        unit_factor: String(input.unitFactor ?? 1),
         goods_receipt_id: goodsReceiptId,
         purchase_order_line_id: input.purchaseOrderLineId,
         product_variant_id: input.productVariantId,

@@ -8,6 +8,9 @@ export interface CreateSalesReturnLineRow {
   quantityReturned: number;
   reason: string | null;
   notes: string | null;
+  /** Line unit (migration 0079); omitted = base unit, factor 1. */
+  unitOfMeasureId?: string | null;
+  unitFactor?: number;
 }
 
 export interface SalesReturnLineRepository {

@@ -3,6 +3,7 @@ import { Input, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } 
 
 import { useVariantIndex } from '../../hooks/purchase-returns/use-variant-index';
 import type { ReturnableReceiptLine } from '../../hooks/purchase-returns/use-goods-receipt-returnable';
+import { QuantityWithUnit } from '../../../../components/product/unit-select';
 
 export interface PurchaseReturnLineDraft {
   quantityReturned: string;
@@ -73,8 +74,20 @@ export function PurchaseReturnLineItemsEditor({
             return (
               <TableRow key={line.goodsReceiptLineId}>
                 <TableCell>{variant ? `${variant.productName} — ${variant.sku}` : line.productVariantId}</TableCell>
-                <TableCell>{line.received}</TableCell>
-                <TableCell>{line.remaining}</TableCell>
+                <TableCell>
+                  <QuantityWithUnit
+                    quantity={line.received}
+                    productVariantId={line.productVariantId}
+                    unitOfMeasureId={line.unitOfMeasureId}
+                  />
+                </TableCell>
+                <TableCell>
+                  <QuantityWithUnit
+                    quantity={line.remaining}
+                    productVariantId={line.productVariantId}
+                    unitOfMeasureId={line.unitOfMeasureId}
+                  />
+                </TableCell>
                 <TableCell>
                   <Input
                     type="number"

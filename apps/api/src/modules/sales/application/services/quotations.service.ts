@@ -20,6 +20,7 @@ import { TenantSettingsService } from '../../../settings/application/services/te
 import { FeatureAvailabilityService } from '../../../../shared/plans/feature-availability.service';
 import { FEATURE_KEYS } from '../../../../shared/plans/feature-catalog';
 import { assertCurrencyAllowedForTenant } from '../../../../shared/plans/currency-gate';
+import { ProductUnitResolver } from '../../../../shared/catalog/product-unit-resolver';
 
 @Injectable()
 export class QuotationsService {
@@ -30,6 +31,7 @@ export class QuotationsService {
     private readonly numberingSequences: NumberingSequencesService,
     private readonly tenantSettings: TenantSettingsService,
     private readonly featureAvailability: FeatureAvailabilityService,
+    private readonly unitResolver: ProductUnitResolver,
   ) {}
 
   /** Shared by create()/update() — see currency-gate.ts's own comment. */
@@ -97,6 +99,7 @@ export class QuotationsService {
       );
     }
 
+    const linesWithUnits = await this.unitResolver.resolve(db, input.lines);
     return db.transaction().execute(async (trx) => {
       const quotation = await this.quotations.create(trx, {
         quotationNumber: allocated.formatted,
@@ -107,7 +110,7 @@ export class QuotationsService {
       });
 
       const createdLines = [];
-      for (const line of input.lines) {
+      for (const line of linesWithUnits) {
         createdLines.push(await this.lines.create(trx, quotation.id, line));
       }
 
@@ -149,6 +152,7 @@ export class QuotationsService {
       );
     }
 
+    const newLines = input.lines !== undefined ? await this.unitResolver.resolve(db, input.lines) : undefined;
     return db.transaction().execute(async (trx) => {
       const updated = await this.quotations.update(trx, id, {
         validUntilDate: input.validUntilDate,
@@ -158,10 +162,10 @@ export class QuotationsService {
       if (!updated) throw entityNotFound('QUOTATION', id);
 
       let lines = await this.lines.listByQuotationId(trx, id);
-      if (input.lines !== undefined) {
+      if (newLines !== undefined) {
         await this.lines.deleteByQuotationId(trx, id);
         lines = [];
-        for (const line of input.lines) lines.push(await this.lines.create(trx, id, line));
+        for (const line of newLines) lines.push(await this.lines.create(trx, id, line));
       }
 
       return { ...updated, lines, totalAmount: calculateQuotationTotal(lines) };

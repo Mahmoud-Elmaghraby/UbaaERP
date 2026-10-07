@@ -15,6 +15,7 @@ import { useCustomers } from '../../api/customers/queries';
 import { useVariantIndex } from '../../hooks/quotations/use-variant-index';
 import { formatMoney } from '../../../../lib/money';
 import { QUOTATION_STATUS_VARIANT, quotationStatusLabelKey } from './quotation-status';
+import { QuantityWithUnit } from '../../../../components/product/unit-select';
 
 /** Read-only header + lines + total, same shape as Purchase Orders' own details view.
  * totalAmount is always server-computed (QuotationsService.getById() derives it from
@@ -76,7 +77,7 @@ export function QuotationDetailsView({ quotation }: { quotation: QuotationWithLi
                 {variantIndex.get(line.productVariantId)?.productName ?? '—'} (
                 {variantIndex.get(line.productVariantId)?.sku ?? '—'})
               </TableCell>
-              <TableCell>{line.quantity}</TableCell>
+              <TableCell><QuantityWithUnit quantity={line.quantity} productVariantId={line.productVariantId} unitOfMeasureId={line.unitOfMeasureId} /></TableCell>
               <TableCell>
                 {formatMoney(line.unitPrice.amountMinorUnits, line.unitPrice.currency)}
               </TableCell>

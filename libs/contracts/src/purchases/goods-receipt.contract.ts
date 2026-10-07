@@ -23,6 +23,8 @@ export const goodsReceiptLineSchema = z.object({
   goodsReceiptId: z.string().uuid(),
   purchaseOrderLineId: z.string().uuid(),
   productVariantId: z.string().uuid(),
+  unitOfMeasureId: z.string().uuid().nullable().default(null),
+  unitFactor: z.number().positive().default(1),
   quantityReceived: z.number().positive(),
   unitCost: moneySchema,
   notes: z.string().nullable(),

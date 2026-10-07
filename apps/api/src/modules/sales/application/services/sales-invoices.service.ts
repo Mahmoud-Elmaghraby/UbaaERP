@@ -181,6 +181,7 @@ export class SalesInvoicesService {
                 quantity: line.quantity,
                 unitPrice: line.unitPrice,
                 notes: line.notes ?? null,
+                unitOfMeasureId: line.unitOfMeasureId ?? null,
               })),
               customFields: {},
             },
@@ -357,6 +358,8 @@ export class SalesInvoicesService {
               quantityInvoiced: line.quantityInvoiced,
               unitPrice: line.unitPrice,
               notes: line.notes ?? null,
+              unitOfMeasureId: orderLine.unitOfMeasureId,
+              unitFactor: orderLine.unitFactor,
             }),
           );
         }

@@ -8,6 +8,8 @@ export const supplierQuotationLineSchema = z.object({
   id: z.string().uuid(),
   quotationId: z.string().uuid(),
   productVariantId: z.string().uuid(),
+  unitOfMeasureId: z.string().uuid().nullable().default(null),
+  unitFactor: z.number().positive().default(1),
   quantity: z.number().positive(),
   unitPrice: moneySchema,
   notes: z.string().nullable(),
@@ -35,6 +37,8 @@ export type SupplierQuotationWithLinesDto = z.infer<typeof supplierQuotationWith
 
 export const createSupplierQuotationLineSchema = z.object({
   productVariantId: z.string().uuid(),
+  /** Line unit (carton, sack…); omitted/null = the product's base unit. */
+  unitOfMeasureId: z.string().uuid().nullable().optional(),
   quantity: z.number().positive(),
   unitPrice: moneySchema,
   notes: z.string().nullable().optional(),

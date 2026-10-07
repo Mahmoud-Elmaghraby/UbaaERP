@@ -20,6 +20,7 @@ import type {
 import { BusinessRuleError, ConflictError, isPostgresUniqueViolation } from '../errors';
 import { entityNotFound } from '../../../../shared/errors/entity-errors';
 import { RfqsService } from './rfqs.service';
+import { ProductUnitResolver } from '../../../../shared/catalog/product-unit-resolver';
 
 @Injectable()
 export class SupplierQuotationsService {
@@ -29,6 +30,7 @@ export class SupplierQuotationsService {
     @Inject(RFQ_REPOSITORY) private readonly rfqs: RfqRepository,
     @Inject(RFQ_SUPPLIER_REPOSITORY) private readonly invitedSuppliers: RfqSupplierRepository,
     private readonly rfqsService: RfqsService,
+    private readonly unitResolver: ProductUnitResolver,
   ) {}
 
   list(db: Kysely<TenantDatabase>, rfqId?: string): Promise<SupplierQuotation[]> {
@@ -70,6 +72,7 @@ export class SupplierQuotationsService {
       );
     }
 
+    const linesWithUnits = await this.unitResolver.resolve(db, input.lines);
     try {
       return await db.transaction().execute(async (trx) => {
         const quotation = await this.quotations.create(trx, {
@@ -81,7 +84,7 @@ export class SupplierQuotationsService {
         });
 
         const createdLines = [];
-        for (const line of input.lines) {
+        for (const line of linesWithUnits) {
           createdLines.push(await this.lines.create(trx, quotation.id, line));
         }
 
@@ -120,6 +123,7 @@ export class SupplierQuotationsService {
       });
     }
 
+    const newLines = input.lines !== undefined ? await this.unitResolver.resolve(db, input.lines) : undefined;
     return db.transaction().execute(async (trx) => {
       const updated = await this.quotations.update(trx, id, {
         validUntil: input.validUntil,
@@ -129,10 +133,10 @@ export class SupplierQuotationsService {
       if (!updated) throw entityNotFound('SUPPLIER_QUOTATION', id);
 
       let lines = await this.lines.listByQuotationId(trx, id);
-      if (input.lines !== undefined) {
+      if (newLines !== undefined) {
         await this.lines.deleteByQuotationId(trx, id);
         lines = [];
-        for (const line of input.lines) lines.push(await this.lines.create(trx, id, line));
+        for (const line of newLines) lines.push(await this.lines.create(trx, id, line));
       }
 
       return { ...updated, lines };

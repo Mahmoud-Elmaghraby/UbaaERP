@@ -17,6 +17,7 @@ import { useVariantIndex } from '../../hooks/goods-receipts/use-variant-index';
 import { formatMoney } from '../../../../lib/money';
 import { GOODS_RECEIPT_STATUS_VARIANT, goodsReceiptStatusLabelKey } from './goods-receipt-status';
 import { LotsSummary } from '../../../../components/document/lot-entry';
+import { QuantityWithUnit } from '../../../../components/product/unit-select';
 
 /** Read-only header + lines, same shape as every other Purchases entity's details view. */
 export function GoodsReceiptDetailsView({ receipt }: { receipt: GoodsReceiptWithLinesDto }) {
@@ -82,7 +83,7 @@ export function GoodsReceiptDetailsView({ receipt }: { receipt: GoodsReceiptWith
                 {variantIndex.get(line.productVariantId)?.sku ?? '—'})
                 <LotsSummary lots={line.lots ?? []} />
               </TableCell>
-              <TableCell>{line.quantityReceived}</TableCell>
+              <TableCell><QuantityWithUnit quantity={line.quantityReceived} productVariantId={line.productVariantId} unitOfMeasureId={line.unitOfMeasureId} /></TableCell>
               <TableCell>
                 {formatMoney(line.unitCost.amountMinorUnits, line.unitCost.currency)}
               </TableCell>

@@ -9,6 +9,8 @@ import { useDeliveriesBySalesOrder } from '../../api/deliveries/queries';
 export interface RemainingSoLine {
   salesOrderLineId: string;
   productVariantId: string;
+  /** Unit of the source line (quantities here are in it); null = base unit. */
+  unitOfMeasureId: string | null;
   ordered: number;
   delivered: number;
   remaining: number;
@@ -59,6 +61,7 @@ export function useSalesOrderRemaining(salesOrderId: string | null | undefined) 
       return {
         salesOrderLineId: line.id,
         productVariantId: line.productVariantId,
+        unitOfMeasureId: line.unitOfMeasureId ?? null,
         ordered: line.quantity,
         delivered,
         remaining: line.quantity - delivered,

@@ -17,6 +17,8 @@ function toDomain(row: Selectable<SalesInvoiceLinesTable>): SalesInvoiceLine {
     quantityInvoiced: Number(row.quantity_invoiced),
     unitPrice: Money.fromMinorUnits(BigInt(row.unit_price_amount), row.unit_price_currency),
     notes: row.notes,
+    unitOfMeasureId: row.unit_of_measure_id,
+    unitFactor: Number(row.unit_factor),
     createdAt: row.created_at,
   };
 }
@@ -44,6 +46,8 @@ export class KyselySalesInvoiceLineRepository implements SalesInvoiceLineReposit
       .insertInto('sales_invoice_lines')
       .values({
         id: randomUUID(),
+        unit_of_measure_id: input.unitOfMeasureId ?? null,
+        unit_factor: String(input.unitFactor ?? 1),
         sales_invoice_id: salesInvoiceId,
         sales_order_line_id: input.salesOrderLineId,
         product_variant_id: input.productVariantId,

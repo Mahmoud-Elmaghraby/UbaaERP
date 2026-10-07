@@ -142,6 +142,8 @@ export class DeliveriesService {
               productVariantId: orderLine.productVariantId,
               quantityDelivered: line.quantityDelivered,
               notes: line.notes ?? null,
+              unitOfMeasureId: orderLine.unitOfMeasureId,
+              unitFactor: orderLine.unitFactor,
               lots: normalizeDeliveryLots(line.lots ?? [], line.quantityDelivered, line.salesOrderLineId),
             }),
           );
@@ -255,8 +257,9 @@ export class DeliveriesService {
           warehouseId: updated.warehouseId,
           lines: lines.map((line) => ({
             productVariantId: line.productVariantId,
-            quantity: line.quantityDelivered,
-            lots: line.lots,
+            // Inventory counts in the product's base unit (a carton line of 2 × 12 → 24).
+            quantity: toBase(line.quantityDelivered, line.unitFactor),
+            lots: line.lots.map((lot) => ({ ...lot, quantity: toBase(lot.quantity, line.unitFactor) })),
           })),
         },
         occurredAt: new Date(),
@@ -310,4 +313,8 @@ export function normalizeDeliveryLots(lots: DeliveryLot[], quantity: number, lin
     });
   }
   return result;
+}
+
+function toBase(quantity: number, unitFactor: number): number {
+  return Math.round(quantity * unitFactor * 10_000) / 10_000;
 }

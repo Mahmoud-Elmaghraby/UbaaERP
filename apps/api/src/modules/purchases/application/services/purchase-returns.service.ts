@@ -153,6 +153,8 @@ export class PurchaseReturnsService {
               quantityReturned: line.quantityReturned,
               reason: line.reason ?? null,
               notes: line.notes ?? null,
+              unitOfMeasureId: receiptLine.unitOfMeasureId,
+              unitFactor: receiptLine.unitFactor,
             }),
           );
         }
@@ -223,7 +225,8 @@ export class PurchaseReturnsService {
           warehouseId: goodsReceipt.warehouseId,
           lines: lines.map((line) => ({
             productVariantId: line.productVariantId,
-            quantity: line.quantityReturned,
+            // Base units for Inventory (line quantity is in the line's own unit).
+            quantity: Math.round(line.quantityReturned * line.unitFactor * 10_000) / 10_000,
           })),
         },
         occurredAt: new Date(),

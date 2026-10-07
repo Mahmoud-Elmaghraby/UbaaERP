@@ -15,6 +15,7 @@ import type {
   ProductBarcode,
   CreateProductBarcodeInput,
 } from '../../domain/product-variant.entity';
+import { KyselyProductUnitRepository } from './kysely-product-unit.repository';
 
 function toDomain(row: Selectable<ProductVariantsTable>): ProductVariant {
   return {
@@ -166,10 +167,12 @@ export class KyselyProductVariantRepository implements ProductVariantRepository 
       list.push({ barcode: extra.barcode, quantity: Number(extra.quantity), label: extra.label });
       extrasByVariant.set(extra.product_variant_id, list);
     }
+    const unitsByProduct = await new KyselyProductUnitRepository().listAllForLookup(db);
     return rows.map((row) => ({
       id: row.id,
       productId: row.product_id,
       extraBarcodes: extrasByVariant.get(row.id) ?? [],
+      units: unitsByProduct.get(row.product_id) ?? [],
       productCode: row.product_code,
       productName: row.product_name,
       sku: row.sku,

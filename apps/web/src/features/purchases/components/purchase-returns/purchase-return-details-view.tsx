@@ -17,6 +17,7 @@ import {
   PURCHASE_RETURN_STATUS_VARIANT,
   purchaseReturnStatusLabelKey,
 } from './purchase-return-status';
+import { QuantityWithUnit } from '../../../../components/product/unit-select';
 
 /** Read-only header + lines, same shape as every other Purchases entity's details view. */
 export function PurchaseReturnDetailsView({
@@ -78,7 +79,7 @@ export function PurchaseReturnDetailsView({
                 {variantIndex.get(line.productVariantId)?.productName ?? '—'} (
                 {variantIndex.get(line.productVariantId)?.sku ?? '—'})
               </TableCell>
-              <TableCell>{line.quantityReturned}</TableCell>
+              <TableCell><QuantityWithUnit quantity={line.quantityReturned} productVariantId={line.productVariantId} unitOfMeasureId={line.unitOfMeasureId} /></TableCell>
               <TableCell>{line.reason ?? '—'}</TableCell>
               <TableCell>{line.notes ?? '—'}</TableCell>
             </TableRow>

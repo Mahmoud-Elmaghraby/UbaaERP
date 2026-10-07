@@ -16,7 +16,7 @@ export class ApiError extends Error {
 }
 
 interface RequestOptions {
-  method?: 'GET' | 'POST' | 'PATCH' | 'DELETE';
+  method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
   body?: unknown;
   /** Skip attaching the Authorization header — used only by /auth/* calls. */
   skipAuth?: boolean;
@@ -129,6 +129,8 @@ export const apiPost = <T>(path: string, body?: unknown, options?: RequestOption
   apiFetch<T>(path, { ...options, method: 'POST', body });
 export const apiPatch = <T>(path: string, body?: unknown) =>
   apiFetch<T>(path, { method: 'PATCH', body });
+export const apiPut = <T>(path: string, body?: unknown) =>
+  apiFetch<T>(path, { method: 'PUT', body });
 export const apiDelete = <T>(path: string) => apiFetch<T>(path, { method: 'DELETE' });
 
 /**

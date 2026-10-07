@@ -29,7 +29,10 @@ export function productWithVariantsToDto(product: Product & { variants: ProductV
 }
 
 export function variantLookupToDto(variant: ProductVariantLookup): ProductVariantLookupDto {
-  return productVariantLookupSchema.parse(pricesToDto(variant));
+  return productVariantLookupSchema.parse({
+    ...pricesToDto(variant),
+    units: variant.units.map((unit) => pricesToDto(unit)),
+  });
 }
 
 /** DTO prices (wire Money) → domain Money; undefined stays undefined (= not sent / unchanged). */

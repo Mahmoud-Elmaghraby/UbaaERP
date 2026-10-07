@@ -27,6 +27,7 @@ import { useCategoryOptions } from '../../api/catalog/queries';
 import { formatMoney } from '../../../../lib/money';
 import { CreateProductForm, EditProductForm } from './product-form';
 import { ProductVariantsDialog } from './product-variants-dialog';
+import { ProductUnitsDialog } from './product-units-dialog';
 import { ApiError } from '../../../../lib/api-client';
 
 export function ProductsTab() {
@@ -36,6 +37,7 @@ export function ProductsTab() {
   const [createOpen, setCreateOpen] = useState(false);
   const [editing, setEditing] = useState<ProductDto | null>(null);
   const [managingVariantsFor, setManagingVariantsFor] = useState<ProductDto | null>(null);
+  const [managingUnitsFor, setManagingUnitsFor] = useState<ProductDto | null>(null);
   const deleteProduct = useDeleteProduct();
 
   const unitById = useMemo(() => new Map((units ?? []).map((u) => [u.id, u])), [units]);
@@ -150,6 +152,9 @@ export function ProductsTab() {
                 <DropdownMenuItem onSelect={() => setManagingVariantsFor(row.original)}>
                   {t('inventory.products.manageVariants')}
                 </DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => setManagingUnitsFor(row.original)}>
+                  {t('inventory.productUnits.menu')}
+                </DropdownMenuItem>
                 <DropdownMenuItem onSelect={() => setEditing(row.original)}>
                   {t('common.edit')}
                 </DropdownMenuItem>
@@ -222,6 +227,7 @@ export function ProductsTab() {
         product={managingVariantsFor}
         onClose={() => setManagingVariantsFor(null)}
       />
+      <ProductUnitsDialog product={managingUnitsFor} onClose={() => setManagingUnitsFor(null)} />
     </div>
   );
 }

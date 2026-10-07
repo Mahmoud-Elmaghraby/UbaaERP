@@ -17,6 +17,8 @@ function toDomain(row: Selectable<PurchaseInvoiceLinesTable>): PurchaseInvoiceLi
     quantityInvoiced: Number(row.quantity_invoiced),
     unitPrice: Money.fromMinorUnits(BigInt(row.unit_price_amount), row.unit_price_currency),
     notes: row.notes,
+    unitOfMeasureId: row.unit_of_measure_id,
+    unitFactor: Number(row.unit_factor),
     createdAt: row.created_at,
   };
 }
@@ -44,6 +46,8 @@ export class KyselyPurchaseInvoiceLineRepository implements PurchaseInvoiceLineR
       .insertInto('purchase_invoice_lines')
       .values({
         id: randomUUID(),
+        unit_of_measure_id: input.unitOfMeasureId ?? null,
+        unit_factor: String(input.unitFactor ?? 1),
         purchase_invoice_id: purchaseInvoiceId,
         purchase_order_line_id: input.purchaseOrderLineId,
         product_variant_id: input.productVariantId,

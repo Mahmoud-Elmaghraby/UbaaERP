@@ -9,6 +9,8 @@ import { usePurchaseReturnsByGoodsReceipt } from '../../api/purchase-returns/que
 export interface ReturnableReceiptLine {
   goodsReceiptLineId: string;
   productVariantId: string;
+  /** Unit of the source line (quantities here are in it); null = base unit. */
+  unitOfMeasureId: string | null;
   received: number;
   returned: number;
   remaining: number;
@@ -60,6 +62,7 @@ export function useGoodsReceiptReturnable(goodsReceiptId: string | null | undefi
       return {
         goodsReceiptLineId: line.id,
         productVariantId: line.productVariantId,
+        unitOfMeasureId: line.unitOfMeasureId ?? null,
         received: line.quantityReceived,
         returned,
         remaining: line.quantityReceived - returned,

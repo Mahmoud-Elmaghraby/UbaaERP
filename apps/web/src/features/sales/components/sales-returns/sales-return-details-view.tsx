@@ -15,6 +15,7 @@ import { useDeliveries } from '../../api/deliveries/queries';
 import { useSalesCreditNotesBySalesReturn } from '../../api/sales-credit-notes/queries';
 import { useVariantIndex } from '../../hooks/sales-returns/use-variant-index';
 import { SALES_RETURN_STATUS_VARIANT, salesReturnStatusLabelKey } from './sales-return-status';
+import { QuantityWithUnit } from '../../../../components/product/unit-select';
 
 /** Read-only header + lines, same shape as every other Sales/Purchases entity's details
  * view. No Money column — sales returns carry no unit cost (see PurchaseReturns'
@@ -84,7 +85,7 @@ export function SalesReturnDetailsView({ salesReturn }: { salesReturn: SalesRetu
                 {variantIndex.get(line.productVariantId)?.productName ?? '—'} (
                 {variantIndex.get(line.productVariantId)?.sku ?? '—'})
               </TableCell>
-              <TableCell>{line.quantityReturned}</TableCell>
+              <TableCell><QuantityWithUnit quantity={line.quantityReturned} productVariantId={line.productVariantId} unitOfMeasureId={line.unitOfMeasureId} /></TableCell>
               <TableCell>{line.reason ?? '—'}</TableCell>
               <TableCell>{line.notes ?? '—'}</TableCell>
             </TableRow>

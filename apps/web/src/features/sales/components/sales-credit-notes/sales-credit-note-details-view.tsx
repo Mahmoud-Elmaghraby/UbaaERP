@@ -7,6 +7,7 @@ import { useCustomers } from '../../api/customers/queries';
 import { useSalesReturns } from '../../api/sales-returns/queries';
 import { useVariantIndex } from '../../hooks/sales-credit-notes/use-variant-index';
 import { formatMoney } from '../../../../lib/money';
+import { QuantityWithUnit } from '../../../../components/product/unit-select';
 
 /**
  * Read-only header + lines + total — same shape as every other Sales details view
@@ -67,7 +68,13 @@ export function SalesCreditNoteDetailsView({ creditNote }: { creditNote: SalesCr
                 {variantIndex.get(line.productVariantId)?.productName ?? '—'} (
                 {variantIndex.get(line.productVariantId)?.sku ?? '—'})
               </TableCell>
-              <TableCell>{line.quantity}</TableCell>
+              <TableCell>
+                <QuantityWithUnit
+                  quantity={line.quantity}
+                  productVariantId={line.productVariantId}
+                  unitOfMeasureId={line.unitOfMeasureId}
+                />
+              </TableCell>
               <TableCell>{formatMoney(line.unitPrice.amountMinorUnits, line.unitPrice.currency)}</TableCell>
             </TableRow>
           ))}

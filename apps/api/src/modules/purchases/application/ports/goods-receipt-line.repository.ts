@@ -10,6 +10,9 @@ export interface CreateGoodsReceiptLineRow {
   unitCost: Money;
   notes: string | null;
   lots: ReceiptLot[];
+  /** Line unit (migration 0079); omitted = base unit, factor 1. */
+  unitOfMeasureId?: string | null;
+  unitFactor?: number;
 }
 
 export interface GoodsReceiptLineRepository {

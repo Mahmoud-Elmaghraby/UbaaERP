@@ -3,6 +3,7 @@ import { Input, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } 
 
 import { useVariantIndex } from '../../hooks/sales-returns/use-variant-index';
 import type { ReturnableDeliveryLine } from '../../hooks/sales-returns/use-delivery-returnable';
+import { QuantityWithUnit } from '../../../../components/product/unit-select';
 
 export interface SalesReturnLineDraft {
   quantityReturned: string;
@@ -73,8 +74,20 @@ export function SalesReturnLineItemsEditor({
             return (
               <TableRow key={line.deliveryLineId}>
                 <TableCell>{variant ? `${variant.productName} — ${variant.sku}` : line.productVariantId}</TableCell>
-                <TableCell>{line.delivered}</TableCell>
-                <TableCell>{line.remaining}</TableCell>
+                <TableCell>
+                  <QuantityWithUnit
+                    quantity={line.delivered}
+                    productVariantId={line.productVariantId}
+                    unitOfMeasureId={line.unitOfMeasureId}
+                  />
+                </TableCell>
+                <TableCell>
+                  <QuantityWithUnit
+                    quantity={line.remaining}
+                    productVariantId={line.productVariantId}
+                    unitOfMeasureId={line.unitOfMeasureId}
+                  />
+                </TableCell>
                 <TableCell>
                   <Input
                     type="number"

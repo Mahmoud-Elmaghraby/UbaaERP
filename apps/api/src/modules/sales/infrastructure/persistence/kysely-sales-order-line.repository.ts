@@ -19,6 +19,8 @@ function toDomain(row: Selectable<SalesOrderLinesTable>): SalesOrderLine {
         ? null
         : Money.fromMinorUnits(BigInt(row.discount_fixed_amount), row.unit_price_currency),
     notes: row.notes,
+    unitOfMeasureId: row.unit_of_measure_id,
+    unitFactor: Number(row.unit_factor),
     createdAt: row.created_at,
   };
 }
@@ -43,6 +45,8 @@ export class KyselySalesOrderLineRepository implements SalesOrderLineRepository 
       .insertInto('sales_order_lines')
       .values({
         id: randomUUID(),
+        unit_of_measure_id: input.unitOfMeasureId ?? null,
+        unit_factor: String(input.unitFactor ?? 1),
         sales_order_id: salesOrderId,
         product_variant_id: input.productVariantId,
         quantity: String(input.quantity),

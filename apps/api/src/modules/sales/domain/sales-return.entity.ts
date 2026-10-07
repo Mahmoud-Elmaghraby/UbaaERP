@@ -17,6 +17,9 @@ export interface SalesReturnLine {
   reason: string | null;
   notes: string | null;
   createdAt: Date;
+  /** Unit the line is in (null = product base unit) and base units per 1 of it — migration 0079. */
+  unitOfMeasureId: string | null;
+  unitFactor: number;
 }
 
 export interface SalesReturn {

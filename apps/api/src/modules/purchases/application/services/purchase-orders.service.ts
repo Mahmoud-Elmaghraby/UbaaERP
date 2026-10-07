@@ -33,6 +33,7 @@ import { TenantSettingsService } from '../../../settings/application/services/te
 import { FeatureAvailabilityService } from '../../../../shared/plans/feature-availability.service';
 import { FEATURE_KEYS } from '../../../../shared/plans/feature-catalog';
 import { assertCurrencyAllowedForTenant } from '../../../../shared/plans/currency-gate';
+import { ProductUnitResolver } from '../../../../shared/catalog/product-unit-resolver';
 
 @Injectable()
 export class PurchaseOrdersService {
@@ -45,6 +46,7 @@ export class PurchaseOrdersService {
     private readonly numberingSequences: NumberingSequencesService,
     private readonly tenantSettings: TenantSettingsService,
     private readonly featureAvailability: FeatureAvailabilityService,
+    private readonly unitResolver: ProductUnitResolver,
   ) {}
 
   /** Shared by create()/update() — see currency-gate.ts's own comment. */
@@ -111,6 +113,8 @@ export class PurchaseOrdersService {
           quantity: line.quantity,
           unitPrice: line.unitPrice,
           notes: line.notes,
+          unitOfMeasureId: line.unitOfMeasureId,
+          unitFactor: line.unitFactor,
         })),
       };
     }
@@ -131,7 +135,9 @@ export class PurchaseOrdersService {
     input: CreatePurchaseOrderInput,
     schema: string,
   ): Promise<PurchaseOrderWithLines> {
-    const { supplierId, lines } = await this.resolveSupplierAndLines(db, input);
+    const resolved = await this.resolveSupplierAndLines(db, input);
+    const supplierId = resolved.supplierId;
+    const lines = await this.unitResolver.resolve(db, resolved.lines);
     try {
       assertSingleCurrency(lines);
     } catch (err) {
@@ -217,6 +223,7 @@ export class PurchaseOrdersService {
       );
     }
 
+    const newLines = input.lines !== undefined ? await this.unitResolver.resolve(db, input.lines) : undefined;
     return db.transaction().execute(async (trx) => {
       const updated = await this.orders.update(trx, id, {
         expectedDeliveryDate: input.expectedDeliveryDate,
@@ -226,10 +233,10 @@ export class PurchaseOrdersService {
       if (!updated) throw entityNotFound('PURCHASE_ORDER', id);
 
       let lines = await this.lines.listByPurchaseOrderId(trx, id);
-      if (input.lines !== undefined) {
+      if (newLines !== undefined) {
         await this.lines.deleteByPurchaseOrderId(trx, id);
         lines = [];
-        for (const line of input.lines) lines.push(await this.lines.create(trx, id, line));
+        for (const line of newLines) lines.push(await this.lines.create(trx, id, line));
       }
 
       return { ...updated, lines, totalAmount: calculatePurchaseOrderTotal(lines) };

@@ -8,6 +8,8 @@ export const salesReturnLineSchema = z.object({
   salesReturnId: z.string().uuid(),
   deliveryLineId: z.string().uuid(),
   productVariantId: z.string().uuid(),
+  unitOfMeasureId: z.string().uuid().nullable().default(null),
+  unitFactor: z.number().positive().default(1),
   quantityReturned: z.number().positive(),
   reason: z.string().nullable(),
   notes: z.string().nullable(),

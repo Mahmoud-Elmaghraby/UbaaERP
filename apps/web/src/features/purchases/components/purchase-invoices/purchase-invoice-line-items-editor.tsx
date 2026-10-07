@@ -4,6 +4,7 @@ import { Input, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } 
 import { useVariantIndex } from '../../hooks/purchase-invoices/use-variant-index';
 import type { InvoiceablePoLine } from '../../hooks/purchase-invoices/use-purchase-order-invoiceable';
 import { decimalToMinorUnits, formatAmount, multiplyMinorUnits } from '../../../../lib/money';
+import { QuantityWithUnit } from '../../../../components/product/unit-select';
 
 export interface PurchaseInvoiceLineDraft {
   quantityInvoiced: string;
@@ -121,7 +122,7 @@ export function PurchaseInvoiceLineItemsEditor({
                   />
                 </div>
               </TableCell>
-              <TableCell className="text-end text-secondary-foreground">{line.ordered}</TableCell>
+              <TableCell className="text-end text-secondary-foreground"><QuantityWithUnit quantity={line.ordered} productVariantId={line.productVariantId} unitOfMeasureId={line.unitOfMeasureId} /></TableCell>
               <TableCell className="text-end">
                 <button
                   type="button"

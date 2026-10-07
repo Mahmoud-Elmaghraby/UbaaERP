@@ -16,6 +16,8 @@ function toDomain(row: Selectable<DeliveryLinesTable>): DeliveryLine {
     quantityDelivered: Number(row.quantity_delivered),
     notes: row.notes,
     lots: (Array.isArray(row.lot_allocations) ? row.lot_allocations : []) as DeliveryLot[],
+    unitOfMeasureId: row.unit_of_measure_id,
+    unitFactor: Number(row.unit_factor),
     createdAt: row.created_at,
   };
 }
@@ -40,6 +42,8 @@ export class KyselyDeliveryLineRepository implements DeliveryLineRepository {
       .insertInto('delivery_lines')
       .values({
         id: randomUUID(),
+        unit_of_measure_id: input.unitOfMeasureId ?? null,
+        unit_factor: String(input.unitFactor ?? 1),
         delivery_id: deliveryId,
         sales_order_line_id: input.salesOrderLineId,
         product_variant_id: input.productVariantId,

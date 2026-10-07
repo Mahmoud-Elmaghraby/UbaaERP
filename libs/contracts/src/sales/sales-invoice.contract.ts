@@ -9,6 +9,8 @@ export const salesInvoiceLineSchema = z.object({
   salesInvoiceId: z.string().uuid(),
   salesOrderLineId: z.string().uuid(),
   productVariantId: z.string().uuid(),
+  unitOfMeasureId: z.string().uuid().nullable().default(null),
+  unitFactor: z.number().positive().default(1),
   quantityInvoiced: z.number().positive(),
   unitPrice: moneySchema,
   notes: z.string().nullable(),
@@ -54,6 +56,8 @@ export type CreateSalesInvoiceLineDto = z.infer<typeof createSalesInvoiceLineSch
  */
 export const createSalesInvoiceDirectLineSchema = z.object({
   productVariantId: z.string().uuid(),
+  /** Line unit (carton, sack…); omitted/null = the product's base unit. */
+  unitOfMeasureId: z.string().uuid().nullable().optional(),
   quantity: z.number().positive(),
   unitPrice: moneySchema,
   notes: z.string().nullable().optional(),

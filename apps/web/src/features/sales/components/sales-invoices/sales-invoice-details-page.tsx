@@ -37,6 +37,7 @@ import { formatAmount, multiplyMinorUnits } from '../../../../lib/money';
 import { SALES_INVOICE_STATUS_VARIANT, salesInvoiceStatusLabelKey } from './sales-invoice-status';
 import { SALES_INVOICES_PATH } from './sales-invoices-tab';
 import { useSalesInvoiceActions } from './use-sales-invoice-actions';
+import { QuantityWithUnit } from '../../../../components/product/unit-select';
 
 export function SalesInvoiceDetailsPage() {
   const { t } = useTranslation();
@@ -247,7 +248,7 @@ export function SalesInvoiceDetailsPage() {
                             </span>
                           </div>
                         </TableCell>
-                        <TableCell className="text-end">{line.quantityInvoiced}</TableCell>
+                        <TableCell className="text-end"><QuantityWithUnit quantity={line.quantityInvoiced} productVariantId={line.productVariantId} unitOfMeasureId={line.unitOfMeasureId} /></TableCell>
                         <TableCell className="text-end">
                           {formatAmount(line.unitPrice.amountMinorUnits)}
                         </TableCell>

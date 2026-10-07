@@ -30,6 +30,8 @@ export interface PosCheckoutLineInput {
   discountPercentage?: number | null;
   discountFixedAmount?: Money | null;
   notes?: string | null;
+  /** Line unit (migration 0079); omitted = base unit. */
+  unitOfMeasureId?: string | null;
 }
 
 /**

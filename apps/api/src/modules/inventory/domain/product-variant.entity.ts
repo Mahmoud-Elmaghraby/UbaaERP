@@ -1,3 +1,4 @@
+import type { ProductUnitLookup } from './product-unit.entity';
 import type { Money } from '@erp-platform/shared-kernel';
 
 export interface ProductVariant {
@@ -55,6 +56,8 @@ export interface ProductVariantLookup {
   taxRuleId: string | null;
   /** Extra / pack barcodes (the primary one is `barcode`). */
   extraBarcodes: { barcode: string; quantity: number; label: string | null }[];
+  /** The product's extra trading units (carton, sack…) — migration 0079. */
+  units: ProductUnitLookup[];
 }
 
 /**

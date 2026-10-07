@@ -9,6 +9,8 @@ import { useGoodsReceiptsByPurchaseOrder } from '../../api/goods-receipts/querie
 export interface RemainingPoLine {
   purchaseOrderLineId: string;
   productVariantId: string;
+  /** Unit of the source line (quantities here are in it); null = base unit. */
+  unitOfMeasureId: string | null;
   ordered: number;
   received: number;
   remaining: number;
@@ -60,6 +62,7 @@ export function usePurchaseOrderRemaining(purchaseOrderId: string | null | undef
       return {
         purchaseOrderLineId: line.id,
         productVariantId: line.productVariantId,
+        unitOfMeasureId: line.unitOfMeasureId ?? null,
         ordered: line.quantity,
         received,
         remaining: line.quantity - received,

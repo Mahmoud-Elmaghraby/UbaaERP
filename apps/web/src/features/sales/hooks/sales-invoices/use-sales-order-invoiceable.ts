@@ -9,6 +9,8 @@ import { useSalesInvoicesBySalesOrder } from '../../api/sales-invoices/queries';
 export interface InvoiceableSoLine {
   salesOrderLineId: string;
   productVariantId: string;
+  /** Unit of the source line (quantities here are in it); null = base unit. */
+  unitOfMeasureId: string | null;
   ordered: number;
   invoiced: number;
   remaining: number;
@@ -60,6 +62,7 @@ export function useSalesOrderInvoiceable(salesOrderId: string | null | undefined
       return {
         salesOrderLineId: line.id,
         productVariantId: line.productVariantId,
+        unitOfMeasureId: line.unitOfMeasureId ?? null,
         ordered: line.quantity,
         invoiced,
         remaining: line.quantity - invoiced,

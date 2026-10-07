@@ -211,6 +211,7 @@ export function DeliveryLotsPicker({
   quantity,
   value,
   onChange,
+  unitFactor = 1,
 }: {
   productVariantId: string;
   warehouseId: string;
@@ -218,6 +219,8 @@ export function DeliveryLotsPicker({
   quantity: number;
   value: DeliveryLotDto[];
   onChange: (lots: DeliveryLotDto[]) => void;
+  /** Base units per 1 line unit — availability is shown in the line's unit (cartons, not pieces). */
+  unitFactor?: number;
 }) {
   const { t } = useTranslation();
   const { data: lots, isLoading } = useStockLots(productVariantId);
@@ -227,16 +230,17 @@ export function DeliveryLotsPicker({
     () =>
       (lots ?? [])
         .map((lot) => {
-          const available = lot.levels
-            .filter((level) => level.warehouseId === warehouseId)
-            .reduce((sum, level) => sum + level.quantityOnHand, 0);
+          const available =
+            lot.levels
+              .filter((level) => level.warehouseId === warehouseId)
+              .reduce((sum, level) => sum + level.quantityOnHand, 0) / unitFactor;
           // Local calendar day (the API sends DATE columns as local-midnight timestamps).
           const expiry = lot.expiryDate ? new Date(lot.expiryDate).toLocaleDateString('en-CA') : null;
           return { lotNumber: lot.lotNumber, available, expiry, expired: expiry !== null && expiry < today };
         })
         .filter((option) => option.available > 0)
         .sort((a, b) => (a.expiry ?? '9999').localeCompare(b.expiry ?? '9999')),
-    [lots, warehouseId, today],
+    [lots, warehouseId, today, unitFactor],
   );
 
   const picked = new Map(value.map((lot) => [lot.lotNumber, lot.quantity]));

@@ -19,6 +19,7 @@ import {
   PURCHASE_ORDER_STATUS_VARIANT,
   purchaseOrderStatusLabelKey,
 } from './purchase-order-status';
+import { QuantityWithUnit } from '../../../../components/product/unit-select';
 
 /** Read-only header + lines + total, same shape as PurchaseRequisitionDetailsView /
  * RfqDetailsView's own header sections. totalAmount is always server-computed
@@ -82,7 +83,7 @@ export function PurchaseOrderDetailsView({ order }: { order: PurchaseOrderWithLi
                 {variantIndex.get(line.productVariantId)?.productName ?? '—'} (
                 {variantIndex.get(line.productVariantId)?.sku ?? '—'})
               </TableCell>
-              <TableCell>{line.quantity}</TableCell>
+              <TableCell><QuantityWithUnit quantity={line.quantity} productVariantId={line.productVariantId} unitOfMeasureId={line.unitOfMeasureId} /></TableCell>
               <TableCell>
                 {formatMoney(line.unitPrice.amountMinorUnits, line.unitPrice.currency)}
               </TableCell>

@@ -15,6 +15,8 @@ export const deliveryLineSchema = z.object({
   deliveryId: z.string().uuid(),
   salesOrderLineId: z.string().uuid(),
   productVariantId: z.string().uuid(),
+  unitOfMeasureId: z.string().uuid().nullable().default(null),
+  unitFactor: z.number().positive().default(1),
   quantityDelivered: z.number().positive(),
   notes: z.string().nullable(),
   lots: z.array(deliveryLotSchema).default([]),

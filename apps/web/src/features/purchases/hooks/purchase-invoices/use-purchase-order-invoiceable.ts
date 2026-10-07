@@ -9,6 +9,8 @@ import { usePurchaseInvoicesByPurchaseOrder } from '../../api/purchase-invoices/
 export interface InvoiceablePoLine {
   purchaseOrderLineId: string;
   productVariantId: string;
+  /** Unit of the source line (quantities here are in it); null = base unit. */
+  unitOfMeasureId: string | null;
   ordered: number;
   invoiced: number;
   remaining: number;
@@ -62,6 +64,7 @@ export function usePurchaseOrderInvoiceable(purchaseOrderId: string | null | und
       return {
         purchaseOrderLineId: line.id,
         productVariantId: line.productVariantId,
+        unitOfMeasureId: line.unitOfMeasureId ?? null,
         ordered: line.quantity,
         invoiced,
         remaining: line.quantity - invoiced,

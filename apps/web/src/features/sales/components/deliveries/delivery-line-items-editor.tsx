@@ -6,6 +6,9 @@ import { Input, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } 
 import { useVariantIndex } from '../../hooks/deliveries/use-variant-index';
 import type { RemainingSoLine } from '../../hooks/deliveries/use-sales-order-remaining';
 import { DeliveryLotsPicker } from '../../../../components/document/lot-entry';
+import { QuantityWithUnit } from '../../../../components/product/unit-select';
+import { findUnit } from '../../../../components/product/variant-search';
+import { useVariantLookupMap } from '../../../inventory/api/products/queries';
 
 export interface DeliveryLineDraft {
   quantityDelivered: string;
@@ -47,6 +50,7 @@ export function DeliveryLineItemsEditor({
 }) {
   const { t } = useTranslation();
   const variantIndex = useVariantIndex();
+  const variants = useVariantLookupMap();
 
   function updateDraft(salesOrderLineId: string, patch: Partial<DeliveryLineDraft>) {
     const current = drafts[salesOrderLineId] ?? { quantityDelivered: '', notes: '', lots: [] };
@@ -81,8 +85,20 @@ export function DeliveryLineItemsEditor({
               <Fragment key={line.salesOrderLineId}>
                 <TableRow className={trackingType !== 'none' && quantity > 0 ? 'border-b-0' : undefined}>
                   <TableCell>{variant ? `${variant.productName} — ${variant.sku}` : line.productVariantId}</TableCell>
-                  <TableCell>{line.ordered}</TableCell>
-                  <TableCell>{line.remaining}</TableCell>
+                  <TableCell>
+                    <QuantityWithUnit
+                      quantity={line.ordered}
+                      productVariantId={line.productVariantId}
+                      unitOfMeasureId={line.unitOfMeasureId}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <QuantityWithUnit
+                      quantity={line.remaining}
+                      productVariantId={line.productVariantId}
+                      unitOfMeasureId={line.unitOfMeasureId}
+                    />
+                  </TableCell>
                   <TableCell>
                     <Input
                       type="number"
@@ -106,6 +122,7 @@ export function DeliveryLineItemsEditor({
                     <TableCell colSpan={5} className="pt-0">
                       <DeliveryLotsPicker
                         productVariantId={line.productVariantId}
+                        unitFactor={findUnit(variants.get(line.productVariantId), line.unitOfMeasureId)?.factor ?? 1}
                         warehouseId={warehouseId}
                         trackingType={trackingType}
                         quantity={quantity}

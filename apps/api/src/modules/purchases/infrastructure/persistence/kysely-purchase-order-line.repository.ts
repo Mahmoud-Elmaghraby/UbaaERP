@@ -13,6 +13,8 @@ function toDomain(row: Selectable<PurchaseOrderLinesTable>): PurchaseOrderLine {
     quantity: Number(row.quantity),
     unitPrice: Money.fromMinorUnits(BigInt(row.unit_price_amount), row.unit_price_currency),
     notes: row.notes,
+    unitOfMeasureId: row.unit_of_measure_id,
+    unitFactor: Number(row.unit_factor),
     createdAt: row.created_at,
   };
 }
@@ -37,6 +39,8 @@ export class KyselyPurchaseOrderLineRepository implements PurchaseOrderLineRepos
       .insertInto('purchase_order_lines')
       .values({
         id: randomUUID(),
+        unit_of_measure_id: input.unitOfMeasureId ?? null,
+        unit_factor: String(input.unitFactor ?? 1),
         purchase_order_id: purchaseOrderId,
         product_variant_id: input.productVariantId,
         quantity: String(input.quantity),
