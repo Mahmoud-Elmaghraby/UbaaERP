@@ -327,7 +327,9 @@
         "sales_pos_session_closed": "قيد إقفال وردية نقطة البيع",
         "inventory_stock_consumption_recorded": "قيد تكلفة المبيعات",
         "inventory_stock_restoration_recorded": "قيد عكس تكلفة المبيعات",
-        "inventory_stock_count_posted": "قيد تسوية الجرد / رصيد أول المدة"
+        "inventory_stock_count_posted": "قيد تسوية الجرد / رصيد أول المدة",
+        "purchases_supplier_payment_posted": "قيد سداد لمورد",
+        "purchases_supplier_payment_allocated": "توزيع مدفوعات مورد على الفواتير"
       }
     }
   },
@@ -1046,7 +1048,8 @@
       "purchaseOrders": "أوامر الشراء",
       "goodsReceipts": "استلامات البضاعة",
       "purchaseReturns": "مرتجعات المشتريات",
-      "purchaseInvoices": "فواتير الشراء"
+      "purchaseInvoices": "فواتير الشراء",
+      "supplierPayments": "مدفوعات الموردين"
     },
     "suppliers": {
       "subtitle": "الموردون الذين يتم الشراء منهم، وبيانات التواصل والشروط المالية الخاصة بكل مورد",
@@ -1353,7 +1356,63 @@
       "postedNote": "الفاتورة مرحّلة: تم إنشاء القيد المحاسبي ولا يمكن تعديلها.",
       "draftNote": "الفاتورة مسودة: لن تؤثر على الحسابات قبل الترحيل.",
       "emptyTitle": "لا توجد فواتير شراء بعد",
-      "emptyDescription": "سجّل أول فاتورة من مورديك."
+      "emptyDescription": "سجّل أول فاتورة من مورديك.",
+      "paidAmount": "المسدَّد",
+      "outstandingAmount": "المتبقي المستحق"
+    },
+    "supplierPayments": {
+      "subtitle": "سداد مستحقات الموردين وتخصيص المدفوعات على فواتير الشراء المرحّلة",
+      "newPayment": "دفعة جديدة لمورد",
+      "paymentNumber": "رقم الدفعة",
+      "supplier": "المورد",
+      "selectSupplier": "اختر موردًا",
+      "amount": "المبلغ",
+      "currency": "العملة",
+      "amountError": "يرجى إدخال مبلغ صحيح أكبر من صفر",
+      "paymentMethod": "طريقة الدفع",
+      "paymentMethodValue": {
+        "cash": "نقدًا",
+        "bank_transfer": "تحويل بنكي",
+        "check": "شيك",
+        "card": "بطاقة",
+        "other": "أخرى"
+      },
+      "referenceNumber": "الرقم المرجعي",
+      "paymentDate": "تاريخ الدفع",
+      "notes": "ملاحظات",
+      "customFields": "حقول إضافية",
+      "unallocatedAmount": "المبلغ غير المخصَّص",
+      "allocateNow": "تخصيص على فواتير الشراء الآن (اختياري)",
+      "addAllocation": "إضافة تخصيص",
+      "allocationInvoice": "فاتورة الشراء",
+      "allocationInvoiceNumber": "رقم الفاتورة",
+      "allocationAmount": "المبلغ المخصَّص",
+      "selectInvoice": "اختر فاتورة",
+      "outstanding": "المتبقي",
+      "noOutstandingInvoices": "لا توجد فواتير شراء مرحّلة مستحقة لهذا المورد بنفس العملة",
+      "allocationsError": "يرجى اختيار فاتورة وإدخال مبلغ صحيح أكبر من صفر لكل تخصيص تم إدخاله",
+      "viewDetails": "عرض التفاصيل",
+      "post": "ترحيل",
+      "postConfirm": "هل أنت متأكد من ترحيل هذه الدفعة؟ سيُنشأ قيد محاسبي ولا يمكن التراجع عن ذلك",
+      "postSuccess": "تم ترحيل الدفعة بنجاح",
+      "postError": "تعذّر ترحيل الدفعة",
+      "allocate": "تخصيص على فاتورة",
+      "allocateSuccess": "تم تخصيص المبلغ بنجاح",
+      "allocateError": "تعذّر تخصيص المبلغ",
+      "cancel": "إلغاء",
+      "cancelConfirm": "هل أنت متأكد من إلغاء هذه الدفعة؟",
+      "cancelSuccess": "تم إلغاء الدفعة بنجاح",
+      "cancelError": "تعذّر إلغاء الدفعة",
+      "deleteConfirm": "هل أنت متأكد من حذف هذه الدفعة؟",
+      "deleteSuccess": "تم حذف الدفعة بنجاح",
+      "deleteError": "تعذّر حذف الدفعة",
+      "createSuccess": "تم إنشاء الدفعة بنجاح",
+      "createError": "تعذّر إنشاء الدفعة",
+      "status": {
+        "draft": "مسودة",
+        "posted": "مرحّلة",
+        "cancelled": "ملغاة"
+      }
     }
   },
   "sales": {

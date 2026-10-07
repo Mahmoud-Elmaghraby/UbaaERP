@@ -581,6 +581,33 @@ export interface PaymentAllocationsTable {
   created_at: Generated<Date>;
 }
 
+/** Migration 0090 — Supplier Payments (Purchases mirror of payments_received). */
+export interface SupplierPaymentsTable {
+  id: string;
+  payment_number: string;
+  supplier_id: string;
+  status: string;
+  payment_date: string | null;
+  payment_method: string;
+  reference_number: string | null;
+  amount_amount: string;
+  amount_currency: string;
+  bank_account_id: string | null;
+  notes: string | null;
+  custom_fields: unknown;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
+export interface SupplierPaymentAllocationsTable {
+  id: string;
+  supplier_payment_id: string;
+  purchase_invoice_id: string;
+  allocated_amount_amount: string;
+  allocated_amount_currency: string;
+  created_at: Generated<Date>;
+}
+
 export interface SalesReturnsTable {
   id: string;
   return_number: string;
@@ -1066,6 +1093,8 @@ export interface TenantDatabase {
   sales_invoice_lines: SalesInvoiceLinesTable;
   payments_received: PaymentsReceivedTable;
   payment_allocations: PaymentAllocationsTable;
+  supplier_payments: SupplierPaymentsTable;
+  supplier_payment_allocations: SupplierPaymentAllocationsTable;
   sales_returns: SalesReturnsTable;
   sales_return_lines: SalesReturnLinesTable;
   sales_credit_notes: SalesCreditNotesTable;

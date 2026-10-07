@@ -58,6 +58,7 @@ export const AR_MESSAGES: Record<string, string> = {
   'CUSTOMER.NOT_FOUND': 'لم يتم العثور على العميل المطلوب.',
   'DELIVERY.NOT_FOUND': 'لم يتم العثور على إذن التسليم المطلوب.',
   'PAYMENT.NOT_FOUND': 'لم يتم العثور على الدفعة المطلوبة.',
+  'SUPPLIER_PAYMENT.NOT_FOUND': 'لم يتم العثور على مدفوعات المورد المطلوبة.',
   'POS_SESSION.NOT_FOUND': 'لم يتم العثور على جلسة نقطة البيع المطلوبة.',
   'CUSTOM_FIELD_DEFINITION.NOT_FOUND': 'لم يتم العثور على الحقل المخصص المطلوب.',
   'NUMBERING_SEQUENCE.NOT_FOUND': 'لم يتم العثور على تسلسل الترقيم المطلوب.',
@@ -383,6 +384,27 @@ export const AR_MESSAGES: Record<string, string> = {
   'PAYMENT.NOT_CANCELLABLE':
     'لا يمكن إلغاء الدفعة "{id}" من حالتها الحالية "{status}" (متوقع "مسودة") — الدفعة المرحّلة مستند محاسبي نهائي؛ عكسها يتطلب قيدًا عكسيًا محاسبيًا حقيقيًا، لا إلغاءً بسيطًا.',
   'PAYMENT.NOT_DELETABLE': 'الدفعة "{id}" في حالة "{status}" ولا يمكن حذفها.',
+  'SUPPLIER_PAYMENT.ALLOCATION_CURRENCY_MISMATCH':
+    'عملة التخصيص "{allocationCurrency}" لا تطابق عملة الدفعة نفسها "{paymentCurrency}" — لا يدعم هذا النظام تحويل العملات.',
+  'SUPPLIER_PAYMENT.ALLOCATION_EXCEEDS_AVAILABLE':
+    'إجمالي المبلغ المخصَّص ({requested}) يتجاوز المبلغ المتاح للتخصيص ({available}).',
+  'SUPPLIER_PAYMENT.INVOICE_NOT_POSTED':
+    'فاتورة الشراء "{id}" في حالة "{status}" — يمكن السداد فقط مقابل فاتورة شراء مرحّلة.',
+  'SUPPLIER_PAYMENT.INVOICE_SUPPLIER_MISMATCH': 'فاتورة الشراء "{invoiceId}" لا تخص المورد "{supplierId}".',
+  'SUPPLIER_PAYMENT.INVOICE_CURRENCY_MISMATCH':
+    'عملة التخصيص "{requestedCurrency}" لا تطابق عملة فاتورة الشراء "{invoiceCurrency}".',
+  'SUPPLIER_PAYMENT.ALLOCATION_EXCEEDS_OUTSTANDING':
+    'لا يمكن تخصيص {requested} لفاتورة الشراء — المتبقي المستحق {outstanding} فقط (الإجمالي {total}، تم سداد {alreadyPaid} سابقًا).',
+  'SUPPLIER_PAYMENT.SUPPLIER_OR_INVOICE_NOT_FOUND': 'المورد أو فاتورة الشراء المحددة غير موجودة.',
+  'SUPPLIER_PAYMENT.NO_NUMBERING_SEQUENCE':
+    'لا يوجد تسلسل ترقيم مُعد لمدفوعات الموردين بعد. يرجى إنشاء تسلسل لنوع المستند "supplier_payment" من الإعدادات ← تسلسلات الترقيم أولاً.',
+  'SUPPLIER_PAYMENT.NOT_POSTABLE': 'لا يمكن ترحيل الدفعة "{id}" من حالتها الحالية "{status}" (متوقع "مسودة").',
+  'SUPPLIER_PAYMENT.AT_LEAST_ONE_ALLOCATION_REQUIRED': 'يجب تحديد تخصيص واحد على الأقل.',
+  'SUPPLIER_PAYMENT.NOT_ALLOCATABLE':
+    'لا يمكن تخصيص الدفعة "{id}" — التخصيص متاح فقط للدفعات المرحّلة (الحالة الحالية "{status}").',
+  'SUPPLIER_PAYMENT.NOT_CANCELLABLE':
+    'لا يمكن إلغاء الدفعة "{id}" من حالتها الحالية "{status}" (متوقع "مسودة") — الدفعة المرحّلة مستند محاسبي نهائي؛ عكسها يتطلب قيدًا عكسيًا، لا إلغاءً بسيطًا.',
+  'SUPPLIER_PAYMENT.NOT_DELETABLE': 'الدفعة "{id}" في حالة "{status}" ولا يمكن حذفها.',
   'POS_SESSION.CASHIER_ALREADY_HAS_OPEN_SESSION':
     'هذا الكاشير لديه بالفعل جلسة نقطة بيع مفتوحة ("{sessionId}"، فُتحت في {openedAt}). يجب إغلاقها قبل فتح جلسة جديدة.',
   'POS_SESSION.OPENING_CASH_NEGATIVE': 'لا يمكن أن يكون مبلغ النقدية الافتتاحي سالبًا.',

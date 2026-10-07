@@ -39,6 +39,18 @@ export class KyselyPurchaseInvoiceRepository implements PurchaseInvoiceRepositor
     return rows.map(toDomain);
   }
 
+  async listPostedBySupplierId(db: Kysely<TenantDatabase>, supplierId: string): Promise<PurchaseInvoice[]> {
+    const rows = await db
+      .selectFrom('purchase_invoices')
+      .innerJoin('purchase_orders', 'purchase_orders.id', 'purchase_invoices.purchase_order_id')
+      .selectAll('purchase_invoices')
+      .where('purchase_orders.supplier_id', '=', supplierId)
+      .where('purchase_invoices.status', '=', 'posted')
+      .orderBy('purchase_invoices.created_at')
+      .execute();
+    return rows.map(toDomain);
+  }
+
   async findById(db: Kysely<TenantDatabase>, id: string): Promise<PurchaseInvoice | null> {
     const row = await db.selectFrom('purchase_invoices').selectAll().where('id', '=', id).executeTakeFirst();
     return row ? toDomain(row) : null;

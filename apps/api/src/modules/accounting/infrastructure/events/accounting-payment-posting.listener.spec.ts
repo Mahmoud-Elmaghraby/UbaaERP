@@ -19,6 +19,7 @@ function fakeDb(bankChartAccount: string | null): Kysely<TenantDatabase> {
 
 const SETTINGS = {
   accountsReceivableAccountId: 'ar',
+  accountsPayableAccountId: 'ap',
   cashAccountId: 'cash',
   defaultBankAccountId: 'bank-default',
 } as AccountingSettings;
@@ -84,5 +85,60 @@ describe('AccountingPaymentPostingListener', () => {
     await expect(
       listener(null, { accountsReceivableAccountId: null }).handlePaymentReceived(payload({ paymentMethod: 'cash' })),
     ).rejects.toMatchObject({ code: 'ACCOUNTING_SETTINGS.MAPPING_MISSING' });
+  });
+
+  describe('supplier payments (purchases.supplier_payment.posted)', () => {
+    const supplierPayload = (metadata: Record<string, unknown>) => ({
+      ...payload({ paymentNumber: 'PAY-00001', ...metadata }),
+      entityType: 'supplier_payment',
+    });
+    const creditAccount = () => createAuto.mock.calls[0][1].lines[1].accountId;
+
+    it('a cash payment: Dr payables / Cr cash, dated on the payment date', async () => {
+      await listener().handleSupplierPayment(supplierPayload({ paymentMethod: 'cash', paymentDate: '2026-10-02' }));
+      const entry = createAuto.mock.calls[0][1];
+      expect(entry.entryDate).toBe('2026-10-02');
+      expect(entry.description).toBe('سداد لمورد — PAY-00001');
+      expect(entry.lines).toEqual([
+        { accountId: 'ap', debitAmountMinorUnits: '15000', creditAmountMinorUnits: '0' },
+        { accountId: 'cash', debitAmountMinorUnits: '0', creditAmountMinorUnits: '15000' },
+      ]);
+      expect(entry.sourceReferenceType).toBe('supplier_payment');
+      expect(entry.sourceReferenceId).toBe('pay-1');
+    });
+
+    it('defaults the entry date to the event date when no payment date is set', async () => {
+      await listener().handleSupplierPayment(supplierPayload({ paymentMethod: 'cash' }));
+      expect(createAuto.mock.calls[0][1].entryDate).toBe('2026-10-08');
+    });
+
+    it('a payment from a chosen bank account credits that bank account’s ledger account', async () => {
+      await listener('bank-cib').handleSupplierPayment(
+        supplierPayload({ paymentMethod: 'bank_transfer', bankAccountId: 'b1' }),
+      );
+      expect(creditAccount()).toBe('bank-cib');
+    });
+
+    it('a cheque payment without a bank account comes from the default bank account', async () => {
+      await listener().handleSupplierPayment(supplierPayload({ paymentMethod: 'check' }));
+      expect(creditAccount()).toBe('bank-default');
+    });
+
+    it('posts the amount converted to the ledger currency', async () => {
+      const l = listener();
+      toLedger.mockResolvedValueOnce({ amountMinorUnits: '75000', tenantCurrency: 'EGP', wasConverted: true });
+      await l.handleSupplierPayment(
+        supplierPayload({ paymentMethod: 'cash', amount: { amountMinorUnits: '1500', currency: 'USD' } }),
+      );
+      const entry = createAuto.mock.calls[0][1];
+      expect(entry.lines[0].debitAmountMinorUnits).toBe('75000');
+      expect(entry.description).toBe('سداد لمورد — PAY-00001 (USD → EGP)');
+    });
+
+    it('fails loudly (outbox retries) when payables are not mapped', async () => {
+      await expect(
+        listener(null, { accountsPayableAccountId: null }).handleSupplierPayment(supplierPayload({ paymentMethod: 'cash' })),
+      ).rejects.toMatchObject({ code: 'ACCOUNTING_SETTINGS.MAPPING_MISSING' });
+    });
   });
 });

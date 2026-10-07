@@ -21,6 +21,7 @@ import { AttachmentsPanel } from '../../../attachments/components/attachments-pa
 import { useSupplier } from '../../api/suppliers/queries';
 import { usePurchaseOrder } from '../../api/purchase-orders/queries';
 import { usePurchaseInvoice } from '../../api/purchase-invoices/queries';
+import { useSupplierOutstandingInvoices } from '../../api/supplier-payments/queries';
 import { useVariantIndex } from '../../hooks/purchase-invoices/use-variant-index';
 import {
   DocumentBody,
@@ -51,6 +52,12 @@ export function PurchaseInvoiceDetailsPage() {
   const purchaseOrdersEnabled = useHasFeature(FEATURE_KEYS.PURCHASES_PURCHASE_ORDERS);
   const goodsReceiptsEnabled = useHasFeature(FEATURE_KEYS.PURCHASES_GOODS_RECEIPTS);
   const quotationsEnabled = useHasFeature(FEATURE_KEYS.PURCHASES_SUPPLIER_QUOTATIONS);
+  // Paid / outstanding come from the supplier-payments endpoint (posted invoices only).
+  const { data: supplierInvoices } = useSupplierOutstandingInvoices(
+    invoice?.status === 'posted' ? order?.supplierId : null,
+  );
+  const settlement = supplierInvoices?.find((row) => row.purchaseInvoiceId === invoice?.id);
+  const fullyPaid = settlement ? BigInt(settlement.outstandingAmount.amountMinorUnits) <= 0n : false;
 
   const quantityTotal = useMemo(
     () => (invoice?.lines ?? []).reduce((sum, line) => sum + line.quantityInvoiced, 0),
@@ -121,7 +128,8 @@ export function PurchaseInvoiceDetailsPage() {
   steps.push({
     key: 'payment',
     label: t('documents.steps.supplierPayment'),
-    state: isPosted ? 'current' : 'upcoming',
+    state: fullyPaid ? 'done' : isPosted ? 'current' : 'upcoming',
+    to: isPosted ? '/purchases/supplier-payments' : undefined,
   });
 
   return (
@@ -285,6 +293,19 @@ export function PurchaseInvoiceDetailsPage() {
               rows={[
                 { label: t('documents.linesCount'), value: invoice.lines.length },
                 { label: t('documents.quantityTotal'), value: quantityTotal },
+                ...(settlement
+                  ? [
+                      {
+                        label: t('purchases.purchaseInvoices.paidAmount'),
+                        value: formatAmount(settlement.paidAmount.amountMinorUnits),
+                      },
+                      {
+                        label: t('purchases.purchaseInvoices.outstandingAmount'),
+                        value: formatAmount(settlement.outstandingAmount.amountMinorUnits),
+                        tone: fullyPaid ? ('muted' as const) : ('danger' as const),
+                      },
+                    ]
+                  : []),
               ]}
               totalLabel={t('documents.total')}
               totalValue={formatAmount(invoice.totalAmount.amountMinorUnits)}

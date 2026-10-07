@@ -25,6 +25,7 @@ export const DEFAULT_DOCUMENT_NUMBERING: Record<string, { prefix: string; paddin
   goods_receipt: { prefix: 'GRN-', paddingLength: 5 },
   purchase_invoice: { prefix: 'PINV-', paddingLength: 5 },
   purchase_return: { prefix: 'PRT-', paddingLength: 5 },
+  supplier_payment: { prefix: 'PAY-', paddingLength: 5 },
   // Inventory
   stock_transfer: { prefix: 'TRF-', paddingLength: 5 },
   stock_adjustment: { prefix: 'ADJ-', paddingLength: 5 },

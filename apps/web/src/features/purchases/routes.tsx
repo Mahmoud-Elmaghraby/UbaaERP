@@ -24,6 +24,9 @@ const PurchaseInvoiceCreatePage = lazy(() =>
 const PurchaseInvoiceDetailsPage = lazy(() =>
   import('./components/purchase-invoices').then((m) => ({ default: m.PurchaseInvoiceDetailsPage })),
 );
+const SupplierPaymentsPage = lazy(() =>
+  import('./components/supplier-payments').then((m) => ({ default: m.SupplierPaymentsPage })),
+);
 
 /**
  * Routes owned by the Purchases module. Follows the same route-per-entity,
@@ -54,6 +57,7 @@ export const purchasesRoutes: RouteObject[] = [
       { path: 'purchase-invoices', element: <PurchaseInvoicesPage /> },
       { path: 'purchase-invoices/new', element: <PurchaseInvoiceCreatePage /> },
       { path: 'purchase-invoices/:id', element: <PurchaseInvoiceDetailsPage /> },
+      { path: 'supplier-payments', element: <SupplierPaymentsPage /> },
     ],
   },
 ];

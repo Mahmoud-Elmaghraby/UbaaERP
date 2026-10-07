@@ -84,6 +84,7 @@ export const NAV_GROUPS: NavGroup[] = [
           },
           { to: '/purchases/purchase-returns', labelKey: 'purchases.tabs.purchaseReturns' },
           { to: '/purchases/purchase-invoices', labelKey: 'purchases.tabs.purchaseInvoices' },
+          { to: '/purchases/supplier-payments', labelKey: 'purchases.tabs.supplierPayments' },
         ],
       },
       {

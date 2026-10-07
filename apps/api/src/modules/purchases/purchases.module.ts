@@ -16,6 +16,8 @@ import { PURCHASE_RETURN_REPOSITORY } from './application/ports/purchase-return.
 import { PURCHASE_RETURN_LINE_REPOSITORY } from './application/ports/purchase-return-line.repository';
 import { PURCHASE_INVOICE_REPOSITORY } from './application/ports/purchase-invoice.repository';
 import { PURCHASE_INVOICE_LINE_REPOSITORY } from './application/ports/purchase-invoice-line.repository';
+import { SUPPLIER_PAYMENT_REPOSITORY } from './application/ports/supplier-payment.repository';
+import { SUPPLIER_PAYMENT_ALLOCATION_REPOSITORY } from './application/ports/supplier-payment-allocation.repository';
 
 import { KyselySupplierRepository } from './infrastructure/persistence/kysely-supplier.repository';
 import { KyselyPurchaseRequisitionRepository } from './infrastructure/persistence/kysely-purchase-requisition.repository';
@@ -33,6 +35,8 @@ import { KyselyPurchaseReturnRepository } from './infrastructure/persistence/kys
 import { KyselyPurchaseReturnLineRepository } from './infrastructure/persistence/kysely-purchase-return-line.repository';
 import { KyselyPurchaseInvoiceRepository } from './infrastructure/persistence/kysely-purchase-invoice.repository';
 import { KyselyPurchaseInvoiceLineRepository } from './infrastructure/persistence/kysely-purchase-invoice-line.repository';
+import { KyselySupplierPaymentRepository } from './infrastructure/persistence/kysely-supplier-payment.repository';
+import { KyselySupplierPaymentAllocationRepository } from './infrastructure/persistence/kysely-supplier-payment-allocation.repository';
 
 import { SuppliersService } from './application/services/suppliers.service';
 import { PurchaseRequisitionsService } from './application/services/purchase-requisitions.service';
@@ -42,6 +46,7 @@ import { PurchaseOrdersService } from './application/services/purchase-orders.se
 import { GoodsReceiptsService } from './application/services/goods-receipts.service';
 import { PurchaseReturnsService } from './application/services/purchase-returns.service';
 import { PurchaseInvoicesService } from './application/services/purchase-invoices.service';
+import { SupplierPaymentsService } from './application/services/supplier-payments.service';
 
 import { SuppliersController } from './presentation/suppliers.controller';
 import { PurchaseRequisitionsController } from './presentation/purchase-requisitions.controller';
@@ -51,6 +56,7 @@ import { PurchaseOrdersController } from './presentation/purchase-orders.control
 import { GoodsReceiptsController } from './presentation/goods-receipts.controller';
 import { PurchaseReturnsController } from './presentation/purchase-returns.controller';
 import { PurchaseInvoicesController } from './presentation/purchase-invoices.controller';
+import { SupplierPaymentsController } from './presentation/supplier-payments.controller';
 
 import { PurchasesEventPublisher } from './infrastructure/events/purchases-event-publisher';
 import { PRODUCT_TRACKING_READER } from './application/ports/product-tracking.reader';
@@ -92,6 +98,9 @@ import { StockAvailabilityChecker } from '../../shared/catalog/stock-availabilit
  *     publish it post-commit. This removed the one asymmetry the
  *     invoice-takeover orchestrator (item 8) previously had to work
  *     around by replicating the controller's publish() call itself.
+ * 10. Supplier Payments — mirror of Sales' Payments Received so payables
+ *     can be settled; posting writes 'purchases.supplier_payment.posted'
+ *     to the Outbox (Accounting: Dr AP / Cr cash-or-bank). Migration 0090.
  *
  * Imports SettingsModule for NumberingSequencesService and (since
  * 2026-09-13, the multi-currency tenant-vs-line-currency gate —
@@ -125,6 +134,7 @@ import { StockAvailabilityChecker } from '../../shared/catalog/stock-availabilit
     GoodsReceiptsController,
     PurchaseReturnsController,
     PurchaseInvoicesController,
+    SupplierPaymentsController,
   ],
   providers: [
     ProductUnitResolver,
@@ -146,6 +156,8 @@ import { StockAvailabilityChecker } from '../../shared/catalog/stock-availabilit
     { provide: PURCHASE_RETURN_LINE_REPOSITORY, useClass: KyselyPurchaseReturnLineRepository },
     { provide: PURCHASE_INVOICE_REPOSITORY, useClass: KyselyPurchaseInvoiceRepository },
     { provide: PURCHASE_INVOICE_LINE_REPOSITORY, useClass: KyselyPurchaseInvoiceLineRepository },
+    { provide: SUPPLIER_PAYMENT_REPOSITORY, useClass: KyselySupplierPaymentRepository },
+    { provide: SUPPLIER_PAYMENT_ALLOCATION_REPOSITORY, useClass: KyselySupplierPaymentAllocationRepository },
     SuppliersService,
     PurchaseRequisitionsService,
     RfqsService,
@@ -154,6 +166,7 @@ import { StockAvailabilityChecker } from '../../shared/catalog/stock-availabilit
     GoodsReceiptsService,
     PurchaseReturnsService,
     PurchaseInvoicesService,
+    SupplierPaymentsService,
     PurchasesEventPublisher,
   ],
 })

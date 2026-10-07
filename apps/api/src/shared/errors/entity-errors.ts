@@ -58,6 +58,7 @@ export const ENTITY_LABELS = {
   CUSTOMER: 'Customer',
   DELIVERY: 'Delivery',
   PAYMENT: 'Payment',
+  SUPPLIER_PAYMENT: 'Supplier payment',
   POS_SESSION: 'POS session',
   CUSTOM_FIELD_DEFINITION: 'Custom field definition',
   NUMBERING_SEQUENCE: 'Numbering sequence',

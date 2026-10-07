@@ -16,6 +16,8 @@ export interface PurchaseInvoiceRepository {
   list(db: Kysely<TenantDatabase>): Promise<PurchaseInvoice[]>;
   listByPurchaseOrderId(db: Kysely<TenantDatabase>, purchaseOrderId: string): Promise<PurchaseInvoice[]>;
   findById(db: Kysely<TenantDatabase>, id: string): Promise<PurchaseInvoice | null>;
+  /** Posted invoices whose purchase order belongs to the given supplier (oldest first) — supplier payment allocation. */
+  listPostedBySupplierId(db: Kysely<TenantDatabase>, supplierId: string): Promise<PurchaseInvoice[]>;
   create(db: Kysely<TenantDatabase>, input: CreatePurchaseInvoiceRow): Promise<PurchaseInvoice>;
   updateStatus(
     db: Kysely<TenantDatabase>,

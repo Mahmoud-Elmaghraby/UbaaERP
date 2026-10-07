@@ -21,6 +21,16 @@ export interface PaymentPostedMetadata {
   amount: { amountMinorUnits: string; currency: string };
 }
 
+/** SupplierPaymentsService.post()'s outbox metadata (purchases.supplier_payment.posted). */
+export interface SupplierPaymentPostedMetadata {
+  supplierId?: string;
+  paymentNumber?: string;
+  paymentDate?: string | null;
+  paymentMethod?: string;
+  bankAccountId?: string | null;
+  amount: { amountMinorUnits: string; currency: string };
+}
+
 /**
  * Money actually changing hands. A customer receipt debits where the money
  * went — the chosen bank account's ledger account, else cash for a cash
@@ -28,6 +38,10 @@ export interface PaymentPostedMetadata {
  * Receivable for the whole amount (an unallocated remainder is simply the
  * customer's credit balance). Allocation to invoices is sub-ledger
  * bookkeeping in Sales and posts nothing.
+ *
+ * A supplier payment is the mirror: debit Accounts Payable for the whole
+ * amount (an unallocated remainder is an advance to the supplier) and
+ * credit where the money came from, resolved the same way.
  */
 @Injectable()
 export class AccountingPaymentPostingListener {
@@ -71,6 +85,41 @@ export class AccountingPaymentPostingListener {
         { accountId: receivable, debitAmountMinorUnits: '0', creditAmountMinorUnits: amountMinorUnits },
       ],
       sourceReferenceType: 'payment_received',
+      sourceReferenceId: payload.entityId,
+    });
+  }
+
+  @OnOutboxEvent('purchases.supplier_payment.posted')
+  async handleSupplierPayment(payload: DomainEventPayload): Promise<void> {
+    const metadata = payload.metadata as unknown as SupplierPaymentPostedMetadata | undefined;
+    if (!metadata?.amount) {
+      this.logger.warn(`Received 'purchases.supplier_payment.posted' with no amount — ignoring.`);
+      return;
+    }
+    if (metadata.amount.amountMinorUnits === '0') return;
+
+    const db = this.connections.getClient(payload.schema);
+    const settings = await this.accountingSettings.get(db);
+    const payable = required(settings.accountsPayableAccountId, 'حساب الموردين');
+    const treasury = await this.treasuryAccount(db, settings, metadata);
+
+    const entryDate = metadata.paymentDate ?? localIsoDate(payload.occurredAt);
+    const { amountMinorUnits, tenantCurrency, wasConverted } = await this.ledgerAmounts.toLedger(
+      db,
+      metadata.amount,
+      entryDate,
+    );
+    const number = metadata.paymentNumber ?? payload.entityId;
+    await this.journalEntries.createAuto(db, {
+      entryDate,
+      description: wasConverted
+        ? `سداد لمورد — ${number} (${metadata.amount.currency} → ${tenantCurrency})`
+        : `سداد لمورد — ${number}`,
+      lines: [
+        { accountId: payable, debitAmountMinorUnits: amountMinorUnits, creditAmountMinorUnits: '0' },
+        { accountId: treasury, debitAmountMinorUnits: '0', creditAmountMinorUnits: amountMinorUnits },
+      ],
+      sourceReferenceType: 'supplier_payment',
       sourceReferenceId: payload.entityId,
     });
   }

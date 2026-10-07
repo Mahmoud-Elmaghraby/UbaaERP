@@ -6,3 +6,4 @@ export * from './purchase-order.contract';
 export * from './goods-receipt.contract';
 export * from './purchase-return.contract';
 export * from './purchase-invoice.contract';
+export * from './supplier-payment.contract';
