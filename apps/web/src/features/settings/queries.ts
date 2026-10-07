@@ -132,6 +132,15 @@ export function useTaxRules() {
   return useQuery({ queryKey: ['tax-rules'], queryFn: () => apiGet<TaxRuleDto[]>('/tax-rules') });
 }
 
+/** Active tax rules for invoice, product and party forms (GET /tax-rules/lookup — not settings-only). */
+export function useTaxRuleLookup() {
+  return useQuery({
+    queryKey: ['tax-rules', 'lookup'],
+    queryFn: () => apiGet<TaxRuleDto[]>('/tax-rules/lookup'),
+    staleTime: 60_000,
+  });
+}
+
 export function useCreateTaxRule() {
   const queryClient = useQueryClient();
   return useMutation({

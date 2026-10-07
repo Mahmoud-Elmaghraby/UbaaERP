@@ -1,4 +1,5 @@
 import { useEffect, useMemo } from 'react';
+import { TaxRuleSelect } from '../../../../components/document/tax-rule-select';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useTranslation } from 'react-i18next';
@@ -85,6 +86,7 @@ export function CreateCustomerForm({ onDone }: { onDone: () => void }) {
       phone: '',
       address: '',
       taxNumber: '',
+      withholdingTaxRuleId: null,
       defaultCurrency: '',
       paymentTermsDays: null,
       notes: '',
@@ -236,6 +238,23 @@ export function CreateCustomerForm({ onDone }: { onDone: () => void }) {
         />
         <FormField
           control={form.control}
+          name="withholdingTaxRuleId"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>{t('taxes.partyWithholding')}</FormLabel>
+              <TaxRuleSelect
+                kind="withholding"
+                scope="sales"
+                value={field.value ?? null}
+                onChange={field.onChange}
+                noneLabel={t('taxes.noWithholding')}
+              />
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
           name="defaultCurrency"
           render={({ field }) => (
             <FormItem>
@@ -348,6 +367,7 @@ export function EditCustomerForm({ customer, onDone }: { customer: CustomerDto; 
       phone: customer.phone ?? '',
       address: customer.address ?? '',
       taxNumber: customer.taxNumber ?? '',
+      withholdingTaxRuleId: customer.withholdingTaxRuleId ?? null,
       defaultCurrency: customer.defaultCurrency,
       paymentTermsDays: customer.paymentTermsDays,
       notes: customer.notes ?? '',
@@ -481,6 +501,23 @@ export function EditCustomerForm({ customer, onDone }: { customer: CustomerDto; 
               <FormControl>
                 <Input {...field} value={field.value ?? ''} />
               </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="withholdingTaxRuleId"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>{t('taxes.partyWithholding')}</FormLabel>
+              <TaxRuleSelect
+                kind="withholding"
+                scope="sales"
+                value={field.value ?? null}
+                onChange={field.onChange}
+                noneLabel={t('taxes.noWithholding')}
+              />
               <FormMessage />
             </FormItem>
           )}

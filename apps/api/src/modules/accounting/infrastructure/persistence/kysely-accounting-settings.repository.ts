@@ -23,6 +23,12 @@ function toDomain(row: Selectable<AccountingSettingsTable>): AccountingSettings 
     openingBalanceEquityAccountId: row.opening_balance_equity_account_id,
     landedCostClearingAccountId: row.landed_cost_clearing_account_id,
     defaultBankAccountId: row.default_bank_account_id,
+    vatOutputAccountId: row.vat_output_account_id,
+    vatInputAccountId: row.vat_input_account_id,
+    tableTaxOutputAccountId: row.table_tax_output_account_id,
+    tableTaxInputAccountId: row.table_tax_input_account_id,
+    withholdingPayableAccountId: row.withholding_payable_account_id,
+    withholdingReceivableAccountId: row.withholding_receivable_account_id,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -49,6 +55,12 @@ const DEFAULT_CODES = {
   cash_over_short_account_id: '56',
   exchange_gain_loss_account_id: '57',
   default_bank_account_id: '112',
+  vat_output_account_id: '212',
+  vat_input_account_id: '116',
+  table_tax_output_account_id: '218',
+  table_tax_input_account_id: '55',
+  withholding_payable_account_id: '219',
+  withholding_receivable_account_id: '118',
 } as const;
 
 export class KyselyAccountingSettingsRepository implements AccountingSettingsRepository {
@@ -88,6 +100,12 @@ export class KyselyAccountingSettingsRepository implements AccountingSettingsRep
           opening_balance_equity_account_id: accountIdByCode.get(DEFAULT_CODES.opening_balance_equity_account_id) ?? null,
           landed_cost_clearing_account_id: null,
           default_bank_account_id: accountIdByCode.get(DEFAULT_CODES.default_bank_account_id) ?? null,
+          vat_output_account_id: accountIdByCode.get(DEFAULT_CODES.vat_output_account_id) ?? null,
+          vat_input_account_id: accountIdByCode.get(DEFAULT_CODES.vat_input_account_id) ?? null,
+          table_tax_output_account_id: accountIdByCode.get(DEFAULT_CODES.table_tax_output_account_id) ?? null,
+          table_tax_input_account_id: accountIdByCode.get(DEFAULT_CODES.table_tax_input_account_id) ?? null,
+          withholding_payable_account_id: accountIdByCode.get(DEFAULT_CODES.withholding_payable_account_id) ?? null,
+          withholding_receivable_account_id: accountIdByCode.get(DEFAULT_CODES.withholding_receivable_account_id) ?? null,
         })
         .returningAll()
         .executeTakeFirstOrThrow();
@@ -141,6 +159,12 @@ export class KyselyAccountingSettingsRepository implements AccountingSettingsRep
           ? { landed_cost_clearing_account_id: input.landedCostClearingAccountId }
           : {}),
         ...(input.defaultBankAccountId !== undefined ? { default_bank_account_id: input.defaultBankAccountId } : {}),
+        ...(input.vatOutputAccountId !== undefined ? { vat_output_account_id: input.vatOutputAccountId } : {}),
+        ...(input.vatInputAccountId !== undefined ? { vat_input_account_id: input.vatInputAccountId } : {}),
+        ...(input.tableTaxOutputAccountId !== undefined ? { table_tax_output_account_id: input.tableTaxOutputAccountId } : {}),
+        ...(input.tableTaxInputAccountId !== undefined ? { table_tax_input_account_id: input.tableTaxInputAccountId } : {}),
+        ...(input.withholdingPayableAccountId !== undefined ? { withholding_payable_account_id: input.withholdingPayableAccountId } : {}),
+        ...(input.withholdingReceivableAccountId !== undefined ? { withholding_receivable_account_id: input.withholdingReceivableAccountId } : {}),
         updated_at: new Date(),
       })
       .where('id', '=', settings.id)

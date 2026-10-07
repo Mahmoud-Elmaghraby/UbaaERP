@@ -3,7 +3,13 @@ import { sql } from 'kysely';
 import type { Kysely, Selectable } from 'kysely';
 import type { TaxRulesTable, TenantDatabase } from '../../../../database/tenant/kysely-client';
 import type { TaxRuleRepository } from '../../application/ports/tax-rule.repository';
-import type { CreateTaxRuleInput, TaxRule, UpdateTaxRuleInput } from '../../domain/tax-rule.entity';
+import type {
+  CreateTaxRuleInput,
+  TaxKind,
+  TaxRule,
+  TaxRuleScope,
+  UpdateTaxRuleInput,
+} from '../../domain/tax-rule.entity';
 
 // pg returns NUMERIC columns as strings (to avoid float precision loss) —
 // TaxRulesTable.rate is typed `string` for that reason; the domain entity
@@ -14,6 +20,10 @@ function toDomain(row: Selectable<TaxRulesTable>): TaxRule {
     name: row.name,
     rate: Number(row.rate),
     isActive: row.is_active,
+    kind: row.kind as TaxKind,
+    etaType: row.eta_type,
+    etaSubtype: row.eta_subtype,
+    scope: row.scope as TaxRuleScope,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -38,6 +48,10 @@ export class KyselyTaxRuleRepository implements TaxRuleRepository {
         name: input.name,
         rate: String(input.rate),
         is_active: input.isActive ?? true,
+        kind: input.kind ?? 'vat',
+        eta_type: input.etaType ?? null,
+        eta_subtype: input.etaSubtype ?? null,
+        scope: input.scope ?? 'both',
       })
       .returningAll()
       .executeTakeFirstOrThrow();
@@ -51,6 +65,10 @@ export class KyselyTaxRuleRepository implements TaxRuleRepository {
         ...(input.name !== undefined ? { name: input.name } : {}),
         ...(input.rate !== undefined ? { rate: String(input.rate) } : {}),
         ...(input.isActive !== undefined ? { is_active: input.isActive } : {}),
+        ...(input.kind !== undefined ? { kind: input.kind } : {}),
+        ...(input.etaType !== undefined ? { eta_type: input.etaType } : {}),
+        ...(input.etaSubtype !== undefined ? { eta_subtype: input.etaSubtype } : {}),
+        ...(input.scope !== undefined ? { scope: input.scope } : {}),
         updated_at: sql`now()`,
       })
       .where('id', '=', id)

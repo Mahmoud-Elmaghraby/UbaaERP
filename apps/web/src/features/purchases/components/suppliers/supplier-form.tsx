@@ -1,4 +1,5 @@
 import { useEffect, useMemo } from 'react';
+import { TaxRuleSelect } from '../../../../components/document/tax-rule-select';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useTranslation } from 'react-i18next';
@@ -67,6 +68,7 @@ export function CreateSupplierForm({ onDone }: { onDone: () => void }) {
       phone: '',
       address: '',
       taxNumber: '',
+      withholdingTaxRuleId: null,
       defaultCurrency: '',
       paymentTermsDays: null,
       notes: '',
@@ -194,6 +196,23 @@ export function CreateSupplierForm({ onDone }: { onDone: () => void }) {
         />
         <FormField
           control={form.control}
+          name="withholdingTaxRuleId"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>{t('taxes.partyWithholding')}</FormLabel>
+              <TaxRuleSelect
+                kind="withholding"
+                scope="purchases"
+                value={field.value ?? null}
+                onChange={field.onChange}
+                noneLabel={t('taxes.noWithholding')}
+              />
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
           name="defaultCurrency"
           render={({ field }) => (
             <FormItem>
@@ -303,6 +322,7 @@ export function EditSupplierForm({ supplier, onDone }: { supplier: SupplierDto; 
       phone: supplier.phone ?? '',
       address: supplier.address ?? '',
       taxNumber: supplier.taxNumber ?? '',
+      withholdingTaxRuleId: supplier.withholdingTaxRuleId ?? null,
       defaultCurrency: supplier.defaultCurrency,
       paymentTermsDays: supplier.paymentTermsDays,
       notes: supplier.notes ?? '',
@@ -415,6 +435,23 @@ export function EditSupplierForm({ supplier, onDone }: { supplier: SupplierDto; 
               <FormControl>
                 <Input {...field} value={field.value ?? ''} />
               </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="withholdingTaxRuleId"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>{t('taxes.partyWithholding')}</FormLabel>
+              <TaxRuleSelect
+                kind="withholding"
+                scope="purchases"
+                value={field.value ?? null}
+                onChange={field.onChange}
+                noneLabel={t('taxes.noWithholding')}
+              />
               <FormMessage />
             </FormItem>
           )}

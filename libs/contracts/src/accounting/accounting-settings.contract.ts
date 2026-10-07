@@ -28,6 +28,12 @@ export const accountingSettingsSchema = z.object({
   openingBalanceEquityAccountId: z.string().uuid().nullable(),
   landedCostClearingAccountId: z.string().uuid().nullable(),
   defaultBankAccountId: z.string().uuid().nullable(),
+  vatOutputAccountId: z.string().uuid().nullable(),
+  vatInputAccountId: z.string().uuid().nullable(),
+  tableTaxOutputAccountId: z.string().uuid().nullable(),
+  tableTaxInputAccountId: z.string().uuid().nullable(),
+  withholdingPayableAccountId: z.string().uuid().nullable(),
+  withholdingReceivableAccountId: z.string().uuid().nullable(),
   createdAt: z.coerce.date(),
   updatedAt: z.coerce.date(),
 });
@@ -49,5 +55,11 @@ export const updateAccountingSettingsSchema = z.object({
   openingBalanceEquityAccountId: z.string().uuid().nullable().optional(),
   landedCostClearingAccountId: z.string().uuid().nullable().optional(),
   defaultBankAccountId: z.string().uuid().nullable().optional(),
+  vatOutputAccountId: z.string().uuid().nullable().optional(),
+  vatInputAccountId: z.string().uuid().nullable().optional(),
+  tableTaxOutputAccountId: z.string().uuid().nullable().optional(),
+  tableTaxInputAccountId: z.string().uuid().nullable().optional(),
+  withholdingPayableAccountId: z.string().uuid().nullable().optional(),
+  withholdingReceivableAccountId: z.string().uuid().nullable().optional(),
 });
 export type UpdateAccountingSettingsDto = z.infer<typeof updateAccountingSettingsSchema>;

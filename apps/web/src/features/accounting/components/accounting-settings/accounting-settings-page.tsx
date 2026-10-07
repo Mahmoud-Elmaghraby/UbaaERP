@@ -64,6 +64,17 @@ const MAPPING_GROUPS: { titleKey: string; fields: { name: MappingName; labelKey:
     ],
   },
   {
+    titleKey: 'accounting.settings.groups.taxes',
+    fields: [
+      { name: 'vatOutputAccountId', labelKey: 'accounting.settings.vatOutput' },
+      { name: 'vatInputAccountId', labelKey: 'accounting.settings.vatInput' },
+      { name: 'tableTaxOutputAccountId', labelKey: 'accounting.settings.tableTaxOutput' },
+      { name: 'tableTaxInputAccountId', labelKey: 'accounting.settings.tableTaxInput' },
+      { name: 'withholdingPayableAccountId', labelKey: 'accounting.settings.withholdingPayable' },
+      { name: 'withholdingReceivableAccountId', labelKey: 'accounting.settings.withholdingReceivable' },
+    ],
+  },
+  {
     titleKey: 'accounting.settings.groups.cash',
     fields: [
       { name: 'cashAccountId', labelKey: 'accounting.settings.cash' },

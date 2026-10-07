@@ -18,7 +18,7 @@ import {
 } from '@erp-platform/ui';
 
 import { useCategoryOptions, useProductBrands } from '../../api/catalog/queries';
-import { useTaxRules } from '../../../settings/queries';
+import { useTaxRuleLookup } from '../../../settings/queries';
 import { decimalToMinorUnits, minorUnitsToDecimalString } from '../../../../lib/money';
 
 /** Radix Select can't hold an empty value — this stands for "none". */
@@ -68,7 +68,7 @@ export function ProductMasterDataFields({
   const form = useFormContext();
   const { options: categories } = useCategoryOptions();
   const { data: brands } = useProductBrands();
-  const { data: taxRules } = useTaxRules();
+  const { data: taxRules } = useTaxRuleLookup();
 
   return (
     <div className="grid gap-4 rounded-lg border bg-subtle p-4">
@@ -165,7 +165,7 @@ export function ProductMasterDataFields({
                 <SelectContent>
                   <SelectItem value={NONE}>{t('inventory.products.noTaxRule')}</SelectItem>
                   {(taxRules ?? [])
-                    .filter((rule) => rule.isActive || rule.id === field.value)
+                    .filter((rule) => rule.kind !== 'withholding')
                     .map((rule) => (
                       <SelectItem key={rule.id} value={rule.id}>
                         {rule.name} ({rule.rate}%)

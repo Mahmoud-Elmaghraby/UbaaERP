@@ -70,6 +70,12 @@ export interface TaxRulesTable {
   name: string;
   rate: string;
   is_active: boolean;
+  /** Migration 0091 — 'vat' | 'table' | 'withholding'. */
+  kind: Generated<string>;
+  eta_type: string | null;
+  eta_subtype: string | null;
+  /** Migration 0091 — 'sales' | 'purchases' | 'both'. */
+  scope: Generated<string>;
   created_at: Generated<Date>;
   updated_at: Generated<Date>;
 }
@@ -433,6 +439,8 @@ export interface SuppliersTable {
   phone: string | null;
   address: string | null;
   tax_number: string | null;
+  /** Migration 0091 — withholding rule applied by default on this party's invoices. */
+  withholding_tax_rule_id: string | null;
   default_currency: string;
   payment_terms_days: number | null;
   notes: string | null;
@@ -452,6 +460,8 @@ export interface CustomersTable {
   phone: string | null;
   address: string | null;
   tax_number: string | null;
+  /** Migration 0091 — withholding rule applied by default on this party's invoices. */
+  withholding_tax_rule_id: string | null;
   default_currency: string;
   payment_terms_days: number | null;
   notes: string | null;
@@ -1262,6 +1272,13 @@ export interface AccountingSettingsTable {
   landed_cost_clearing_account_id: string | null;
   /** Migration 0089 — non-cash receipts/payments without a chosen bank account. */
   default_bank_account_id: string | null;
+  /** Migration 0091 — invoice tax postings. */
+  vat_output_account_id: string | null;
+  vat_input_account_id: string | null;
+  table_tax_output_account_id: string | null;
+  table_tax_input_account_id: string | null;
+  withholding_payable_account_id: string | null;
+  withholding_receivable_account_id: string | null;
   created_at: Generated<Date>;
   updated_at: Generated<Date>;
 }

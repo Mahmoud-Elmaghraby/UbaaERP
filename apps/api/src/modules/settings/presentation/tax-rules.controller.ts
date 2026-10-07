@@ -11,7 +11,7 @@ import { TenantConnectionManager } from '../../../shared/tenancy/tenant-connecti
 import { CurrentTenantSchema } from '../../../shared/auth/current-tenant-schema.decorator';
 import { JwtAuthGuard } from '../../../shared/auth/jwt-auth.guard';
 import { PermissionsGuard } from '../../../shared/auth/permissions.guard';
-import { RequirePermissions } from '../../../shared/auth/require-permissions.decorator';
+import { RequireAnyPermission, RequirePermissions } from '../../../shared/auth/require-permissions.decorator';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 import { TaxRulesService } from '../application/services/tax-rules.service';
 
@@ -29,6 +29,21 @@ export class TaxRulesController {
     const db = this.connections.getClient(schema);
     const rules = await this.service.list(db);
     return rules.map((r) => taxRuleSchema.parse(r));
+  }
+
+  /** Active rules for invoice and product forms — readable by sales, purchases and inventory users. */
+  @Get('lookup')
+  @RequirePermissions()
+  @RequireAnyPermission(
+    'settings.manage',
+    'sales.manage',
+    'purchases.manage',
+    'inventory.products.manage',
+    'inventory.products.view',
+  )
+  async lookup(@CurrentTenantSchema() schema: string): Promise<TaxRuleDto[]> {
+    const rules = await this.service.list(this.connections.getClient(schema));
+    return rules.filter((rule) => rule.isActive).map((rule) => taxRuleSchema.parse(rule));
   }
 
   @Get(':id')

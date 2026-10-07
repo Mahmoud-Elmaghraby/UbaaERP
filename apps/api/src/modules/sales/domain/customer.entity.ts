@@ -19,6 +19,8 @@ export interface Customer {
   phone: string | null;
   address: string | null;
   taxNumber: string | null;
+  /** Migration 0091 — withholding (خصم من المنبع) rule applied by default on this party's invoices. */
+  withholdingTaxRuleId: string | null;
   /** ISO 4217 currency this customer is normally billed in. */
   defaultCurrency: string;
   /** Net-terms convention (e.g. 30 = "net 30"). Null = no standing terms recorded. */
@@ -47,6 +49,7 @@ export interface CreateCustomerInput {
   phone?: string | null;
   address?: string | null;
   taxNumber?: string | null;
+  withholdingTaxRuleId?: string | null;
   defaultCurrency: string;
   paymentTermsDays?: number | null;
   notes?: string | null;
@@ -63,6 +66,7 @@ export interface UpdateCustomerInput {
   phone?: string | null;
   address?: string | null;
   taxNumber?: string | null;
+  withholdingTaxRuleId?: string | null;
   defaultCurrency?: string;
   paymentTermsDays?: number | null;
   notes?: string | null;

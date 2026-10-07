@@ -45,6 +45,13 @@ export interface AccountingSettings {
   landedCostClearingAccountId: string | null;
   /** Migration 0089: non-cash receipts/payments when no bank account was chosen (default 112). */
   defaultBankAccountId: string | null;
+  /** Migration 0091: invoice taxes (see that migration). */
+  vatOutputAccountId: string | null;
+  vatInputAccountId: string | null;
+  tableTaxOutputAccountId: string | null;
+  tableTaxInputAccountId: string | null;
+  withholdingPayableAccountId: string | null;
+  withholdingReceivableAccountId: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -65,4 +72,10 @@ export interface UpdateAccountingSettingsInput {
   openingBalanceEquityAccountId?: string | null;
   landedCostClearingAccountId?: string | null;
   defaultBankAccountId?: string | null;
+  vatOutputAccountId?: string | null;
+  vatInputAccountId?: string | null;
+  tableTaxOutputAccountId?: string | null;
+  tableTaxInputAccountId?: string | null;
+  withholdingPayableAccountId?: string | null;
+  withholdingReceivableAccountId?: string | null;
 }

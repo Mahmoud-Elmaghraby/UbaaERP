@@ -5,8 +5,10 @@ import { useTranslation } from 'react-i18next';
 import { MoreHorizontal } from 'lucide-react';
 import {
   createTaxRuleSchema,
-  updateTaxRuleSchema,
+  taxKindSchema,
+  taxRuleScopeSchema,
   type CreateTaxRuleDto,
+  type TaxKindDto,
   type TaxRuleDto,
   type UpdateTaxRuleDto,
 } from '@erp-platform/contracts';
@@ -31,6 +33,11 @@ import {
   FormLabel,
   FormMessage,
   Input,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
   Skeleton,
   Table,
   TableBody,
@@ -73,7 +80,7 @@ export function TaxesTab() {
               <DialogHeader>
                 <DialogTitle>{t('settings.taxes.newTaxRule')}</DialogTitle>
               </DialogHeader>
-              <CreateTaxRuleForm onDone={() => setCreateOpen(false)} />
+              <TaxRuleForm onDone={() => setCreateOpen(false)} />
             </DialogContent>
           </Dialog>
         </Can>
@@ -87,7 +94,10 @@ export function TaxesTab() {
             <TableHeader>
               <TableRow>
                 <TableHead>{t('settings.taxes.name')}</TableHead>
+                <TableHead>{t('settings.taxes.kind')}</TableHead>
                 <TableHead>{t('settings.taxes.rate')}</TableHead>
+                <TableHead>{t('settings.taxes.scope')}</TableHead>
+                <TableHead>{t('settings.taxes.etaCode')}</TableHead>
                 <TableHead>{t('settings.taxes.status')}</TableHead>
                 <TableHead className="w-10" />
               </TableRow>
@@ -96,7 +106,12 @@ export function TaxesTab() {
               {(taxRules ?? []).map((taxRule) => (
                 <TableRow key={taxRule.id}>
                   <TableCell className="font-medium">{taxRule.name}</TableCell>
+                  <TableCell>{t(`settings.taxes.kinds.${taxRule.kind}`)}</TableCell>
                   <TableCell>{taxRule.rate}%</TableCell>
+                  <TableCell>{t(`settings.taxes.scopes.${taxRule.scope}`)}</TableCell>
+                  <TableCell dir="ltr" className="font-mono text-xs">
+                    {[taxRule.etaType, taxRule.etaSubtype].filter(Boolean).join(' / ') || '—'}
+                  </TableCell>
                   <TableCell>
                     {taxRule.isActive ? (
                       <Badge>{t('common.active')}</Badge>
@@ -127,7 +142,7 @@ export function TaxesTab() {
               ))}
               {(taxRules ?? []).length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={4} className="py-8 text-center text-muted-foreground">
+                  <TableCell colSpan={7} className="py-8 text-center text-muted-foreground">
                     {t('common.noResults')}
                   </TableCell>
                 </TableRow>
@@ -142,30 +157,53 @@ export function TaxesTab() {
           <DialogHeader>
             <DialogTitle>{t('common.edit')}</DialogTitle>
           </DialogHeader>
-          {editing ? <EditTaxRuleForm taxRule={editing} onDone={() => setEditing(null)} /> : null}
+          {editing ? <TaxRuleForm taxRule={editing} onDone={() => setEditing(null)} /> : null}
         </DialogContent>
       </Dialog>
     </div>
   );
 }
 
-function CreateTaxRuleForm({ onDone }: { onDone: () => void }) {
+const KINDS = taxKindSchema.options;
+const SCOPES = taxRuleScopeSchema.options;
+/** Suggested ETA codes per kind — the field stays free text. */
+const ETA_TYPE_BY_KIND: Record<TaxKindDto, string> = { vat: 'T1', table: 'T2', withholding: 'T4' };
+
+/** One form for create and edit (the edit form just starts from the rule). */
+function TaxRuleForm({ taxRule, onDone }: { taxRule?: TaxRuleDto; onDone: () => void }) {
   const { t } = useTranslation();
   const createTaxRule = useCreateTaxRule();
+  const updateTaxRule = useUpdateTaxRule();
+  const pending = createTaxRule.isPending || updateTaxRule.isPending;
 
   const form = useForm<CreateTaxRuleDto>({
     resolver: zodResolver(createTaxRuleSchema),
-    defaultValues: { name: '', rate: 0, isActive: true },
+    defaultValues: {
+      name: taxRule?.name ?? '',
+      rate: taxRule?.rate ?? 14,
+      isActive: taxRule?.isActive ?? true,
+      kind: taxRule?.kind ?? 'vat',
+      scope: taxRule?.scope ?? 'both',
+      etaType: taxRule?.etaType ?? 'T1',
+      etaSubtype: taxRule?.etaSubtype ?? 'V009',
+    },
   });
 
   async function onSubmit(values: CreateTaxRuleDto) {
+    const input = { ...values, etaType: values.etaType || null, etaSubtype: values.etaSubtype || null };
     try {
-      await createTaxRule.mutateAsync(values);
-      toast.success(t('settings.taxes.createSuccess'));
+      if (taxRule) {
+        await updateTaxRule.mutateAsync({ id: taxRule.id, input: input as UpdateTaxRuleDto });
+        toast.success(t('settings.taxes.updateSuccess'));
+      } else {
+        await createTaxRule.mutateAsync(input);
+        toast.success(t('settings.taxes.createSuccess'));
+        form.reset();
+      }
       onDone();
-      form.reset();
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : t('settings.taxes.createError'));
+      const fallback = taxRule ? 'settings.taxes.updateError' : 'settings.taxes.createError';
+      toast.error(err instanceof ApiError ? err.message : t(fallback));
     }
   }
 
@@ -185,26 +223,110 @@ function CreateTaxRuleForm({ onDone }: { onDone: () => void }) {
             </FormItem>
           )}
         />
+        <div className="grid grid-cols-2 gap-4">
+          <FormField
+            control={form.control}
+            name="kind"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>{t('settings.taxes.kind')}</FormLabel>
+                <Select
+                  value={field.value}
+                  onValueChange={(value) => {
+                    field.onChange(value);
+                    form.setValue('etaType', ETA_TYPE_BY_KIND[value as TaxKindDto]);
+                  }}
+                >
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {KINDS.map((kind) => (
+                      <SelectItem key={kind} value={kind}>
+                        {t(`settings.taxes.kinds.${kind}`)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="rate"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>{t('settings.taxes.rate')}</FormLabel>
+                <FormControl>
+                  <Input
+                    type="number"
+                    min={0}
+                    max={100}
+                    step="0.001"
+                    {...field}
+                    onChange={(e) => field.onChange(Number(e.target.value))}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
         <FormField
           control={form.control}
-          name="rate"
+          name="scope"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>{t('settings.taxes.rate')}</FormLabel>
-              <FormControl>
-                <Input
-                  type="number"
-                  min={0}
-                  max={100}
-                  step="0.01"
-                  {...field}
-                  onChange={(e) => field.onChange(Number(e.target.value))}
-                />
-              </FormControl>
+              <FormLabel>{t('settings.taxes.scope')}</FormLabel>
+              <Select value={field.value} onValueChange={field.onChange}>
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {SCOPES.map((scope) => (
+                    <SelectItem key={scope} value={scope}>
+                      {t(`settings.taxes.scopes.${scope}`)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <FormMessage />
             </FormItem>
           )}
         />
+        <div className="grid grid-cols-2 gap-4">
+          <FormField
+            control={form.control}
+            name="etaType"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>{t('settings.taxes.etaType')}</FormLabel>
+                <FormControl>
+                  <Input dir="ltr" {...field} value={field.value ?? ''} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="etaSubtype"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>{t('settings.taxes.etaSubtype')}</FormLabel>
+                <FormControl>
+                  <Input dir="ltr" placeholder="V009 / W010" {...field} value={field.value ?? ''} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
         <FormField
           control={form.control}
           name="isActive"
@@ -217,82 +339,7 @@ function CreateTaxRuleForm({ onDone }: { onDone: () => void }) {
             </FormItem>
           )}
         />
-        <Button type="submit" disabled={createTaxRule.isPending} className="mt-2">
-          {t('common.save')}
-        </Button>
-      </form>
-    </Form>
-  );
-}
-
-function EditTaxRuleForm({ taxRule, onDone }: { taxRule: TaxRuleDto; onDone: () => void }) {
-  const { t } = useTranslation();
-  const updateTaxRule = useUpdateTaxRule();
-
-  const form = useForm<UpdateTaxRuleDto>({
-    resolver: zodResolver(updateTaxRuleSchema),
-    defaultValues: { name: taxRule.name, rate: taxRule.rate, isActive: taxRule.isActive },
-  });
-
-  async function onSubmit(values: UpdateTaxRuleDto) {
-    try {
-      await updateTaxRule.mutateAsync({ id: taxRule.id, input: values });
-      toast.success(t('settings.taxes.updateSuccess'));
-      onDone();
-    } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : t('settings.taxes.updateError'));
-    }
-  }
-
-  return (
-    <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-4">
-        <FormField
-          control={form.control}
-          name="name"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>{t('settings.taxes.name')}</FormLabel>
-              <FormControl>
-                <Input {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="rate"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>{t('settings.taxes.rate')}</FormLabel>
-              <FormControl>
-                <Input
-                  type="number"
-                  min={0}
-                  max={100}
-                  step="0.01"
-                  {...field}
-                  onChange={(e) => field.onChange(Number(e.target.value))}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="isActive"
-          render={({ field }) => (
-            <FormItem className="flex flex-row items-center gap-2 space-y-0">
-              <FormControl>
-                <Checkbox checked={field.value} onCheckedChange={field.onChange} />
-              </FormControl>
-              <FormLabel className="!mt-0">{t('settings.taxes.status')}</FormLabel>
-            </FormItem>
-          )}
-        />
-        <Button type="submit" disabled={updateTaxRule.isPending} className="mt-2">
+        <Button type="submit" disabled={pending} className="mt-2">
           {t('common.save')}
         </Button>
       </form>
