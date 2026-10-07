@@ -23,6 +23,7 @@ import { entityNotFound } from '../../../../shared/errors/entity-errors';
 import { NumberingSequencesService } from '../../../settings/application/services/numbering-sequences.service';
 import { OutboxWriterService } from '../../../../shared/outbox/application/services/outbox-writer.service';
 import { withTransaction } from '../../../../database/tenant/transaction.util';
+import { StockAvailabilityChecker } from '../../../../shared/catalog/stock-availability-checker';
 
 /**
  * Records goods physically sent back to a supplier after a confirmed
@@ -54,6 +55,7 @@ export class PurchaseReturnsService {
     @Inject(GOODS_RECEIPT_LINE_REPOSITORY) private readonly goodsReceiptLines: GoodsReceiptLineRepository,
     private readonly numberingSequences: NumberingSequencesService,
     private readonly outboxWriter: OutboxWriterService,
+    private readonly stockChecker: StockAvailabilityChecker,
   ) {}
 
   list(db: Kysely<TenantDatabase>): Promise<PurchaseReturn[]> {
@@ -205,14 +207,23 @@ export class PurchaseReturnsService {
     }
 
     return withTransaction(db, async (trx) => {
+      const lines = await this.lines.listByPurchaseReturnId(trx, id);
+      const goodsReceipt = await this.goodsReceipts.findById(trx, existing.goodsReceiptId);
+      if (!goodsReceipt) {
+        throw entityNotFound('GOODS_RECEIPT', existing.goodsReceiptId);
+      }
+      // Expired stock may go back to the supplier, so expiry is not checked here.
+      await this.stockChecker.assertAvailable(
+        trx,
+        goodsReceipt.warehouseId,
+        lines.map((line) => ({
+          productVariantId: line.productVariantId,
+          quantity: Math.round(line.quantityReturned * line.unitFactor * 10_000) / 10_000,
+        })),
+        { blockExpired: false, errorCode: 'PURCHASE_RETURN.INSUFFICIENT_STOCK' },
+      );
       const updated = await this.returns.updateStatus(trx, id, 'confirmed');
       if (!updated) throw entityNotFound('PURCHASE_RETURN', id);
-      const lines = await this.lines.listByPurchaseReturnId(trx, id);
-
-      const goodsReceipt = await this.goodsReceipts.findById(trx, updated.goodsReceiptId);
-      if (!goodsReceipt) {
-        throw entityNotFound('GOODS_RECEIPT', updated.goodsReceiptId);
-      }
 
       await this.outboxWriter.write(trx, 'purchases.purchase_return.confirmed', {
         schema,

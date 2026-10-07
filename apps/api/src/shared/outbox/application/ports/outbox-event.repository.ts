@@ -1,6 +1,6 @@
 import type { Kysely } from 'kysely';
 import type { TenantDatabase } from '../../../../database/tenant/kysely-client';
-import type { CreateOutboxEventInput, OutboxEvent } from '../../domain/outbox-event.entity';
+import type { CreateOutboxEventInput, OutboxEvent, OutboxEventStatus } from '../../domain/outbox-event.entity';
 
 export interface OutboxEventRepository {
   create(db: Kysely<TenantDatabase>, input: CreateOutboxEventInput): Promise<OutboxEvent>;
@@ -16,6 +16,12 @@ export interface OutboxEventRepository {
    */
   claimPending(db: Kysely<TenantDatabase>, limit: number): Promise<OutboxEvent[]>;
   markProcessed(db: Kysely<TenantDatabase>, id: string): Promise<void>;
+  /** Newest first — for the "background operations" screen. */
+  list(db: Kysely<TenantDatabase>, filter: { statuses: OutboxEventStatus[]; limit: number }): Promise<OutboxEvent[]>;
+  /** Counts per status (pending / processing / failed) — badge numbers. */
+  countByStatus(db: Kysely<TenantDatabase>): Promise<Record<string, number>>;
+  /** Puts a failed row back in the queue with a fresh attempt budget; false if it wasn't failed. */
+  requeueFailed(db: Kysely<TenantDatabase>, id: string): Promise<boolean>;
   /** Increments attempts and records the error; status becomes 'failed' once attempts reaches maxAttempts, else back to 'pending' for a later retry. */
   markFailedAttempt(
     db: Kysely<TenantDatabase>,

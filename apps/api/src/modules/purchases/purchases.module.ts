@@ -56,6 +56,7 @@ import { PurchasesEventPublisher } from './infrastructure/events/purchases-event
 import { PRODUCT_TRACKING_READER } from './application/ports/product-tracking.reader';
 import { KyselyProductTrackingReader } from './infrastructure/persistence/kysely-product-tracking.reader';
 import { ProductUnitResolver } from '../../shared/catalog/product-unit-resolver';
+import { StockAvailabilityChecker } from '../../shared/catalog/stock-availability-checker';
 
 /**
  * Purchases module (CLAUDE.md §10: step 3). Stages so far — see
@@ -127,6 +128,7 @@ import { ProductUnitResolver } from '../../shared/catalog/product-unit-resolver'
   ],
   providers: [
     ProductUnitResolver,
+    StockAvailabilityChecker,
     { provide: SUPPLIER_REPOSITORY, useClass: KyselySupplierRepository },
     { provide: PURCHASE_REQUISITION_REPOSITORY, useClass: KyselyPurchaseRequisitionRepository },
     { provide: PURCHASE_REQUISITION_LINE_REPOSITORY, useClass: KyselyPurchaseRequisitionLineRepository },

@@ -44,10 +44,12 @@ export class KyselyOutboxEventRepository implements OutboxEventRepository {
     // today).
     const result = await sql<Selectable<OutboxEventsTable>>`
       UPDATE outbox_events
-      SET status = 'processing'
+      SET status = 'processing', claimed_at = now()
       WHERE id IN (
         SELECT id FROM outbox_events
         WHERE status = 'pending'
+           -- A claim older than this belongs to a process that died mid-dispatch.
+           OR (status = 'processing' AND claimed_at < now() - interval '5 minutes')
         ORDER BY created_at
         LIMIT ${limit}
         FOR UPDATE SKIP LOCKED
@@ -64,6 +66,41 @@ export class KyselyOutboxEventRepository implements OutboxEventRepository {
       .set({ status: 'processed', processed_at: new Date() })
       .where('id', '=', id)
       .execute();
+  }
+
+  async list(
+    db: Kysely<TenantDatabase>,
+    filter: { statuses: OutboxEventStatus[]; limit: number },
+  ): Promise<OutboxEvent[]> {
+    if (filter.statuses.length === 0) return [];
+    const rows = await db
+      .selectFrom('outbox_events')
+      .selectAll()
+      .where('status', 'in', filter.statuses)
+      .orderBy('created_at', 'desc')
+      .limit(filter.limit)
+      .execute();
+    return rows.map(toDomain);
+  }
+
+  async countByStatus(db: Kysely<TenantDatabase>): Promise<Record<string, number>> {
+    const rows = await db
+      .selectFrom('outbox_events')
+      .select(['status', sql<string>`count(*)`.as('count')])
+      .where('status', 'in', ['pending', 'processing', 'failed'])
+      .groupBy('status')
+      .execute();
+    return Object.fromEntries(rows.map((row) => [row.status, Number(row.count)]));
+  }
+
+  async requeueFailed(db: Kysely<TenantDatabase>, id: string): Promise<boolean> {
+    const result = await db
+      .updateTable('outbox_events')
+      .set({ status: 'pending', attempts: 0 })
+      .where('id', '=', id)
+      .where('status', '=', 'failed')
+      .executeTakeFirst();
+    return Number(result.numUpdatedRows) > 0;
   }
 
   async markFailedAttempt(

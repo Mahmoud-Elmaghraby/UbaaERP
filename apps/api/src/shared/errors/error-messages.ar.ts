@@ -162,6 +162,8 @@ export const AR_MESSAGES: Record<string, string> = {
   'PRODUCT_UNIT.NEGATIVE_PRICE': 'لا يمكن أن يكون السعر بالسالب.',
   'PRODUCT_UNIT.MULTIPLE_DEFAULTS': 'وحدة واحدة فقط تكون افتراضية للبيع، وواحدة للشراء.',
   'DOCUMENT.UNIT_NOT_ALLOWED': 'الوحدة المختارة غير معرّفة للصنف "{name}" — عرّفها من «الوحدات والأسعار» في شاشة المنتجات.',
+  'DELIVERY.INSUFFICIENT_STOCK': 'لا يوجد رصيد كافٍ لتأكيد التسليم — {details}.',
+  'PURCHASE_RETURN.INSUFFICIENT_STOCK': 'لا يوجد رصيد كافٍ لتأكيد مرتجع المشتريات — {details}.',
   'STOCK_COUNT.NOT_DRAFT': 'المستند "{number}" لم يعد مسودة، ولا يمكن تعديله.',
   'STOCK_COUNT.TOO_MANY_LINES': 'الحد الأقصى {max} سطر في المرة الواحدة.',
   'STOCK_COUNT.LOCATION_NOT_IN_WAREHOUSE': 'الموقع المختار لا يتبع مخزن هذا المستند.',

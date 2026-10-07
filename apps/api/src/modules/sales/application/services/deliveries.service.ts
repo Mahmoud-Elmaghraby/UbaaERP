@@ -20,6 +20,7 @@ import { BusinessRuleError, NotFoundError, isPostgresForeignKeyViolation } from 
 import { entityNotFound } from '../../../../shared/errors/entity-errors';
 import { NumberingSequencesService } from '../../../settings/application/services/numbering-sequences.service';
 import { OutboxWriterService } from '../../../../shared/outbox/application/services/outbox-writer.service';
+import { StockAvailabilityChecker } from '../../../../shared/catalog/stock-availability-checker';
 
 /**
  * Records physical shipment of goods against a sales order (master doc
@@ -43,6 +44,7 @@ export class DeliveriesService {
     @Inject(SALES_ORDER_LINE_REPOSITORY) private readonly salesOrderLines: SalesOrderLineRepository,
     private readonly numberingSequences: NumberingSequencesService,
     private readonly outboxWriter: OutboxWriterService,
+    private readonly stockChecker: StockAvailabilityChecker,
   ) {}
 
   list(db: Kysely<TenantDatabase>): Promise<Delivery[]> {
@@ -228,9 +230,21 @@ export class DeliveriesService {
     }
 
     return withTransaction(db, async (trx) => {
+      const lines = await this.lines.listByDeliveryId(trx, id);
+      // Refuse now, with the shortages listed, rather than confirm and let
+      // the stock movement fail later in the background.
+      await this.stockChecker.assertAvailable(
+        trx,
+        existing.warehouseId,
+        lines.map((line) => ({
+          productVariantId: line.productVariantId,
+          quantity: toBase(line.quantityDelivered, line.unitFactor),
+          lots: line.lots.map((lot) => ({ lotNumber: lot.lotNumber, quantity: toBase(lot.quantity, line.unitFactor) })),
+        })),
+        { blockExpired: true, errorCode: 'DELIVERY.INSUFFICIENT_STOCK' },
+      );
       const updated = await this.deliveries.updateStatus(trx, id, 'confirmed');
       if (!updated) throw entityNotFound('DELIVERY', id);
-      const lines = await this.lines.listByDeliveryId(trx, id);
 
       const order = await this.salesOrders.findById(trx, updated.salesOrderId);
       if (order) {

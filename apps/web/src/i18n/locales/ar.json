@@ -144,7 +144,8 @@
       "numbering": "ترقيم المستندات",
       "templates": "قوالب الطباعة",
       "taxes": "الضرائب",
-      "modules": "الموديولات"
+      "modules": "الموديولات",
+      "operations": "العمليات في الخلفية"
     },
     "branches": {
       "newBranch": "فرع جديد",
@@ -259,6 +260,43 @@
       "scalePrice": "السعر",
       "scaleDecimals": "عدد الخانات العشرية",
       "scaleLayout": "شكل الباركود: بادئة ({{prefix}} رقم) + كود الصنف ({{code}} أرقام) + القيمة ({{value}} أرقام) + رقم تحقق — لازم القيمة تكون 3 أرقام على الأقل."
+    },
+    "operations": {
+      "description": "بعد تأكيد أي مستند، النظام بيكمّل في الخلفية: يحرّك المخزون ويسجّل القيود. دي العمليات اللي لسه ما خلصتش أو فشلت — بعد ما تصلّح السبب (مثلًا استلمت البضاعة الناقصة) اضغط «إعادة المحاولة».",
+      "pendingCount": "في الانتظار: {{count}}",
+      "processingCount": "جاري التنفيذ: {{count}}",
+      "failedCount": "فشلت: {{count}}",
+      "refresh": "تحديث",
+      "allDone": "كل العمليات اكتملت — لا يوجد شيء معلّق.",
+      "operation": "العملية",
+      "status": "الحالة",
+      "time": "الوقت",
+      "reason": "السبب",
+      "retry": "إعادة المحاولة",
+      "attempts": "عدد المحاولات: {{count}}",
+      "requeued": "تمت إعادة العملية للتنفيذ.",
+      "retryError": "تعذّرت إعادة المحاولة.",
+      "statuses": {
+        "pending": "في الانتظار",
+        "processing": "جاري التنفيذ",
+        "failed": "فشلت",
+        "processed": "اكتملت"
+      },
+      "types": {
+        "sales_delivery_confirmed": "خصم المخزون لإذن تسليم",
+        "sales_sales_return_confirmed": "إرجاع مخزون لمرتجع مبيعات",
+        "purchases_goods_receipt_confirmed": "إضافة مخزون لإذن استلام",
+        "purchases_purchase_return_confirmed": "خصم مخزون لمرتجع مشتريات",
+        "purchases_purchase_invoice_posted": "قيد فاتورة شراء",
+        "sales_sales_invoice_posted": "قيد فاتورة بيع",
+        "sales_sales_credit_note_issued": "قيد إشعار دائن",
+        "sales_payment_received_posted": "قيد مقبوضات",
+        "sales_payment_received_allocated": "توزيع مقبوضات على الفواتير",
+        "sales_pos_session_closed": "قيد إقفال وردية نقطة البيع",
+        "inventory_stock_consumption_recorded": "قيد تكلفة المبيعات",
+        "inventory_stock_restoration_recorded": "قيد عكس تكلفة المبيعات",
+        "inventory_stock_count_posted": "قيد تسوية الجرد / رصيد أول المدة"
+      }
     }
   },
   "profile": {

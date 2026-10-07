@@ -3,6 +3,7 @@ import { OUTBOX_EVENT_REPOSITORY } from './application/ports/outbox-event.reposi
 import { KyselyOutboxEventRepository } from './infrastructure/persistence/kysely-outbox-event.repository';
 import { OutboxWriterService } from './application/services/outbox-writer.service';
 import { OutboxDispatcherService } from './application/services/outbox-dispatcher.service';
+import { OutboxEventsController } from './presentation/outbox-events.controller';
 
 /**
  * Global module for the Outbox Pattern (master doc §5/§2.7 [مستقر]) —
@@ -17,6 +18,7 @@ import { OutboxDispatcherService } from './application/services/outbox-dispatche
  */
 @Global()
 @Module({
+  controllers: [OutboxEventsController],
   providers: [
     { provide: OUTBOX_EVENT_REPOSITORY, useClass: KyselyOutboxEventRepository },
     OutboxWriterService,

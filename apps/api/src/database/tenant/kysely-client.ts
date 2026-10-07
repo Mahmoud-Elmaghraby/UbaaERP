@@ -827,6 +827,7 @@ export interface OutboxEventsTable {
   last_error: string | null;
   created_at: Generated<Date>;
   processed_at: Date | null;
+  claimed_at: Date | null;
 }
 
 export interface PurchaseInvoicesTable {

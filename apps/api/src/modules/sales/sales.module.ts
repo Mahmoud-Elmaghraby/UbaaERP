@@ -61,6 +61,7 @@ import { PosSessionsController } from './presentation/pos-sessions.controller';
 
 import { SalesEventPublisher } from './infrastructure/events/sales-event-publisher';
 import { ProductUnitResolver } from '../../shared/catalog/product-unit-resolver';
+import { StockAvailabilityChecker } from '../../shared/catalog/stock-availability-checker';
 
 /**
  * Sales module (CLAUDE.md §10: step 4). Stages so far — see
@@ -198,6 +199,7 @@ import { ProductUnitResolver } from '../../shared/catalog/product-unit-resolver'
   ],
   providers: [
     ProductUnitResolver,
+    StockAvailabilityChecker,
     { provide: CUSTOMER_REPOSITORY, useClass: KyselyCustomerRepository },
     { provide: ETA_CREDENTIALS_REPOSITORY, useClass: KyselyEtaCredentialsRepository },
     { provide: QUOTATION_REPOSITORY, useClass: KyselyQuotationRepository },

@@ -4,6 +4,8 @@ import { OUTBOX_EVENT_REPOSITORY, type OutboxEventRepository } from '../ports/ou
 import { TenantConnectionManager } from '../../../tenancy/tenant-connection-manager';
 import { PrismaService } from '../../../database/prisma.service';
 import type { DomainEventPayload } from '../../../events/domain-event';
+import { DomainError, LEGACY_ERROR_CODE } from '../../../errors/domain-errors';
+import { formatArMessage } from '../../../errors/error-messages.ar';
 
 /** How often to poll every tenant's outbox_events table. */
 const POLL_INTERVAL_MS = 5000;
@@ -128,7 +130,7 @@ export class OutboxDispatcherService implements OnModuleInit, OnModuleDestroy {
         await this.emitter.emitAsync(event.eventType, revived);
         await this.repository.markProcessed(db, event.id);
       } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
+        const message = describeError(err);
         this.logger.error(
           `Outbox event "${event.id}" (${event.eventType}, tenant "${schemaName}") failed on attempt ` +
             `${event.attempts + 1}: ${message}`,
@@ -137,4 +139,16 @@ export class OutboxDispatcherService implements OnModuleInit, OnModuleDestroy {
       }
     }
   }
+}
+
+/**
+ * What the "background operations" screen shows: the Arabic message for a
+ * coded domain error (e.g. "insufficient stock for X"), with its code, else
+ * the raw message.
+ */
+function describeError(err: unknown): string {
+  if (err instanceof DomainError && err.code !== LEGACY_ERROR_CODE) {
+    return `${formatArMessage(err.code, err.params)} [${err.code}]`;
+  }
+  return err instanceof Error ? err.message : String(err);
 }

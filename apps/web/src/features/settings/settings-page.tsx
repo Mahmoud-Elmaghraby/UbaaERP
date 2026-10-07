@@ -7,6 +7,7 @@ import { ModulesTab } from './modules-tab';
 import { NumberingTab } from './numbering-tab';
 import { TemplatesTab } from './templates-tab';
 import { TaxesTab } from './taxes-tab';
+import { BackgroundOperationsTab } from './background-operations-tab';
 
 export function SettingsPage() {
   const { t } = useTranslation();
@@ -23,6 +24,7 @@ export function SettingsPage() {
           <TabsTrigger value="templates">{t('settings.tabs.templates')}</TabsTrigger>
           <TabsTrigger value="taxes">{t('settings.tabs.taxes')}</TabsTrigger>
           <TabsTrigger value="modules">{t('settings.tabs.modules')}</TabsTrigger>
+          <TabsTrigger value="operations">{t('settings.tabs.operations')}</TabsTrigger>
         </TabsList>
         <TabsContent value="general">
           <GeneralTab />
@@ -41,6 +43,9 @@ export function SettingsPage() {
         </TabsContent>
         <TabsContent value="modules">
           <ModulesTab />
+        </TabsContent>
+        <TabsContent value="operations">
+          <BackgroundOperationsTab />
         </TabsContent>
       </Tabs>
     </div>
