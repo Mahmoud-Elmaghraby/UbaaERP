@@ -10,3 +10,7 @@ release/
 coverage/
 .vite/
 .env.local
+
+# Desktop packaging (apps/desktop/scripts/stage.mjs)
+apps/desktop/staging/
+apps/desktop/.cache/

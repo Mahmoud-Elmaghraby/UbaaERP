@@ -18,6 +18,7 @@ import {
 import { AuthLayout } from './auth-layout';
 import { apiPost, ApiError } from '../../lib/api-client';
 import { useAuthStore } from '../../lib/auth-store';
+import { useFixedTenantSchema } from '../../lib/runtime';
 
 const forgotPasswordFormSchema = z.object({
   tenantSchema: z.string().min(1),
@@ -44,6 +45,8 @@ export function ForgotPasswordPage() {
     resolver: zodResolver(forgotPasswordFormSchema),
     defaultValues: { tenantSchema: '', email: '' },
   });
+  const { hideTenantField } = useFixedTenantSchema(form);
+
 
   async function onSubmit(values: ForgotPasswordFormValues) {
     setSubmitting(true);
@@ -66,7 +69,8 @@ export function ForgotPasswordPage() {
       ) : (
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-4">
-            <FormField
+            {hideTenantField ? null : (
+<FormField
               control={form.control}
               name="tenantSchema"
               render={({ field }) => (
@@ -79,6 +83,7 @@ export function ForgotPasswordPage() {
                 </FormItem>
               )}
             />
+              )}
             <FormField
               control={form.control}
               name="email"

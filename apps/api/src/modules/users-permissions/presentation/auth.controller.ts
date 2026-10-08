@@ -1,4 +1,5 @@
 import { Body, Controller, HttpCode, HttpStatus, Post, Req, Res, UseGuards } from '@nestjs/common';
+import { isCookieSecure } from '../../../shared/config/deployment';
 import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import type { Request, Response } from 'express';
 import {
@@ -196,7 +197,8 @@ export class AuthController {
   private setRefreshCookie(res: Response, refreshToken: string): void {
     res.cookie(REFRESH_TOKEN_COOKIE, refreshToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      // Off on the desktop build (plain http on localhost/LAN) — see deployment.ts.
+      secure: isCookieSecure(),
       sameSite: 'lax',
       // Scoped to /auth only — the refresh token is never needed by any
       // other route, so there's no reason to send it on every request.

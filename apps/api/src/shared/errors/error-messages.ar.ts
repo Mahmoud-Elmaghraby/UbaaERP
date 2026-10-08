@@ -544,6 +544,8 @@ export const AR_MESSAGES: Record<string, string> = {
   'STOCK_ADJUSTMENT.REASON_INACTIVE': 'السبب "{name}" غير نشط.',
   'STOCK_ADJUSTMENT.REASON_DUPLICATE': 'يوجد سبب تسوية بنفس الاسم "{name}".',
   // ---- inventory journal entries (migration 0084) ----
+  'DESKTOP.SETUP_NOT_AVAILABLE': 'الإعداد الأولي متاح في نسخة سطح المكتب فقط.',
+  'DESKTOP.ALREADY_SET_UP': 'تم إعداد البرنامج بالفعل — سجّل الدخول بحساب المدير.',
   'ACCOUNTING_SETTINGS.MAPPING_MISSING': 'لم يتم تحديد "{account}" في إعدادات المحاسبة — حدده من المحاسبة › الإعدادات ثم أعد المحاولة.',
   'ACCOUNTING_SETTINGS.ACCOUNT_NOT_POSTABLE': 'الحساب "{name}" غير نشط أو حساب رئيسي، ولا يقبل قيودًا.',
 

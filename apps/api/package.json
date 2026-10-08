@@ -18,7 +18,8 @@
     "db:seed-plans": "ts-node -P tsconfig.json src/database/public/seed-plans.command.ts",
     "test:unit": "jest --config jest.config.js --selectProjects unit",
     "test:integration": "jest --config jest.config.js --selectProjects integration",
-    "test:e2e": "jest --config jest.config.js --selectProjects e2e"
+    "test:e2e": "jest --config jest.config.js --selectProjects e2e",
+    "db:desktop-setup": "ts-node -P tsconfig.json src/database/desktop/desktop-setup.command.ts"
   },
   "dependencies": {
     "@erp-platform/contracts": "workspace:*",

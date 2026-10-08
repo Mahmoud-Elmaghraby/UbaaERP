@@ -15,6 +15,9 @@ import { NestFactory } from '@nestjs/core';
 import { DomainExceptionFilter } from './shared/errors/domain-exception.filter';
 import { UnexpectedExceptionFilter } from './shared/errors/unexpected-exception.filter';
 import { validateEnv } from './shared/config/env.validation';
+import { isDesktopMode } from './shared/config/deployment';
+import { inlineScriptHashes, serveWebApp } from './shared/desktop/serve-web-app';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 
 async function bootstrap() {
   // Validated before AppModule is even imported (a dynamic import,
@@ -31,7 +34,7 @@ async function bootstrap() {
   validateEnv();
   const { AppModule } = await import('./app.module');
 
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
   // Order matters, and it is the REVERSE of what it looks like: Nest
   // reverses the global filters list (router-exception-filters.js:
   // `setCustomFilters(filters.reverse())`) and uses the first one whose
@@ -45,7 +48,27 @@ async function bootstrap() {
   // helmet() sets the standard set of security response headers (HSTS,
   // X-Content-Type-Options, X-Frame-Options, a conservative default CSP,
   // etc.) that were previously entirely absent from every response.
-  app.use(helmet());
+  //
+  // Desktop is served over plain http (localhost, and the shop's LAN when
+  // network access is on), so the two https-assuming defaults are turned
+  // off there: HSTS, and CSP's upgrade-insecure-requests (which would make
+  // a LAN browser rewrite every asset URL to https and load nothing).
+  // It also serves the web app itself, whose index.html carries one small
+  // inline script (pre-paint theme) — allowed by hash, not 'unsafe-inline'.
+  const webDistPath = isDesktopMode() ? process.env.WEB_DIST_PATH : undefined;
+  app.use(
+    isDesktopMode()
+      ? helmet({
+          hsts: false,
+          contentSecurityPolicy: {
+            directives: {
+              upgradeInsecureRequests: null,
+              scriptSrc: ["'self'", ...(webDistPath ? inlineScriptHashes(webDistPath) : [])],
+            },
+          },
+        })
+      : helmet(),
+  );
   // Reads the httpOnly refresh-token cookie AuthController sets/reads
   // (claude/settings-module-audit.md §2.2/Task 9) — Express's req.cookies
   // is undefined without this middleware; there is no built-in
@@ -92,7 +115,16 @@ async function bootstrap() {
   // per-tenant pg.Pool leaks connections on process exit instead of
   // closing cleanly.
   app.enableShutdownHooks();
-  await app.listen(process.env.PORT ?? 3000);
+  // Desktop: the same process serves the built web app (see serveWebApp).
+  if (webDistPath) {
+    serveWebApp(app, webDistPath);
+  }
+  // HOST lets the desktop app bind to 127.0.0.1 only (network access off)
+  // or 0.0.0.0 (on); unset keeps Nest's default (all interfaces).
+  const host = process.env.HOST;
+  const port = process.env.PORT ?? 3000;
+  if (host) await app.listen(port, host);
+  else await app.listen(port);
 }
 
 bootstrap();

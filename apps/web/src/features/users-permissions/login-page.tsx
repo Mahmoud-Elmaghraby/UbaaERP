@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type { AuthTokensDto, LoginResponseDto } from '@erp-platform/contracts';
 import {
@@ -19,6 +19,7 @@ import {
 import { AuthLayout } from './auth-layout';
 import { apiPost, ApiError } from '../../lib/api-client';
 import { useAuthStore } from '../../lib/auth-store';
+import { useFixedTenantSchema } from '../../lib/runtime';
 
 const loginFormSchema = z.object({
   tenantSchema: z.string().min(1),
@@ -55,6 +56,8 @@ export function LoginPage() {
     resolver: zodResolver(loginFormSchema),
     defaultValues: { tenantSchema: '', email: '', password: '' },
   });
+  const { hideTenantField, needsSetup } = useFixedTenantSchema(credentialsForm);
+
 
   const twoFactorForm = useForm<TwoFactorFormValues>({
     resolver: zodResolver(twoFactorFormSchema),
@@ -113,6 +116,9 @@ export function LoginPage() {
     twoFactorForm.reset();
   }
 
+  // Fresh desktop install: nobody can log in until the Owner account exists.
+  if (needsSetup) return <Navigate to="/setup" replace />;
+
   return (
     <AuthLayout
       title={challengeToken ? t('auth.twoFactorTitle') : t('auth.loginTitle')}
@@ -152,7 +158,8 @@ export function LoginPage() {
         <>
           <Form {...credentialsForm}>
             <form onSubmit={credentialsForm.handleSubmit(onSubmitCredentials)} className="grid gap-4">
-              <FormField
+              {hideTenantField ? null : (
+<FormField
                 control={credentialsForm.control}
                 name="tenantSchema"
                 render={({ field }) => (
@@ -165,6 +172,7 @@ export function LoginPage() {
                   </FormItem>
                 )}
               />
+              )}
               <FormField
                 control={credentialsForm.control}
                 name="email"

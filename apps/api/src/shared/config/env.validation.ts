@@ -62,6 +62,16 @@ const envSchema = z.object({
   MINIO_ACCESS_KEY: z.string().min(1).optional(),
   MINIO_SECRET_KEY: z.string().min(1).optional(),
   MINIO_ATTACHMENTS_BUCKET: z.string().min(1).optional(),
+
+  // Desktop build (shared/config/deployment.ts) — all optional, shape only.
+  DEPLOY_MODE: z.enum(['cloud', 'desktop']).optional(),
+  DESKTOP_TENANT_SCHEMA: z.string().regex(/^[a-z_][a-z0-9_]*$/, 'DESKTOP_TENANT_SCHEMA must be a valid schema name.').optional(),
+  HOST: z.string().min(1).optional(),
+  WEB_DIST_PATH: z.string().min(1).optional(),
+  COOKIE_SECURE: z.enum(['true', 'false']).optional(),
+  STORAGE_DRIVER: z.enum(['minio', 'local']).optional(),
+  STORAGE_LOCAL_PATH: z.string().min(1).optional(),
+  STORAGE_SIGNING_SECRET: z.string().min(16).optional(),
 });
 
 export type ValidatedEnv = z.infer<typeof envSchema>;

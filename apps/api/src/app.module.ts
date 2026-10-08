@@ -11,6 +11,7 @@ import { AuthInfraModule } from './shared/auth/auth-infra.module';
 import { EmailModule } from './shared/email/email.module';
 import { PlansModule } from './shared/plans/plans.module';
 import { HealthController } from './shared/health/health.controller';
+import { DesktopModule } from './shared/desktop/desktop.module';
 import { SettingsModule } from './modules/settings/settings.module';
 import { UsersPermissionsModule } from './modules/users-permissions/users-permissions.module';
 import { InventoryModule } from './modules/inventory/inventory.module';
@@ -61,6 +62,7 @@ import { AttachmentsModule } from './modules/attachments/attachments.module';
     AuthInfraModule,
     EmailModule,
     PlansModule,
+    DesktopModule,
     SettingsModule,
     UsersPermissionsModule,
     InventoryModule,

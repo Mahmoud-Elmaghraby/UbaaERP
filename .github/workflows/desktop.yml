@@ -1,0 +1,46 @@
+# Windows installer for the desktop build (apps/desktop).
+# Runs on demand and for version tags (v1.2.3); the .exe is attached to the run as an artifact.
+name: desktop-installer
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ['v*']
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Cache PostgreSQL binaries
+        uses: actions/cache@v4
+        with:
+          path: apps/desktop/.cache
+          key: pgsql-windows-${{ hashFiles('apps/desktop/scripts/stage.mjs') }}
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Desktop unit tests
+        run: pnpm --filter desktop test
+
+      - name: Build + stage (API, web, PostgreSQL)
+        run: node apps/desktop/scripts/stage.mjs
+
+      - name: Package installer
+        working-directory: apps/desktop
+        run: pnpm exec electron-builder --win --x64 --publish never
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: erp-platform-windows-installer
+          path: apps/desktop/release/*.exe
+          if-no-files-found: error

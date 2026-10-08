@@ -1,0 +1,51 @@
+# Windows installer for the desktop build (CLAUDE.md §2.4 / §6).
+# Build with:  pnpm --filter desktop package:win   (scripts/stage.mjs prepares staging/)
+appId: com.erp-platform.desktop
+productName: ERP Platform
+copyright: Copyright © TEG
+
+directories:
+  output: release
+  buildResources: assets
+
+# The Electron shell itself (inside app.asar). It has no runtime npm
+# dependencies — the API brings its own node_modules (staging/api).
+files:
+  - dist/**/*
+  - assets/icon.png
+  - package.json
+
+extraResources:
+  - from: staging/api      # NestJS API: dist + production node_modules + prisma/migrations
+    to: api
+  - from: staging/web      # built web app, served by the API
+    to: web
+  - from: staging/pgsql    # PostgreSQL binaries (bin, lib, share)
+    to: pgsql
+  - from: dist             # setup.js (+ shared/), run by the installer as Node
+    to: setup
+
+asar: true
+
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+  icon: assets/icon.ico
+  # Unsigned for now — Windows SmartScreen will warn on first run until a
+  # code-signing certificate is configured (CSC_LINK / CSC_KEY_PASSWORD).
+
+nsis:
+  oneClick: false
+  perMachine: true          # the database service and ProgramData need admin, once, at install
+  allowElevation: true
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: always
+  createStartMenuShortcut: true
+  shortcutName: ERP Platform
+  runAfterFinish: true
+  deleteAppDataOnUninstall: false
+  installerLanguages: [ar_SA, en_US]
+  language: "1025"
+  include: installer/installer.nsh
+  artifactName: ${productName}-Setup-${version}.${ext}

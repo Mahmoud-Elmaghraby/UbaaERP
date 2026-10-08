@@ -1,16 +1,14 @@
 {
   "name": "desktop",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "private": true,
   "main": "dist/main.js",
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "typecheck": "tsc --noEmit",
-    "test": "echo \"no tests yet\" && exit 0",
-    "package:win": "electron-builder --win nsis"
-  },
-  "dependencies": {
-    "@erp-platform/shared-kernel": "workspace:*"
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "tsc -p tsconfig.json && node --test test/desktop.test.js",
+    "stage": "node scripts/stage.mjs",
+    "package:win": "node scripts/stage.mjs && electron-builder --win --x64 --publish never"
   },
   "devDependencies": {
     "@types/node": "^22.5.4",
@@ -18,19 +16,6 @@
     "electron-builder": "^25.0.5",
     "typescript": "^5.6.2"
   },
-  "build": {
-    "appId": "com.erp-platform.desktop",
-    "productName": "ERP Platform",
-    "directories": {
-      "output": "release"
-    },
-    "files": ["dist/**/*"],
-    "win": {
-      "target": ["nsis"]
-    },
-    "nsis": {
-      "oneClick": false,
-      "allowToChangeInstallationDirectory": true
-    }
-  }
+  "description": "ERP Platform — Windows desktop app",
+  "author": "TEG"
 }

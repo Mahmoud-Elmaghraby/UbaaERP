@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import * as bcrypt from 'bcryptjs';
-import { createTenantKyselyClient } from './kysely-client';
+import type { Kysely } from 'kysely';
+import { createTenantKyselyClient, type TenantDatabase } from './kysely-client';
 import { OWNER_ROLE_ID } from './well-known-ids';
 
 const BCRYPT_ROUNDS = 12;
@@ -31,22 +32,34 @@ export interface SeedOwnerResult {
 export async function seedOwnerUser(databaseUrl: string, input: SeedOwnerInput): Promise<SeedOwnerResult> {
   const db = createTenantKyselyClient(databaseUrl, input.schemaName);
   try {
-    const passwordHash = await bcrypt.hash(input.password, BCRYPT_ROUNDS);
-    const row = await db
-      .insertInto('users')
-      .values({
-        id: randomUUID(),
-        email: input.email.trim().toLowerCase(),
-        password_hash: passwordHash,
-        full_name: input.fullName,
-        role_id: OWNER_ROLE_ID,
-        is_active: true,
-        totp_enabled: false,
-      })
-      .returning(['id', 'email'])
-      .executeTakeFirstOrThrow();
-    return { id: row.id, email: row.email };
+    return await insertOwnerUser(db, input);
   } finally {
     await db.destroy();
   }
+}
+
+/**
+ * The insert itself, on a caller-supplied connection/transaction — shared by
+ * seedOwnerUser (CLI/provisioning, own short-lived client) and the desktop
+ * first-run setup (DesktopSetupService, inside its own locked transaction).
+ */
+export async function insertOwnerUser(
+  db: Kysely<TenantDatabase>,
+  input: Omit<SeedOwnerInput, 'schemaName'>,
+): Promise<SeedOwnerResult> {
+  const passwordHash = await bcrypt.hash(input.password, BCRYPT_ROUNDS);
+  const row = await db
+    .insertInto('users')
+    .values({
+      id: randomUUID(),
+      email: input.email.trim().toLowerCase(),
+      password_hash: passwordHash,
+      full_name: input.fullName,
+      role_id: OWNER_ROLE_ID,
+      is_active: true,
+      totp_enabled: false,
+    })
+    .returning(['id', 'email'])
+    .executeTakeFirstOrThrow();
+  return { id: row.id, email: row.email };
 }

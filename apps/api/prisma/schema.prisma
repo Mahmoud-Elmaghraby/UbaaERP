@@ -10,6 +10,10 @@
 
 generator client {
   provider = "prisma-client-js"
+  // "windows": the desktop installer runs this same client on Windows
+  // (apps/desktop) — the engine for it must be generated alongside the
+  // build machine's own ("native").
+  binaryTargets = ["native", "windows"]
 }
 
 datasource db {

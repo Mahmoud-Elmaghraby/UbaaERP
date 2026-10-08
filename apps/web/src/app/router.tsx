@@ -6,6 +6,7 @@ import { AppShell } from './layout/app-shell';
 import { HomePage } from './pages/home-page';
 import { NotFoundPage, RouteErrorPage } from './pages/route-error-page';
 import { LoginPage } from '../features/users-permissions/login-page';
+import { DesktopSetupPage } from '../features/desktop/setup-page';
 import { ForgotPasswordPage } from '../features/users-permissions/forgot-password-page';
 import { ResetPasswordPage } from '../features/users-permissions/reset-password-page';
 import { UsersPage } from '../features/users-permissions/users-page';
@@ -20,6 +21,8 @@ import { accountingRoutes } from '../features/accounting/routes';
 
 export const router = createBrowserRouter([
   { path: '/login', element: <LoginPage />, errorElement: <RouteErrorPage /> },
+  // Desktop build only — first-run Owner account (redirects to /login everywhere else).
+  { path: '/setup', element: <DesktopSetupPage />, errorElement: <RouteErrorPage /> },
   { path: '/forgot-password', element: <ForgotPasswordPage /> },
   { path: '/reset-password', element: <ResetPasswordPage /> },
   {
