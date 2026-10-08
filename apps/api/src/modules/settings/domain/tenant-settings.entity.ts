@@ -9,6 +9,13 @@ export interface TenantSettings {
   companyName: string | null;
   address: string | null;
   taxRegistrationNumber: string | null;
+  /** Migration 0093 — printed on every document header. */
+  commercialRegister: string | null;
+  phone: string | null;
+  email: string | null;
+  website: string | null;
+  /** Object storage key of the company logo (null = none). */
+  logoObjectKey: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -18,4 +25,9 @@ export interface UpdateTenantSettingsInput {
   companyName?: string | null;
   address?: string | null;
   taxRegistrationNumber?: string | null;
+  commercialRegister?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  website?: string | null;
+  logoObjectKey?: string | null;
 }

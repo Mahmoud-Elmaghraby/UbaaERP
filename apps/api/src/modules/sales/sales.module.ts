@@ -1,3 +1,5 @@
+import { SalesInvoicePrintProvider } from './infrastructure/printing/sales-invoice.print-provider';
+import { SalesPrintRegistration } from './infrastructure/printing/sales-print.registration';
 import { Module } from '@nestjs/common';
 import { SettingsModule } from '../settings/settings.module';
 import { CUSTOMER_REPOSITORY } from './application/ports/customer.repository';
@@ -198,6 +200,8 @@ import { StockAvailabilityChecker } from '../../shared/catalog/stock-availabilit
     PosSessionsController,
   ],
   providers: [
+    SalesInvoicePrintProvider,
+    SalesPrintRegistration,
     ProductUnitResolver,
     StockAvailabilityChecker,
     { provide: CUSTOMER_REPOSITORY, useClass: KyselyCustomerRepository },

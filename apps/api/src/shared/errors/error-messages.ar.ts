@@ -367,6 +367,8 @@ export const AR_MESSAGES: Record<string, string> = {
   'PAYMENT.ALLOCATION_EXCEEDS_AVAILABLE':
     'إجمالي المبلغ المخصَّص ({requested}) يتجاوز المبلغ المتاح للتخصيص ({available}).',
   'PAYMENT.INVOICE_NOT_POSTED': 'فاتورة البيع "{id}" في حالة "{status}" — يمكن استلام دفعة فقط مقابل فاتورة مرحّلة.',
+  'COMPANY_LOGO.TYPE': 'اللوجو لازم يكون صورة PNG أو JPEG أو WebP.',
+  'COMPANY_LOGO.TOO_LARGE': 'حجم اللوجو لازم يكون 1 ميجا أو أقل.',
   'TAX.RULE_NOT_USABLE': 'الضريبة "{name}" غير متاحة هنا (موقوفة أو مش مخصصة لهذا النوع من المستندات).',
   'TAX.DUPLICATE_KIND': 'السطر الواحد ينفع يبقى عليه ضريبة واحدة بس من كل نوع.',
   'PAYMENT.BANK_ACCOUNT_FOR_CASH': 'الدفع النقدي لا يمر بحساب بنكي — اختر طريقة دفع أخرى أو احذف الحساب البنكي.',

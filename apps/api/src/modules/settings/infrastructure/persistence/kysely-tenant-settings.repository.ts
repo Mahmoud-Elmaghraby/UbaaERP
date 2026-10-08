@@ -13,6 +13,11 @@ function toDomain(row: Selectable<TenantSettingsTable>): TenantSettings {
     companyName: row.company_name,
     address: row.address,
     taxRegistrationNumber: row.tax_registration_number,
+    commercialRegister: row.commercial_register,
+    phone: row.phone,
+    email: row.email,
+    website: row.website,
+    logoObjectKey: row.logo_object_key,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -47,7 +52,12 @@ export class KyselyTenantSettingsRepository implements TenantSettingsRepository 
       input.currencyCode !== undefined ||
       input.companyName !== undefined ||
       input.address !== undefined ||
-      input.taxRegistrationNumber !== undefined;
+      input.taxRegistrationNumber !== undefined ||
+      input.commercialRegister !== undefined ||
+      input.phone !== undefined ||
+      input.email !== undefined ||
+      input.website !== undefined ||
+      input.logoObjectKey !== undefined;
     if (!hasChanges) return settings;
 
     const updated = await db
@@ -59,6 +69,11 @@ export class KyselyTenantSettingsRepository implements TenantSettingsRepository 
         ...(input.taxRegistrationNumber !== undefined
           ? { tax_registration_number: input.taxRegistrationNumber }
           : {}),
+        ...(input.commercialRegister !== undefined ? { commercial_register: input.commercialRegister } : {}),
+        ...(input.phone !== undefined ? { phone: input.phone } : {}),
+        ...(input.email !== undefined ? { email: input.email } : {}),
+        ...(input.website !== undefined ? { website: input.website } : {}),
+        ...(input.logoObjectKey !== undefined ? { logo_object_key: input.logoObjectKey } : {}),
         updated_at: sql`now()`,
       })
       .where('id', '=', settings.id)

@@ -29,6 +29,12 @@ export interface TenantSettingsTable {
   company_name: string | null;
   address: string | null;
   tax_registration_number: string | null;
+  /** Migration 0093 — printed company header. */
+  commercial_register: string | null;
+  phone: string | null;
+  email: string | null;
+  website: string | null;
+  logo_object_key: string | null;
   created_at: Generated<Date>;
   updated_at: Generated<Date>;
 }

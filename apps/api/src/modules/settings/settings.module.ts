@@ -1,3 +1,4 @@
+import { CompanyProfileService } from './application/services/company-profile.service';
 import { Module } from '@nestjs/common';
 import { TENANT_SETTINGS_REPOSITORY } from './application/ports/tenant-settings.repository';
 import { BRANCH_REPOSITORY } from './application/ports/branch.repository';
@@ -54,6 +55,7 @@ import { FeatureTogglesController } from './presentation/feature-toggles.control
     FeatureTogglesController,
   ],
   providers: [
+    CompanyProfileService,
     { provide: TENANT_SETTINGS_REPOSITORY, useClass: KyselyTenantSettingsRepository },
     { provide: BRANCH_REPOSITORY, useClass: KyselyBranchRepository },
     { provide: NUMBERING_SEQUENCE_REPOSITORY, useClass: KyselyNumberingSequenceRepository },
@@ -81,6 +83,6 @@ import { FeatureTogglesController } from './presentation/feature-toggles.control
   // (JournalEntriesService reads it via TenantSettingsService.get()),
   // the same foundational-dependency reasoning as NumberingSequencesService
   // above, not a business-module call.
-  exports: [NumberingSequencesService, TenantSettingsService],
+  exports: [NumberingSequencesService, TenantSettingsService, CompanyProfileService],
 })
 export class SettingsModule {}
