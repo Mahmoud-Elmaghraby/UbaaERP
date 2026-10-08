@@ -9,6 +9,7 @@ import { useVariantIndex } from '../../hooks/sales-credit-notes/use-variant-inde
 import { formatMoney } from '../../../../lib/money';
 import { LineTaxesNote } from '../../../../components/taxes/line-taxes-note';
 import { QuantityWithUnit } from '../../../../components/product/unit-select';
+import { PrintButton } from '../../../../components/printing/print-button';
 
 /**
  * Read-only header + lines + total — same shape as every other Sales details view
@@ -29,6 +30,9 @@ export function SalesCreditNoteDetailsView({ creditNote }: { creditNote: SalesCr
 
   return (
     <div className="grid gap-3">
+      <div className="flex justify-end">
+        <PrintButton documentType="sales_credit_note" id={creditNote.id} />
+      </div>
       <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
         <div>
           <p className="text-muted-foreground">{t('sales.salesCreditNotes.creditNoteNumber')}</p>

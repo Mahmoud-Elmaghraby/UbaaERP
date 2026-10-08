@@ -18,6 +18,7 @@ import {
   PAYMENT_RECEIVED_STATUS_VARIANT,
   paymentReceivedStatusLabelKey,
 } from './payment-received-status';
+import { PrintButton } from '../../../../components/printing/print-button';
 
 /** Read-only header + allocations, same overall shape as every other Sales entity's
  * details view — plus unallocatedAmount, which only this entity has (server-computed,
@@ -36,6 +37,9 @@ export function PaymentReceivedDetailsView({
 
   return (
     <div className="grid gap-3">
+      <div className="flex justify-end">
+        <PrintButton documentType="payment_received" id={payment.id} receipt />
+      </div>
       <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
         <div>
           <p className="text-muted-foreground">{t('sales.paymentsReceived.paymentNumber')}</p>

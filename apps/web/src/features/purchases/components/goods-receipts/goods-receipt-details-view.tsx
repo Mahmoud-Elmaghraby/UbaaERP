@@ -18,6 +18,7 @@ import { formatMoney } from '../../../../lib/money';
 import { GOODS_RECEIPT_STATUS_VARIANT, goodsReceiptStatusLabelKey } from './goods-receipt-status';
 import { LotsSummary } from '../../../../components/document/lot-entry';
 import { QuantityWithUnit } from '../../../../components/product/unit-select';
+import { PrintButton } from '../../../../components/printing/print-button';
 
 /** Read-only header + lines, same shape as every other Purchases entity's details view. */
 export function GoodsReceiptDetailsView({ receipt }: { receipt: GoodsReceiptWithLinesDto }) {
@@ -37,6 +38,9 @@ export function GoodsReceiptDetailsView({ receipt }: { receipt: GoodsReceiptWith
 
   return (
     <div className="grid gap-3">
+      <div className="flex justify-end">
+        <PrintButton documentType="goods_receipt" id={receipt.id} />
+      </div>
       <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
         <div>
           <p className="text-muted-foreground">{t('purchases.goodsReceipts.receiptNumber')}</p>

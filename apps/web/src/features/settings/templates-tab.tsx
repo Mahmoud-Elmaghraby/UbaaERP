@@ -1,29 +1,20 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useTranslation } from 'react-i18next';
-import { MoreHorizontal } from 'lucide-react';
 import {
-  createDocumentTemplateSchema,
-  updateDocumentTemplateSchema,
-  type CreateDocumentTemplateDto,
-  type DocumentTemplateDto,
-  type UpdateDocumentTemplateDto,
+  printTemplateConfigSchema,
+  type PrintDocumentDto,
+  type PrintTemplateConfigDto,
 } from '@erp-platform/contracts';
 import {
-  Badge,
   Button,
   Can,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
   Checkbox,
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
   Form,
   FormControl,
   FormField,
@@ -31,286 +22,311 @@ import {
   FormLabel,
   FormMessage,
   Input,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
   Skeleton,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
   Textarea,
   toast,
 } from '@erp-platform/ui';
+import { amountInWordsAr } from '@erp-platform/shared-kernel';
 
 import {
   useCreateDocumentTemplate,
-  useDeleteDocumentTemplate,
   useDocumentTemplates,
+  useTenantSettings,
   useUpdateDocumentTemplate,
 } from './queries';
+import { usePrintDocumentTypes } from '../printing/queries';
+import { A4Layout } from '../printing/layouts/a4-layout';
+import { ThermalLayout } from '../printing/layouts/thermal-layout';
 import { ApiError } from '../../lib/api-client';
 
+const TOGGLES = ['showLogo', 'showSku', 'showUnit', 'showTaxDetails', 'showAmountInWords', 'showSignatures'] as const;
+
+/**
+ * Print templates (قوالب الطباعة): one template per printable document type,
+ * stored as a JSON config in document_templates and applied by the central
+ * print service. A live preview with sample data shows the result.
+ */
 export function TemplatesTab() {
   const { t } = useTranslation();
-  const { data: templates, isLoading } = useDocumentTemplates();
-  const [createOpen, setCreateOpen] = useState(false);
-  const [editing, setEditing] = useState<DocumentTemplateDto | null>(null);
-  const deleteTemplate = useDeleteDocumentTemplate();
+  const { data: types, isLoading } = usePrintDocumentTypes();
+  const [documentType, setDocumentType] = useState<string>('');
 
-  async function handleDelete(id: string) {
-    if (!window.confirm(t('settings.templates.deleteConfirm'))) return;
-    try {
-      await deleteTemplate.mutateAsync(id);
-      toast.success(t('settings.templates.deleteSuccess'));
-    } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : t('common.error'));
-    }
-  }
+  useEffect(() => {
+    if (!documentType && types?.[0]) setDocumentType(types[0].documentType);
+  }, [types, documentType]);
+
+  if (isLoading) return <Skeleton className="h-40 w-full" />;
+  const type = types?.find((candidate) => candidate.documentType === documentType);
 
   return (
-    <div className="grid gap-6">
-      <div className="flex items-center justify-end">
-        <Can permission="settings.manage">
-          <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-            <DialogTrigger asChild>
-              <Button>{t('settings.templates.newTemplate')}</Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>{t('settings.templates.newTemplate')}</DialogTitle>
-              </DialogHeader>
-              <CreateTemplateForm onDone={() => setCreateOpen(false)} />
-            </DialogContent>
-          </Dialog>
-        </Can>
-      </div>
-
-      {isLoading ? (
-        <Skeleton className="h-40 w-full" />
-      ) : (
-        <div className="overflow-hidden rounded-xl border bg-card shadow-card">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>{t('settings.templates.documentType')}</TableHead>
-                <TableHead>{t('settings.templates.name')}</TableHead>
-                <TableHead>{t('settings.templates.isDefault')}</TableHead>
-                <TableHead className="w-10" />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {(templates ?? []).map((template) => (
-                <TableRow key={template.id}>
-                  <TableCell className="font-medium">{template.documentType}</TableCell>
-                  <TableCell>{template.name}</TableCell>
-                  <TableCell>
-                    {template.isDefault ? (
-                      <Badge>{t('settings.templates.defaultBadge')}</Badge>
-                    ) : (
-                      '-'
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <Can permission="settings.manage">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onSelect={() => setEditing(template)}>
-                            {t('common.edit')}
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onSelect={() => handleDelete(template.id)}>
-                            {t('common.delete')}
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </Can>
-                  </TableCell>
-                </TableRow>
+    <div className="grid gap-4">
+      <div className="flex flex-wrap items-end gap-3">
+        <div className="grid gap-1.5">
+          <span className="text-sm font-medium">{t('settings.printTemplates.documentType')}</span>
+          <Select value={documentType} onValueChange={setDocumentType}>
+            <SelectTrigger className="w-64">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {(types ?? []).map((candidate) => (
+                <SelectItem key={candidate.documentType} value={candidate.documentType}>
+                  {candidate.label}
+                </SelectItem>
               ))}
-              {(templates ?? []).length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={4} className="py-8 text-center text-muted-foreground">
-                    {t('common.noResults')}
-                  </TableCell>
-                </TableRow>
-              ) : null}
-            </TableBody>
-          </Table>
+            </SelectContent>
+          </Select>
         </div>
-      )}
-
-      <Dialog open={editing !== null} onOpenChange={(open) => !open && setEditing(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{t('common.edit')}</DialogTitle>
-          </DialogHeader>
-          {editing ? <EditTemplateForm template={editing} onDone={() => setEditing(null)} /> : null}
-        </DialogContent>
-      </Dialog>
+        <p className="text-sm text-muted-foreground">{t('settings.printTemplates.hint')}</p>
+      </div>
+      {type ? <TemplateEditor key={type.documentType} documentType={type.documentType} label={type.label} paperSizes={type.paperSizes} /> : null}
     </div>
   );
 }
 
-function CreateTemplateForm({ onDone }: { onDone: () => void }) {
-  const { t } = useTranslation();
-  const createTemplate = useCreateDocumentTemplate();
-
-  const form = useForm<CreateDocumentTemplateDto>({
-    resolver: zodResolver(createDocumentTemplateSchema),
-    defaultValues: { documentType: '', name: '', content: '', isDefault: false },
-  });
-
-  async function onSubmit(values: CreateDocumentTemplateDto) {
-    try {
-      await createTemplate.mutateAsync(values);
-      toast.success(t('settings.templates.createSuccess'));
-      onDone();
-      form.reset();
-    } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : t('settings.templates.createError'));
-    }
-  }
-
-  return (
-    <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-4">
-        <FormField
-          control={form.control}
-          name="documentType"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>{t('settings.templates.documentType')}</FormLabel>
-              <FormControl>
-                <Input {...field} placeholder="sales_invoice" />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="name"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>{t('settings.templates.name')}</FormLabel>
-              <FormControl>
-                <Input {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="content"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>{t('settings.templates.content')}</FormLabel>
-              <FormControl>
-                <Textarea {...field} rows={6} dir="ltr" />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="isDefault"
-          render={({ field }) => (
-            <FormItem className="flex flex-row items-center gap-2 space-y-0">
-              <FormControl>
-                <Checkbox checked={field.value} onCheckedChange={field.onChange} />
-              </FormControl>
-              <FormLabel className="!mt-0">{t('settings.templates.isDefault')}</FormLabel>
-            </FormItem>
-          )}
-        />
-        <Button type="submit" disabled={createTemplate.isPending} className="mt-2">
-          {t('common.save')}
-        </Button>
-      </form>
-    </Form>
-  );
-}
-
-function EditTemplateForm({
-  template,
-  onDone,
+function TemplateEditor({
+  documentType,
+  label,
+  paperSizes,
 }: {
-  template: DocumentTemplateDto;
-  onDone: () => void;
+  documentType: string;
+  label: string;
+  paperSizes: PrintTemplateConfigDto['paperSize'][];
 }) {
   const { t } = useTranslation();
-  const updateTemplate = useUpdateDocumentTemplate();
-
-  const form = useForm<UpdateDocumentTemplateDto>({
-    resolver: zodResolver(updateDocumentTemplateSchema),
-    defaultValues: {
-      name: template.name,
-      content: template.content,
-      isDefault: template.isDefault,
-    },
-  });
-
-  async function onSubmit(values: UpdateDocumentTemplateDto) {
+  const { data: templates } = useDocumentTemplates();
+  const create = useCreateDocumentTemplate();
+  const update = useUpdateDocumentTemplate();
+  const existing = useMemo(
+    () =>
+      (templates ?? [])
+        .filter((template) => template.documentType === documentType)
+        .sort((a, b) => Number(b.isDefault) - Number(a.isDefault))[0],
+    [templates, documentType],
+  );
+  const stored = useMemo(() => {
     try {
-      await updateTemplate.mutateAsync({ id: template.id, input: values });
-      toast.success(t('settings.templates.updateSuccess'));
-      onDone();
+      return printTemplateConfigSchema.parse(existing?.content ? JSON.parse(existing.content) : {});
+    } catch {
+      return printTemplateConfigSchema.parse({});
+    }
+  }, [existing]);
+
+  const form = useForm<PrintTemplateConfigDto>({
+    resolver: zodResolver(printTemplateConfigSchema),
+    defaultValues: stored,
+  });
+  useEffect(() => form.reset(stored), [stored, form]);
+  const values = form.watch();
+  const previewConfig = printTemplateConfigSchema.safeParse(values);
+
+  async function onSubmit(config: PrintTemplateConfigDto) {
+    const cleaned = {
+      ...config,
+      title: config.title?.trim() || null,
+      headerNote: config.headerNote?.trim() || null,
+      termsText: config.termsText?.trim() || null,
+      footerText: config.footerText?.trim() || null,
+    };
+    try {
+      const content = JSON.stringify(cleaned);
+      if (existing) await update.mutateAsync({ id: existing.id, input: { content, isDefault: true } });
+      else await create.mutateAsync({ documentType, name: label, content, isDefault: true });
+      toast.success(t('settings.printTemplates.saved'));
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : t('settings.templates.updateError'));
     }
   }
 
   return (
-    <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-4">
-        <FormField
-          control={form.control}
-          name="name"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>{t('settings.templates.name')}</FormLabel>
-              <FormControl>
-                <Input {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="content"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>{t('settings.templates.content')}</FormLabel>
-              <FormControl>
-                <Textarea {...field} rows={6} dir="ltr" />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="isDefault"
-          render={({ field }) => (
-            <FormItem className="flex flex-row items-center gap-2 space-y-0">
-              <FormControl>
-                <Checkbox checked={field.value} onCheckedChange={field.onChange} />
-              </FormControl>
-              <FormLabel className="!mt-0">{t('settings.templates.isDefault')}</FormLabel>
-            </FormItem>
-          )}
-        />
-        <Button type="submit" disabled={updateTemplate.isPending} className="mt-2">
-          {t('common.save')}
-        </Button>
-      </form>
-    </Form>
+    <div className="grid gap-4 lg:grid-cols-[380px_1fr]">
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">{label}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-4">
+              {paperSizes.length > 1 ? (
+                <FormField
+                  control={form.control}
+                  name="paperSize"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t('settings.printTemplates.paperSize')}</FormLabel>
+                      <Select value={field.value} onValueChange={field.onChange}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {paperSizes.map((size) => (
+                            <SelectItem key={size} value={size}>
+                              {t(`printing.paper.${size}`)}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </FormItem>
+                  )}
+                />
+              ) : null}
+              <FormField
+                control={form.control}
+                name="title"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t('settings.printTemplates.title')}</FormLabel>
+                    <FormControl>
+                      <Input {...field} value={field.value ?? ''} placeholder={label} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="accentColor"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t('settings.printTemplates.accentColor')}</FormLabel>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="color"
+                        className="h-9 w-12 cursor-pointer rounded border"
+                        value={field.value}
+                        onChange={(event) => field.onChange(event.target.value)}
+                      />
+                      <FormControl>
+                        <Input dir="ltr" className="w-32" {...field} />
+                      </FormControl>
+                    </div>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <div className="grid grid-cols-2 gap-2">
+                {TOGGLES.map((name) => (
+                  <FormField
+                    key={name}
+                    control={form.control}
+                    name={name}
+                    render={({ field }) => (
+                      <FormItem className="flex flex-row items-center gap-2 space-y-0">
+                        <FormControl>
+                          <Checkbox checked={field.value} onCheckedChange={(checked) => field.onChange(checked === true)} />
+                        </FormControl>
+                        <FormLabel className="!mt-0 text-sm font-normal">{t(`settings.printTemplates.${name}`)}</FormLabel>
+                      </FormItem>
+                    )}
+                  />
+                ))}
+              </div>
+              {(['headerNote', 'termsText', 'footerText'] as const).map((name) => (
+                <FormField
+                  key={name}
+                  control={form.control}
+                  name={name}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t(`settings.printTemplates.${name}`)}</FormLabel>
+                      <FormControl>
+                        <Textarea rows={name === 'termsText' ? 4 : 2} {...field} value={field.value ?? ''} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              ))}
+              <Can permission="settings.manage">
+                <Button type="submit" disabled={create.isPending || update.isPending}>
+                  {t('common.save')}
+                </Button>
+              </Can>
+            </form>
+          </Form>
+        </CardContent>
+      </Card>
+      <Card className="overflow-auto bg-neutral-100">
+        <CardContent className="p-4">
+          <p className="mb-2 text-xs text-muted-foreground">{t('settings.printTemplates.preview')}</p>
+          <TemplatePreview label={label} config={previewConfig.success ? previewConfig.data : stored} />
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+/** Sample document rendered with the real layouts, so the preview is exactly what prints. */
+function TemplatePreview({ label, config }: { label: string; config: PrintTemplateConfigDto }) {
+  const { data: settings } = useTenantSettings();
+  const currency = settings?.currencyCode ?? 'EGP';
+  const money = (minor: number) => ({ amountMinorUnits: String(minor), currency });
+  const sample: PrintDocumentDto = {
+    documentType: 'sample',
+    id: 'sample',
+    title: label,
+    number: 'INV-00042',
+    status: 'posted',
+    statusLabel: null,
+    date: new Date().toISOString().slice(0, 10),
+    dueDate: null,
+    currency,
+    company: {
+      name: settings?.companyName ?? null,
+      address: settings?.address ?? null,
+      taxRegistrationNumber: settings?.taxRegistrationNumber ?? null,
+      commercialRegister: settings?.commercialRegister ?? null,
+      phone: settings?.phone ?? null,
+      email: settings?.email ?? null,
+      website: settings?.website ?? null,
+      logoUrl: settings?.logoUrl ?? null,
+    },
+    party: { roleLabel: 'العميل', name: 'شركة المثال للتوريدات', code: 'C-001', taxNumber: '100-200-300' },
+    fields: [{ label: 'أمر البيع', value: 'SO-00017' }],
+    lines: [
+      {
+        description: 'صنف تجريبي أ',
+        sku: 'A-100',
+        quantity: 2,
+        unit: 'قطعة',
+        unitPrice: money(15000),
+        amount: money(30000),
+        taxes: [{ name: 'ق.م 14%', kind: 'vat', rate: '14', amount: money(4200) }],
+      },
+      {
+        description: 'صنف تجريبي ب',
+        sku: 'B-200',
+        quantity: 1,
+        unit: 'كرتونة',
+        unitPrice: money(20000),
+        amount: money(20000),
+        taxes: [{ name: 'ق.م 14%', kind: 'vat', rate: '14', amount: money(2800) }],
+      },
+    ],
+    totals: {
+      netAmount: money(50000),
+      vatAmount: money(7000),
+      totalAmount: money(57000),
+      amountInWords: amountInWordsAr(57000n, currency),
+    },
+    notes: null,
+    paperSizes: ['a4', 'thermal80'],
+  };
+  return config.paperSize === 'thermal80' ? (
+    <div className="mx-auto w-fit bg-white p-3 shadow">
+      <ThermalLayout document={sample} template={config} />
+    </div>
+  ) : (
+    <div className="origin-top scale-[0.8]">
+      <div className="mx-auto w-fit bg-white p-[12mm] shadow">
+        <A4Layout document={sample} template={config} />
+      </div>
+    </div>
   );
 }

@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Printer, Trash2 } from 'lucide-react';
 import { paymentMethodSchema, type PosCheckoutDto, type PosCheckoutResultDto, type PosSessionDto } from '@erp-platform/contracts';
 import {
   Badge,
@@ -46,6 +46,7 @@ import {
   type DiscountDraft,
 } from '../../lib/discount-fields';
 import { formatPreviewAmount, previewDiscountedAmount, previewLineAmount } from './pos-totals';
+import { openPrint } from '../../../../components/printing/print-button';
 
 const PAYMENT_METHODS = paymentMethodSchema.options;
 
@@ -311,6 +312,14 @@ export function PosCartPanel({ session }: { session: PosSessionDto }) {
                 )}
               </p>
             </div>
+            <Button
+              onClick={() =>
+                openPrint('sales_invoice', lastResult.salesInvoice.id, { paper: 'thermal80', autoprint: true })
+              }
+            >
+              <Printer />
+              {t('printing.printReceipt')}
+            </Button>
             <Button variant="outline" onClick={() => setLastResult(null)}>
               {t('pos.checkout.newSale')}
             </Button>

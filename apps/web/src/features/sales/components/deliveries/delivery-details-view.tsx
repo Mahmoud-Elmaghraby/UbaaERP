@@ -17,6 +17,7 @@ import { useVariantIndex } from '../../hooks/deliveries/use-variant-index';
 import { DELIVERY_STATUS_VARIANT, deliveryStatusLabelKey } from './delivery-status';
 import { LotsSummary } from '../../../../components/document/lot-entry';
 import { QuantityWithUnit } from '../../../../components/product/unit-select';
+import { PrintButton } from '../../../../components/printing/print-button';
 
 /** Read-only header + lines, same shape as every other Sales/Purchases entity's details
  * view. No Money column — deliveries carry no unit cost. */
@@ -37,6 +38,9 @@ export function DeliveryDetailsView({ delivery }: { delivery: DeliveryWithLinesD
 
   return (
     <div className="grid gap-3">
+      <div className="flex justify-end">
+        <PrintButton documentType="delivery" id={delivery.id} />
+      </div>
       <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
         <div>
           <p className="text-muted-foreground">{t('sales.deliveries.deliveryNumber')}</p>

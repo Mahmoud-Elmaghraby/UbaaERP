@@ -1,6 +1,7 @@
 import { createBrowserRouter } from 'react-router-dom';
 
 import { ProtectedRoute } from './protected-route';
+import { PrintPage } from '../features/printing/print-page';
 import { AppShell } from './layout/app-shell';
 import { HomePage } from './pages/home-page';
 import { NotFoundPage, RouteErrorPage } from './pages/route-error-page';
@@ -21,6 +22,16 @@ export const router = createBrowserRouter([
   { path: '/login', element: <LoginPage />, errorElement: <RouteErrorPage /> },
   { path: '/forgot-password', element: <ForgotPasswordPage /> },
   { path: '/reset-password', element: <ResetPasswordPage /> },
+  {
+    // Central print page — signed in, but outside the app shell (nothing but the document prints).
+    path: '/print/:documentType/:id',
+    element: (
+      <ProtectedRoute>
+        <PrintPage />
+      </ProtectedRoute>
+    ),
+    errorElement: <RouteErrorPage />,
+  },
   {
     path: '/',
     element: (

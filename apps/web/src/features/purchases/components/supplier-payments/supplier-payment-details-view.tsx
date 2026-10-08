@@ -8,6 +8,7 @@ import { useSupplierOutstandingInvoices } from '../../api/supplier-payments/quer
 import { useBankAccountLookup } from '../../../accounting/api/bank-accounts/queries';
 import { formatMoney } from '../../../../lib/money';
 import { SUPPLIER_PAYMENT_STATUS_VARIANT, supplierPaymentStatusLabelKey } from './supplier-payment-status';
+import { PrintButton } from '../../../../components/printing/print-button';
 
 /** Read-only header + allocations (invoice numbers resolved via the outstanding-invoices list), plus an actions slot. */
 export function SupplierPaymentDetailsView({
@@ -57,6 +58,9 @@ export function SupplierPaymentDetailsView({
 
   return (
     <div className="grid gap-3">
+      <div className="flex justify-end">
+        <PrintButton documentType="supplier_payment" id={payment.id} receipt />
+      </div>
       <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
         {fields.map((field) => (
           <div key={field.label}>

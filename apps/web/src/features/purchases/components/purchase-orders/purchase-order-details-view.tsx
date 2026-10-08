@@ -20,6 +20,7 @@ import {
   purchaseOrderStatusLabelKey,
 } from './purchase-order-status';
 import { QuantityWithUnit } from '../../../../components/product/unit-select';
+import { PrintButton } from '../../../../components/printing/print-button';
 
 /** Read-only header + lines + total, same shape as PurchaseRequisitionDetailsView /
  * RfqDetailsView's own header sections. totalAmount is always server-computed
@@ -34,6 +35,9 @@ export function PurchaseOrderDetailsView({ order }: { order: PurchaseOrderWithLi
 
   return (
     <div className="grid gap-3">
+      <div className="flex justify-end">
+        <PrintButton documentType="purchase_order" id={order.id} />
+      </div>
       <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
         <div>
           <p className="text-muted-foreground">{t('purchases.purchaseOrders.poNumber')}</p>

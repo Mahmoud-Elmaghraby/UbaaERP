@@ -40,6 +40,7 @@ import { SALES_INVOICE_STATUS_VARIANT, salesInvoiceStatusLabelKey } from './sale
 import { SALES_INVOICES_PATH } from './sales-invoices-tab';
 import { useSalesInvoiceActions } from './use-sales-invoice-actions';
 import { QuantityWithUnit } from '../../../../components/product/unit-select';
+import { PrintButton } from '../../../../components/printing/print-button';
 
 export function SalesInvoiceDetailsPage() {
   const { t } = useTranslation();
@@ -139,6 +140,8 @@ export function SalesInvoiceDetailsPage() {
           </Badge>
         }
         actions={
+          <>
+          <PrintButton documentType="sales_invoice" id={invoice.id} receipt />
           <Can permission="sales.manage">
             {isDraft || invoice.status === 'cancelled' ? (
               <Button
@@ -176,6 +179,7 @@ export function SalesInvoiceDetailsPage() {
               </Button>
             ) : null}
           </Can>
+          </>
         }
       />
 

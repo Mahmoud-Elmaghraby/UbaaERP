@@ -16,6 +16,7 @@ import { useVariantIndex } from '../../hooks/quotations/use-variant-index';
 import { formatMoney } from '../../../../lib/money';
 import { QUOTATION_STATUS_VARIANT, quotationStatusLabelKey } from './quotation-status';
 import { QuantityWithUnit } from '../../../../components/product/unit-select';
+import { PrintButton } from '../../../../components/printing/print-button';
 
 /** Read-only header + lines + total, same shape as Purchase Orders' own details view.
  * totalAmount is always server-computed (QuotationsService.getById() derives it from
@@ -30,6 +31,9 @@ export function QuotationDetailsView({ quotation }: { quotation: QuotationWithLi
 
   return (
     <div className="grid gap-3">
+      <div className="flex justify-end">
+        <PrintButton documentType="quotation" id={quotation.id} />
+      </div>
       <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
         <div>
           <p className="text-muted-foreground">{t('sales.quotations.quotationNumber')}</p>

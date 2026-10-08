@@ -23,7 +23,8 @@ import {
   toast,
 } from '@erp-platform/ui';
 
-import { useTenantSettings, useUpdateTenantSettings } from './queries';
+import { useCompanyLogo, useTenantSettings, useUpdateTenantSettings } from './queries';
+import { resizeImage } from '../../lib/image-resize';
 import { ApiError } from '../../lib/api-client';
 
 /**
@@ -45,7 +46,16 @@ export function GeneralTab() {
 
   const form = useForm<UpdateTenantSettingsDto>({
     resolver: zodResolver(updateTenantSettingsSchema),
-    defaultValues: { currencyCode: '', companyName: '', address: '', taxRegistrationNumber: '' },
+    defaultValues: {
+      currencyCode: '',
+      companyName: '',
+      address: '',
+      taxRegistrationNumber: '',
+      commercialRegister: '',
+      phone: '',
+      email: '',
+      website: '',
+    },
   });
 
   useEffect(() => {
@@ -55,6 +65,10 @@ export function GeneralTab() {
         companyName: settings.companyName ?? '',
         address: settings.address ?? '',
         taxRegistrationNumber: settings.taxRegistrationNumber ?? '',
+        commercialRegister: settings.commercialRegister ?? '',
+        phone: settings.phone ?? '',
+        email: settings.email ?? '',
+        website: settings.website ?? '',
       });
     }
   }, [settings, form]);
@@ -71,6 +85,10 @@ export function GeneralTab() {
         taxRegistrationNumber: values.taxRegistrationNumber?.trim()
           ? values.taxRegistrationNumber.trim()
           : null,
+        commercialRegister: values.commercialRegister?.trim() || null,
+        phone: values.phone?.trim() || null,
+        email: values.email?.trim() || null,
+        website: values.website?.trim() || null,
       });
       toast.success(t('settings.general.saveSuccess'));
     } catch (err) {
@@ -87,7 +105,8 @@ export function GeneralTab() {
       <CardHeader>
         <CardTitle>{t('settings.general.title')}</CardTitle>
       </CardHeader>
-      <CardContent>
+      <CardContent className="grid gap-6">
+        <CompanyLogoField logoUrl={settings?.logoUrl ?? null} />
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="grid max-w-lg gap-4">
             <FormField
@@ -129,6 +148,60 @@ export function GeneralTab() {
                 </FormItem>
               )}
             />
+            <div className="grid gap-4 sm:grid-cols-2">
+              <FormField
+                control={form.control}
+                name="commercialRegister"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t('settings.general.commercialRegister')}</FormLabel>
+                    <FormControl>
+                      <Input {...field} value={field.value ?? ''} dir="auto" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="phone"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t('settings.general.phone')}</FormLabel>
+                    <FormControl>
+                      <Input {...field} value={field.value ?? ''} dir="auto" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t('settings.general.email')}</FormLabel>
+                    <FormControl>
+                      <Input {...field} value={field.value ?? ''} dir="auto" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="website"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t('settings.general.website')}</FormLabel>
+                    <FormControl>
+                      <Input {...field} value={field.value ?? ''} dir="auto" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
             <FormField
               control={form.control}
               name="currencyCode"
@@ -152,5 +225,53 @@ export function GeneralTab() {
         </Form>
       </CardContent>
     </Card>
+  );
+}
+
+/** The logo printed on every document header (PNG / JPEG / WebP, ≤ 1 MB, resized in the browser). */
+function CompanyLogoField({ logoUrl }: { logoUrl: string | null }) {
+  const { t } = useTranslation();
+  const { upload, remove } = useCompanyLogo();
+
+  async function onFile(file: File | undefined) {
+    if (!file) return;
+    try {
+      const resized = await resizeImage(file, 600, 0.92);
+      await upload.mutateAsync(new File([resized], 'logo', { type: resized.type }));
+      toast.success(t('settings.general.logoSaved'));
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : t('settings.general.saveError'));
+    }
+  }
+
+  return (
+    <div className="flex items-center gap-4">
+      <div className="flex h-20 w-40 items-center justify-center rounded-lg border bg-muted/30">
+        {logoUrl ? (
+          <img src={logoUrl} alt="" className="max-h-16 max-w-36 object-contain" />
+        ) : (
+          <span className="text-xs text-muted-foreground">{t('settings.general.noLogo')}</span>
+        )}
+      </div>
+      <Can permission="settings.manage">
+        <div className="flex flex-col gap-2">
+          <label className="inline-flex cursor-pointer items-center justify-center rounded-md border px-3 py-1.5 text-sm hover:bg-muted">
+            {t('settings.general.uploadLogo')}
+            <input
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+              className="hidden"
+              onChange={(event) => void onFile(event.target.files?.[0])}
+            />
+          </label>
+          {logoUrl ? (
+            <Button type="button" variant="ghost" size="sm" disabled={remove.isPending} onClick={() => remove.mutate()}>
+              {t('settings.general.removeLogo')}
+            </Button>
+          ) : null}
+          <span className="text-xs text-muted-foreground">{t('settings.general.logoHint')}</span>
+        </div>
+      </Can>
+    </div>
   );
 }

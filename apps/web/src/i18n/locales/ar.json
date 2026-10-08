@@ -198,7 +198,16 @@
       "currencyCode": "رمز العملة",
       "currencyCodeHint": "رمز العملة الدولي المكوّن من 3 أحرف، مثل EGP",
       "saveSuccess": "تم حفظ الإعدادات بنجاح",
-      "saveError": "تعذّر حفظ الإعدادات"
+      "saveError": "تعذّر حفظ الإعدادات",
+      "commercialRegister": "رقم السجل التجاري",
+      "phone": "التليفون",
+      "email": "البريد الإلكتروني",
+      "website": "الموقع الإلكتروني",
+      "noLogo": "بدون لوجو",
+      "uploadLogo": "رفع اللوجو",
+      "removeLogo": "حذف اللوجو",
+      "logoHint": "يظهر على كل المستندات المطبوعة.",
+      "logoSaved": "تم حفظ اللوجو."
     },
     "numbering": {
       "newSequence": "تسلسل ترقيم جديد",
@@ -346,6 +355,24 @@
         "purchases_supplier_payment_posted": "قيد سداد لمورد",
         "purchases_supplier_payment_allocated": "توزيع مدفوعات مورد على الفواتير"
       }
+    },
+    "printTemplates": {
+      "documentType": "المستند",
+      "hint": "شكل الطباعة لكل نوع مستند — بيانات الشركة واللوجو من تبويب الإعدادات العامة.",
+      "paperSize": "مقاس الورق الافتراضي",
+      "title": "عنوان المستند (اختياري)",
+      "accentColor": "اللون الأساسي",
+      "showLogo": "إظهار اللوجو",
+      "showSku": "إظهار كود الصنف",
+      "showUnit": "إظهار الوحدة",
+      "showTaxDetails": "إظهار تفاصيل الضريبة",
+      "showAmountInWords": "المبلغ بالحروف",
+      "showSignatures": "خانات التوقيع",
+      "headerNote": "ملاحظة أعلى المستند",
+      "termsText": "الشروط والأحكام",
+      "footerText": "تذييل الصفحة",
+      "preview": "معاينة ببيانات تجريبية",
+      "saved": "تم حفظ القالب."
     }
   },
   "profile": {
@@ -2353,5 +2380,16 @@
       "vat": "ضريبة القيمة المضافة",
       "withholding": "خصم من المنبع"
     }
+  },
+  "printing": {
+    "print": "طباعة",
+    "close": "إغلاق",
+    "pdfHint": "لحفظ PDF اختار \"حفظ كـ PDF\" من نافذة الطباعة.",
+    "loadError": "تعذر تحميل المستند للطباعة.",
+    "paper": {
+      "a4": "A4",
+      "thermal80": "إيصال حراري 80mm"
+    },
+    "printReceipt": "طباعة الإيصال"
   }
 }

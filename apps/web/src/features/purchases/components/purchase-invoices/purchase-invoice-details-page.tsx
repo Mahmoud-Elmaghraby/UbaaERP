@@ -41,6 +41,7 @@ import { PURCHASE_INVOICE_STATUS_VARIANT, purchaseInvoiceStatusLabelKey } from '
 import { PURCHASE_INVOICES_PATH } from './purchase-invoices-tab';
 import { usePurchaseInvoiceActions } from './use-purchase-invoice-actions';
 import { QuantityWithUnit } from '../../../../components/product/unit-select';
+import { PrintButton } from '../../../../components/printing/print-button';
 
 export function PurchaseInvoiceDetailsPage() {
   const { t } = useTranslation();
@@ -147,6 +148,8 @@ export function PurchaseInvoiceDetailsPage() {
           </Badge>
         }
         actions={
+          <>
+          <PrintButton documentType="purchase_invoice" id={invoice.id} />
           <Can permission="purchases.manage">
             {isDraft || invoice.status === 'cancelled' ? (
               <Button
@@ -176,6 +179,7 @@ export function PurchaseInvoiceDetailsPage() {
               </>
             ) : null}
           </Can>
+          </>
         }
       />
 

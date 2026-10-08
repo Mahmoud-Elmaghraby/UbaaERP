@@ -17,6 +17,7 @@ import { useVariantIndex } from '../../hooks/sales-orders/use-variant-index';
 import { formatMoney } from '../../../../lib/money';
 import { SALES_ORDER_STATUS_VARIANT, salesOrderStatusLabelKey } from './sales-order-status';
 import { QuantityWithUnit } from '../../../../components/product/unit-select';
+import { PrintButton } from '../../../../components/printing/print-button';
 
 /** POS feature Stage 2/4 — a short display string for a header/line discount, or null when none is set. */
 function formatDiscountLabel(source: {
@@ -49,6 +50,9 @@ export function SalesOrderDetailsView({ order }: { order: SalesOrderWithLinesDto
 
   return (
     <div className="grid gap-3">
+      <div className="flex justify-end">
+        <PrintButton documentType="sales_order" id={order.id} />
+      </div>
       <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
         <div>
           <p className="text-muted-foreground">{t('sales.salesOrders.soNumber')}</p>

@@ -18,7 +18,7 @@ import type {
   UpdateTenantSettingsDto,
 } from '@erp-platform/contracts';
 
-import { apiDelete, apiGet, apiPatch, apiPost } from '../../lib/api-client';
+import { apiDelete, apiGet, apiPatch, apiPost, apiUpload } from '../../lib/api-client';
 
 export function useBranches() {
   return useQuery({ queryKey: ['branches'], queryFn: () => apiGet<BranchDto[]>('/branches') });
@@ -54,6 +54,22 @@ export function useUpdateTenantSettings() {
     mutationFn: (input: UpdateTenantSettingsDto) => apiPatch<TenantSettingsDto>('/settings', input),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['tenant-settings'] }),
   });
+}
+
+/** Company logo (printed on every document): upload replaces, delete removes. */
+export function useCompanyLogo() {
+  const queryClient = useQueryClient();
+  const onSuccess = () => queryClient.invalidateQueries({ queryKey: ['tenant-settings'] });
+  const upload = useMutation({
+    mutationFn: (file: File) => {
+      const form = new FormData();
+      form.append('logo', file);
+      return apiUpload<TenantSettingsDto>('/settings/logo', form);
+    },
+    onSuccess,
+  });
+  const remove = useMutation({ mutationFn: () => apiDelete<TenantSettingsDto>('/settings/logo'), onSuccess });
+  return { upload, remove };
 }
 
 // --- Numbering sequences ---------------------------------------------------
