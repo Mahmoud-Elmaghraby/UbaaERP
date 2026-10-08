@@ -16,7 +16,8 @@ export type PartyLedgerKind =
   | 'sales_credit_note'
   | 'payment_received'
   | 'purchase_invoice'
-  | 'supplier_payment';
+  | 'supplier_payment'
+  | 'purchase_debit_note';
 
 export interface PartyLedgerEntry<K extends string = PartyLedgerKind> {
   /** ISO date (YYYY-MM-DD) the entry counts from. */

@@ -13,6 +13,7 @@ import { NumberingSequencesService } from '../../src/modules/settings/applicatio
 import { KyselyNumberingSequenceRepository } from '../../src/modules/settings/infrastructure/persistence/kysely-numbering-sequence.repository';
 import { OutboxWriterService } from '../../src/shared/outbox/application/services/outbox-writer.service';
 import { KyselyOutboxEventRepository } from '../../src/shared/outbox/infrastructure/persistence/kysely-outbox-event.repository';
+import { TreasuryMovementRegistry } from '../../src/shared/treasury/treasury-movements';
 import { openIntegrationDb, uniqueSuffix } from './tenant-db';
 
 /** Supplier payments (migration 0090): allocation rules against posted purchase invoices + the posting outbox row. */
@@ -152,8 +153,21 @@ describe('Supplier payments (integration, real Postgres)', () => {
     return rows.map((r) => r.payload as { metadata: Record<string, unknown> });
   }
 
+  /** A registry whose only source puts plenty of money in every treasury (balance checks are tested on their own below). */
+  let treasuryMovements: TreasuryMovementRegistry;
+  let setFunded: (value: boolean) => void = () => undefined;
+
   beforeAll(() => {
     db = openIntegrationDb();
+    treasuryMovements = new TreasuryMovementRegistry();
+    let funded = true;
+    treasuryMovements.register({
+      listMovements: async (_db, treasuryId) =>
+        funded && treasuryId
+          ? [{ treasuryId, date: '2026-01-01', amountMinor: 10n ** 12n, currency: 'EGP', kind: 'income', documentId: 'seed', number: 'seed', counterparty: null, description: null, sequence: '' }]
+          : [],
+    });
+    setFunded = (value) => (funded = value);
     service = new SupplierPaymentsService(
       new KyselySupplierPaymentRepository(),
       new KyselySupplierPaymentAllocationRepository(),
@@ -163,6 +177,7 @@ describe('Supplier payments (integration, real Postgres)', () => {
       new KyselyPurchaseInvoiceLineRepository(),
       new NumberingSequencesService(new KyselyNumberingSequenceRepository()),
       new OutboxWriterService(new KyselyOutboxEventRepository()),
+      treasuryMovements,
     );
   });
 
@@ -310,5 +325,20 @@ describe('Supplier payments (integration, real Postgres)', () => {
     await expect(
       service.create(db, { supplierId, amount: egp(5_00n), paymentMethod: 'cash', treasuryId: randomUUID() }),
     ).rejects.toMatchObject({ code: 'PAYMENT.TREASURY_UNUSABLE' });
+  });
+
+  it("refuses to post a cash payment beyond the cash box's balance", async () => {
+    const supplierId = await createSupplier();
+    const draft = await service.create(db, { supplierId, amount: egp(5_00n), paymentMethod: 'cash' });
+    setFunded(false);
+    try {
+      const opening = await db.selectFrom('treasuries').select('opening_balance_amount').where('id', '=', draft.treasuryId!).executeTakeFirstOrThrow();
+      if (BigInt(opening.opening_balance_amount) < 5_00n) {
+        await expect(service.post(db, draft.id, 'test', null)).rejects.toMatchObject({ code: 'TREASURY.INSUFFICIENT_BALANCE' });
+        expect((await service.getById(db, draft.id)).status).toBe('draft');
+      }
+    } finally {
+      setFunded(true);
+    }
   });
 });

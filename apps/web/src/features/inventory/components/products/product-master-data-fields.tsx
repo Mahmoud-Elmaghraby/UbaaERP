@@ -20,6 +20,7 @@ import {
 import { useCategoryOptions, useProductBrands } from '../../api/catalog/queries';
 import { useTaxRuleLookup } from '../../../settings/queries';
 import { decimalToMinorUnits, minorUnitsToDecimalString } from '../../../../lib/money';
+import { WhenTaxesInUse } from '../../../../components/taxes/when-taxes-in-use';
 
 /** Radix Select can't hold an empty value — this stands for "none". */
 const NONE = '__none__';
@@ -150,33 +151,35 @@ export function ProductMasterDataFields({
             </FormItem>
           )}
         />
-        <FormField
-          control={form.control}
-          name="taxRuleId"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>{t('inventory.products.taxRule')}</FormLabel>
-              <Select value={field.value ?? NONE} onValueChange={(value) => field.onChange(value === NONE ? null : value)}>
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  <SelectItem value={NONE}>{t('inventory.products.noTaxRule')}</SelectItem>
-                  {(taxRules ?? [])
-                    .filter((rule) => rule.kind !== 'withholding')
-                    .map((rule) => (
-                      <SelectItem key={rule.id} value={rule.id}>
-                        {rule.name} ({rule.rate}%)
-                      </SelectItem>
-                    ))}
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+        <WhenTaxesInUse>
+          <FormField
+            control={form.control}
+            name="taxRuleId"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>{t('inventory.products.taxRule')}</FormLabel>
+                <Select value={field.value ?? NONE} onValueChange={(value) => field.onChange(value === NONE ? null : value)}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value={NONE}>{t('inventory.products.noTaxRule')}</SelectItem>
+                    {(taxRules ?? [])
+                      .filter((rule) => rule.kind !== 'withholding')
+                      .map((rule) => (
+                        <SelectItem key={rule.id} value={rule.id}>
+                          {rule.name} ({rule.rate}%)
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </WhenTaxesInUse>
       </div>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div className="grid gap-1.5">

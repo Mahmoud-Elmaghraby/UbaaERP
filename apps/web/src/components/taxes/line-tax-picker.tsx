@@ -31,6 +31,8 @@ export function LineTaxPicker({
   const { data } = useTaxRuleLookup();
   const rules = (data ?? []).filter((rule) => usableForScope(rule, scope));
   const chosen = rules.filter((rule) => value.includes(rule.id));
+  // No tax rules for this scope → nothing to pick (see useTaxesInUse).
+  if (rules.length === 0) return null;
 
   function toggle(rule: TaxRuleDto, checked: boolean) {
     const others = value.filter((id) => id !== rule.id);

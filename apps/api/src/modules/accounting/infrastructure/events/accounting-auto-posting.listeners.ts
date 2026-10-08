@@ -423,10 +423,26 @@ export class AccountingAutoPostingListeners {
    * safe default to auto-populate).
    */
   @OnOutboxEvent('purchases.purchase_invoice.posted', { requiresFeature: FEATURE_KEYS.ACCOUNTING })
-  async handlePurchaseInvoicePosted(payload: DomainEventPayload): Promise<void> {
+  handlePurchaseInvoicePosted(payload: DomainEventPayload): Promise<void> {
+    return this.postPurchaseDocument(payload, false);
+  }
+
+  /**
+   * Purchase debit note (إشعار خصم — a purchase return of invoiced goods):
+   * the exact mirror of the invoice entry — Dr Accounts Payable (and
+   * withholding), Cr GRNI / purchase expense, VAT input, table tax. The
+   * goods themselves already left Inventory against GRNI (purchase_return
+   * valuation entry), so GRNI nets out.
+   */
+  @OnOutboxEvent('purchases.purchase_debit_note.issued', { requiresFeature: FEATURE_KEYS.ACCOUNTING })
+  handlePurchaseDebitNoteIssued(payload: DomainEventPayload): Promise<void> {
+    return this.postPurchaseDocument(payload, true);
+  }
+
+  private async postPurchaseDocument(payload: DomainEventPayload, isDebitNote: boolean): Promise<void> {
     const metadata = payload.metadata as unknown as PurchaseInvoicePostedMetadata | undefined;
     if (!metadata) {
-      this.logger.warn(`Received 'purchases.purchase_invoice.posted' with no metadata — ignoring.`);
+      this.logger.warn(`Received '${isDebitNote ? 'purchase_debit_note' : 'purchase_invoice'}' event with no metadata — ignoring.`);
       return;
     }
     if (metadata.totalAmount.amountMinorUnits === '0') return;
@@ -503,7 +519,7 @@ export class AccountingAutoPostingListeners {
     const taxes = await this.convertTaxes(db, metadata, entryDate);
     const payable = BigInt(converted.amountMinorUnits);
     const convertedExpense = payable + taxes.withholding - taxes.vat - taxes.table - convertedStock;
-    const lines = compactLines([
+    const invoiceLines = compactLines([
       { accountId: convertedStock ? settings.grniAccountId! : '', debit: convertedStock },
       {
         accountId: convertedExpense ? this.mapped(settings.purchaseExpenseAccountId, 'purchaseExpense') : '',
@@ -522,15 +538,23 @@ export class AccountingAutoPostingListeners {
       },
       { accountId: settings.accountsPayableAccountId, credit: payable },
     ]);
+    // A debit note is the invoice entry with every side swapped.
+    const lines = isDebitNote
+      ? invoiceLines.map((line) => ({
+          ...line,
+          debitAmountMinorUnits: line.creditAmountMinorUnits,
+          creditAmountMinorUnits: line.debitAmountMinorUnits,
+        }))
+      : invoiceLines;
 
     await this.journalEntries.createAuto(db, {
       entryDate,
       description:
-        `فاتورة شراء ${metadata.invoiceNumber ?? payload.entityId}` +
+        `${isDebitNote ? 'إشعار خصم مورد' : 'فاتورة شراء'} ${metadata.invoiceNumber ?? payload.entityId}` +
         (metadata.supplierInvoiceNumber ? ` (فاتورة المورد ${metadata.supplierInvoiceNumber})` : '') +
         conversionNote(converted.wasConverted, currency, converted.tenantCurrency),
       lines,
-      sourceReferenceType: 'purchase_invoice',
+      sourceReferenceType: isDebitNote ? 'purchase_debit_note' : 'purchase_invoice',
       sourceReferenceId: payload.entityId,
     });
   }

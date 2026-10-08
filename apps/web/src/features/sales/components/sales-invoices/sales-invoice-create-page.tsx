@@ -72,6 +72,7 @@ import {
 } from './sales-invoice-line-items-editor';
 import { SALES_INVOICES_PATH } from './sales-invoices-tab';
 import { useSalesInvoiceActions } from './use-sales-invoice-actions';
+import { WhenTaxesInUse } from '../../../../components/taxes/when-taxes-in-use';
 
 const SALES_INVOICE_ENTITY_TYPE = 'sales_invoice';
 
@@ -508,18 +509,20 @@ export function SalesInvoiceCreatePage() {
                         )}
                       />
                     ) : null}
-                    <FormField
-                      control={form.control}
-                      name="pricesIncludeTax"
-                      render={({ field }) => (
-                        <FormItem className="flex flex-row items-center gap-2 space-y-0 self-end pb-2">
-                          <FormControl>
-                            <Checkbox checked={field.value ?? false} onCheckedChange={(v) => field.onChange(v === true)} />
-                          </FormControl>
-                          <FormLabel className="!mt-0">{t('taxes.pricesIncludeTax')}</FormLabel>
-                        </FormItem>
-                      )}
-                    />
+                    <WhenTaxesInUse scope="sales">
+                      <FormField
+                        control={form.control}
+                        name="pricesIncludeTax"
+                        render={({ field }) => (
+                          <FormItem className="flex flex-row items-center gap-2 space-y-0 self-end pb-2">
+                            <FormControl>
+                              <Checkbox checked={field.value ?? false} onCheckedChange={(v) => field.onChange(v === true)} />
+                            </FormControl>
+                            <FormLabel className="!mt-0">{t('taxes.pricesIncludeTax')}</FormLabel>
+                          </FormItem>
+                        )}
+                      />
+                    </WhenTaxesInUse>
                   </div>
                 </SectionCard>
 

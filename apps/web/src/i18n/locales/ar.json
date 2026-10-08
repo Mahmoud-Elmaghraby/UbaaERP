@@ -2460,7 +2460,8 @@
       "sales_credit_note": "إشعار دائن",
       "payment_received": "سند قبض",
       "purchase_invoice": "فاتورة مشتريات",
-      "supplier_payment": "سند صرف لمورد"
+      "supplier_payment": "سند صرف لمورد",
+      "purchase_debit_note": "إشعار خصم (مرتجع مشتريات)"
     },
     "opening": {
       "title": "رصيد أول المدة",

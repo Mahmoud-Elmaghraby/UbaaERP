@@ -12,7 +12,8 @@ export const SUPPLIER_OPENING_BALANCE_EVENT = 'purchases.supplier.opening_balanc
 
 /**
  * The supplier sub-ledger, read straight from Purchases documents: opening
- * balance, posted purchase invoices (له), posted supplier payments (عليه).
+ * balance, posted purchase invoices (له), debit notes of purchase returns and
+ * posted supplier payments (عليه).
  * Drafts and cancelled documents never count.
  */
 @Injectable()
@@ -101,6 +102,40 @@ export class SupplierLedgerSource implements PartyLedgerSource {
           amountMinor: total.toMinorUnits(),
           dueDate: invoice.due_date ?? (termDays ? addDays(date, termDays) : null),
           sequence: invoice.created_at.toISOString(),
+        });
+      }
+    }
+
+    // Debit notes (purchase returns of invoiced goods) — the supplier owes us back (عليه).
+    let debitNotes = db
+      .selectFrom('purchase_debit_notes as dn')
+      .innerJoin('purchase_returns as pr', 'pr.id', 'dn.purchase_return_id')
+      .select(['dn.id', 'dn.debit_note_number', 'dn.supplier_id', 'dn.debit_note_date', 'dn.currency', 'dn.created_at', 'pr.return_number']);
+    if (supplierId) debitNotes = debitNotes.where('dn.supplier_id', '=', supplierId);
+    const debitNoteRows = await debitNotes.execute();
+    if (debitNoteRows.length > 0) {
+      const noteLines = await db
+        .selectFrom('purchase_debit_note_lines')
+        .select(['purchase_debit_note_id', 'net_amount', 'taxes'])
+        .where('purchase_debit_note_id', 'in', debitNoteRows.map((n) => n.id))
+        .execute();
+      for (const note of debitNoteRows) {
+        const own = noteLines.filter((line) => line.purchase_debit_note_id === note.id);
+        if (own.length === 0) continue;
+        const total = calculatePurchaseInvoiceTotal(
+          own.map((line) => ({ netAmount: Money.fromMinorUnits(BigInt(line.net_amount), note.currency), taxes: parseSnapshot(line.taxes) })),
+        );
+        entries.push({
+          partyId: note.supplier_id,
+          currency: note.currency,
+          date: note.debit_note_date,
+          kind: 'purchase_debit_note',
+          documentId: note.id,
+          number: note.debit_note_number,
+          reference: note.return_number,
+          amountMinor: -total.toMinorUnits(),
+          dueDate: null,
+          sequence: note.created_at.toISOString(),
         });
       }
     }

@@ -75,6 +75,7 @@ import { usePurchaseInvoiceActions } from './use-purchase-invoice-actions';
 import type { ReceiptLotDto } from '@erp-platform/contracts';
 import { receiptLotsToDto, withImplicitSingleLotQuantity } from '../../../../components/document/lot-entry';
 import { useVariantLookupMap } from '../../../inventory/api/products/queries';
+import { WhenTaxesInUse } from '../../../../components/taxes/when-taxes-in-use';
 
 const PURCHASE_INVOICE_ENTITY_TYPE = 'purchase_invoice';
 
@@ -547,18 +548,20 @@ export function PurchaseInvoiceCreatePage() {
                         )}
                       />
                     ) : null}
-                    <FormField
-                      control={form.control}
-                      name="pricesIncludeTax"
-                      render={({ field }) => (
-                        <FormItem className="flex flex-row items-center gap-2 space-y-0 self-end pb-2">
-                          <FormControl>
-                            <Checkbox checked={field.value ?? false} onCheckedChange={(v) => field.onChange(v === true)} />
-                          </FormControl>
-                          <FormLabel className="!mt-0">{t('taxes.pricesIncludeTax')}</FormLabel>
-                        </FormItem>
-                      )}
-                    />
+                    <WhenTaxesInUse scope="purchases">
+                      <FormField
+                        control={form.control}
+                        name="pricesIncludeTax"
+                        render={({ field }) => (
+                          <FormItem className="flex flex-row items-center gap-2 space-y-0 self-end pb-2">
+                            <FormControl>
+                              <Checkbox checked={field.value ?? false} onCheckedChange={(v) => field.onChange(v === true)} />
+                            </FormControl>
+                            <FormLabel className="!mt-0">{t('taxes.pricesIncludeTax')}</FormLabel>
+                          </FormItem>
+                        )}
+                      />
+                    </WhenTaxesInUse>
                   </div>
                 </SectionCard>
 

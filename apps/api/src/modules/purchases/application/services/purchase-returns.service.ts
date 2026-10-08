@@ -18,6 +18,7 @@ import type {
   PurchaseReturnStatus,
   CreatePurchaseReturnInput,
 } from '../../domain/purchase-return.entity';
+import { PurchaseDebitNotesService } from './purchase-debit-notes.service';
 import { BusinessRuleError, NotFoundError, isPostgresForeignKeyViolation } from '../errors';
 import { entityNotFound } from '../../../../shared/errors/entity-errors';
 import { NumberingSequencesService } from '../../../settings/application/services/numbering-sequences.service';
@@ -56,6 +57,7 @@ export class PurchaseReturnsService {
     private readonly numberingSequences: NumberingSequencesService,
     private readonly outboxWriter: OutboxWriterService,
     private readonly stockChecker: StockAvailabilityChecker,
+    private readonly debitNotes: PurchaseDebitNotesService,
   ) {}
 
   list(db: Kysely<TenantDatabase>): Promise<PurchaseReturn[]> {
@@ -244,6 +246,8 @@ export class PurchaseReturnsService {
         },
         occurredAt: new Date(),
       });
+      // What the supplier now owes back for the invoiced part of the return.
+      await this.debitNotes.issueForReturn(trx, updated, lines, { schema, actorUserId });
 
       return { ...updated, lines, warehouseId: goodsReceipt.warehouseId };
     });

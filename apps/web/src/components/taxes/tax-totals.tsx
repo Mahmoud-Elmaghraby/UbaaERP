@@ -11,10 +11,13 @@ interface Totals {
 }
 
 /**
- * Rows for TotalsPanel: net, then each tax that is not zero. The panel's
+ * Rows for TotalsPanel: net, then each tax that is not zero (nothing at
+ * all when the document has no tax). The panel's
  * own total line shows net + table + VAT − withholding.
  */
 export function taxTotalsRows(t: TFunction, totals: Totals): TotalsRow[] {
+  // A document without any tax: the panel's total line says it all.
+  if (totals.table === '0' && totals.vat === '0' && totals.withholding === '0') return [];
   const rows: TotalsRow[] = [
     { label: t('taxes.totals.net'), value: formatAmount(totals.net) },
   ];

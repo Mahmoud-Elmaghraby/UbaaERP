@@ -552,6 +552,7 @@ export const AR_MESSAGES: Record<string, string> = {
   'TREASURY.DUPLICATE_CODE': 'يوجد خزينة أخرى بنفس الكود "{value}".',
   'TREASURY.CHART_ACCOUNT_ALREADY_LINKED': 'الحساب المختار مربوط بخزينة أخرى — كل حساب يربط بخزينة واحدة فقط.',
   'TREASURY.INACTIVE': 'الخزينة "{name}" موقوفة.',
+  'TREASURY.INSUFFICIENT_BALANCE': 'رصيد "{name}" لا يكفي: المتاح {balance} {currency} والمطلوب {amount} {currency}.',
   'TREASURY.IN_USE': 'لا يمكن حذف الخزينة "{name}" لأن عليها حركات — أوقفها بدلًا من الحذف.',
   'TREASURY_CATEGORY.NOT_FOUND': 'لم يتم العثور على البند المطلوب.',
   'TREASURY_CATEGORY.DUPLICATE_NAME': 'يوجد بند آخر بنفس الاسم "{value}".',

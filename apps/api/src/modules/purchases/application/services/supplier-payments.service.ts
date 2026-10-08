@@ -4,6 +4,7 @@ import { Money } from '@erp-platform/shared-kernel';
 import type { TenantDatabase } from '../../../../database/tenant/kysely-client';
 import { withTransaction } from '../../../../database/tenant/transaction.util';
 import { resolvePaymentTreasury } from '../../../../shared/treasury/treasury-reader';
+import { TreasuryMovementRegistry } from '../../../../shared/treasury/treasury-movements';
 import { entityNotFound } from '../../../../shared/errors/entity-errors';
 import { NumberingSequencesService } from '../../../settings/application/services/numbering-sequences.service';
 import { OutboxWriterService } from '../../../../shared/outbox/application/services/outbox-writer.service';
@@ -74,6 +75,7 @@ export class SupplierPaymentsService {
     @Inject(PURCHASE_INVOICE_LINE_REPOSITORY) private readonly purchaseInvoiceLines: PurchaseInvoiceLineRepository,
     private readonly numberingSequences: NumberingSequencesService,
     private readonly outboxWriter: OutboxWriterService,
+    private readonly treasuryMovements: TreasuryMovementRegistry,
   ) {}
 
   list(db: Kysely<TenantDatabase>): Promise<SupplierPayment[]> {
@@ -278,6 +280,7 @@ export class SupplierPaymentsService {
     await this.validateAllocations(db, existing.supplierId, existing.amount.currency, existing.amount, allocations);
 
     return withTransaction(db, async (trx) => {
+      await this.treasuryMovements.assertCanWithdraw(trx, existing.treasuryId, existing.amount.toMinorUnits());
       const updated = await this.payments.updateStatus(trx, id, 'posted');
       if (!updated) throw entityNotFound('SUPPLIER_PAYMENT', id);
 

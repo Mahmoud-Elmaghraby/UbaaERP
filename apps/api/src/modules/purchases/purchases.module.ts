@@ -53,6 +53,7 @@ import { SupplierQuotationsService } from './application/services/supplier-quota
 import { PurchaseOrdersService } from './application/services/purchase-orders.service';
 import { GoodsReceiptsService } from './application/services/goods-receipts.service';
 import { PurchaseReturnsService } from './application/services/purchase-returns.service';
+import { PurchaseDebitNotesService } from './application/services/purchase-debit-notes.service';
 import { PurchaseInvoicesService } from './application/services/purchase-invoices.service';
 import { SupplierPaymentsService } from './application/services/supplier-payments.service';
 
@@ -181,6 +182,7 @@ import { StockAvailabilityChecker } from '../../shared/catalog/stock-availabilit
     PurchaseOrdersService,
     GoodsReceiptsService,
     PurchaseReturnsService,
+    PurchaseDebitNotesService,
     PurchaseInvoicesService,
     SupplierPaymentsService,
     PurchasesEventPublisher,

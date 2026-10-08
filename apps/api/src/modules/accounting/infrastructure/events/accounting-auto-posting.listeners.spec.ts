@@ -295,6 +295,35 @@ describe('AccountingAutoPostingListeners — multi-currency Phase 3 (invoice/cre
     });
   });
 
+  describe('handlePurchaseDebitNoteIssued', () => {
+    it('posts the exact reverse of a purchase invoice (Dr payables / Cr expense)', async () => {
+      currencyConversion.convert.mockImplementation(async (_db, amount) => ({
+        convertedAmount: amount,
+        rateUsed: '1',
+        rateDate: '2026-09-13',
+        rateSource: 'manual',
+      }));
+
+      await listeners.handlePurchaseDebitNoteIssued(
+        makePayload(
+          { totalAmount: { amountMinorUnits: '30000', currency: 'EGP' } },
+          { entityType: 'purchase_debit_note', entityId: 'debit-note-1' },
+        ),
+      );
+
+      expect(journalEntries.createAuto).toHaveBeenCalledWith(
+        FAKE_DB,
+        expect.objectContaining({
+          lines: [
+            expect.objectContaining({ accountId: 'expense-account', creditAmountMinorUnits: '30000' }),
+            expect.objectContaining({ accountId: 'ap-account', debitAmountMinorUnits: '30000' }),
+          ],
+          sourceReferenceType: 'purchase_debit_note',
+        }),
+      );
+    });
+  });
+
   describe('handlePurchaseInvoicePosted — perpetual inventory (inventory step 4)', () => {
     it('clears goods-received-not-invoiced for stock lines and expenses only the service lines', async () => {
       (stockItemVariantIds as jest.Mock).mockResolvedValue(new Set(['stock-variant']));

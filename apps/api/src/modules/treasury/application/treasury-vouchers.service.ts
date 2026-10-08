@@ -13,6 +13,7 @@ import { withTransaction } from '../../../database/tenant/transaction.util';
 import { OutboxWriterService } from '../../../shared/outbox/application/services/outbox-writer.service';
 import { BusinessRuleError } from '../../../shared/errors/domain-errors';
 import { entityNotFound } from '../../../shared/errors/entity-errors';
+import { TreasuryMovementRegistry } from '../../../shared/treasury/treasury-movements';
 import { NumberingSequencesService } from '../../settings/application/services/numbering-sequences.service';
 
 export const TREASURY_VOUCHER_POSTED = 'treasury.voucher.posted';
@@ -52,6 +53,7 @@ export class TreasuryVouchersService {
   constructor(
     private readonly numbering: NumberingSequencesService,
     private readonly outbox: OutboxWriterService,
+    private readonly movements: TreasuryMovementRegistry,
   ) {}
 
   async list(db: Kysely<TenantDatabase>, query: TreasuryVoucherQueryDto): Promise<TreasuryVoucherDto[]> {
@@ -112,6 +114,7 @@ export class TreasuryVouchersService {
 
     const id = randomUUID();
     await withTransaction(db, async (trx) => {
+      if (input.kind !== 'income') await this.movements.assertCanWithdraw(trx, treasury.id, BigInt(input.amountMinorUnits));
       const number = await this.numbering.allocateNext(trx, NUMBERING[input.kind], null);
       await trx
         .insertInto('treasury_vouchers')
@@ -159,6 +162,9 @@ export class TreasuryVouchersService {
       if (row.status === 'cancelled') {
         throw new BusinessRuleError('The voucher is already cancelled.', { code: 'TREASURY_VOUCHER.ALREADY_CANCELLED' });
       }
+      // Undoing money that came in takes it back out of the treasury that received it.
+      const receiver = row.kind === 'income' ? row.treasury_id : row.kind === 'transfer' ? row.to_treasury_id : null;
+      await this.movements.assertCanWithdraw(trx, receiver, BigInt(row.amount));
       await trx
         .updateTable('treasury_vouchers')
         .set({ status: 'cancelled', cancelled_at: new Date(), cancel_reason: input.reason, updated_at: new Date() })

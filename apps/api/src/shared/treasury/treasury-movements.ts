@@ -1,6 +1,7 @@
 import { Global, Injectable, Module } from '@nestjs/common';
 import type { Kysely } from 'kysely';
 import type { TenantDatabase } from '../../database/tenant/kysely-client';
+import { BusinessRuleError } from '../errors/domain-errors';
 
 /**
  * Every movement of money in or out of a treasury, from whichever module
@@ -54,6 +55,37 @@ export class TreasuryMovementRegistry {
     const all = await Promise.all(this.sources.map((source) => source.listMovements(db, treasuryId)));
     return all.flat();
   }
+
+  /**
+   * A cash box or e-wallet can't pay out more than it holds (opening balance
+   * + every movement). Banks are exempt (an overdraft is a real thing there).
+   * Locks the treasury row, so two payments from the same box in parallel
+   * can't both pass — call it inside the transaction that records the
+   * outflow, BEFORE writing it.
+   */
+  async assertCanWithdraw(trx: Kysely<TenantDatabase>, treasuryId: string | null, amountMinor: bigint): Promise<void> {
+    if (!treasuryId || amountMinor <= 0n) return;
+    const row = await trx
+      .selectFrom('treasuries')
+      .select(['name', 'kind', 'currency', 'opening_balance_amount'])
+      .where('id', '=', treasuryId)
+      .forUpdate()
+      .executeTakeFirst();
+    if (!row || row.kind === 'bank') return;
+    const movements = await this.list(trx, treasuryId);
+    const balance = movements.reduce((sum, m) => sum + m.amountMinor, BigInt(row.opening_balance_amount));
+    if (balance >= amountMinor) return;
+    throw new BusinessRuleError(`Treasury "${row.name}" holds ${balance} and can't pay out ${amountMinor}.`, {
+      code: 'TREASURY.INSUFFICIENT_BALANCE',
+      params: { name: row.name, balance: formatMinor(balance), amount: formatMinor(amountMinor), currency: row.currency },
+    });
+  }
+}
+
+function formatMinor(value: bigint): string {
+  const sign = value < 0n ? '-' : '';
+  const abs = value < 0n ? -value : value;
+  return `${sign}${abs / 100n}.${(abs % 100n).toString().padStart(2, '0')}`;
 }
 
 @Global()

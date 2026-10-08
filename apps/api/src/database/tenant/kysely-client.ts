@@ -871,6 +871,29 @@ export interface PurchaseReturnsTable {
   updated_at: Generated<Date>;
 }
 
+/** Migration 0096 — debit note issued with a confirmed purchase return (invoiced part only). */
+export interface PurchaseDebitNotesTable {
+  id: string;
+  debit_note_number: string;
+  purchase_return_id: string;
+  supplier_id: string;
+  debit_note_date: string;
+  currency: string;
+  created_at: Generated<Date>;
+}
+
+export interface PurchaseDebitNoteLinesTable {
+  id: string;
+  purchase_debit_note_id: string;
+  purchase_return_line_id: string;
+  purchase_order_line_id: string;
+  product_variant_id: string;
+  /** Base units (the return line's quantity × unit factor, capped at what was invoiced). */
+  base_quantity: string;
+  net_amount: string;
+  taxes: Generated<unknown>;
+}
+
 export interface PurchaseReturnLinesTable {
   id: string;
   purchase_return_id: string;
@@ -1115,6 +1138,8 @@ export interface TenantDatabase {
   goods_receipts: GoodsReceiptsTable;
   goods_receipt_lines: GoodsReceiptLinesTable;
   purchase_returns: PurchaseReturnsTable;
+  purchase_debit_notes: PurchaseDebitNotesTable;
+  purchase_debit_note_lines: PurchaseDebitNoteLinesTable;
   purchase_return_lines: PurchaseReturnLinesTable;
   outbox_events: OutboxEventsTable;
   purchase_invoices: PurchaseInvoicesTable;

@@ -25,6 +25,7 @@ export function TaxRuleSelect({
   const rules = (data ?? []).filter(
     (rule) => rule.kind === kind && (rule.scope === 'both' || rule.scope === scope || rule.id === value),
   );
+  // Nothing to choose from (taxes not in use) — callers hide their field with useTaxesInUse.
   return (
     <Select value={value ?? NONE} onValueChange={(next) => onChange(next === NONE ? null : next)}>
       <SelectTrigger>

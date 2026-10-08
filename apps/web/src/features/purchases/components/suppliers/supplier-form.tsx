@@ -34,6 +34,7 @@ import { AttachmentsPanel } from '../../../attachments/components/attachments-pa
 import { useCustomFieldDefinitions, useTenantSettings } from '../../../settings/queries';
 import { useCreateSupplier, useUpdateSupplier } from '../../api/suppliers/queries';
 import { ApiError } from '../../../../lib/api-client';
+import { WhenTaxesInUse } from '../../../../components/taxes/when-taxes-in-use';
 
 const SUPPLIER_ENTITY_TYPE = 'supplier';
 
@@ -194,23 +195,25 @@ export function CreateSupplierForm({ onDone }: { onDone: () => void }) {
             </FormItem>
           )}
         />
-        <FormField
-          control={form.control}
-          name="withholdingTaxRuleId"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>{t('taxes.partyWithholding')}</FormLabel>
-              <TaxRuleSelect
-                kind="withholding"
-                scope="purchases"
-                value={field.value ?? null}
-                onChange={field.onChange}
-                noneLabel={t('taxes.noWithholding')}
-              />
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+        <WhenTaxesInUse scope="purchases">
+          <FormField
+            control={form.control}
+            name="withholdingTaxRuleId"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>{t('taxes.partyWithholding')}</FormLabel>
+                <TaxRuleSelect
+                  kind="withholding"
+                  scope="purchases"
+                  value={field.value ?? null}
+                  onChange={field.onChange}
+                  noneLabel={t('taxes.noWithholding')}
+                />
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </WhenTaxesInUse>
         <FormField
           control={form.control}
           name="defaultCurrency"
@@ -439,23 +442,25 @@ export function EditSupplierForm({ supplier, onDone }: { supplier: SupplierDto; 
             </FormItem>
           )}
         />
-        <FormField
-          control={form.control}
-          name="withholdingTaxRuleId"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>{t('taxes.partyWithholding')}</FormLabel>
-              <TaxRuleSelect
-                kind="withholding"
-                scope="purchases"
-                value={field.value ?? null}
-                onChange={field.onChange}
-                noneLabel={t('taxes.noWithholding')}
-              />
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+        <WhenTaxesInUse scope="purchases">
+          <FormField
+            control={form.control}
+            name="withholdingTaxRuleId"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>{t('taxes.partyWithholding')}</FormLabel>
+                <TaxRuleSelect
+                  kind="withholding"
+                  scope="purchases"
+                  value={field.value ?? null}
+                  onChange={field.onChange}
+                  noneLabel={t('taxes.noWithholding')}
+                />
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </WhenTaxesInUse>
         <FormField
           control={form.control}
           name="defaultCurrency"

@@ -95,6 +95,14 @@ describe('Treasury (e2e)', () => {
       .send({ kind: 'expense', voucherDate: '2026-03-01', treasuryId: cash.body.id, categoryId: income.id, amountMinorUnits: '1' })
       .expect(422);
 
+    // A cash box can't pay out more than it holds (550.00 now).
+    const overdraw = await request(server)
+      .post('/treasury-vouchers')
+      .set(...authHeader(owner))
+      .send({ kind: 'expense', voucherDate: '2026-03-04', treasuryId: cash.body.id, categoryId: rent.id, amountMinorUnits: '55001' })
+      .expect(422);
+    expect(overdraw.body.code).toBe('TREASURY.INSUFFICIENT_BALANCE');
+
     const statement = await request(server).get(`/treasuries/${cash.body.id}/statement`).set(...authHeader(owner)).expect(200);
     expect(statement.body.rows.map((r: { kind: string }) => r.kind)).toEqual(['opening_balance', 'expense', 'income', 'transfer_out']);
     expect(statement.body.closingBalance.amountMinorUnits).toBe('55000'); // 1000 − 300 + 50 − 200

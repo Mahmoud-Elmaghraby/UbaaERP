@@ -24,6 +24,17 @@ export function defaultLineTaxRuleIds(
   });
 }
 
+/**
+ * Whether taxes are in use at all: a tenant with no active tax rule (for
+ * that scope) never sees tax pickers, the "prices include tax" option or
+ * tax rows — they would only be noise. Adding a rule in Settings brings
+ * them back; nothing to switch on.
+ */
+export function useTaxesInUse(scope?: TaxScope): boolean {
+  const { data: rules } = useTaxRuleLookup();
+  return (rules ?? []).some((rule) => (scope ? usableForScope(rule, scope) : rule.isActive));
+}
+
 export interface TaxPreviewLine {
   /** Line amount in minor units (null = incomplete line, ignored). */
   amountMinor: string | null;

@@ -18,6 +18,7 @@ export const partyLedgerKindSchema = z.enum([
   'payment_received',
   'purchase_invoice',
   'supplier_payment',
+  'purchase_debit_note',
 ]);
 export type PartyLedgerKindDto = z.infer<typeof partyLedgerKindSchema>;
 
