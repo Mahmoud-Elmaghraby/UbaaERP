@@ -12,6 +12,7 @@ import {
   ShoppingCart,
   Truck,
   Users,
+  Wallet,
 } from 'lucide-react';
 
 export interface NavItem {
@@ -142,6 +143,17 @@ export const NAV_GROUPS: NavGroup[] = [
     labelKey: 'nav.groups.finance',
     items: [
       {
+        to: '/treasury',
+        labelKey: 'treasury.title',
+        icon: Wallet,
+        permission: ['treasury.view', 'treasury.vouchers.manage'],
+        children: [
+          { to: '/treasury', labelKey: 'treasury.navTreasuries' },
+          { to: '/treasury/vouchers', labelKey: 'treasury.vouchers.title' },
+          { to: '/treasury/categories', labelKey: 'treasury.categories.title' },
+        ],
+      },
+      {
         to: '/accounting',
         labelKey: 'nav.accounting',
         icon: Calculator,
@@ -151,7 +163,7 @@ export const NAV_GROUPS: NavGroup[] = [
           { to: '/accounting/chart-of-accounts', labelKey: 'accounting.tabs.chartOfAccounts' },
           { to: '/accounting/journal-entries', labelKey: 'accounting.tabs.journalEntries' },
           { to: '/accounting/reports', labelKey: 'accounting.tabs.reports' },
-          { to: '/accounting/bank-accounts', labelKey: 'accounting.tabs.bankAccounts' },
+          { to: '/accounting/bank-accounts', labelKey: 'accounting.tabs.bankReconciliation' },
           { to: '/accounting/cost-centers', labelKey: 'accounting.tabs.costCenters' },
           { to: '/accounting/fiscal-years', labelKey: 'accounting.tabs.fiscalYears' },
           { to: '/accounting/settings', labelKey: 'accounting.tabs.settings' },
@@ -193,7 +205,10 @@ export function getBreadcrumbs(pathname: string): Crumb[] {
     if (item.to === '/') continue;
     if (pathname === item.to || pathname.startsWith(`${item.to}/`)) {
       const trail: Crumb[] = [home, { to: item.to, labelKey: item.labelKey }];
-      const child = item.children?.find((c) => pathname === c.to || pathname.startsWith(`${c.to}/`));
+      // The most specific child wins (a section's own index page shares the section's path).
+      const child = item.children
+        ?.filter((c) => pathname === c.to || pathname.startsWith(`${c.to}/`))
+        .sort((a, b) => b.to.length - a.to.length)[0];
       if (child) {
         trail.push({ to: child.to, labelKey: child.labelKey });
         // A document page under a list (…/new or …/:id).

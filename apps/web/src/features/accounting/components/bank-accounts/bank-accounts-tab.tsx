@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { MoreHorizontal } from 'lucide-react';
 import type { ColumnDef, Row } from '@tanstack/react-table';
@@ -6,7 +7,6 @@ import type { BankAccountDto } from '@erp-platform/contracts';
 import {
   Badge,
   Button,
-  Can,
   DataTable,
   Dialog,
   DialogContent,
@@ -16,31 +16,19 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-  toast,
 } from '@erp-platform/ui';
 
-import { useBankAccounts, useDeleteBankAccount } from '../../api/bank-accounts/queries';
-import { ApiError } from '../../../../lib/api-client';
-import { CreateBankAccountForm, EditBankAccountForm } from './bank-account-form';
+import { useBankAccounts } from '../../api/bank-accounts/queries';
 import { BankAccountRegisterView } from './bank-account-register-view';
 
+/**
+ * Bank reconciliation: the treasuries linked to a chart account, each with its GL
+ * register. Treasuries themselves are created and edited in the Treasury module.
+ */
 export function BankAccountsTab() {
   const { t } = useTranslation();
   const { data: bankAccounts, isLoading } = useBankAccounts();
-  const [createOpen, setCreateOpen] = useState(false);
-  const [editing, setEditing] = useState<BankAccountDto | null>(null);
   const [viewingRegisterId, setViewingRegisterId] = useState<string | null>(null);
-  const deleteBankAccount = useDeleteBankAccount();
-
-  async function handleDelete(id: string) {
-    if (!window.confirm(t('accounting.bankAccounts.deleteConfirm'))) return;
-    try {
-      await deleteBankAccount.mutateAsync(id);
-      toast.success(t('accounting.bankAccounts.deleteSuccess'));
-    } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : t('accounting.bankAccounts.deleteError'));
-    }
-  }
 
   const columns = useMemo<ColumnDef<BankAccountDto>[]>(
     () => [
@@ -73,16 +61,6 @@ export function BankAccountsTab() {
                 <DropdownMenuItem onSelect={() => setViewingRegisterId(bankAccount.id)}>
                   {t('accounting.bankAccounts.viewRegister')}
                 </DropdownMenuItem>
-                <Can permission="accounting.manage">
-                  <>
-                    <DropdownMenuItem onSelect={() => setEditing(bankAccount)}>
-                      {t('common.edit')}
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onSelect={() => handleDelete(bankAccount.id)}>
-                      {t('common.delete')}
-                    </DropdownMenuItem>
-                  </>
-                </Can>
               </DropdownMenuContent>
             </DropdownMenu>
           );
@@ -94,35 +72,14 @@ export function BankAccountsTab() {
 
   return (
     <div className="grid gap-4">
-      <div className="flex flex-wrap items-center justify-end gap-2">
-        <Can permission="accounting.manage">
-          <Button onClick={() => setCreateOpen(true)}>
-            {t('accounting.bankAccounts.newBankAccount')}
-          </Button>
-        </Can>
-      </div>
+      <p className="text-sm text-muted-foreground">
+        {t('accounting.bankAccounts.managedInTreasury')}{' '}
+        <Link className="text-primary hover:underline" to="/treasury">
+          {t('treasury.title')}
+        </Link>
+      </p>
 
       <DataTable columns={columns} data={bankAccounts ?? []} isLoading={isLoading} />
-
-      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-        <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-xl">
-          <DialogHeader>
-            <DialogTitle>{t('accounting.bankAccounts.newBankAccount')}</DialogTitle>
-          </DialogHeader>
-          <CreateBankAccountForm onDone={() => setCreateOpen(false)} />
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={editing !== null} onOpenChange={(open) => !open && setEditing(null)}>
-        <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-xl">
-          <DialogHeader>
-            <DialogTitle>{t('accounting.bankAccounts.editBankAccount')}</DialogTitle>
-          </DialogHeader>
-          {editing ? (
-            <EditBankAccountForm bankAccount={editing} onDone={() => setEditing(null)} />
-          ) : null}
-        </DialogContent>
-      </Dialog>
 
       <Dialog
         open={viewingRegisterId !== null}

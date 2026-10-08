@@ -4,7 +4,7 @@ import { createE2eApp } from './app';
 import { authHeader, loginAs, type LoggedInSession } from './auth-helpers';
 import { E2E_OWNER_EMAIL, E2E_OWNER_PASSWORD } from './global-setup';
 import { createTenantKyselyClient, type TenantDatabase } from '../../src/database/tenant/kysely-client';
-import { mustGetTestDatabaseUrl } from '../support/test-tenant';
+import { createTestTenant, dropTestTenant, mustGetTestDatabaseUrl } from '../support/test-tenant';
 import type { Kysely } from 'kysely';
 
 /**
@@ -25,7 +25,6 @@ describe('Party statements & opening balances (e2e)', () => {
   });
 
   afterAll(async () => {
-    await db.deleteFrom('tenant_feature_toggles').where('feature_key', '=', 'accounting').execute();
     await db.destroy();
     await app.close();
   });
@@ -38,23 +37,6 @@ describe('Party statements & opening balances (e2e)', () => {
       .expect(201);
     return res.body.id;
   }
-
-  async function waitForOutbox(eventType: string, entityId: string): Promise<void> {
-    for (let i = 0; i < 40; i += 1) {
-      const rows = await db
-        .selectFrom('outbox_events')
-        .select(['status', 'payload'])
-        .where('event_type', '=', eventType)
-        .execute();
-      const mine = rows.filter((r) => (r.payload as { entityId?: string }).entityId === entityId);
-      if (mine.length > 0 && mine.every((r) => r.status === 'processed')) return;
-      await new Promise((resolve) => setTimeout(resolve, 500));
-    }
-    throw new Error(`outbox event ${eventType} for ${entityId} was not processed`);
-  }
-
-  const openingEntries = () =>
-    db.selectFrom('journal_entries').select(['id']).where('source_reference_type', '=', 'customer_opening_balance').execute();
 
   it('opening balance flows into the statement, the balances report and the printed statement', async () => {
     const id = await createCustomer(`OB-${Date.now()}`);
@@ -92,34 +74,57 @@ describe('Party statements & opening balances (e2e)', () => {
   });
 
   it('posts the opening balance to Accounting only while Accounting is enabled', async () => {
-    const server = app.getHttpServer();
-    const before = (await openingEntries()).length;
+    // Its own tenant: switching Accounting off must not race other test files sharing the e2e tenant.
+    const tenant = await createTestTenant('gate', { email: 'gate@e2e.test', password: 'Gate12345', fullName: 'Gate Owner' });
+    const tdb = createTenantKyselyClient(mustGetTestDatabaseUrl(), tenant.schemaName);
+    try {
+      const server = app.getHttpServer();
+      const session = await loginAs(app, tenant.schemaName, 'gate@e2e.test', 'Gate12345');
+      const entries = () =>
+        tdb.selectFrom('journal_entries').select(['id']).where('source_reference_type', '=', 'customer_opening_balance').execute();
+      const customer = async (code: string) =>
+        (
+          await request(server).post('/customers').set(...authHeader(session)).send({ name: code, code, defaultCurrency: 'EGP' }).expect(201)
+        ).body.id as string;
+      const waitFor = async (entityId: string) => {
+        for (let i = 0; i < 40; i += 1) {
+          const rows = await tdb
+            .selectFrom('outbox_events')
+            .select(['status', 'payload'])
+            .where('event_type', '=', 'sales.customer.opening_balance_set')
+            .execute();
+          const mine = rows.filter((r) => (r.payload as { entityId?: string }).entityId === entityId);
+          if (mine.length > 0 && mine.every((r) => r.status === 'processed')) return;
+          await new Promise((resolve) => setTimeout(resolve, 500));
+        }
+        throw new Error('opening balance event not processed');
+      };
 
-    // Accounting off: the event is consumed, nothing is posted.
-    await db
-      .insertInto('tenant_feature_toggles')
-      .values({ feature_key: 'accounting', enabled: false })
-      .onConflict((oc) => oc.column('feature_key').doUpdateSet({ enabled: false }))
-      .execute();
-    const off = await createCustomer(`OFF-${Date.now()}`);
-    await request(server)
-      .put(`/customers/${off}/opening-balance`)
-      .set(...authHeader(owner))
-      .send({ amount: { amountMinorUnits: '1000', currency: 'EGP' }, side: 'owes_us', date: '2026-01-01' })
-      .expect(200);
-    await waitForOutbox('sales.customer.opening_balance_set', off);
-    expect((await openingEntries()).length).toBe(before);
+      // Accounting off: the event is consumed, nothing is posted.
+      await tdb.insertInto('tenant_feature_toggles').values({ feature_key: 'accounting', enabled: false }).execute();
+      const off = await customer('OFF');
+      await request(server)
+        .put(`/customers/${off}/opening-balance`)
+        .set(...authHeader(session))
+        .send({ amount: { amountMinorUnits: '1000', currency: 'EGP' }, side: 'owes_us', date: '2026-01-01' })
+        .expect(200);
+      await waitFor(off);
+      expect(await entries()).toHaveLength(0);
 
-    // Accounting on: the change is posted.
-    await db.updateTable('tenant_feature_toggles').set({ enabled: true }).where('feature_key', '=', 'accounting').execute();
-    const on = await createCustomer(`ON-${Date.now()}`);
-    await request(server)
-      .put(`/customers/${on}/opening-balance`)
-      .set(...authHeader(owner))
-      .send({ amount: { amountMinorUnits: '2000', currency: 'EGP' }, side: 'owes_us', date: '2026-01-01' })
-      .expect(200);
-    await waitForOutbox('sales.customer.opening_balance_set', on);
-    expect((await openingEntries()).length).toBe(before + 1);
+      // Accounting on: the change is posted.
+      await tdb.updateTable('tenant_feature_toggles').set({ enabled: true }).where('feature_key', '=', 'accounting').execute();
+      const on = await customer('ON');
+      await request(server)
+        .put(`/customers/${on}/opening-balance`)
+        .set(...authHeader(session))
+        .send({ amount: { amountMinorUnits: '2000', currency: 'EGP' }, side: 'owes_us', date: '2026-01-01' })
+        .expect(200);
+      await waitFor(on);
+      expect(await entries()).toHaveLength(1);
+    } finally {
+      await tdb.destroy();
+      await dropTestTenant(tenant);
+    }
   });
 
   it('supplier statement and payables report answer for a new supplier', async () => {

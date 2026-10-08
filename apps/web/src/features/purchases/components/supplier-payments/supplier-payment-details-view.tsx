@@ -5,7 +5,7 @@ import { Badge, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } 
 
 import { useSupplier } from '../../api/suppliers/queries';
 import { useSupplierOutstandingInvoices } from '../../api/supplier-payments/queries';
-import { useBankAccountLookup } from '../../../accounting/api/bank-accounts/queries';
+import { useTreasuryLookup } from '../../../treasury/api/queries';
 import { formatMoney } from '../../../../lib/money';
 import { SUPPLIER_PAYMENT_STATUS_VARIANT, supplierPaymentStatusLabelKey } from './supplier-payment-status';
 import { PrintButton } from '../../../../components/printing/print-button';
@@ -20,13 +20,13 @@ export function SupplierPaymentDetailsView({
 }) {
   const { t } = useTranslation();
   const { data: supplier } = useSupplier(payment.supplierId);
-  const { data: bankAccounts } = useBankAccountLookup();
+  const { data: treasuries } = useTreasuryLookup();
   const { data: invoices } = useSupplierOutstandingInvoices(payment.supplierId);
   const invoiceNumberById = useMemo(
     () => new Map((invoices ?? []).map((invoice) => [invoice.purchaseInvoiceId, invoice.invoiceNumber])),
     [invoices],
   );
-  const bankName = bankAccounts?.find((account) => account.id === payment.bankAccountId)?.name;
+  const treasuryName = treasuries?.find((treasury) => treasury.id === payment.treasuryId)?.name;
 
   const fields: { label: string; value: ReactNode }[] = [
     { label: t('purchases.supplierPayments.paymentNumber'), value: payment.paymentNumber },
@@ -52,7 +52,7 @@ export function SupplierPaymentDetailsView({
       value: formatMoney(payment.unallocatedAmount.amountMinorUnits, payment.unallocatedAmount.currency),
     },
     { label: t('purchases.supplierPayments.referenceNumber'), value: payment.referenceNumber ?? '—' },
-    ...(payment.bankAccountId ? [{ label: t('payments.bankAccount'), value: bankName ?? '—' }] : []),
+    ...(payment.treasuryId ? [{ label: t('treasury.select.label'), value: treasuryName ?? '—' }] : []),
     { label: t('purchases.supplierPayments.paymentDate'), value: payment.paymentDate ?? '—' },
   ];
 

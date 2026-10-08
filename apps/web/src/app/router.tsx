@@ -18,6 +18,7 @@ import { inventoryRoutes } from '../features/inventory/routes';
 import { purchasesRoutes } from '../features/purchases/routes';
 import { salesRoutes } from '../features/sales/routes';
 import { accountingRoutes } from '../features/accounting/routes';
+import { treasuryRoutes } from '../features/treasury/routes';
 
 export const router = createBrowserRouter([
   { path: '/login', element: <LoginPage />, errorElement: <RouteErrorPage /> },
@@ -54,6 +55,7 @@ export const router = createBrowserRouter([
           ...purchasesRoutes,
           ...salesRoutes,
           ...accountingRoutes,
+          ...treasuryRoutes,
           { path: 'users', element: <UsersPage /> },
           { path: 'roles', element: <RolesPage /> },
           { path: 'audit-logs', element: <AuditLogsPage /> },

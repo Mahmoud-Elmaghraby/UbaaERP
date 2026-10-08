@@ -56,6 +56,8 @@ export function Sidebar({ collapsed, onNavigate, onToggleCollapsed }: SidebarPro
                 <NavLink
                   key={child.to}
                   to={child.to}
+                  // A section's index page (same path as the section) is active only on itself.
+                  end={child.to === item.to}
                   onClick={onNavigate}
                   className={({ isActive }) =>
                     cn(

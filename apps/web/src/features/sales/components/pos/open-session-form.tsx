@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useTranslation } from 'react-i18next';
@@ -33,6 +33,7 @@ import { useOpenPosSession } from '../../api/pos/queries';
 import { useTenantSettings } from '../../../settings/queries';
 import { ApiError } from '../../../../lib/api-client';
 import { decimalToMinorUnits } from '../../../../lib/money';
+import { TreasurySelect } from '../../../../components/document/treasury-select';
 
 /**
  * Shown by PosPage whenever the current cashier has no open session — POS Stage 4
@@ -68,6 +69,7 @@ export function OpenSessionForm() {
     notes: z.string().optional(),
   });
 
+  const [treasuryId, setTreasuryId] = useState<string | null>(null);
   const form = useForm<OpenSessionFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -101,6 +103,7 @@ export function OpenSessionForm() {
     try {
       await openSession.mutateAsync({
         warehouseId: values.warehouseId,
+        treasuryId,
         openingCashAmount: { amountMinorUnits, currency: values.currency },
         notes: values.notes || undefined,
       });
@@ -146,6 +149,13 @@ export function OpenSessionForm() {
                   <FormMessage />
                 </FormItem>
               )}
+            />
+            <TreasurySelect
+              value={treasuryId}
+              onChange={setTreasuryId}
+              currency={form.watch('currency')}
+              paymentMethod="cash"
+              label={t('pos.openSession.treasury')}
             />
             <div className="grid grid-cols-2 gap-4">
               <FormField

@@ -26,7 +26,7 @@ import {
   toast,
 } from '@erp-platform/ui';
 
-import { BankAccountSelect } from '../../../../components/document/bank-account-select';
+import { TreasurySelect } from '../../../../components/document/treasury-select';
 import { useCustomFieldDefinitions } from '../../../settings/queries';
 import { useSuppliers } from '../../api/suppliers/queries';
 import { useCreateSupplierPayment, useSupplierOutstandingInvoices } from '../../api/supplier-payments/queries';
@@ -60,7 +60,7 @@ export function CreateSupplierPaymentForm({ onDone }: { onDone: () => void }) {
   const { data: definitions, isLoading: definitionsLoading } = useCustomFieldDefinitions(SUPPLIER_PAYMENT_ENTITY_TYPE);
   const [allocationDrafts, setAllocationDrafts] = useState<SupplierAllocationDraft[]>([]);
   const [formError, setFormError] = useState<string | null>(null);
-  const [bankAccountId, setBankAccountId] = useState<string | null>(null);
+  const [treasuryId, setTreasuryId] = useState<string | null>(null);
 
   const formSchema = useMemo(() => {
     const staticSchema = createSupplierPaymentSchema
@@ -114,7 +114,7 @@ export function CreateSupplierPaymentForm({ onDone }: { onDone: () => void }) {
         paymentMethod: values.paymentMethod,
         paymentDate: values.paymentDate || undefined,
         referenceNumber: values.referenceNumber || undefined,
-        bankAccountId: values.paymentMethod === 'cash' ? null : bankAccountId,
+        treasuryId,
         notes: values.notes || undefined,
         customFields: values.customFields,
         allocations: allocations.length > 0 ? allocations : undefined,
@@ -221,7 +221,7 @@ export function CreateSupplierPaymentForm({ onDone }: { onDone: () => void }) {
             </FormItem>
           )}
         />
-        <BankAccountSelect value={bankAccountId} onChange={setBankAccountId} currency={currency} paymentMethod={paymentMethod} />
+        <TreasurySelect value={treasuryId} onChange={setTreasuryId} currency={currency} paymentMethod={paymentMethod} />
         <div className="grid grid-cols-2 gap-4">
           <FormField
             control={form.control}

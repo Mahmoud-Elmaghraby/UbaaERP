@@ -13,7 +13,7 @@ import {
 
 import { useCustomers } from '../../api/customers/queries';
 import { formatMoney } from '../../../../lib/money';
-import { useBankAccountLookup } from '../../../accounting/api/bank-accounts/queries';
+import { useTreasuryLookup } from '../../../treasury/api/queries';
 import {
   PAYMENT_RECEIVED_STATUS_VARIANT,
   paymentReceivedStatusLabelKey,
@@ -29,8 +29,8 @@ export function PaymentReceivedDetailsView({
   payment: PaymentReceivedWithAllocationsDto;
 }) {
   const { t } = useTranslation();
-  const { data: bankAccounts } = useBankAccountLookup();
-  const bankName = bankAccounts?.find((account) => account.id === payment.bankAccountId)?.name;
+  const { data: treasuries } = useTreasuryLookup();
+  const treasuryName = treasuries?.find((treasury) => treasury.id === payment.treasuryId)?.name;
   const { data: customers } = useCustomers();
 
   const customerById = useMemo(() => new Map((customers ?? []).map((c) => [c.id, c])), [customers]);
@@ -80,10 +80,10 @@ export function PaymentReceivedDetailsView({
           <p className="text-muted-foreground">{t('sales.paymentsReceived.referenceNumber')}</p>
           <p className="font-medium">{payment.referenceNumber ?? '—'}</p>
         </div>
-        {payment.bankAccountId ? (
+        {payment.treasuryId ? (
           <div>
-            <p className="text-muted-foreground">{t('payments.bankAccount')}</p>
-            <p className="font-medium">{bankName ?? '—'}</p>
+            <p className="text-muted-foreground">{t('treasury.select.label')}</p>
+            <p className="font-medium">{treasuryName ?? '—'}</p>
           </div>
         ) : null}
         <div>
