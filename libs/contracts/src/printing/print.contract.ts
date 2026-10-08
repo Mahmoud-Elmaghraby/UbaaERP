@@ -93,6 +93,33 @@ export const printTotalsSchema = z.object({
 });
 export type PrintTotalsDto = z.infer<typeof printTotalsSchema>;
 
+/**
+ * Account statements (كشف حساب): instead of product lines, a running ledger —
+ * opening balance, one row per document with its increase/decrease and the
+ * running balance, then the closing balance. Rendered by the same layouts.
+ */
+export const printLedgerRowSchema = z.object({
+  date: z.string(),
+  description: z.string(),
+  number: z.string(),
+  reference: z.string().nullable(),
+  increase: moneySchema.nullable(),
+  decrease: moneySchema.nullable(),
+  balance: moneySchema,
+});
+export const printLedgerSchema = z.object({
+  increaseLabel: z.string(),
+  decreaseLabel: z.string(),
+  openingBalance: moneySchema,
+  rows: z.array(printLedgerRowSchema),
+  totalIncrease: moneySchema,
+  totalDecrease: moneySchema,
+  closingBalance: moneySchema,
+  /** "الرصيد المستحق على العميل" … */
+  closingLabel: z.string(),
+});
+export type PrintLedgerDto = z.infer<typeof printLedgerSchema>;
+
 export const printDocumentSchema = z.object({
   documentType: z.string(),
   id: z.string(),
@@ -111,6 +138,8 @@ export const printDocumentSchema = z.object({
   lines: z.array(printLineSchema),
   totals: printTotalsSchema.nullable(),
   notes: z.string().nullable(),
+  /** Statements only — replaces `lines`/`totals`. */
+  ledger: printLedgerSchema.nullable().optional(),
   /** Which paper sizes this document type supports (a receipt fits a thermal roll; a PO doesn't). */
   paperSizes: z.array(paperSizeSchema),
 });

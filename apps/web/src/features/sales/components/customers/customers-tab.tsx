@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 import { MoreHorizontal } from 'lucide-react';
 import type { ColumnDef, Row } from '@tanstack/react-table';
 import type { CustomerDto } from '@erp-platform/contracts';
@@ -26,6 +27,7 @@ import { ApiError } from '../../../../lib/api-client';
 
 export function CustomersTab() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const { data: customers, isLoading } = useCustomers();
   const [createOpen, setCreateOpen] = useState(false);
   const [editing, setEditing] = useState<CustomerDto | null>(null);
@@ -86,6 +88,9 @@ export function CustomersTab() {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
+                <DropdownMenuItem onSelect={() => navigate(`/sales/customers/${row.original.id}/statement`)}>
+                  {t('statements.title')}
+                </DropdownMenuItem>
                 <DropdownMenuItem onSelect={() => setEditing(row.original)}>
                   {t('common.edit')}
                 </DropdownMenuItem>
@@ -98,7 +103,7 @@ export function CustomersTab() {
         ),
       },
     ],
-    [t],
+    [t, navigate],
   );
 
   return (

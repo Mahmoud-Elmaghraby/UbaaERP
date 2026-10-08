@@ -53,6 +53,7 @@ export const NAV_GROUPS: NavGroup[] = [
         permission: 'sales.manage',
         children: [
           { to: '/sales/customers', labelKey: 'sales.tabs.customers' },
+          { to: '/sales/receivables', labelKey: 'statements.balances.title.customer' },
           { to: '/sales/quotations', labelKey: 'sales.tabs.quotations', feature: 'sales.quotations' },
           { to: '/sales/sales-orders', labelKey: 'sales.tabs.salesOrders', feature: 'sales.sales_orders' },
           { to: '/sales/deliveries', labelKey: 'sales.tabs.deliveries', feature: 'sales.deliveries' },
@@ -70,6 +71,7 @@ export const NAV_GROUPS: NavGroup[] = [
         permission: 'purchases.manage',
         children: [
           { to: '/purchases/suppliers', labelKey: 'purchases.tabs.suppliers' },
+          { to: '/purchases/payables', labelKey: 'statements.balances.title.supplier' },
           { to: '/purchases/purchase-requisitions', labelKey: 'purchases.tabs.purchaseRequisitions' },
           { to: '/purchases/rfqs', labelKey: 'purchases.tabs.rfqs', feature: 'purchases.rfq' },
           {

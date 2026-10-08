@@ -3,6 +3,10 @@ import type { PaperSizeDto, PrintDocumentDto } from '@erp-platform/contracts';
 import type { TenantDatabase } from '../../database/tenant/kysely-client';
 
 /** What a provider fills; the print service adds the company header. */
+export interface PrintBuildOptions {
+  query: Record<string, string>;
+}
+
 export type PrintDocumentBody = Omit<PrintDocumentDto, 'company' | 'documentType' | 'paperSizes'>;
 
 /**
@@ -17,5 +21,9 @@ export interface PrintProvider {
   paperSizes: PaperSizeDto[];
   /** The user needs ANY of these to print it (the same as opening the document). */
   permissions: string[];
-  build(db: Kysely<TenantDatabase>, id: string): Promise<PrintDocumentBody>;
+  /**
+   * `options` carries the print request's query string — only report-like
+   * documents use it (a statement's period: from / to / currency).
+   */
+  build(db: Kysely<TenantDatabase>, id: string, options?: PrintBuildOptions): Promise<PrintDocumentBody>;
 }

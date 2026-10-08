@@ -25,7 +25,11 @@ export function PrintPage() {
   const { t } = useTranslation();
   const { documentType, id } = useParams();
   const [params] = useSearchParams();
-  const { data, isLoading, error } = usePrintDocument(documentType, id);
+  // Everything except the page's own switches goes to the API (e.g. a statement's period).
+  const forwarded = new URLSearchParams(params);
+  forwarded.delete('paper');
+  forwarded.delete('autoprint');
+  const { data, isLoading, error } = usePrintDocument(documentType, id, forwarded.toString());
   const [paper, setPaper] = useState<PaperSizeDto | null>(null);
 
   const requested = params.get('paper') as PaperSizeDto | null;

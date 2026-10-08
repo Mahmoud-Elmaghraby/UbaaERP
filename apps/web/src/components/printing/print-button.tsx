@@ -9,8 +9,13 @@ import {
 } from '@erp-platform/ui';
 
 /** Opens a document on the central print page; with `receipt` it also offers the 80 mm roll. */
-export function openPrint(documentType: string, id: string, options: { paper?: 'a4' | 'thermal80'; autoprint?: boolean } = {}) {
+export function openPrint(
+  documentType: string,
+  id: string,
+  options: { paper?: 'a4' | 'thermal80'; autoprint?: boolean; params?: Record<string, string | undefined> } = {},
+) {
   const query = new URLSearchParams();
+  for (const [key, value] of Object.entries(options.params ?? {})) if (value) query.set(key, value);
   if (options.paper) query.set('paper', options.paper);
   if (options.autoprint) query.set('autoprint', '1');
   const search = query.toString();

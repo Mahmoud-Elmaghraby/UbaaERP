@@ -1,3 +1,5 @@
+import { CustomerStatementsController } from './presentation/customer-statements.controller';
+import { CustomerLedgerSource } from './infrastructure/statements/customer-ledger.source';
 import { SalesInvoicePrintProvider } from './infrastructure/printing/sales-invoice.print-provider';
 import { SalesCreditNotePrintProvider } from './infrastructure/printing/sales-credit-note.print-provider';
 import { PaymentReceivedPrintProvider } from './infrastructure/printing/payment-received.print-provider';
@@ -194,6 +196,7 @@ import { StockAvailabilityChecker } from '../../shared/catalog/stock-availabilit
   imports: [SettingsModule],
   controllers: [
     CustomersController,
+    CustomerStatementsController,
     EtaCredentialsController,
     QuotationsController,
     SalesOrdersController,
@@ -205,6 +208,7 @@ import { StockAvailabilityChecker } from '../../shared/catalog/stock-availabilit
     PosSessionsController,
   ],
   providers: [
+    CustomerLedgerSource,
     SalesInvoicePrintProvider,
     SalesCreditNotePrintProvider,
     PaymentReceivedPrintProvider,

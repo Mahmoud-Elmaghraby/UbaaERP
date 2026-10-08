@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 import { MoreHorizontal } from 'lucide-react';
 import type { ColumnDef, Row } from '@tanstack/react-table';
 import type { SupplierDto } from '@erp-platform/contracts';
@@ -26,6 +27,7 @@ import { ApiError } from '../../../../lib/api-client';
 
 export function SuppliersTab() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const { data: suppliers, isLoading } = useSuppliers();
   const [createOpen, setCreateOpen] = useState(false);
   const [editing, setEditing] = useState<SupplierDto | null>(null);
@@ -78,6 +80,9 @@ export function SuppliersTab() {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
+                <DropdownMenuItem onSelect={() => navigate(`/purchases/suppliers/${row.original.id}/statement`)}>
+                  {t('statements.title')}
+                </DropdownMenuItem>
                 <DropdownMenuItem onSelect={() => setEditing(row.original)}>
                   {t('common.edit')}
                 </DropdownMenuItem>
@@ -90,7 +95,7 @@ export function SuppliersTab() {
         ),
       },
     ],
-    [t],
+    [t, navigate],
   );
 
   return (

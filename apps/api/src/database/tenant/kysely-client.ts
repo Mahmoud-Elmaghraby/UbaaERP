@@ -454,6 +454,10 @@ export interface SuppliersTable {
   custom_fields: unknown;
   created_at: Generated<Date>;
   updated_at: Generated<Date>;
+  /** Migration 0094 — signed, minor units; see that migration for the sign convention. */
+  opening_balance_amount: Generated<string>;
+  opening_balance_currency: string | null;
+  opening_balance_date: string | null;
 }
 
 export interface CustomersTable {
@@ -477,6 +481,10 @@ export interface CustomersTable {
   custom_fields: unknown;
   created_at: Generated<Date>;
   updated_at: Generated<Date>;
+  /** Migration 0094 — signed, minor units; see that migration for the sign convention. */
+  opening_balance_amount: Generated<string>;
+  opening_balance_currency: string | null;
+  opening_balance_date: string | null;
 }
 
 export interface SalesOrdersTable {

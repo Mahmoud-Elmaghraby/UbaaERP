@@ -1,6 +1,7 @@
 import { localIsoDate } from '../../../../shared/time/local-date';
 import { Injectable, Logger } from '@nestjs/common';
 import { OnOutboxEvent } from '../../../../shared/events/on-outbox-event.decorator';
+import { FEATURE_KEYS } from '../../../../shared/plans/feature-catalog';
 import type { Kysely } from 'kysely';
 import { Money } from '@erp-platform/shared-kernel';
 import type { TenantDatabase } from '../../../../database/tenant/kysely-client';
@@ -205,7 +206,7 @@ export class AccountingAutoPostingListeners {
   }
 
   /** COGS recognition: debit COGS, credit Inventory. */
-  @OnOutboxEvent('inventory.stock_consumption.recorded')
+  @OnOutboxEvent('inventory.stock_consumption.recorded', { requiresFeature: FEATURE_KEYS.ACCOUNTING })
   async handleStockConsumption(payload: DomainEventPayload): Promise<void> {
     const metadata = payload.metadata as unknown as StockCostEventMetadata | undefined;
     if (!metadata) {
@@ -246,7 +247,7 @@ export class AccountingAutoPostingListeners {
   }
 
   /** The reverse of COGS recognition, for goods physically returned: debit Inventory, credit COGS. */
-  @OnOutboxEvent('inventory.stock_restoration.recorded')
+  @OnOutboxEvent('inventory.stock_restoration.recorded', { requiresFeature: FEATURE_KEYS.ACCOUNTING })
   async handleStockRestoration(payload: DomainEventPayload): Promise<void> {
     const metadata = payload.metadata as unknown as StockCostEventMetadata | undefined;
     if (!metadata) {
@@ -287,7 +288,7 @@ export class AccountingAutoPostingListeners {
   }
 
   /** Revenue reversal for a sales credit note: debit Sales Returns & Allowances (contra-revenue), credit Accounts Receivable. */
-  @OnOutboxEvent('sales.sales_credit_note.issued')
+  @OnOutboxEvent('sales.sales_credit_note.issued', { requiresFeature: FEATURE_KEYS.ACCOUNTING })
   async handleSalesCreditNoteIssued(payload: DomainEventPayload): Promise<void> {
     const metadata = payload.metadata as unknown as SalesCreditNoteIssuedMetadata | undefined;
     if (!metadata) {
@@ -351,7 +352,7 @@ export class AccountingAutoPostingListeners {
    * written to the Outbox since Sales' own Stage 5 — no upstream change
    * needed for this handler, unlike Stage 6/7's Inventory events.
    */
-  @OnOutboxEvent('sales.sales_invoice.posted')
+  @OnOutboxEvent('sales.sales_invoice.posted', { requiresFeature: FEATURE_KEYS.ACCOUNTING })
   async handleSalesInvoicePosted(payload: DomainEventPayload): Promise<void> {
     const metadata = payload.metadata as unknown as InvoicePostedMetadata | undefined;
     if (!metadata) {
@@ -418,7 +419,7 @@ export class AccountingAutoPostingListeners {
    * hand (see AccountingSettings' own comment — this mapping has no
    * safe default to auto-populate).
    */
-  @OnOutboxEvent('purchases.purchase_invoice.posted')
+  @OnOutboxEvent('purchases.purchase_invoice.posted', { requiresFeature: FEATURE_KEYS.ACCOUNTING })
   async handlePurchaseInvoicePosted(payload: DomainEventPayload): Promise<void> {
     const metadata = payload.metadata as unknown as PurchaseInvoicePostedMetadata | undefined;
     if (!metadata) {
@@ -547,7 +548,7 @@ export class AccountingAutoPostingListeners {
    * value here that can legitimately be negative, so its sign is read
    * directly rather than introduced through a new dependency.
    */
-  @OnOutboxEvent('sales.pos_session.closed')
+  @OnOutboxEvent('sales.pos_session.closed', { requiresFeature: FEATURE_KEYS.ACCOUNTING })
   async handlePosSessionClosed(payload: DomainEventPayload): Promise<void> {
     const metadata = payload.metadata as unknown as PosSessionClosedMetadata | undefined;
     if (!metadata) {

@@ -27,6 +27,7 @@ export class PrintService {
     documentType: string,
     id: string,
     userPermissions: readonly string[],
+    query: Record<string, string> = {},
   ): Promise<PrintResponseDto> {
     const provider = this.registry.get(documentType);
     if (!provider) throw new NotFoundException(`No printable document type "${documentType}".`);
@@ -34,7 +35,7 @@ export class PrintService {
       throw new ForbiddenException('You are not allowed to print this document.');
     }
     const [body, company, template] = await Promise.all([
-      provider.build(db, id),
+      provider.build(db, id, { query }),
       this.companyProfile.get(db),
       this.template(db, documentType),
     ]);

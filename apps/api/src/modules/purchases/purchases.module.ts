@@ -1,3 +1,5 @@
+import { SupplierStatementsController } from './presentation/supplier-statements.controller';
+import { SupplierLedgerSource } from './infrastructure/statements/supplier-ledger.source';
 import { Module } from '@nestjs/common';
 import { PurchaseOrderPrintProvider } from './infrastructure/printing/purchase-order.print-provider';
 import { GoodsReceiptPrintProvider } from './infrastructure/printing/goods-receipt.print-provider';
@@ -132,6 +134,7 @@ import { StockAvailabilityChecker } from '../../shared/catalog/stock-availabilit
   imports: [SettingsModule],
   controllers: [
     SuppliersController,
+    SupplierStatementsController,
     PurchaseRequisitionsController,
     RfqsController,
     SupplierQuotationsController,
@@ -142,6 +145,7 @@ import { StockAvailabilityChecker } from '../../shared/catalog/stock-availabilit
     SupplierPaymentsController,
   ],
   providers: [
+    SupplierLedgerSource,
     PurchaseOrderPrintProvider,
     GoodsReceiptPrintProvider,
     PurchaseInvoicePrintProvider,

@@ -3,10 +3,11 @@ import type { PrintableDocumentTypeDto, PrintResponseDto } from '@erp-platform/c
 
 import { apiGet } from '../../lib/api-client';
 
-export function usePrintDocument(documentType: string | undefined, id: string | undefined) {
+/** `query`: report-like documents' options (a statement's from / to / currency), forwarded as-is. */
+export function usePrintDocument(documentType: string | undefined, id: string | undefined, query = '') {
   return useQuery({
-    queryKey: ['print', documentType, id],
-    queryFn: () => apiGet<PrintResponseDto>(`/print/${documentType}/${id}`),
+    queryKey: ['print', documentType, id, query],
+    queryFn: () => apiGet<PrintResponseDto>(`/print/${documentType}/${id}${query ? `?${query}` : ''}`),
     enabled: Boolean(documentType && id),
     staleTime: 0,
   });

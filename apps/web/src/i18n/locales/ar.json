@@ -2407,5 +2407,104 @@
     "submit": "ابدأ استخدام البرنامج",
     "submitting": "جاري الإعداد...",
     "failed": "تعذّر إكمال الإعداد — حاول مرة أخرى."
+  },
+  "statements": {
+    "title": "كشف حساب",
+    "party": {
+      "customer": "عميل",
+      "supplier": "مورد"
+    },
+    "from": "من تاريخ",
+    "to": "إلى تاريخ",
+    "currency": "العملة",
+    "show": "عرض",
+    "allPeriods": "كل الفترات",
+    "export": "تصدير Excel",
+    "total": "الإجمالي",
+    "openingRow": "رصيد أول الفترة",
+    "empty": "لا توجد حركات في هذه الفترة.",
+    "columns": {
+      "date": "التاريخ",
+      "description": "البيان",
+      "number": "رقم المستند",
+      "reference": "مرجع",
+      "increase": {
+        "customer": "مدين (عليه)",
+        "supplier": "دائن (له)"
+      },
+      "decrease": {
+        "customer": "دائن (له)",
+        "supplier": "مدين (عليه)"
+      },
+      "balance": "الرصيد"
+    },
+    "closing": {
+      "customer": {
+        "positive": "المستحق على العميل",
+        "negative": "رصيد دائن للعميل"
+      },
+      "supplier": {
+        "positive": "المستحق للمورد",
+        "negative": "رصيد مدين على المورد"
+      }
+    },
+    "kinds": {
+      "opening_balance": "رصيد أول المدة",
+      "sales_invoice": "فاتورة مبيعات",
+      "sales_credit_note": "إشعار دائن",
+      "payment_received": "سند قبض",
+      "purchase_invoice": "فاتورة مشتريات",
+      "supplier_payment": "سند صرف لمورد"
+    },
+    "opening": {
+      "title": "رصيد أول المدة",
+      "amount": "المبلغ",
+      "side": "نوع الرصيد",
+      "date": "بتاريخ",
+      "hint": {
+        "customer": "المبلغ اللي كان على العميل (أو له) قبل بداية استخدام البرنامج.",
+        "supplier": "المبلغ اللي كان للمورد (أو عليه) قبل بداية استخدام البرنامج."
+      },
+      "sides": {
+        "customer": {
+          "owes_us": "عليه (مدين)",
+          "we_owe": "له (دائن)"
+        },
+        "supplier": {
+          "we_owe": "له (دائن)",
+          "owes_us": "عليه (مدين)"
+        }
+      },
+      "saved": "تم حفظ رصيد أول المدة",
+      "invalidAmount": "المبلغ غير صحيح"
+    },
+    "balances": {
+      "title": {
+        "customer": "أرصدة العملاء",
+        "supplier": "أرصدة الموردين"
+      },
+      "subtitle": {
+        "customer": "المستحق على كل عميل وأعمار الديون، مع رابط لكشف حسابه.",
+        "supplier": "المستحق لكل مورد وأعمار المستحقات، مع رابط لكشف حسابه."
+      },
+      "asOf": "حتى تاريخ",
+      "nonZeroOnly": "إخفاء الأرصدة الصفرية",
+      "code": "الكود",
+      "name": "الاسم",
+      "phone": "الهاتف",
+      "balance": "الرصيد",
+      "lastActivity": "آخر حركة",
+      "totalBalance": "إجمالي الأرصدة",
+      "overdue": "متأخر السداد",
+      "empty": "لا توجد أرصدة."
+    },
+    "aging": {
+      "current": "غير مستحق بعد",
+      "days1To30": "1–30 يوم",
+      "days31To60": "31–60 يوم",
+      "days61To90": "61–90 يوم",
+      "over90": "أكثر من 90 يوم",
+      "unappliedCredit": "رصيد دائن"
+    }
   }
 }

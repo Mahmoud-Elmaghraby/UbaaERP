@@ -1,6 +1,13 @@
 import { lazy } from 'react';
 import { Navigate, Outlet, type RouteObject } from 'react-router-dom';
 
+const PartyStatementPage = lazy(() =>
+  import('../statements').then((m) => ({ default: m.PartyStatementPage })),
+);
+const PartyBalancesPage = lazy(() =>
+  import('../statements').then((m) => ({ default: m.PartyBalancesPage })),
+);
+
 const SuppliersPage = lazy(() => import('./components/suppliers').then((m) => ({ default: m.SuppliersPage })));
 const PurchaseRequisitionsPage = lazy(() =>
   import('./components/purchase-requisitions').then((m) => ({ default: m.PurchaseRequisitionsPage })),
@@ -49,6 +56,8 @@ export const purchasesRoutes: RouteObject[] = [
     children: [
       { index: true, element: <Navigate to="suppliers" replace /> },
       { path: 'suppliers', element: <SuppliersPage /> },
+      { path: 'suppliers/:id/statement', element: <PartyStatementPage kind="supplier" /> },
+      { path: 'payables', element: <PartyBalancesPage kind="supplier" /> },
       { path: 'purchase-requisitions', element: <PurchaseRequisitionsPage /> },
       { path: 'rfqs', element: <RfqsPage /> },
       { path: 'purchase-orders', element: <PurchaseOrdersPage /> },

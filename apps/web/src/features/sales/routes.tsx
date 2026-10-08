@@ -1,6 +1,13 @@
 import { lazy } from 'react';
 import { Navigate, Outlet, type RouteObject } from 'react-router-dom';
 
+const PartyStatementPage = lazy(() =>
+  import('../statements').then((m) => ({ default: m.PartyStatementPage })),
+);
+const PartyBalancesPage = lazy(() =>
+  import('../statements').then((m) => ({ default: m.PartyBalancesPage })),
+);
+
 const CustomersPage = lazy(() => import('./components/customers').then((m) => ({ default: m.CustomersPage })));
 const QuotationsPage = lazy(() => import('./components/quotations').then((m) => ({ default: m.QuotationsPage })));
 const SalesOrdersPage = lazy(() =>
@@ -51,6 +58,8 @@ export const salesRoutes: RouteObject[] = [
     children: [
       { index: true, element: <Navigate to="customers" replace /> },
       { path: 'customers', element: <CustomersPage /> },
+      { path: 'customers/:id/statement', element: <PartyStatementPage kind="customer" /> },
+      { path: 'receivables', element: <PartyBalancesPage kind="customer" /> },
       { path: 'quotations', element: <QuotationsPage /> },
       { path: 'sales-orders', element: <SalesOrdersPage /> },
       { path: 'deliveries', element: <DeliveriesPage /> },

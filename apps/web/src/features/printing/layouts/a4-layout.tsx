@@ -1,4 +1,4 @@
-import type { PrintDocumentDto, PrintTemplateConfigDto } from '@erp-platform/contracts';
+import type { PrintDocumentDto, PrintLedgerDto, PrintTemplateConfigDto } from '@erp-platform/contracts';
 
 import { amount, formatDate, formatQuantity, shortTaxes } from './format';
 
@@ -92,53 +92,57 @@ export function A4Layout({ document: doc, template }: { document: PrintDocumentD
         ) : null}
       </section>
 
-      <table className="mt-4 w-full border-collapse">
-        <thead>
-          <tr className="text-white" style={{ backgroundColor: accent }}>
-            <Th className="w-8">#</Th>
-            <Th>البيان</Th>
-            {showSku ? <Th className="w-24">الكود</Th> : null}
-            {hasQuantity ? <Th className="w-16 text-center">الكمية</Th> : null}
-            {showUnit ? <Th className="w-20">الوحدة</Th> : null}
-            {hasUnitPrice ? <Th className="w-24 text-left">السعر</Th> : null}
-            {hasTaxes ? <Th className="w-20 text-center">الضريبة</Th> : null}
-            {hasPrices ? <Th className="w-28 text-left">القيمة</Th> : null}
-          </tr>
-        </thead>
-        <tbody>
-          {doc.lines.map((line, index) => (
-            <tr key={index} className="border-b border-neutral-200 align-top">
-              <Td className="text-neutral-500">{index + 1}</Td>
-              <Td>
-                <span className="font-medium">{line.description}</span>
-                {line.details ? <span className="block text-[11px] text-neutral-500">{line.details}</span> : null}
-              </Td>
-              {showSku ? (
-                <Td className="text-[11px]" ltr>
-                  {line.sku ?? ''}
-                </Td>
-              ) : null}
-              {hasQuantity ? <Td className="text-center">{formatQuantity(line.quantity)}</Td> : null}
-              {showUnit ? <Td>{line.unit ?? ''}</Td> : null}
-              {hasUnitPrice ? (
-                <Td className="text-left" ltr>
-                  {amount(line.unitPrice)}
-                </Td>
-              ) : null}
-              {hasTaxes ? (
-                <Td className="text-center text-[11px]" ltr>
-                  {shortTaxes(line)}
-                </Td>
-              ) : null}
-              {hasPrices ? (
-                <Td className="text-left font-semibold" ltr>
-                  {amount(line.amount)}
-                </Td>
-              ) : null}
+      {doc.ledger ? (
+        <LedgerTable ledger={doc.ledger} accent={accent} currency={doc.currency} />
+      ) : (
+        <table className="mt-4 w-full border-collapse">
+          <thead>
+            <tr className="text-white" style={{ backgroundColor: accent }}>
+              <Th className="w-8">#</Th>
+              <Th>البيان</Th>
+              {showSku ? <Th className="w-24">الكود</Th> : null}
+              {hasQuantity ? <Th className="w-16 text-center">الكمية</Th> : null}
+              {showUnit ? <Th className="w-20">الوحدة</Th> : null}
+              {hasUnitPrice ? <Th className="w-24 text-left">السعر</Th> : null}
+              {hasTaxes ? <Th className="w-20 text-center">الضريبة</Th> : null}
+              {hasPrices ? <Th className="w-28 text-left">القيمة</Th> : null}
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {doc.lines.map((line, index) => (
+              <tr key={index} className="border-b border-neutral-200 align-top">
+                <Td className="text-neutral-500">{index + 1}</Td>
+                <Td>
+                  <span className="font-medium">{line.description}</span>
+                  {line.details ? <span className="block text-[11px] text-neutral-500">{line.details}</span> : null}
+                </Td>
+                {showSku ? (
+                  <Td className="text-[11px]" ltr>
+                    {line.sku ?? ''}
+                  </Td>
+                ) : null}
+                {hasQuantity ? <Td className="text-center">{formatQuantity(line.quantity)}</Td> : null}
+                {showUnit ? <Td>{line.unit ?? ''}</Td> : null}
+                {hasUnitPrice ? (
+                  <Td className="text-left" ltr>
+                    {amount(line.unitPrice)}
+                  </Td>
+                ) : null}
+                {hasTaxes ? (
+                  <Td className="text-center text-[11px]" ltr>
+                    {shortTaxes(line)}
+                  </Td>
+                ) : null}
+                {hasPrices ? (
+                  <Td className="text-left font-semibold" ltr>
+                    {amount(line.amount)}
+                  </Td>
+                ) : null}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
 
       {totals ? (
         <section className="mt-4 flex items-start justify-between gap-6">
@@ -215,7 +219,7 @@ function Th({ children, className = '' }: { children: React.ReactNode; className
   return <th className={`px-2 py-1.5 ${aligned} text-[11px] font-semibold ${className}`}>{children}</th>;
 }
 
-function Td({ children, className = '', ltr }: { children: React.ReactNode; className?: string; ltr?: boolean }) {
+function Td({ children, className = '', ltr }: { children?: React.ReactNode; className?: string; ltr?: boolean }) {
   return (
     <td className={`px-2 py-1.5 ${className}`} dir={ltr ? 'ltr' : undefined}>
       {children}
@@ -240,5 +244,87 @@ function TotalRow({
         {negative ? `(${amount(value)})` : amount(value)}
       </td>
     </tr>
+  );
+}
+
+/** Account statement body: opening balance, running ledger, totals and the closing balance. */
+function LedgerTable({ ledger, accent, currency }: { ledger: PrintLedgerDto; accent: string; currency: string }) {
+  return (
+    <>
+      <table className="mt-4 w-full border-collapse">
+        <thead>
+          <tr className="text-white" style={{ backgroundColor: accent }}>
+            <Th className="w-24">التاريخ</Th>
+            <Th>البيان</Th>
+            <Th className="w-28">رقم المستند</Th>
+            <Th className="w-28 text-left">{ledger.increaseLabel}</Th>
+            <Th className="w-28 text-left">{ledger.decreaseLabel}</Th>
+            <Th className="w-28 text-left">الرصيد</Th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr className="border-b border-neutral-200 bg-neutral-50">
+            <Td />
+            <Td className="font-semibold">رصيد أول الفترة</Td>
+            <Td />
+            <Td />
+            <Td />
+            <Td className="text-left font-semibold" ltr>
+              {amount(ledger.openingBalance)}
+            </Td>
+          </tr>
+          {ledger.rows.map((row, index) => (
+            <tr key={index} className="border-b border-neutral-200 align-top">
+              <Td ltr>{formatDate(row.date)}</Td>
+              <Td>
+                {row.description}
+                {row.reference ? <span className="block text-[11px] text-neutral-500">{row.reference}</span> : null}
+              </Td>
+              <Td className="text-[11px]" ltr>
+                {row.number}
+              </Td>
+              <Td className="text-left" ltr>
+                {row.increase ? amount(row.increase) : ''}
+              </Td>
+              <Td className="text-left" ltr>
+                {row.decrease ? amount(row.decrease) : ''}
+              </Td>
+              <Td className="text-left font-semibold" ltr>
+                {amount(row.balance)}
+              </Td>
+            </tr>
+          ))}
+          <tr className="border-t-2 border-neutral-400 font-semibold">
+            <Td />
+            <Td>الإجمالي</Td>
+            <Td />
+            <Td className="text-left" ltr>
+              {amount(ledger.totalIncrease)}
+            </Td>
+            <Td className="text-left" ltr>
+              {amount(ledger.totalDecrease)}
+            </Td>
+            <Td />
+          </tr>
+        </tbody>
+      </table>
+      <section className="mt-4 flex justify-end">
+        <table className="w-80 border-collapse">
+          <tbody>
+            <tr className="text-white" style={{ backgroundColor: accent }}>
+              <td className="px-2 py-1.5 font-bold">
+                {ledger.closingLabel} ({currency})
+              </td>
+              <td className="px-2 py-1.5 text-left text-base font-bold" dir="ltr">
+                {amount({
+                  ...ledger.closingBalance,
+                  amountMinorUnits: ledger.closingBalance.amountMinorUnits.replace(/^-/, ''),
+                })}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+    </>
   );
 }

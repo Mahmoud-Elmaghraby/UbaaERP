@@ -2,6 +2,7 @@ import { localIsoDate } from '../../../../shared/time/local-date';
 import { Injectable, Logger } from '@nestjs/common';
 import type { Kysely } from 'kysely';
 import { OnOutboxEvent } from '../../../../shared/events/on-outbox-event.decorator';
+import { FEATURE_KEYS } from '../../../../shared/plans/feature-catalog';
 import type { TenantDatabase } from '../../../../database/tenant/kysely-client';
 import { TenantConnectionManager } from '../../../../shared/tenancy/tenant-connection-manager';
 import type { DomainEventPayload } from '../../../../shared/events/domain-event';
@@ -54,7 +55,7 @@ export class AccountingPaymentPostingListener {
     private readonly ledgerAmounts: LedgerAmountService,
   ) {}
 
-  @OnOutboxEvent('sales.payment_received.posted')
+  @OnOutboxEvent('sales.payment_received.posted', { requiresFeature: FEATURE_KEYS.ACCOUNTING })
   async handlePaymentReceived(payload: DomainEventPayload): Promise<void> {
     const metadata = payload.metadata as unknown as PaymentPostedMetadata | undefined;
     if (!metadata?.amount) {
@@ -89,7 +90,7 @@ export class AccountingPaymentPostingListener {
     });
   }
 
-  @OnOutboxEvent('purchases.supplier_payment.posted')
+  @OnOutboxEvent('purchases.supplier_payment.posted', { requiresFeature: FEATURE_KEYS.ACCOUNTING })
   async handleSupplierPayment(payload: DomainEventPayload): Promise<void> {
     const metadata = payload.metadata as unknown as SupplierPaymentPostedMetadata | undefined;
     if (!metadata?.amount) {

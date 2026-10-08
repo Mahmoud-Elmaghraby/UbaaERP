@@ -1,4 +1,4 @@
-import { Controller, Get, Param, ParseUUIDPipe, UseGuards } from '@nestjs/common';
+import { Controller, Get, Param, ParseUUIDPipe, Query, UseGuards } from '@nestjs/common';
 import type { PrintableDocumentTypeDto, PrintResponseDto } from '@erp-platform/contracts';
 import { TenantConnectionManager } from '../tenancy/tenant-connection-manager';
 import { CurrentTenantSchema } from '../auth/current-tenant-schema.decorator';
@@ -38,7 +38,11 @@ export class PrintController {
     @CurrentUser() user: JwtAccessPayload,
     @Param('documentType') documentType: string,
     @Param('id', new ParseUUIDPipe()) id: string,
+    @Query() query: Record<string, unknown>,
   ): Promise<PrintResponseDto> {
-    return this.service.render(this.connections.getClient(schema), documentType, id, user.permissions);
+    const options = Object.fromEntries(
+      Object.entries(query).filter((entry): entry is [string, string] => typeof entry[1] === 'string'),
+    );
+    return this.service.render(this.connections.getClient(schema), documentType, id, user.permissions, options);
   }
 }

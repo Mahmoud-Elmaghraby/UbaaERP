@@ -2,6 +2,7 @@ import { Global, Module } from '@nestjs/common';
 import { PlanResolverService } from './plan-resolver.service';
 import { TenantFeatureTogglesRepository } from './tenant-feature-toggles.repository';
 import { FeatureAvailabilityService } from './feature-availability.service';
+import { OutboxFeatureGateRegistrar } from './outbox-feature-gate.registrar';
 
 /**
  * Global (same pattern as PrismaModule/TenancyModule) so any module that
@@ -18,7 +19,7 @@ import { FeatureAvailabilityService } from './feature-availability.service';
  */
 @Global()
 @Module({
-  providers: [PlanResolverService, TenantFeatureTogglesRepository, FeatureAvailabilityService],
+  providers: [PlanResolverService, TenantFeatureTogglesRepository, FeatureAvailabilityService, OutboxFeatureGateRegistrar],
   exports: [PlanResolverService, TenantFeatureTogglesRepository, FeatureAvailabilityService],
 })
 export class PlansModule {}
