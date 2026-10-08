@@ -1,3 +1,5 @@
+import { vatReturnSchema, type VatReturnDto } from '@erp-platform/contracts';
+import { TenantSettingsService } from '../../settings/application/services/tenant-settings.service';
 import { BadRequestException, Controller, Get, Query, UseGuards } from '@nestjs/common';
 import {
   generalLedgerReportSchema,
@@ -111,6 +113,7 @@ export class AccountingReportsController {
   constructor(
     private readonly service: AccountingReportsService,
     private readonly connections: TenantConnectionManager,
+    private readonly tenantSettings: TenantSettingsService,
   ) {}
 
   @Get('general-ledger')
@@ -126,6 +129,22 @@ export class AccountingReportsController {
     const db = this.connections.getClient(schema);
     const report = await this.service.generalLedger(db, accountId, fromDate, toDate);
     return generalLedgerToDto(report);
+  }
+
+  /** إقرار ضريبة القيمة المضافة — output vs input VAT for a period (YYYY-MM-DD, inclusive). */
+  @Get('vat-return')
+  async vatReturn(
+    @CurrentTenantSchema() schema: string,
+    @Query('fromDate') fromDate?: string,
+    @Query('toDate') toDate?: string,
+  ): Promise<VatReturnDto> {
+    const isDay = (value: string | undefined): value is string => !!value && /^\d{4}-\d{2}-\d{2}$/.test(value);
+    if (!isDay(fromDate) || !isDay(toDate)) {
+      throw new BadRequestException('Query parameters "fromDate" and "toDate" (YYYY-MM-DD) are required.');
+    }
+    const db = this.connections.getClient(schema);
+    const tenantCurrency = (await this.tenantSettings.get(db)).currencyCode;
+    return vatReturnSchema.parse(await this.service.vatReturn(db, fromDate, toDate, tenantCurrency));
   }
 
   @Get('trial-balance')

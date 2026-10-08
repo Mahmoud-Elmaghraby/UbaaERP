@@ -137,3 +137,38 @@ export const cashFlowReportSchema = z.object({
   isConsistent: z.boolean(),
 });
 export type CashFlowReportDto = z.infer<typeof cashFlowReportSchema>;
+
+/** One tax rule's totals in a VAT return period (from the documents' stored tax snapshots). */
+export const vatReturnRowSchema = z.object({
+  direction: z.enum(['output', 'input']),
+  kind: z.enum(['vat', 'table', 'withholding']),
+  taxRuleId: z.string(),
+  name: z.string(),
+  rate: z.string(),
+  etaType: z.string().nullable(),
+  etaSubtype: z.string().nullable(),
+  currency: z.string(),
+  baseMinorUnits: z.string(),
+  amountMinorUnits: z.string(),
+  documentCount: z.number().int(),
+});
+export type VatReturnRowDto = z.infer<typeof vatReturnRowSchema>;
+
+/**
+ * VAT return (إقرار ضريبة القيمة المضافة) for a period: output VAT on sales
+ * (credit notes deducted), input VAT on purchases, the net payable (negative =
+ * a credit to carry forward), plus table tax and withholding totals.
+ */
+export const vatReturnSchema = z.object({
+  from: z.string(),
+  to: z.string(),
+  currency: z.string(),
+  rows: z.array(vatReturnRowSchema),
+  outputVatMinorUnits: z.string(),
+  inputVatMinorUnits: z.string(),
+  netVatPayableMinorUnits: z.string(),
+  tableTaxMinorUnits: z.string(),
+  withholdingByCustomersMinorUnits: z.string(),
+  withholdingFromSuppliersMinorUnits: z.string(),
+});
+export type VatReturnDto = z.infer<typeof vatReturnSchema>;

@@ -5,6 +5,7 @@ import type {
   GeneralLedgerReportDto,
   IncomeStatementReportDto,
   TrialBalanceReportDto,
+  VatReturnDto,
 } from '@erp-platform/contracts';
 
 import { apiGet } from '../../../../lib/api-client';
@@ -74,6 +75,16 @@ export function useCashFlowReport(params: { fromDate: string | undefined; toDate
       apiGet<CashFlowReportDto>(
         `/accounting-reports/cash-flow-statement?fromDate=${fromDate}&toDate=${toDate}`,
       ),
+    enabled: Boolean(fromDate) && Boolean(toDate),
+  });
+}
+
+/** إقرار ضريبة القيمة المضافة for a period. */
+export function useVatReturnReport(params: { fromDate: string | undefined; toDate: string | undefined }) {
+  const { fromDate, toDate } = params;
+  return useQuery({
+    queryKey: ['accounting-reports', 'vat-return', fromDate, toDate],
+    queryFn: () => apiGet<VatReturnDto>(`/accounting-reports/vat-return?fromDate=${fromDate}&toDate=${toDate}`),
     enabled: Boolean(fromDate) && Boolean(toDate),
   });
 }

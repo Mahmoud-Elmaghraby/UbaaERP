@@ -1,3 +1,4 @@
+import { readTaxReport } from '../../../../shared/taxes/tax-report-reader';
 import { Inject, Injectable } from '@nestjs/common';
 import type { Kysely } from 'kysely';
 import { Money } from '@erp-platform/shared-kernel';
@@ -356,6 +357,34 @@ export class AccountingReportsService {
       openingCash,
       closingCash,
       isConsistent: netCashFromOperations.equals(closingCash.subtract(openingCash)),
+    };
+  }
+
+  /**
+   * VAT return for a period, built from the stored tax snapshot of every
+   * posted invoice and issued credit note (shared/taxes/tax-report-reader).
+   * Amounts are in the documents' currency; the totals count the tenant
+   * currency only (foreign-currency rows are listed separately).
+   */
+  async vatReturn(db: Kysely<TenantDatabase>, from: string, to: string, tenantCurrency: string) {
+    const rows = await readTaxReport(db, { from, to });
+    const sum = (direction: 'output' | 'input', kind: 'vat' | 'table' | 'withholding') =>
+      rows
+        .filter((row) => row.direction === direction && row.kind === kind && row.currency === tenantCurrency)
+        .reduce((total, row) => total + BigInt(row.amountMinorUnits), 0n);
+    const outputVat = sum('output', 'vat');
+    const inputVat = sum('input', 'vat');
+    return {
+      from,
+      to,
+      currency: tenantCurrency,
+      rows,
+      outputVatMinorUnits: outputVat.toString(),
+      inputVatMinorUnits: inputVat.toString(),
+      netVatPayableMinorUnits: (outputVat - inputVat).toString(),
+      tableTaxMinorUnits: sum('output', 'table').toString(),
+      withholdingByCustomersMinorUnits: sum('output', 'withholding').toString(),
+      withholdingFromSuppliersMinorUnits: sum('input', 'withholding').toString(),
     };
   }
 }

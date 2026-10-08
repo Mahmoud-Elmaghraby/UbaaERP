@@ -7,6 +7,7 @@ import { TrialBalanceReport } from './trial-balance-report';
 import { IncomeStatementReport } from './income-statement-report';
 import { BalanceSheetReport } from './balance-sheet-report';
 import { CashFlowReport } from './cash-flow-report';
+import { VatReturnReport } from './vat-return-report';
 
 /**
  * All four reports (دفتر الأستاذ / ميزان المراجعة / قائمة الدخل / الميزانية العمومية)
@@ -31,6 +32,7 @@ export function AccountingReportsPage() {
             <TabsTrigger value="income-statement">{t('accounting.reports.incomeStatement')}</TabsTrigger>
             <TabsTrigger value="balance-sheet">{t('accounting.reports.balanceSheet')}</TabsTrigger>
             <TabsTrigger value="cash-flow">{t('accounting.reports.cashFlow')}</TabsTrigger>
+            <TabsTrigger value="vat-return">{t('accounting.reports.vatReturn')}</TabsTrigger>
           </TabsList>
         </div>
         <TabsContent value="general-ledger">
@@ -47,6 +49,9 @@ export function AccountingReportsPage() {
         </TabsContent>
         <TabsContent value="cash-flow">
           <CashFlowReport />
+        </TabsContent>
+        <TabsContent value="vat-return">
+          <VatReturnReport />
         </TabsContent>
       </Tabs>
     </div>
