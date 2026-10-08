@@ -34,7 +34,9 @@ import {
   type ChainStep,
 } from '../../../../components/document/document-layout';
 import { FEATURE_KEYS } from '../../../../lib/feature-keys';
-import { formatAmount, multiplyMinorUnits } from '../../../../lib/money';
+import { formatAmount } from '../../../../lib/money';
+import { LineTaxesNote } from '../../../../components/taxes/line-taxes-note';
+import { taxTotalsRowsFromDto } from '../../../../components/taxes/tax-totals';
 import { PURCHASE_INVOICE_STATUS_VARIANT, purchaseInvoiceStatusLabelKey } from './purchase-invoice-status';
 import { PURCHASE_INVOICES_PATH } from './purchase-invoices-tab';
 import { usePurchaseInvoiceActions } from './use-purchase-invoice-actions';
@@ -263,9 +265,8 @@ export function PurchaseInvoiceDetailsPage() {
                           {formatAmount(line.unitPrice.amountMinorUnits)}
                         </TableCell>
                         <TableCell className="text-end font-semibold">
-                          {formatAmount(
-                            multiplyMinorUnits(line.unitPrice.amountMinorUnits, line.quantityInvoiced),
-                          )}
+                          {formatAmount(line.netAmount.amountMinorUnits)}
+                          <LineTaxesNote taxes={line.taxes} />
                         </TableCell>
                       </TableRow>
                     );
@@ -293,6 +294,7 @@ export function PurchaseInvoiceDetailsPage() {
               rows={[
                 { label: t('documents.linesCount'), value: invoice.lines.length },
                 { label: t('documents.quantityTotal'), value: quantityTotal },
+                ...taxTotalsRowsFromDto(t, invoice),
                 ...(settlement
                   ? [
                       {

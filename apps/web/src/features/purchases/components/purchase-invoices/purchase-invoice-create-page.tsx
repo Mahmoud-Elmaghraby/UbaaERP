@@ -13,6 +13,7 @@ import {
   Badge,
   Button,
   buildCustomFieldsSchema,
+  Checkbox,
   CustomFieldsFormSection,
   EmptyState,
   Form,
@@ -46,7 +47,10 @@ import {
 } from '../../hooks/purchase-invoices/use-purchase-order-invoiceable';
 import { ApiError } from '../../../../lib/api-client';
 import { FEATURE_KEYS } from '../../../../lib/feature-keys';
-import { decimalToMinorUnits, formatAmount, sumMinorUnits } from '../../../../lib/money';
+import { decimalToMinorUnits, formatAmount } from '../../../../lib/money';
+import { useLineTaxes } from '../../../../components/taxes/use-line-taxes';
+import { useDocumentTaxPreview } from '../../../../components/taxes/use-document-taxes';
+import { taxTotalsRows } from '../../../../components/taxes/tax-totals';
 import {
   DocumentBody,
   DocumentHeaderBar,
@@ -82,6 +86,7 @@ const PURCHASE_INVOICE_ENTITY_TYPE = 'purchase_invoice';
 function prepareOrderLines(
   invoiceableLines: InvoiceablePoLine[],
   drafts: PurchaseInvoiceLineDrafts,
+  taxRuleIdsFor: (line: InvoiceablePoLine) => string[],
 ): CreatePurchaseInvoiceLineDto[] | null {
   const prepared: CreatePurchaseInvoiceLineDto[] = [];
   for (const line of invoiceableLines) {
@@ -106,6 +111,7 @@ function prepareOrderLines(
       purchaseOrderLineId: line.purchaseOrderLineId,
       quantityInvoiced,
       unitPrice,
+      taxRuleIds: taxRuleIdsFor(line),
       notes: draft.notes.trim() === '' ? undefined : draft.notes,
     });
   }
@@ -188,6 +194,7 @@ export function PurchaseInvoiceCreatePage() {
       supplierInvoiceNumber: '',
       invoiceDate: todayIso(),
       dueDate: '',
+      pricesIncludeTax: false,
       notes: '',
       customFields: {},
     },
@@ -231,15 +238,24 @@ export function PurchaseInvoiceCreatePage() {
     }
   }, [supplier, invoiceDate, form]);
 
-  const previewAmounts = directMode
-    ? directLines.map(previewDirectLineAmount)
-    : invoiceableLines.map((line) => previewPoLineAmount(line, drafts[line.purchaseOrderLineId]));
-  const filledAmounts = previewAmounts.filter((a): a is string => a !== null);
-  const estimatedTotal = sumMinorUnits(filledAmounts);
+  const lineTaxes = useLineTaxes('purchases', supplier?.withholdingTaxRuleId);
+  const pricesIncludeTax = form.watch('pricesIncludeTax') ?? false;
+  const previewLines = directMode
+    ? directLines.map((line) => ({
+        amountMinor: previewDirectLineAmount(line),
+        taxRuleIds: line.productVariantId ? lineTaxes.valueFor(line.key, line.productVariantId) : [],
+      }))
+    : invoiceableLines.map((line) => ({
+        amountMinor: previewPoLineAmount(line, drafts[line.purchaseOrderLineId]),
+        taxRuleIds: lineTaxes.valueFor(line.purchaseOrderLineId, line.productVariantId),
+      }));
+  const filledCount = previewLines.filter((line) => line.amountMinor !== null).length;
+  const preview = useDocumentTaxPreview(previewLines, pricesIncludeTax);
 
   async function onSubmit(headerValues: HeaderFormValues) {
     setLinesError(null);
     const common = {
+      pricesIncludeTax: headerValues.pricesIncludeTax ?? false,
       invoiceDate: headerValues.invoiceDate || undefined,
       dueDate: headerValues.dueDate || undefined,
       notes: headerValues.notes || undefined,
@@ -282,6 +298,7 @@ export function PurchaseInvoiceCreatePage() {
           ...rest,
           quantityInvoiced: quantity,
           lots: lotsByIndex[index],
+          taxRuleIds: lineTaxes.valueFor(directLines[index]!.key, rest.productVariantId),
         })),
       };
     } else {
@@ -289,7 +306,9 @@ export function PurchaseInvoiceCreatePage() {
         form.setError('purchaseOrderId', { message: t('purchases.purchaseInvoices.purchaseOrder') });
         return;
       }
-      const preparedLines = prepareOrderLines(invoiceableLines, drafts);
+      const preparedLines = prepareOrderLines(invoiceableLines, drafts, (line) =>
+        lineTaxes.valueFor(line.purchaseOrderLineId, line.productVariantId),
+      );
       if (!preparedLines) {
         setLinesError(t('purchases.purchaseInvoices.linesError'));
         return;
@@ -528,6 +547,18 @@ export function PurchaseInvoiceCreatePage() {
                         )}
                       />
                     ) : null}
+                    <FormField
+                      control={form.control}
+                      name="pricesIncludeTax"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-row items-center gap-2 space-y-0 self-end pb-2">
+                          <FormControl>
+                            <Checkbox checked={field.value ?? false} onCheckedChange={(v) => field.onChange(v === true)} />
+                          </FormControl>
+                          <FormLabel className="!mt-0">{t('taxes.pricesIncludeTax')}</FormLabel>
+                        </FormItem>
+                      )}
+                    />
                   </div>
                 </SectionCard>
 
@@ -539,6 +570,7 @@ export function PurchaseInvoiceCreatePage() {
                       priceKind="purchase"
                       currency={currency}
                       receiveLots={needsWarehouse}
+                      taxes={lineTaxes}
                     />
                   ) : invoiceableLoading ? (
                     <div className="px-5 pb-5">
@@ -549,6 +581,7 @@ export function PurchaseInvoiceCreatePage() {
                       invoiceableLines={invoiceableLines}
                       drafts={drafts}
                       onChange={setDrafts}
+                      taxes={lineTaxes}
                     />
                   )}
                   {linesError ? <p className="px-5 pb-4 text-sm text-destructive">{linesError}</p> : null}
@@ -584,10 +617,11 @@ export function PurchaseInvoiceCreatePage() {
                   ...(supplier
                     ? [{ label: t('purchases.purchaseInvoices.supplier'), value: supplier.name }]
                     : []),
-                  { label: t('documents.linesCount'), value: filledAmounts.length },
+                  { label: t('documents.linesCount'), value: filledCount },
+                  ...taxTotalsRows(t, preview),
                 ]}
                 totalLabel={t('documents.estimatedTotal')}
-                totalValue={formatAmount(estimatedTotal)}
+                totalValue={formatAmount(preview.total)}
                 currency={currency}
                 footer={
                   <>

@@ -7,6 +7,7 @@ import { useCustomers } from '../../api/customers/queries';
 import { useSalesReturns } from '../../api/sales-returns/queries';
 import { useVariantIndex } from '../../hooks/sales-credit-notes/use-variant-index';
 import { formatMoney } from '../../../../lib/money';
+import { LineTaxesNote } from '../../../../components/taxes/line-taxes-note';
 import { QuantityWithUnit } from '../../../../components/product/unit-select';
 
 /**
@@ -41,6 +42,14 @@ export function SalesCreditNoteDetailsView({ creditNote }: { creditNote: SalesCr
           <p className="text-muted-foreground">{t('sales.salesCreditNotes.salesReturn')}</p>
           <p className="font-medium">{salesReturnById.get(creditNote.salesReturnId)?.returnNumber ?? '—'}</p>
         </div>
+        {creditNote.vatAmount.amountMinorUnits !== '0' ? (
+          <div>
+            <p className="text-muted-foreground">{t('taxes.totals.vat')}</p>
+            <p className="font-medium">
+              {formatMoney(creditNote.vatAmount.amountMinorUnits, creditNote.vatAmount.currency)}
+            </p>
+          </div>
+        ) : null}
         <div>
           <p className="text-muted-foreground">{t('sales.salesCreditNotes.totalAmount')}</p>
           <p className="font-medium">
@@ -59,6 +68,7 @@ export function SalesCreditNoteDetailsView({ creditNote }: { creditNote: SalesCr
             <TableHead>{t('sales.salesCreditNotes.lineProduct')}</TableHead>
             <TableHead>{t('sales.salesCreditNotes.lineQuantity')}</TableHead>
             <TableHead>{t('sales.salesCreditNotes.lineUnitPriceHeader')}</TableHead>
+            <TableHead>{t('documents.lineTotal')}</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -76,11 +86,15 @@ export function SalesCreditNoteDetailsView({ creditNote }: { creditNote: SalesCr
                 />
               </TableCell>
               <TableCell>{formatMoney(line.unitPrice.amountMinorUnits, line.unitPrice.currency)}</TableCell>
+              <TableCell>
+                {formatMoney(line.netAmount.amountMinorUnits, line.netAmount.currency)}
+                <LineTaxesNote taxes={line.taxes} />
+              </TableCell>
             </TableRow>
           ))}
           {creditNote.lines.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={3} className="py-6 text-center text-muted-foreground">
+              <TableCell colSpan={4} className="py-6 text-center text-muted-foreground">
                 {t('common.noResults')}
               </TableCell>
             </TableRow>

@@ -18,6 +18,8 @@ import { LineUnitSelect } from '../product/unit-select';
 import { decimalToMinorUnits, formatAmount, multiplyMinorUnits } from '../../lib/money';
 import { useVariantLookupMap } from '../../features/inventory/api/products/queries';
 import { emptyReceiptLotsDraft, ReceiptLotsEditor, type ReceiptLotsDraft } from './lot-entry';
+import { LineTaxPicker } from '../taxes/line-tax-picker';
+import type { LineTaxesController } from '../taxes/use-line-taxes';
 
 export interface DirectLineDraft {
   key: string;
@@ -106,6 +108,7 @@ export function DirectLinesEditor({
   priceKind,
   currency,
   receiveLots = false,
+  taxes,
 }: {
   lines: DirectLineDraft[];
   onChange: (lines: DirectLineDraft[]) => void;
@@ -114,6 +117,8 @@ export function DirectLinesEditor({
   currency: string;
   /** Show lot/serial entry under tracked items (purchase invoice that also receives the goods). */
   receiveLots?: boolean;
+  /** Per-line tax choice (invoices); omitted = no tax column. */
+  taxes?: LineTaxesController;
 }) {
   const { t } = useTranslation();
   const variants = useVariantLookupMap();
@@ -172,6 +177,13 @@ export function DirectLinesEditor({
                         value={line.notes}
                         onChange={(e) => update(line.key, { notes: e.target.value })}
                       />
+                      {taxes && line.productVariantId ? (
+                        <LineTaxPicker
+                          scope={taxes.scope}
+                          value={taxes.valueFor(line.key, line.productVariantId)}
+                          onChange={(ids) => taxes.onChange(line.key, ids)}
+                        />
+                      ) : null}
                     </div>
                   </TableCell>
                   <TableCell>

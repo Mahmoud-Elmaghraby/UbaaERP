@@ -5,6 +5,8 @@ import { useVariantIndex } from '../../hooks/sales-invoices/use-variant-index';
 import type { InvoiceableSoLine } from '../../hooks/sales-invoices/use-sales-order-invoiceable';
 import { decimalToMinorUnits, formatAmount, multiplyMinorUnits } from '../../../../lib/money';
 import { QuantityWithUnit } from '../../../../components/product/unit-select';
+import { LineTaxPicker } from '../../../../components/taxes/line-tax-picker';
+import type { LineTaxesController } from '../../../../components/taxes/use-line-taxes';
 
 export interface SalesInvoiceLineDraft {
   quantityInvoiced: string;
@@ -59,10 +61,12 @@ export function SalesInvoiceLineItemsEditor({
   invoiceableLines,
   drafts,
   onChange,
+  taxes,
 }: {
   invoiceableLines: InvoiceableSoLine[];
   drafts: SalesInvoiceLineDrafts;
   onChange: (drafts: SalesInvoiceLineDrafts) => void;
+  taxes?: LineTaxesController;
 }) {
   const { t } = useTranslation();
   const variantIndex = useVariantIndex();
@@ -112,6 +116,13 @@ export function SalesInvoiceLineItemsEditor({
                     value={draft.notes}
                     onChange={(e) => updateDraft(line.salesOrderLineId, { notes: e.target.value })}
                   />
+                  {taxes ? (
+                    <LineTaxPicker
+                      scope={taxes.scope}
+                      value={taxes.valueFor(line.salesOrderLineId, line.productVariantId)}
+                      onChange={(ids) => taxes.onChange(line.salesOrderLineId, ids)}
+                    />
+                  ) : null}
                 </div>
               </TableCell>
               <TableCell className="text-end text-secondary-foreground"><QuantityWithUnit quantity={line.ordered} productVariantId={line.productVariantId} unitOfMeasureId={line.unitOfMeasureId} /></TableCell>

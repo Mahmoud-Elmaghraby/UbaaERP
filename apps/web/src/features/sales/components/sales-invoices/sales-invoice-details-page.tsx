@@ -33,7 +33,9 @@ import {
   type ChainStep,
 } from '../../../../components/document/document-layout';
 import { FEATURE_KEYS } from '../../../../lib/feature-keys';
-import { formatAmount, multiplyMinorUnits } from '../../../../lib/money';
+import { formatAmount } from '../../../../lib/money';
+import { LineTaxesNote } from '../../../../components/taxes/line-taxes-note';
+import { taxTotalsRowsFromDto } from '../../../../components/taxes/tax-totals';
 import { SALES_INVOICE_STATUS_VARIANT, salesInvoiceStatusLabelKey } from './sales-invoice-status';
 import { SALES_INVOICES_PATH } from './sales-invoices-tab';
 import { useSalesInvoiceActions } from './use-sales-invoice-actions';
@@ -253,9 +255,8 @@ export function SalesInvoiceDetailsPage() {
                           {formatAmount(line.unitPrice.amountMinorUnits)}
                         </TableCell>
                         <TableCell className="text-end font-semibold">
-                          {formatAmount(
-                            multiplyMinorUnits(line.unitPrice.amountMinorUnits, line.quantityInvoiced),
-                          )}
+                          {formatAmount(line.netAmount.amountMinorUnits)}
+                          <LineTaxesNote taxes={line.taxes} />
                         </TableCell>
                       </TableRow>
                     );
@@ -283,6 +284,7 @@ export function SalesInvoiceDetailsPage() {
               rows={[
                 { label: t('documents.linesCount'), value: invoice.lines.length },
                 { label: t('documents.quantityTotal'), value: quantityTotal },
+                ...taxTotalsRowsFromDto(t, invoice),
               ]}
               totalLabel={t('documents.total')}
               totalValue={formatAmount(invoice.totalAmount.amountMinorUnits)}
