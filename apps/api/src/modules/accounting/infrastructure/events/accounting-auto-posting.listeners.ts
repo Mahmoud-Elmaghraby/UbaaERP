@@ -52,6 +52,11 @@ interface InvoicePostedMetadata {
   /** Present on events written after 2026-10-08; the entry is dated on the invoice, not on when it was posted. */
   invoiceNumber?: string;
   invoiceDate?: string | null;
+  /** Present since migration 0092 (invoice taxes); absent = the whole total is revenue / expense. */
+  netAmount?: { amountMinorUnits: string; currency: string };
+  tableTaxAmount?: { amountMinorUnits: string; currency: string };
+  vatAmount?: { amountMinorUnits: string; currency: string };
+  withholdingAmount?: { amountMinorUnits: string; currency: string };
 }
 
 interface PurchaseInvoicePostedMetadata extends InvoicePostedMetadata {
@@ -60,6 +65,8 @@ interface PurchaseInvoicePostedMetadata extends InvoicePostedMetadata {
     productVariantId: string;
     quantity: number;
     unitPrice: { amountMinorUnits: string; currency: string };
+    /** Since migration 0092: the line's amount before taxes. */
+    netAmount?: { amountMinorUnits: string; currency: string };
   }[];
 }
 
@@ -163,6 +170,33 @@ export class AccountingAutoPostingListeners {
     asOfDate: string,
   ): Promise<LedgerAmount> {
     return new LedgerAmountService(this.tenantSettings, this.currencyConversion).toLedger(db, amount, asOfDate);
+  }
+
+  /** The invoice's taxes in the ledger currency (zero for invoices from before migration 0092). */
+  private async convertTaxes(
+    db: Kysely<TenantDatabase>,
+    metadata: InvoicePostedMetadata,
+    entryDate: string,
+  ): Promise<{ vat: bigint; table: bigint; withholding: bigint }> {
+    const convert = async (amount: { amountMinorUnits: string; currency: string } | undefined) =>
+      amount && amount.amountMinorUnits !== '0'
+        ? BigInt((await this.convertToTenantCurrency(db, amount, entryDate)).amountMinorUnits)
+        : 0n;
+    return {
+      vat: await convert(metadata.vatAmount),
+      table: await convert(metadata.tableTaxAmount),
+      withholding: await convert(metadata.withholdingAmount),
+    };
+  }
+
+  private mapped(accountId: string | null, key: string): string {
+    if (!accountId) {
+      throw new BusinessRuleError(`accounting_settings.${key} is not configured.`, {
+        code: 'ACCOUNTING_SETTINGS.MAPPING_MISSING',
+        params: { account: TAX_ACCOUNT_LABELS[key] ?? key },
+      });
+    }
+    return accountId;
   }
 
   /** COGS recognition: debit COGS, credit Inventory. */
@@ -331,18 +365,25 @@ export class AccountingAutoPostingListeners {
       entryDate,
     );
 
-    const lines: CreateJournalEntryLineInput[] = [
+    // Dr receivables (what the customer owes) + withholding the customer keeps for the
+    // tax authority / Cr output VAT, table tax, and revenue = the rest (so the entry
+    // balances to the piaster even after currency conversion).
+    const taxes = await this.convertTaxes(db, metadata, entryDate);
+    const revenue =
+      BigInt(amountMinorUnits) + taxes.withholding - taxes.vat - taxes.table;
+    const lines = compactLines([
+      { accountId: settings.accountsReceivableAccountId, debit: BigInt(amountMinorUnits) },
       {
-        accountId: settings.accountsReceivableAccountId,
-        debitAmountMinorUnits: amountMinorUnits,
-        creditAmountMinorUnits: '0',
+        accountId: taxes.withholding ? this.mapped(settings.withholdingReceivableAccountId, 'withholdingReceivable') : '',
+        debit: taxes.withholding,
       },
+      { accountId: taxes.vat ? this.mapped(settings.vatOutputAccountId, 'vatOutput') : '', credit: taxes.vat },
       {
-        accountId: settings.revenueAccountId,
-        debitAmountMinorUnits: '0',
-        creditAmountMinorUnits: amountMinorUnits,
+        accountId: taxes.table ? this.mapped(settings.tableTaxOutputAccountId, 'tableTaxOutput') : '',
+        credit: taxes.table,
       },
-    ];
+      { accountId: settings.revenueAccountId, credit: revenue },
+    ]);
 
     await this.journalEntries.createAuto(db, {
       entryDate,
@@ -391,13 +432,16 @@ export class AccountingAutoPostingListeners {
     let stockPartMinorUnits = 0n;
     for (const line of metadata.lines ?? []) {
       if (!stockItems.has(line.productVariantId)) continue;
-      stockPartMinorUnits += Money.fromMinorUnits(BigInt(line.unitPrice.amountMinorUnits), line.unitPrice.currency)
-        .multiplyByQuantity(line.quantity)
-        .toMinorUnits();
+      stockPartMinorUnits += line.netAmount
+        ? BigInt(line.netAmount.amountMinorUnits)
+        : Money.fromMinorUnits(BigInt(line.unitPrice.amountMinorUnits), line.unitPrice.currency)
+            .multiplyByQuantity(line.quantity)
+            .toMinorUnits();
     }
-    const totalMinorUnits = BigInt(metadata.totalAmount.amountMinorUnits);
-    if (stockPartMinorUnits > totalMinorUnits) stockPartMinorUnits = totalMinorUnits;
-    const expensePartMinorUnits = totalMinorUnits - stockPartMinorUnits;
+    // Net of taxes: invoices from before migration 0092 have no netAmount and their whole total is net.
+    const netMinorUnits = BigInt((metadata.netAmount ?? metadata.totalAmount).amountMinorUnits);
+    if (stockPartMinorUnits > netMinorUnits) stockPartMinorUnits = netMinorUnits;
+    const expensePartMinorUnits = netMinorUnits - stockPartMinorUnits;
 
     if (!settings.accountsPayableAccountId) {
       throw new BusinessRuleError(
@@ -426,7 +470,7 @@ export class AccountingAutoPostingListeners {
     const convertedStock =
       stockPartMinorUnits === 0n
         ? 0n
-        : stockPartMinorUnits === totalMinorUnits
+        : stockPartMinorUnits === BigInt(metadata.totalAmount.amountMinorUnits)
           ? BigInt(converted.amountMinorUnits)
           : BigInt(
               (
@@ -437,28 +481,31 @@ export class AccountingAutoPostingListeners {
                 )
               ).amountMinorUnits,
             );
-    const convertedExpense = BigInt(converted.amountMinorUnits) - convertedStock;
-
-    const lines: CreateJournalEntryLineInput[] = [];
-    if (convertedStock > 0n) {
-      lines.push({
-        accountId: settings.grniAccountId!,
-        debitAmountMinorUnits: convertedStock.toString(),
-        creditAmountMinorUnits: '0',
-      });
-    }
-    if (convertedExpense > 0n) {
-      lines.push({
-        accountId: settings.purchaseExpenseAccountId!,
-        debitAmountMinorUnits: convertedExpense.toString(),
-        creditAmountMinorUnits: '0',
-      });
-    }
-    lines.push({
-      accountId: settings.accountsPayableAccountId,
-      debitAmountMinorUnits: '0',
-      creditAmountMinorUnits: converted.amountMinorUnits,
-    });
+    // Dr GRNI (stock) + purchase expense (the rest) + input VAT + table tax /
+    // Cr payables (what we owe) + withholding we keep for the tax authority.
+    // The expense line takes whatever balances the entry after conversion.
+    const taxes = await this.convertTaxes(db, metadata, entryDate);
+    const payable = BigInt(converted.amountMinorUnits);
+    const convertedExpense = payable + taxes.withholding - taxes.vat - taxes.table - convertedStock;
+    const lines = compactLines([
+      { accountId: convertedStock ? settings.grniAccountId! : '', debit: convertedStock },
+      {
+        accountId: convertedExpense ? this.mapped(settings.purchaseExpenseAccountId, 'purchaseExpense') : '',
+        debit: convertedExpense,
+      },
+      { accountId: taxes.vat ? this.mapped(settings.vatInputAccountId, 'vatInput') : '', debit: taxes.vat },
+      {
+        accountId: taxes.table
+          ? this.mapped(settings.tableTaxInputAccountId ?? settings.purchaseExpenseAccountId, 'tableTaxInput')
+          : '',
+        debit: taxes.table,
+      },
+      {
+        accountId: taxes.withholding ? this.mapped(settings.withholdingPayableAccountId, 'withholdingPayable') : '',
+        credit: taxes.withholding,
+      },
+      { accountId: settings.accountsPayableAccountId, credit: payable },
+    ]);
 
     await this.journalEntries.createAuto(db, {
       entryDate,
@@ -543,4 +590,29 @@ function referenceLabel(referenceType: string | undefined): string {
 
 function conversionNote(wasConverted: boolean, from: string, to: string): string {
   return wasConverted ? ` (${from} → ${to})` : '';
+}
+
+const TAX_ACCOUNT_LABELS: Record<string, string> = {
+  vatOutput: 'ضريبة القيمة المضافة - مخرجات',
+  vatInput: 'ضريبة القيمة المضافة - مدخلات',
+  tableTaxOutput: 'ضريبة الجدول على المبيعات',
+  tableTaxInput: 'ضريبة الجدول على المشتريات',
+  withholdingPayable: 'خصم من المنبع مستحق',
+  withholdingReceivable: 'خصم من المنبع لدى العملاء',
+  purchaseExpense: 'حساب مصروفات المشتريات',
+};
+
+/** Builds journal lines from signed parts, dropping zero amounts; a negative debit becomes a credit and vice versa. */
+function compactLines(parts: { accountId: string; debit?: bigint; credit?: bigint }[]): CreateJournalEntryLineInput[] {
+  const lines: CreateJournalEntryLineInput[] = [];
+  for (const part of parts) {
+    const net = (part.debit ?? 0n) - (part.credit ?? 0n);
+    if (net === 0n) continue;
+    lines.push(
+      net > 0n
+        ? { accountId: part.accountId, debitAmountMinorUnits: net.toString(), creditAmountMinorUnits: '0' }
+        : { accountId: part.accountId, debitAmountMinorUnits: '0', creditAmountMinorUnits: (-net).toString() },
+    );
+  }
+  return lines;
 }

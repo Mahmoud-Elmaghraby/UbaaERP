@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { moneySchema } from '../inventory/money.contract';
+import { documentTotalsSchema, lineTaxRuleIdsSchema, lineTaxSchema } from '../settings/tax-rule.contract';
 
 export const salesInvoiceStatusSchema = z.enum(['draft', 'posted', 'cancelled']);
 export type SalesInvoiceStatusDto = z.infer<typeof salesInvoiceStatusSchema>;
@@ -13,6 +14,9 @@ export const salesInvoiceLineSchema = z.object({
   unitFactor: z.number().positive().default(1),
   quantityInvoiced: z.number().positive(),
   unitPrice: moneySchema,
+  /** Line amount before taxes (after any discount). */
+  netAmount: moneySchema,
+  taxes: z.array(lineTaxSchema),
   notes: z.string().nullable(),
   createdAt: z.coerce.date(),
 });
@@ -27,6 +31,7 @@ export const salesInvoiceSchema = z.object({
   dueDate: z.string().nullable(),
   notes: z.string().nullable(),
   customFields: z.record(z.unknown()),
+  pricesIncludeTax: z.boolean(),
   createdAt: z.coerce.date(),
   updatedAt: z.coerce.date(),
 });
@@ -34,7 +39,7 @@ export type SalesInvoiceDto = z.infer<typeof salesInvoiceSchema>;
 
 export const salesInvoiceWithLinesSchema = salesInvoiceSchema.extend({
   lines: z.array(salesInvoiceLineSchema),
-  totalAmount: moneySchema,
+  ...documentTotalsSchema.shape,
 });
 export type SalesInvoiceWithLinesDto = z.infer<typeof salesInvoiceWithLinesSchema>;
 
@@ -42,6 +47,7 @@ export const createSalesInvoiceLineSchema = z.object({
   salesOrderLineId: z.string().uuid(),
   quantityInvoiced: z.number().positive(),
   unitPrice: moneySchema.optional(),
+  taxRuleIds: lineTaxRuleIdsSchema,
   notes: z.string().nullable().optional(),
 });
 export type CreateSalesInvoiceLineDto = z.infer<typeof createSalesInvoiceLineSchema>;
@@ -60,6 +66,7 @@ export const createSalesInvoiceDirectLineSchema = z.object({
   unitOfMeasureId: z.string().uuid().nullable().optional(),
   quantity: z.number().positive(),
   unitPrice: moneySchema,
+  taxRuleIds: lineTaxRuleIdsSchema,
   notes: z.string().nullable().optional(),
 });
 export type CreateSalesInvoiceDirectLineDto = z.infer<typeof createSalesInvoiceDirectLineSchema>;
@@ -79,6 +86,8 @@ export const createSalesInvoiceSchema = z.object({
   warehouseId: z.string().uuid().optional(),
   invoiceDate: z.string().nullable().optional(),
   dueDate: z.string().nullable().optional(),
+  /** Unit prices include VAT/table tax (retail). Default false. */
+  pricesIncludeTax: z.boolean().optional(),
   notes: z.string().nullable().optional(),
   customFields: z.record(z.unknown()).optional(),
 });

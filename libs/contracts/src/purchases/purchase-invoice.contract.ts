@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { moneySchema } from '../inventory/money.contract';
 import { receiptLotSchema } from './goods-receipt.contract';
+import { documentTotalsSchema, lineTaxRuleIdsSchema, lineTaxSchema } from '../settings/tax-rule.contract';
 
 export const purchaseInvoiceStatusSchema = z.enum(['draft', 'posted', 'cancelled']);
 export type PurchaseInvoiceStatusDto = z.infer<typeof purchaseInvoiceStatusSchema>;
@@ -14,6 +15,9 @@ export const purchaseInvoiceLineSchema = z.object({
   unitFactor: z.number().positive().default(1),
   quantityInvoiced: z.number().positive(),
   unitPrice: moneySchema,
+  /** Line amount before taxes. */
+  netAmount: moneySchema,
+  taxes: z.array(lineTaxSchema),
   notes: z.string().nullable(),
   createdAt: z.coerce.date(),
 });
@@ -29,6 +33,7 @@ export const purchaseInvoiceSchema = z.object({
   dueDate: z.string().nullable(),
   notes: z.string().nullable(),
   customFields: z.record(z.unknown()),
+  pricesIncludeTax: z.boolean(),
   createdAt: z.coerce.date(),
   updatedAt: z.coerce.date(),
 });
@@ -36,7 +41,7 @@ export type PurchaseInvoiceDto = z.infer<typeof purchaseInvoiceSchema>;
 
 export const purchaseInvoiceWithLinesSchema = purchaseInvoiceSchema.extend({
   lines: z.array(purchaseInvoiceLineSchema),
-  totalAmount: moneySchema,
+  ...documentTotalsSchema.shape,
 });
 export type PurchaseInvoiceWithLinesDto = z.infer<typeof purchaseInvoiceWithLinesSchema>;
 
@@ -44,6 +49,7 @@ export const createPurchaseInvoiceLineSchema = z.object({
   purchaseOrderLineId: z.string().uuid(),
   quantityInvoiced: z.number().positive(),
   unitPrice: moneySchema.optional(),
+  taxRuleIds: lineTaxRuleIdsSchema,
   notes: z.string().nullable().optional(),
   /** Lots/serials — used only when the invoice also receives the goods (Goods Receipts disabled). */
   lots: z.array(receiptLotSchema).max(1000).optional(),
@@ -56,6 +62,7 @@ export const createPurchaseInvoiceDirectLineSchema = z.object({
   unitOfMeasureId: z.string().uuid().nullable().optional(),
   quantityInvoiced: z.number().positive(),
   unitPrice: moneySchema,
+  taxRuleIds: lineTaxRuleIdsSchema,
   notes: z.string().nullable().optional(),
   lots: z.array(receiptLotSchema).max(1000).optional(),
 });
@@ -71,6 +78,8 @@ export const createPurchaseInvoiceSchema = z.object({
   supplierInvoiceNumber: z.string().nullable().optional(),
   invoiceDate: z.string().nullable().optional(),
   dueDate: z.string().nullable().optional(),
+  /** Unit prices include VAT/table tax. Default false. */
+  pricesIncludeTax: z.boolean().optional(),
   notes: z.string().nullable().optional(),
   customFields: z.record(z.unknown()).optional(),
 });

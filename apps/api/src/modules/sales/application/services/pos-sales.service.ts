@@ -186,8 +186,13 @@ export class PosSalesService {
             salesOrderLineId: line.id,
             quantityInvoiced: line.quantity,
             unitPrice: netLineTotals[i].divideByQuantity(line.quantity),
+            lineAmount: netLineTotals[i],
             notes: null,
           })),
+          // Shelf prices include VAT (Egyptian retail): the invoice total stays exactly
+          // the tendered total, and VAT is backed out of it line by line.
+          pricesIncludeTax: true,
+          applyCustomerWithholding: false,
           invoiceDate: null,
           dueDate: null,
           notes: input.notes ?? null,

@@ -10,6 +10,7 @@ export interface CreatePurchaseInvoiceRow {
   dueDate: string | null;
   notes: string | null;
   customFields: Record<string, unknown>;
+  pricesIncludeTax?: boolean;
 }
 
 export interface PurchaseInvoiceRepository {

@@ -1,4 +1,5 @@
 import { Money } from '@erp-platform/shared-kernel';
+import { documentTotals, type DocumentTotals, type LineTaxSnapshot } from '../../../shared/taxes/line-tax-snapshot';
 
 /**
  * Sales Invoice (master doc §10, step 4 — Sales, Stage 5). This
@@ -18,6 +19,10 @@ export interface SalesInvoiceLine {
   productVariantId: string;
   quantityInvoiced: number;
   unitPrice: Money;
+  /** Migration 0092: amount before taxes (unit price × quantity, or backed out of a tax-inclusive price). */
+  netAmount: Money;
+  /** Migration 0092: the line's taxes as computed when the invoice was created. */
+  taxes: LineTaxSnapshot[];
   notes: string | null;
   createdAt: Date;
   /** Unit the line is in (null = product base unit) and base units per 1 of it — migration 0079. */
@@ -34,14 +39,15 @@ export interface SalesInvoice {
   dueDate: string | null;
   notes: string | null;
   customFields: Record<string, unknown>;
+  /** Migration 0092: unit prices were entered including VAT/table tax. */
+  pricesIncludeTax: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
 
-export interface SalesInvoiceWithLines extends SalesInvoice {
+/** Totals are derived from the lines, never stored — see migration 0045's class comment. */
+export interface SalesInvoiceWithLines extends SalesInvoice, DocumentTotals {
   lines: SalesInvoiceLine[];
-  /** Derived, never stored — see migration 0045's class comment. */
-  totalAmount: Money;
 }
 
 /** productVariantId is always derived server-side from salesOrderLineId. unitPrice defaults to that SO line's price when omitted. */
@@ -49,6 +55,13 @@ export interface CreateSalesInvoiceLineInput {
   salesOrderLineId: string;
   quantityInvoiced: number;
   unitPrice?: Money;
+  /** Omitted = defaults (product VAT + customer withholding); [] = untaxed. */
+  taxRuleIds?: string[];
+  /**
+   * The exact line amount when unit price × quantity would round differently
+   * (POS spreads the order total over its lines to the piaster).
+   */
+  lineAmount?: Money;
   notes?: string | null;
 }
 
@@ -66,6 +79,7 @@ export interface CreateSalesInvoiceDirectLineInput {
   productVariantId: string;
   quantity: number;
   unitPrice: Money;
+  taxRuleIds?: string[];
   notes?: string | null;
   /** Line unit (migration 0079); omitted = base unit. */
   unitOfMeasureId?: string | null;
@@ -88,6 +102,9 @@ export interface CreateSalesInvoiceInput {
   warehouseId?: string;
   invoiceDate?: string | null;
   dueDate?: string | null;
+  pricesIncludeTax?: boolean;
+  /** Default true; POS passes false (a till sale is paid in full on the spot). */
+  applyCustomerWithholding?: boolean;
   notes?: string | null;
   customFields?: Record<string, unknown>;
 }
@@ -102,12 +119,13 @@ export function assertSingleCurrency(lines: { unitPrice: Money }[]): void {
   }
 }
 
-export function calculateSalesInvoiceTotal(lines: { unitPrice: Money; quantityInvoiced: number }[]): Money {
-  if (lines.length === 0) {
-    throw new Error('Cannot compute a sales invoice total with zero lines.');
-  }
-  return lines.reduce(
-    (total, line) => total.add(line.unitPrice.multiplyByQuantity(line.quantityInvoiced)),
-    Money.zero(lines[0].unitPrice.currency),
-  );
+/** Net, taxes and total of an invoice from its stored lines. */
+export function calculateSalesInvoiceTotals(lines: readonly Pick<SalesInvoiceLine, 'netAmount' | 'taxes'>[]): DocumentTotals {
+  if (lines.length === 0) throw new Error('Cannot compute a sales invoice total with zero lines.');
+  return documentTotals(lines);
+}
+
+/** What the customer owes: net + table tax + VAT − withholding. */
+export function calculateSalesInvoiceTotal(lines: readonly Pick<SalesInvoiceLine, 'netAmount' | 'taxes'>[]): Money {
+  return calculateSalesInvoiceTotals(lines).totalAmount;
 }

@@ -19,6 +19,7 @@ import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pip
 import { PurchaseInvoicesService } from '../application/services/purchase-invoices.service';
 import { PurchasesEventPublisher } from '../infrastructure/events/purchases-event-publisher';
 import { moneyFromDto, moneyToDto } from './money.mapper';
+import { totalsToDto } from '../../../shared/taxes/line-tax-snapshot';
 
 function invoiceToDto(invoice: PurchaseInvoice): PurchaseInvoiceDto {
   return purchaseInvoiceSchema.parse(invoice);
@@ -27,8 +28,12 @@ function invoiceToDto(invoice: PurchaseInvoice): PurchaseInvoiceDto {
 function invoiceWithLinesToDto(invoice: PurchaseInvoiceWithLines): PurchaseInvoiceWithLinesDto {
   return purchaseInvoiceWithLinesSchema.parse({
     ...invoice,
-    lines: invoice.lines.map((line) => ({ ...line, unitPrice: moneyToDto(line.unitPrice) })),
-    totalAmount: moneyToDto(invoice.totalAmount),
+    lines: invoice.lines.map((line) => ({
+      ...line,
+      unitPrice: moneyToDto(line.unitPrice),
+      netAmount: moneyToDto(line.netAmount),
+    })),
+    ...totalsToDto(invoice),
   });
 }
 

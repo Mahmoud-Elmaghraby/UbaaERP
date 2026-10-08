@@ -1,6 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import type { Kysely } from 'kysely';
 import type { TenantDatabase } from '../../../../database/tenant/kysely-client';
+import { computeDocumentTaxes, toSnapshot, totalsToDto } from '../../../../shared/taxes/document-taxes';
 import { withTransaction } from '../../../../database/tenant/transaction.util';
 import type { ReceiptLot } from '../../domain/goods-receipt.entity';
 import {
@@ -20,7 +21,7 @@ import { GOODS_RECEIPT_LINE_REPOSITORY, type GoodsReceiptLineRepository } from '
 import { Money } from '@erp-platform/shared-kernel';
 import {
   assertSingleCurrency,
-  calculatePurchaseInvoiceTotal,
+  calculatePurchaseInvoiceTotals,
   type PurchaseInvoice,
   type PurchaseInvoiceWithLines,
   type CreatePurchaseInvoiceInput,
@@ -141,7 +142,7 @@ export class PurchaseInvoicesService {
     const invoice = await this.invoices.findById(db, id);
     if (!invoice) throw entityNotFound('PURCHASE_INVOICE', id);
     const lines = await this.lines.listByPurchaseInvoiceId(db, id);
-    return { ...invoice, lines, totalAmount: calculatePurchaseInvoiceTotal(lines) };
+    return { ...invoice, lines, ...calculatePurchaseInvoiceTotals(lines) };
   }
 
   async create(
@@ -176,6 +177,7 @@ export class PurchaseInvoicesService {
       purchaseOrderLineId: string;
       quantityInvoiced: number;
       unitPrice: Money;
+      taxRuleIds?: string[];
       notes: string | null | undefined;
     }
 
@@ -183,6 +185,7 @@ export class PurchaseInvoicesService {
     try {
       result = await withTransaction(db, async (trx) => {
         let poId: string;
+        let supplierId: string;
         let poLines: PurchaseOrderLine[];
         let resolvedLines: ResolvedInvoiceLine[];
         // Lots/serials typed on the invoice, used only when the invoice also
@@ -220,16 +223,18 @@ export class PurchaseInvoicesService {
           await this.purchaseOrdersService.confirm(trx, order.id);
 
           poId = order.id;
+          supplierId = order.supplierId;
           poLines = order.lines;
           // PurchaseOrdersService.create keeps input order, so line i ↔ directLines[i].
           order.lines.forEach((line, index) => {
             const lots = input.directLines![index]?.lots;
             if (lots?.length) lotsByPoLineId.set(line.id, lots);
           });
-          resolvedLines = order.lines.map((line) => ({
+          resolvedLines = order.lines.map((line, index) => ({
             purchaseOrderLineId: line.id,
             quantityInvoiced: line.quantity,
             unitPrice: line.unitPrice,
+            taxRuleIds: input.directLines![index]?.taxRuleIds,
             notes: undefined,
           }));
         } else {
@@ -246,6 +251,7 @@ export class PurchaseInvoicesService {
           }
 
           poId = po.id;
+          supplierId = po.supplierId;
           poLines = await this.purchaseOrderLines.listByPurchaseOrderId(trx, po.id);
           const poLineById = new Map(poLines.map((line) => [line.id, line]));
           for (const line of input.lines!) {
@@ -293,6 +299,7 @@ export class PurchaseInvoicesService {
             purchaseOrderLineId: line.purchaseOrderLineId,
             quantityInvoiced: line.quantityInvoiced,
             unitPrice: line.unitPrice ?? poLineById.get(line.purchaseOrderLineId)!.unitPrice,
+            taxRuleIds: line.taxRuleIds,
             notes: line.notes,
           }));
         }
@@ -381,6 +388,23 @@ export class PurchaseInvoicesService {
         const poLineById = new Map(poLines.map((line) => [line.id, line]));
         const allocated = await this.numberingSequences.allocateNext(trx, 'purchase_invoice', null);
 
+        const pricesIncludeTax = input.pricesIncludeTax ?? false;
+        const supplier = await trx
+          .selectFrom('suppliers')
+          .select('withholding_tax_rule_id')
+          .where('id', '=', supplierId)
+          .executeTakeFirst();
+        const lineTaxes = await computeDocumentTaxes(trx, {
+          scope: 'purchases',
+          partyWithholdingRuleId: supplier?.withholding_tax_rule_id ?? null,
+          pricesIncludeTax,
+          lines: resolvedLines.map((line) => ({
+            productVariantId: poLineById.get(line.purchaseOrderLineId)!.productVariantId,
+            amountMinor: line.unitPrice.multiplyByQuantity(line.quantityInvoiced).toMinorUnits(),
+            taxRuleIds: line.taxRuleIds,
+          })),
+        });
+
         const invoice = await this.invoices.create(trx, {
           invoiceNumber: allocated.formatted,
           supplierInvoiceNumber: input.supplierInvoiceNumber ?? null,
@@ -389,17 +413,21 @@ export class PurchaseInvoicesService {
           dueDate: input.dueDate ?? null,
           notes: input.notes ?? null,
           customFields: input.customFields ?? {},
+          pricesIncludeTax,
         });
 
         const createdLines = [];
-        for (const line of resolvedLines) {
+        for (const [index, line] of resolvedLines.entries()) {
           const poLine = poLineById.get(line.purchaseOrderLineId)!;
+          const taxes = lineTaxes[index]!;
           createdLines.push(
             await this.lines.create(trx, invoice.id, {
               purchaseOrderLineId: line.purchaseOrderLineId,
               productVariantId: poLine.productVariantId,
               quantityInvoiced: line.quantityInvoiced,
               unitPrice: line.unitPrice,
+              netAmount: Money.fromMinorUnits(taxes.net, line.unitPrice.currency),
+              taxes: toSnapshot(taxes.taxes),
               notes: line.notes ?? null,
               unitOfMeasureId: poLine.unitOfMeasureId,
               unitFactor: poLine.unitFactor,
@@ -407,7 +435,7 @@ export class PurchaseInvoicesService {
           );
         }
 
-        return { ...invoice, lines: createdLines, totalAmount: calculatePurchaseInvoiceTotal(createdLines) };
+        return { ...invoice, lines: createdLines, ...calculatePurchaseInvoiceTotals(createdLines) };
       });
     } catch (err) {
       if (isPostgresForeignKeyViolation(err)) {
@@ -460,7 +488,7 @@ export class PurchaseInvoicesService {
         params: { id },
       });
     }
-    const totalAmount = calculatePurchaseInvoiceTotal(lines);
+    const totals = calculatePurchaseInvoiceTotals(lines);
 
     return withTransaction(db, async (trx) => {
       const updated = await this.invoices.updateStatus(trx, id, 'posted');
@@ -477,17 +505,20 @@ export class PurchaseInvoicesService {
           supplierInvoiceNumber: updated.supplierInvoiceNumber,
           invoiceNumber: updated.invoiceNumber,
           invoiceDate: updated.invoiceDate,
-          totalAmount: { amountMinorUnits: totalAmount.toMinorUnits().toString(), currency: totalAmount.currency },
+          // net / table tax / VAT / withholding / total — Accounting splits GRNI, expense and taxes on these.
+          ...totalsToDto(totals),
           lines: lines.map((line) => ({
             productVariantId: line.productVariantId,
             quantity: line.quantityInvoiced,
             unitPrice: { amountMinorUnits: line.unitPrice.toMinorUnits().toString(), currency: line.unitPrice.currency },
+            netAmount: { amountMinorUnits: line.netAmount.toMinorUnits().toString(), currency: line.netAmount.currency },
+            taxes: line.taxes,
           })),
         },
         occurredAt: new Date(),
       });
 
-      return { ...updated, lines, totalAmount };
+      return { ...updated, lines, ...totals };
     });
   }
 

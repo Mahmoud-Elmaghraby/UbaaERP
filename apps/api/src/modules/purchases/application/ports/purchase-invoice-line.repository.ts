@@ -1,3 +1,4 @@
+import type { LineTaxSnapshot } from '../../../../shared/taxes/line-tax-snapshot';
 import type { Kysely } from 'kysely';
 import { Money } from '@erp-platform/shared-kernel';
 import type { TenantDatabase } from '../../../../database/tenant/kysely-client';
@@ -8,6 +9,8 @@ export interface CreatePurchaseInvoiceLineRow {
   productVariantId: string;
   quantityInvoiced: number;
   unitPrice: Money;
+  netAmount: Money;
+  taxes: LineTaxSnapshot[];
   notes: string | null;
   /** Line unit (migration 0079); omitted = base unit, factor 1. */
   unitOfMeasureId?: string | null;

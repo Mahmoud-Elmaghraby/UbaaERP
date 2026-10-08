@@ -17,6 +17,7 @@ function toDomain(row: Selectable<SalesInvoicesTable>): SalesInvoice {
     dueDate: row.due_date,
     notes: row.notes,
     customFields: (row.custom_fields ?? {}) as Record<string, unknown>,
+    pricesIncludeTax: row.prices_include_tax,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -55,6 +56,7 @@ export class KyselySalesInvoiceRepository implements SalesInvoiceRepository {
         due_date: input.dueDate,
         notes: input.notes,
         custom_fields: JSON.stringify(input.customFields ?? {}),
+        prices_include_tax: input.pricesIncludeTax ?? false,
       })
       .returningAll()
       .executeTakeFirstOrThrow();

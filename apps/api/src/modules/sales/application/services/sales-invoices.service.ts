@@ -1,6 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import type { Kysely } from 'kysely';
 import type { TenantDatabase } from '../../../../database/tenant/kysely-client';
+import { computeDocumentTaxes, toSnapshot, totalsToDto } from '../../../../shared/taxes/document-taxes';
 import { withTransaction } from '../../../../database/tenant/transaction.util';
 import {
   SALES_INVOICE_REPOSITORY,
@@ -19,12 +20,12 @@ import { DELIVERY_LINE_REPOSITORY, type DeliveryLineRepository } from '../ports/
 import { Money } from '@erp-platform/shared-kernel';
 import {
   assertSingleCurrency,
-  calculateSalesInvoiceTotal,
+  calculateSalesInvoiceTotals,
   type SalesInvoice,
   type SalesInvoiceWithLines,
   type CreateSalesInvoiceInput,
 } from '../../domain/sales-invoice.entity';
-import type { SalesOrderLine } from '../../domain/sales-order.entity';
+import { distributeOrderTotalAcrossLines, type SalesOrderLine } from '../../domain/sales-order.entity';
 import { BusinessRuleError, isPostgresForeignKeyViolation } from '../errors';
 import { entityNotFound } from '../../../../shared/errors/entity-errors';
 import { NumberingSequencesService } from '../../../settings/application/services/numbering-sequences.service';
@@ -122,7 +123,7 @@ export class SalesInvoicesService {
     const invoice = await this.invoices.findById(db, id);
     if (!invoice) throw entityNotFound('SALES_INVOICE', id);
     const lines = await this.lines.listBySalesInvoiceId(db, id);
-    return { ...invoice, lines, totalAmount: calculateSalesInvoiceTotal(lines) };
+    return { ...invoice, lines, ...calculateSalesInvoiceTotals(lines) };
   }
 
   async create(
@@ -157,7 +158,15 @@ export class SalesInvoicesService {
       return await withTransaction(db, async (trx) => {
         let orderId: string;
         let orderLines: SalesOrderLine[];
-        let resolvedLines: { salesOrderLineId: string; quantityInvoiced: number; unitPrice: Money; notes: string | null | undefined }[];
+        let customerId: string;
+        let resolvedLines: {
+          salesOrderLineId: string;
+          quantityInvoiced: number;
+          unitPrice: Money;
+          lineAmount?: Money;
+          taxRuleIds?: string[];
+          notes: string | null | undefined;
+        }[];
 
         if (usingDirectPath) {
           const salesOrdersEnabled = await this.featureAvailability.isEnabled(
@@ -190,11 +199,13 @@ export class SalesInvoicesService {
           await this.salesOrdersService.confirm(trx, order.id);
 
           orderId = order.id;
+          customerId = order.customerId;
           orderLines = order.lines;
-          resolvedLines = order.lines.map((line) => ({
+          resolvedLines = order.lines.map((line, index) => ({
             salesOrderLineId: line.id,
             quantityInvoiced: line.quantity,
             unitPrice: line.unitPrice,
+            taxRuleIds: input.directLines![index]?.taxRuleIds,
             notes: undefined,
           }));
         } else {
@@ -208,6 +219,7 @@ export class SalesInvoicesService {
           }
 
           orderId = order.id;
+          customerId = order.customerId;
           orderLines = await this.salesOrderLines.listBySalesOrderId(trx, order.id);
           const orderLineById = new Map(orderLines.map((line) => [line.id, line]));
           for (const line of input.lines!) {
@@ -248,10 +260,22 @@ export class SalesInvoicesService {
             }
           }
 
+          // Default price = the order line's price AFTER its line and order
+          // discounts (the order total spread over its lines), so invoicing an
+          // order bills what was agreed, not the list price.
+          const discountedLineTotals = distributeOrderTotalAcrossLines(order, orderLines);
+          const discountedUnitPrice = new Map(
+            orderLines.map((orderLine, index) => [
+              orderLine.id,
+              discountedLineTotals[index]!.divideByQuantity(orderLine.quantity),
+            ]),
+          );
           resolvedLines = input.lines!.map((line) => ({
             salesOrderLineId: line.salesOrderLineId,
             quantityInvoiced: line.quantityInvoiced,
-            unitPrice: line.unitPrice ?? orderLineById.get(line.salesOrderLineId)!.unitPrice,
+            unitPrice: line.unitPrice ?? discountedUnitPrice.get(line.salesOrderLineId)!,
+            lineAmount: line.lineAmount,
+            taxRuleIds: line.taxRuleIds,
             notes: line.notes,
           }));
         }
@@ -339,6 +363,24 @@ export class SalesInvoicesService {
         const orderLineById = new Map(orderLines.map((line) => [line.id, line]));
         const allocated = await this.numberingSequences.allocateNext(trx, 'sales_invoice', null);
 
+        const pricesIncludeTax = input.pricesIncludeTax ?? false;
+        const customer = await trx
+          .selectFrom('customers')
+          .select('withholding_tax_rule_id')
+          .where('id', '=', customerId)
+          .executeTakeFirst();
+        const lineTaxes = await computeDocumentTaxes(trx, {
+          scope: 'sales',
+          partyWithholdingRuleId:
+            input.applyCustomerWithholding === false ? null : (customer?.withholding_tax_rule_id ?? null),
+          pricesIncludeTax,
+          lines: resolvedLines.map((line) => ({
+            productVariantId: orderLineById.get(line.salesOrderLineId)!.productVariantId,
+            amountMinor: (line.lineAmount ?? line.unitPrice.multiplyByQuantity(line.quantityInvoiced)).toMinorUnits(),
+            taxRuleIds: line.taxRuleIds,
+          })),
+        });
+
         const invoice = await this.invoices.create(trx, {
           invoiceNumber: allocated.formatted,
           salesOrderId: orderId,
@@ -346,17 +388,21 @@ export class SalesInvoicesService {
           dueDate: input.dueDate ?? null,
           notes: input.notes ?? null,
           customFields: input.customFields ?? {},
+          pricesIncludeTax,
         });
 
         const createdLines = [];
-        for (const line of resolvedLines) {
+        for (const [index, line] of resolvedLines.entries()) {
           const orderLine = orderLineById.get(line.salesOrderLineId)!;
+          const taxes = lineTaxes[index]!;
           createdLines.push(
             await this.lines.create(trx, invoice.id, {
               salesOrderLineId: line.salesOrderLineId,
               productVariantId: orderLine.productVariantId,
               quantityInvoiced: line.quantityInvoiced,
               unitPrice: line.unitPrice,
+              netAmount: Money.fromMinorUnits(taxes.net, line.unitPrice.currency),
+              taxes: toSnapshot(taxes.taxes),
               notes: line.notes ?? null,
               unitOfMeasureId: orderLine.unitOfMeasureId,
               unitFactor: orderLine.unitFactor,
@@ -364,7 +410,7 @@ export class SalesInvoicesService {
           );
         }
 
-        return { ...invoice, lines: createdLines, totalAmount: calculateSalesInvoiceTotal(createdLines) };
+        return { ...invoice, lines: createdLines, ...calculateSalesInvoiceTotals(createdLines) };
       });
     } catch (err) {
       if (isPostgresForeignKeyViolation(err)) {
@@ -416,7 +462,7 @@ export class SalesInvoicesService {
         params: { id },
       });
     }
-    const totalAmount = calculateSalesInvoiceTotal(lines);
+    const totals = calculateSalesInvoiceTotals(lines);
 
     return withTransaction(db, async (trx) => {
       const updated = await this.invoices.updateStatus(trx, id, 'posted');
@@ -432,17 +478,20 @@ export class SalesInvoicesService {
           salesOrderId: updated.salesOrderId,
           invoiceNumber: updated.invoiceNumber,
           invoiceDate: updated.invoiceDate,
-          totalAmount: { amountMinorUnits: totalAmount.toMinorUnits().toString(), currency: totalAmount.currency },
+          // net / table tax / VAT / withholding / total — Accounting splits revenue and taxes on these.
+          ...totalsToDto(totals),
           lines: lines.map((line) => ({
             productVariantId: line.productVariantId,
             quantity: line.quantityInvoiced,
             unitPrice: { amountMinorUnits: line.unitPrice.toMinorUnits().toString(), currency: line.unitPrice.currency },
+            netAmount: { amountMinorUnits: line.netAmount.toMinorUnits().toString(), currency: line.netAmount.currency },
+            taxes: line.taxes,
           })),
         },
         occurredAt: new Date(),
       });
 
-      return { ...updated, lines, totalAmount };
+      return { ...updated, lines, ...totals };
     });
   }
 

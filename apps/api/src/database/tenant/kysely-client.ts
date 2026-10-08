@@ -546,6 +546,8 @@ export interface SalesInvoicesTable {
   custom_fields: unknown;
   created_at: Generated<Date>;
   updated_at: Generated<Date>;
+  /** Migration 0092 — unit prices include VAT/table tax. */
+  prices_include_tax: Generated<boolean>;
 }
 
 export interface SalesInvoiceLinesTable {
@@ -560,6 +562,9 @@ export interface SalesInvoiceLinesTable {
   created_at: Generated<Date>;
   unit_of_measure_id: string | null;
   unit_factor: Generated<string>;
+  /** Migration 0092 — line net (null on older lines = unit price × quantity) and tax snapshot. */
+  net_amount: string | null;
+  taxes: Generated<unknown>;
 }
 
 export interface PaymentsReceivedTable {
@@ -666,6 +671,9 @@ export interface SalesCreditNoteLinesTable {
   created_at: Generated<Date>;
   unit_of_measure_id: string | null;
   unit_factor: Generated<string>;
+  /** Migration 0092 — line net (null on older lines = unit price × quantity) and tax snapshot. */
+  net_amount: string | null;
+  taxes: Generated<unknown>;
 }
 
 export interface QuotationsTable {
@@ -887,6 +895,8 @@ export interface PurchaseInvoicesTable {
   custom_fields: unknown;
   created_at: Generated<Date>;
   updated_at: Generated<Date>;
+  /** Migration 0092 — unit prices include VAT/table tax. */
+  prices_include_tax: Generated<boolean>;
 }
 
 export interface PurchaseInvoiceLinesTable {
@@ -901,6 +911,9 @@ export interface PurchaseInvoiceLinesTable {
   created_at: Generated<Date>;
   unit_of_measure_id: string | null;
   unit_factor: Generated<string>;
+  /** Migration 0092 — line net (null on older lines = unit price × quantity) and tax snapshot. */
+  net_amount: string | null;
+  taxes: Generated<unknown>;
 }
 
 /**

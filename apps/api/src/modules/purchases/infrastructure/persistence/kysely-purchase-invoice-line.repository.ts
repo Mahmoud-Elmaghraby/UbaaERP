@@ -7,15 +7,23 @@ import type {
   CreatePurchaseInvoiceLineRow,
 } from '../../application/ports/purchase-invoice-line.repository';
 import type { PurchaseInvoiceLine } from '../../domain/purchase-invoice.entity';
+import { parseSnapshot } from '../../../../shared/taxes/line-tax-snapshot';
 
 function toDomain(row: Selectable<PurchaseInvoiceLinesTable>): PurchaseInvoiceLine {
+  const unitPrice = Money.fromMinorUnits(BigInt(row.unit_price_amount), row.unit_price_currency);
   return {
     id: row.id,
     purchaseInvoiceId: row.purchase_invoice_id,
     purchaseOrderLineId: row.purchase_order_line_id,
     productVariantId: row.product_variant_id,
     quantityInvoiced: Number(row.quantity_invoiced),
-    unitPrice: Money.fromMinorUnits(BigInt(row.unit_price_amount), row.unit_price_currency),
+    unitPrice,
+    // Lines before migration 0092: no stored net → unit price × quantity, no taxes.
+    netAmount:
+      row.net_amount !== null
+        ? Money.fromMinorUnits(BigInt(row.net_amount), row.unit_price_currency)
+        : unitPrice.multiplyByQuantity(Number(row.quantity_invoiced)),
+    taxes: parseSnapshot(row.taxes),
     notes: row.notes,
     unitOfMeasureId: row.unit_of_measure_id,
     unitFactor: Number(row.unit_factor),
@@ -55,6 +63,8 @@ export class KyselyPurchaseInvoiceLineRepository implements PurchaseInvoiceLineR
         unit_price_amount: input.unitPrice.toMinorUnits().toString(),
         unit_price_currency: input.unitPrice.currency,
         notes: input.notes ?? null,
+        net_amount: input.netAmount.toMinorUnits().toString(),
+        taxes: JSON.stringify(input.taxes),
       })
       .returningAll()
       .executeTakeFirstOrThrow();

@@ -9,6 +9,7 @@ export interface CreateSalesInvoiceRow {
   dueDate: string | null;
   notes: string | null;
   customFields: Record<string, unknown>;
+  pricesIncludeTax?: boolean;
 }
 
 export interface SalesInvoiceRepository {

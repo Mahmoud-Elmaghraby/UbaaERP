@@ -184,6 +184,88 @@ describe('AccountingAutoPostingListeners — multi-currency Phase 3 (invoice/cre
     });
   });
 
+  describe('invoice taxes (migration 0092)', () => {
+    const egp = (amount: string) => ({ amountMinorUnits: amount, currency: 'EGP' });
+    const taxSettings = {
+      vatOutputAccountId: 'vat-out',
+      vatInputAccountId: 'vat-in',
+      tableTaxOutputAccountId: 'table-out',
+      tableTaxInputAccountId: 'table-in',
+      withholdingPayableAccountId: 'wht-payable',
+      withholdingReceivableAccountId: 'wht-receivable',
+    };
+
+    beforeEach(() => {
+      accountingSettings.get.mockResolvedValue(makeAccountingSettings(taxSettings));
+      currencyConversion.convert.mockImplementation(async (_db, amount: Money) => ({
+        convertedAmount: amount,
+        rateUsed: '1',
+        rateDate: '2026-09-13',
+        rateSource: 'manual',
+      }));
+    });
+
+    it('a sales invoice splits revenue, output VAT, table tax and the withholding the customer keeps', async () => {
+      // net 1,000 + table 80 + VAT 151.20 − WHT 10 = 1,221.20 owed by the customer
+      await listeners.handleSalesInvoicePosted(
+        makePayload({
+          totalAmount: egp('122120'),
+          netAmount: egp('100000'),
+          tableTaxAmount: egp('8000'),
+          vatAmount: egp('15120'),
+          withholdingAmount: egp('1000'),
+          invoiceDate: '2026-09-10',
+        }),
+      );
+      const entry = journalEntries.createAuto.mock.calls[0]![1];
+      expect(entry.entryDate).toBe('2026-09-10');
+      expect(entry.lines).toEqual([
+        { accountId: 'ar-account', debitAmountMinorUnits: '122120', creditAmountMinorUnits: '0' },
+        { accountId: 'wht-receivable', debitAmountMinorUnits: '1000', creditAmountMinorUnits: '0' },
+        { accountId: 'vat-out', debitAmountMinorUnits: '0', creditAmountMinorUnits: '15120' },
+        { accountId: 'table-out', debitAmountMinorUnits: '0', creditAmountMinorUnits: '8000' },
+        { accountId: 'revenue-account', debitAmountMinorUnits: '0', creditAmountMinorUnits: '100000' },
+      ]);
+    });
+
+    it('a purchase invoice clears GRNI at the net, takes input VAT and withholds tax from the supplier', async () => {
+      (stockItemVariantIds as jest.Mock).mockResolvedValue(new Set(['stock-variant']));
+      // stock 800 + service 200 = net 1,000; VAT 140; WHT 1% = 10 → owed 1,130
+      await listeners.handlePurchaseInvoicePosted(
+        makePayload(
+          {
+            totalAmount: egp('113000'),
+            netAmount: egp('100000'),
+            tableTaxAmount: egp('0'),
+            vatAmount: egp('14000'),
+            withholdingAmount: egp('1000'),
+            lines: [
+              { productVariantId: 'stock-variant', quantity: 8, unitPrice: egp('10000'), netAmount: egp('80000') },
+              { productVariantId: 'service-variant', quantity: 1, unitPrice: egp('20000'), netAmount: egp('20000') },
+            ],
+          },
+          { entityType: 'purchase_invoice', entityId: 'invoice-3' },
+        ),
+      );
+      expect(journalEntries.createAuto.mock.calls[0]![1].lines).toEqual([
+        { accountId: 'grni-account', debitAmountMinorUnits: '80000', creditAmountMinorUnits: '0' },
+        { accountId: 'expense-account', debitAmountMinorUnits: '20000', creditAmountMinorUnits: '0' },
+        { accountId: 'vat-in', debitAmountMinorUnits: '14000', creditAmountMinorUnits: '0' },
+        { accountId: 'wht-payable', debitAmountMinorUnits: '0', creditAmountMinorUnits: '1000' },
+        { accountId: 'ap-account', debitAmountMinorUnits: '0', creditAmountMinorUnits: '113000' },
+      ]);
+    });
+
+    it('fails loudly when a tax mapping is missing', async () => {
+      accountingSettings.get.mockResolvedValue(makeAccountingSettings({ ...taxSettings, vatOutputAccountId: null }));
+      await expect(
+        listeners.handleSalesInvoicePosted(
+          makePayload({ totalAmount: egp('11400'), netAmount: egp('10000'), vatAmount: egp('1400') }),
+        ),
+      ).rejects.toMatchObject({ code: 'ACCOUNTING_SETTINGS.MAPPING_MISSING' });
+    });
+  });
+
   describe('handlePurchaseInvoicePosted', () => {
     it('converts a foreign-currency purchase invoice before posting the expense/payable lines', async () => {
       currencyConversion.convert.mockResolvedValue({

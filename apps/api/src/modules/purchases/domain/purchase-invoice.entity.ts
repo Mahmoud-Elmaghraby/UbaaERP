@@ -1,4 +1,5 @@
 import { Money } from '@erp-platform/shared-kernel';
+import { documentTotals, type DocumentTotals, type LineTaxSnapshot } from '../../../shared/taxes/line-tax-snapshot';
 import type { ReceiptLot } from './goods-receipt.entity';
 
 /**
@@ -17,6 +18,10 @@ export interface PurchaseInvoiceLine {
   productVariantId: string;
   quantityInvoiced: number;
   unitPrice: Money;
+  /** Migration 0092: amount before taxes (unit price × quantity, or backed out of a tax-inclusive price). */
+  netAmount: Money;
+  /** Migration 0092: the line's taxes as computed when the invoice was created. */
+  taxes: LineTaxSnapshot[];
   notes: string | null;
   createdAt: Date;
   /** Unit the line is in (null = product base unit) and base units per 1 of it — migration 0079. */
@@ -34,14 +39,15 @@ export interface PurchaseInvoice {
   dueDate: string | null;
   notes: string | null;
   customFields: Record<string, unknown>;
+  /** Migration 0092: unit prices were entered including VAT/table tax. */
+  pricesIncludeTax: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
 
-export interface PurchaseInvoiceWithLines extends PurchaseInvoice {
+/** Totals are derived from the lines, never stored — see migration 0038's class comment. */
+export interface PurchaseInvoiceWithLines extends PurchaseInvoice, DocumentTotals {
   lines: PurchaseInvoiceLine[];
-  /** Derived, never stored — see migration 0038's class comment. */
-  totalAmount: Money;
 }
 
 /** productVariantId is always derived server-side from purchaseOrderLineId. unitPrice defaults to that PO line's price when omitted. */
@@ -49,6 +55,8 @@ export interface CreatePurchaseInvoiceLineInput {
   purchaseOrderLineId: string;
   quantityInvoiced: number;
   unitPrice?: Money;
+  /** Omitted = defaults (product VAT + supplier withholding); [] = untaxed. */
+  taxRuleIds?: string[];
   notes?: string | null;
   /** Lots/serials, passed to the goods receipt created behind the scenes when Goods Receipts is off. */
   lots?: ReceiptLot[];
@@ -68,6 +76,7 @@ export interface CreatePurchaseInvoiceDirectLineInput {
   productVariantId: string;
   quantityInvoiced: number;
   unitPrice: Money;
+  taxRuleIds?: string[];
   notes?: string | null;
   /** See CreatePurchaseInvoiceLineInput.lots. */
   lots?: ReceiptLot[];
@@ -93,6 +102,7 @@ export interface CreatePurchaseInvoiceInput {
   supplierInvoiceNumber?: string | null;
   invoiceDate?: string | null;
   dueDate?: string | null;
+  pricesIncludeTax?: boolean;
   notes?: string | null;
   customFields?: Record<string, unknown>;
 }
@@ -107,12 +117,15 @@ export function assertSingleCurrency(lines: { unitPrice: Money }[]): void {
   }
 }
 
-export function calculatePurchaseInvoiceTotal(lines: { unitPrice: Money; quantityInvoiced: number }[]): Money {
-  if (lines.length === 0) {
-    throw new Error('Cannot compute a purchase invoice total with zero lines.');
-  }
-  return lines.reduce(
-    (total, line) => total.add(line.unitPrice.multiplyByQuantity(line.quantityInvoiced)),
-    Money.zero(lines[0].unitPrice.currency),
-  );
+/** Net, taxes and total of an invoice from its stored lines. */
+export function calculatePurchaseInvoiceTotals(
+  lines: readonly Pick<PurchaseInvoiceLine, 'netAmount' | 'taxes'>[],
+): DocumentTotals {
+  if (lines.length === 0) throw new Error('Cannot compute a purchase invoice total with zero lines.');
+  return documentTotals(lines);
+}
+
+/** What we owe the supplier: net + table tax + VAT − the withholding we keep for the tax authority. */
+export function calculatePurchaseInvoiceTotal(lines: readonly Pick<PurchaseInvoiceLine, 'netAmount' | 'taxes'>[]): Money {
+  return calculatePurchaseInvoiceTotals(lines).totalAmount;
 }
