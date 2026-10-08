@@ -1,3 +1,4 @@
+import { totalsToDto } from '../../../../shared/taxes/line-tax-snapshot';
 import { Inject, Injectable } from '@nestjs/common';
 import type { Kysely } from 'kysely';
 import type { TenantDatabase } from '../../../../database/tenant/kysely-client';
@@ -265,10 +266,8 @@ export class SalesReturnsService {
           creditNoteNumber: creditNote.creditNoteNumber,
           customerId: creditNote.customerId,
           currency: creditNote.currency,
-          totalAmount: {
-            amountMinorUnits: creditNote.totalAmount.toMinorUnits().toString(),
-            currency: creditNote.totalAmount.currency,
-          },
+          // net / taxes / total — Accounting reverses revenue and the taxes with them.
+          ...totalsToDto(creditNote),
         },
         occurredAt: new Date(),
       });

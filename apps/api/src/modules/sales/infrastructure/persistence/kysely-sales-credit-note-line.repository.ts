@@ -1,18 +1,25 @@
 import { randomUUID } from 'node:crypto';
 import type { Kysely, Selectable } from 'kysely';
+import { parseSnapshot } from '../../../../shared/taxes/line-tax-snapshot';
 import { Money } from '@erp-platform/shared-kernel';
 import type { SalesCreditNoteLinesTable, TenantDatabase } from '../../../../database/tenant/kysely-client';
 import type { SalesCreditNoteLineRepository } from '../../application/ports/sales-credit-note-line.repository';
 import type { SalesCreditNoteLine, CreateSalesCreditNoteLineInput } from '../../domain/sales-credit-note.entity';
 
 function toDomain(row: Selectable<SalesCreditNoteLinesTable>): SalesCreditNoteLine {
+  const unitPrice = Money.fromMinorUnits(BigInt(row.unit_price_amount), row.unit_price_currency);
   return {
     id: row.id,
     salesCreditNoteId: row.sales_credit_note_id,
     salesReturnLineId: row.sales_return_line_id,
     productVariantId: row.product_variant_id,
     quantity: Number(row.quantity),
-    unitPrice: Money.fromMinorUnits(BigInt(row.unit_price_amount), row.unit_price_currency),
+    unitPrice,
+    netAmount:
+      row.net_amount !== null
+        ? Money.fromMinorUnits(BigInt(row.net_amount), row.unit_price_currency)
+        : unitPrice.multiplyByQuantity(Number(row.quantity)),
+    taxes: parseSnapshot(row.taxes),
     unitOfMeasureId: row.unit_of_measure_id,
     unitFactor: Number(row.unit_factor),
     createdAt: row.created_at,
@@ -50,6 +57,8 @@ export class KyselySalesCreditNoteLineRepository implements SalesCreditNoteLineR
         quantity: String(input.quantity),
         unit_price_amount: input.unitPrice.toMinorUnits().toString(),
         unit_price_currency: input.unitPrice.currency,
+        net_amount: input.netAmount.toMinorUnits().toString(),
+        taxes: JSON.stringify(input.taxes),
       })
       .returningAll()
       .executeTakeFirstOrThrow();

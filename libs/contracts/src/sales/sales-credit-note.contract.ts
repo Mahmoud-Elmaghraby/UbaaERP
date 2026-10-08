@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { moneySchema } from '../inventory/money.contract';
+import { documentTotalsSchema, lineTaxSchema } from '../settings/tax-rule.contract';
 
 /**
  * Sales Credit Note DTOs (CLAUDE.md §10, step 4 — Sales). Read-only from
@@ -16,6 +17,8 @@ export const salesCreditNoteLineSchema = z.object({
   unitFactor: z.number().positive().default(1),
   quantity: z.number().positive(),
   unitPrice: moneySchema,
+  netAmount: moneySchema,
+  taxes: z.array(lineTaxSchema),
   createdAt: z.coerce.date(),
 });
 export type SalesCreditNoteLineDto = z.infer<typeof salesCreditNoteLineSchema>;
@@ -35,6 +38,6 @@ export type SalesCreditNoteDto = z.infer<typeof salesCreditNoteSchema>;
 
 export const salesCreditNoteWithLinesSchema = salesCreditNoteSchema.extend({
   lines: z.array(salesCreditNoteLineSchema),
-  totalAmount: moneySchema,
+  ...documentTotalsSchema.shape,
 });
 export type SalesCreditNoteWithLinesDto = z.infer<typeof salesCreditNoteWithLinesSchema>;

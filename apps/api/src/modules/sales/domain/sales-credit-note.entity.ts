@@ -1,4 +1,5 @@
 import { Money } from '@erp-platform/shared-kernel';
+import { documentTotals, type DocumentTotals, type LineTaxSnapshot } from '../../../shared/taxes/line-tax-snapshot';
 
 /**
  * Sales Credit Note (master doc §10, step 4 — Sales; the financial
@@ -15,6 +16,9 @@ export interface SalesCreditNoteLine {
   productVariantId: string;
   quantity: number;
   unitPrice: Money;
+  /** Migration 0092: amount before taxes, and the taxes reversed with it. */
+  netAmount: Money;
+  taxes: LineTaxSnapshot[];
   createdAt: Date;
   /** Unit the line is in (null = product base unit) and base units per 1 of it — migration 0079. */
   unitOfMeasureId: string | null;
@@ -33,10 +37,9 @@ export interface SalesCreditNote {
   updatedAt: Date;
 }
 
-export interface SalesCreditNoteWithLines extends SalesCreditNote {
+/** Totals derived, never stored — same precedent as every other document total in this module. */
+export interface SalesCreditNoteWithLines extends SalesCreditNote, DocumentTotals {
   lines: SalesCreditNoteLine[];
-  /** Derived, never stored — same "never store what's derivable" precedent as every other document total in this module. */
-  totalAmount: Money;
 }
 
 /** productVariantId/unitPrice are always derived server-side (see SalesCreditNotesService), never taken from a caller — this entity has no public create endpoint at all. */
@@ -45,6 +48,8 @@ export interface CreateSalesCreditNoteLineInput {
   productVariantId: string;
   quantity: number;
   unitPrice: Money;
+  netAmount: Money;
+  taxes: LineTaxSnapshot[];
   /** Line unit (migration 0079); omitted = base unit, factor 1. */
   unitOfMeasureId?: string | null;
   unitFactor?: number;
@@ -58,12 +63,9 @@ export interface CreateSalesCreditNoteInput {
   notes?: string | null;
 }
 
-export function calculateSalesCreditNoteTotal(lines: { unitPrice: Money; quantity: number }[]): Money {
-  if (lines.length === 0) {
-    throw new Error('Cannot compute a sales credit note total with zero lines.');
-  }
-  return lines.reduce(
-    (total, line) => total.add(line.unitPrice.multiplyByQuantity(line.quantity)),
-    Money.zero(lines[0].unitPrice.currency),
-  );
+export function calculateSalesCreditNoteTotals(
+  lines: readonly Pick<SalesCreditNoteLine, 'netAmount' | 'taxes'>[],
+): DocumentTotals {
+  if (lines.length === 0) throw new Error('Cannot compute a sales credit note total with zero lines.');
+  return documentTotals(lines);
 }

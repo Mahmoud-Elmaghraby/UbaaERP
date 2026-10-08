@@ -13,6 +13,7 @@ import { PermissionsGuard } from '../../../shared/auth/permissions.guard';
 import { RequirePermissions } from '../../../shared/auth/require-permissions.decorator';
 import { SalesCreditNotesService } from '../application/services/sales-credit-notes.service';
 import { moneyToDto } from './money.mapper';
+import { totalsToDto } from '../../../shared/taxes/line-tax-snapshot';
 
 function creditNoteToDto(creditNote: SalesCreditNote): SalesCreditNoteDto {
   return salesCreditNoteSchema.parse(creditNote);
@@ -21,8 +22,12 @@ function creditNoteToDto(creditNote: SalesCreditNote): SalesCreditNoteDto {
 function creditNoteWithLinesToDto(creditNote: SalesCreditNoteWithLines): SalesCreditNoteWithLinesDto {
   return salesCreditNoteWithLinesSchema.parse({
     ...creditNote,
-    lines: creditNote.lines.map((line) => ({ ...line, unitPrice: moneyToDto(line.unitPrice) })),
-    totalAmount: moneyToDto(creditNote.totalAmount),
+    lines: creditNote.lines.map((line) => ({
+      ...line,
+      unitPrice: moneyToDto(line.unitPrice),
+      netAmount: moneyToDto(line.netAmount),
+    })),
+    ...totalsToDto(creditNote),
   });
 }
 

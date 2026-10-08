@@ -37,6 +37,11 @@ interface SalesCreditNoteIssuedMetadata {
   customerId: string;
   currency: string;
   totalAmount: { amountMinorUnits: string; currency: string };
+  /** Since migration 0092 — see InvoicePostedMetadata. */
+  netAmount?: { amountMinorUnits: string; currency: string };
+  tableTaxAmount?: { amountMinorUnits: string; currency: string };
+  vatAmount?: { amountMinorUnits: string; currency: string };
+  withholdingAmount?: { amountMinorUnits: string; currency: string };
 }
 
 /**
@@ -175,7 +180,7 @@ export class AccountingAutoPostingListeners {
   /** The invoice's taxes in the ledger currency (zero for invoices from before migration 0092). */
   private async convertTaxes(
     db: Kysely<TenantDatabase>,
-    metadata: InvoicePostedMetadata,
+    metadata: Pick<InvoicePostedMetadata, 'vatAmount' | 'tableTaxAmount' | 'withholdingAmount'>,
     entryDate: string,
   ): Promise<{ vat: bigint; table: bigint; withholding: bigint }> {
     const convert = async (amount: { amountMinorUnits: string; currency: string } | undefined) =>
@@ -308,18 +313,25 @@ export class AccountingAutoPostingListeners {
       entryDate,
     );
 
-    const lines: CreateJournalEntryLineInput[] = [
+    // The exact reverse of the invoice's share: Dr returns (net) + output VAT + table tax /
+    // Cr receivables (total) + the withholding receivable the customer no longer keeps.
+    const taxes = await this.convertTaxes(db, metadata, entryDate);
+    const returnsNet = BigInt(amountMinorUnits) + taxes.withholding - taxes.vat - taxes.table;
+    const lines = compactLines([
+      { accountId: settings.salesReturnsContraAccountId, debit: returnsNet },
+      { accountId: taxes.vat ? this.mapped(settings.vatOutputAccountId, 'vatOutput') : '', debit: taxes.vat },
       {
-        accountId: settings.salesReturnsContraAccountId,
-        debitAmountMinorUnits: amountMinorUnits,
-        creditAmountMinorUnits: '0',
+        accountId: taxes.table ? this.mapped(settings.tableTaxOutputAccountId, 'tableTaxOutput') : '',
+        debit: taxes.table,
       },
       {
-        accountId: settings.accountsReceivableAccountId,
-        debitAmountMinorUnits: '0',
-        creditAmountMinorUnits: amountMinorUnits,
+        accountId: taxes.withholding
+          ? this.mapped(settings.withholdingReceivableAccountId, 'withholdingReceivable')
+          : '',
+        credit: taxes.withholding,
       },
-    ];
+      { accountId: settings.accountsReceivableAccountId, credit: BigInt(amountMinorUnits) },
+    ]);
 
     await this.journalEntries.createAuto(db, {
       entryDate,

@@ -71,6 +71,22 @@ export class KyselySalesInvoiceLineRepository implements SalesInvoiceLineReposit
     return toDomain(row);
   }
 
+  async listPostedBySalesOrderLineIds(
+    db: Kysely<TenantDatabase>,
+    salesOrderLineIds: string[],
+  ): Promise<SalesInvoiceLine[]> {
+    if (salesOrderLineIds.length === 0) return [];
+    const rows = await db
+      .selectFrom('sales_invoice_lines')
+      .innerJoin('sales_invoices', 'sales_invoices.id', 'sales_invoice_lines.sales_invoice_id')
+      .selectAll('sales_invoice_lines')
+      .where('sales_invoice_lines.sales_order_line_id', 'in', salesOrderLineIds)
+      .where('sales_invoices.status', '=', 'posted')
+      .orderBy('sales_invoice_lines.created_at')
+      .execute();
+    return rows.map(toDomain);
+  }
+
   async sumInvoicedQuantityBySalesOrderLineIds(
     db: Kysely<TenantDatabase>,
     salesOrderLineIds: string[],

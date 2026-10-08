@@ -30,6 +30,8 @@ export interface SalesInvoiceLineRepository {
    * count. Same shape as
    * PurchaseInvoiceLineRepository.sumInvoicedQuantityByPurchaseOrderLineIds.
    */
+  /** Lines of POSTED invoices for these sales order lines — what a later return is credited at. */
+  listPostedBySalesOrderLineIds(db: Kysely<TenantDatabase>, salesOrderLineIds: string[]): Promise<SalesInvoiceLine[]>;
   sumInvoicedQuantityBySalesOrderLineIds(
     db: Kysely<TenantDatabase>,
     salesOrderLineIds: string[],
