@@ -94,6 +94,58 @@ export async function readPrintLabels(
   };
 }
 
+const PAYMENT_METHOD_LABELS: Record<string, string> = {
+  cash: 'نقداً',
+  bank_transfer: 'تحويل بنكي',
+  check: 'شيك',
+  card: 'بطاقة',
+  other: 'أخرى',
+};
+
+/** Arabic payment method (receipts / supplier payments). */
+export function paymentMethodLabel(method: string): string {
+  return PAYMENT_METHOD_LABELS[method] ?? method;
+}
+
+/**
+ * Receipt / payment voucher rows: one per allocated invoice, plus the
+ * unallocated remainder (on-account) when there is one.
+ */
+export function allocationLinesDto(
+  allocations: readonly { invoiceNumber: string; amount: Money }[],
+  unallocated: Money,
+): PrintLineDto[] {
+  return [
+    ...allocations.map((allocation) => ({
+      description: `سداد فاتورة ${allocation.invoiceNumber}`,
+      amount: moneyDto(allocation.amount),
+    })),
+    ...(unallocated.isPositive() ? [{ description: 'دفعة تحت الحساب', amount: moneyDto(unallocated) }] : []),
+  ];
+}
+
+/** "تشغيلة L-01 (5) — انتهاء 2027-01-31، …" plus the line's own notes, for stock documents. */
+export function lotsDetails(
+  lots: readonly { lotNumber: string; quantity: number; expiryDate?: string | null }[],
+  notes: string | null = null,
+): string | null {
+  const lotText = lots
+    .map((lot) => `تشغيلة ${lot.lotNumber} (${lot.quantity})${lot.expiryDate ? ` — انتهاء ${lot.expiryDate}` : ''}`)
+    .join('، ');
+  return [lotText, notes].filter((part): part is string => !!part).join(' — ') || null;
+}
+
+/** Read-only name lookups of other modules' tables for print headers. */
+export async function readWarehouseName(db: Kysely<TenantDatabase>, id: string): Promise<string | null> {
+  const row = await db.selectFrom('warehouses').select('name').where('id', '=', id).executeTakeFirst();
+  return row?.name ?? null;
+}
+
+export async function readBankAccountName(db: Kysely<TenantDatabase>, id: string): Promise<string | null> {
+  const row = await db.selectFrom('bank_accounts').select('name').where('id', '=', id).executeTakeFirst();
+  return row?.name ?? null;
+}
+
 const STATUS_LABELS: Record<string, string> = {
   draft: 'مسودة',
   cancelled: 'ملغاة',

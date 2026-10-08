@@ -1,4 +1,9 @@
 import { Module } from '@nestjs/common';
+import { PurchaseOrderPrintProvider } from './infrastructure/printing/purchase-order.print-provider';
+import { GoodsReceiptPrintProvider } from './infrastructure/printing/goods-receipt.print-provider';
+import { PurchaseInvoicePrintProvider } from './infrastructure/printing/purchase-invoice.print-provider';
+import { SupplierPaymentPrintProvider } from './infrastructure/printing/supplier-payment.print-provider';
+import { PurchasesPrintRegistration } from './infrastructure/printing/purchases-print.registration';
 import { SettingsModule } from '../settings/settings.module';
 import { SUPPLIER_REPOSITORY } from './application/ports/supplier.repository';
 import { PURCHASE_REQUISITION_REPOSITORY } from './application/ports/purchase-requisition.repository';
@@ -137,6 +142,11 @@ import { StockAvailabilityChecker } from '../../shared/catalog/stock-availabilit
     SupplierPaymentsController,
   ],
   providers: [
+    PurchaseOrderPrintProvider,
+    GoodsReceiptPrintProvider,
+    PurchaseInvoicePrintProvider,
+    SupplierPaymentPrintProvider,
+    PurchasesPrintRegistration,
     ProductUnitResolver,
     StockAvailabilityChecker,
     { provide: SUPPLIER_REPOSITORY, useClass: KyselySupplierRepository },
