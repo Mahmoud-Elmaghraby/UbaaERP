@@ -12,15 +12,17 @@ import type {
   BankAccountFilters,
   BankAccountRegister,
   BankAccountRegisterLine,
-  CreateBankAccountInput,
-  UpdateBankAccountInput,
 } from '../../domain/bank-account.entity';
-import { BusinessRuleError, isPostgresUniqueViolation } from '../errors';
+import { BusinessRuleError } from '../errors';
 import { entityNotFound } from '../../../../shared/errors/entity-errors';
 import { ChartOfAccountsService } from './chart-of-accounts.service';
 import { categoryCanonicalSide } from './account-balance-sign';
 
 /**
+ * Bank register & reconciliation (CLAUDE.md §10 — step 5, Accounting, Stage 5),
+ * over the treasuries that are linked to a chart account. Since migration
+ * 0095 creating/editing treasuries belongs to the Treasury module.
+ *
  * Bank Accounts (CLAUDE.md §10 — step 5, Accounting, Stage 5). See
  * migration 0058's own comment for the chart_of_account_id link,
  * uniqueness, and opening-balance reasoning.
@@ -51,43 +53,6 @@ export class BankAccountsService {
     const bankAccount = await this.repository.findById(db, id);
     if (!bankAccount) throw entityNotFound('BANK_ACCOUNT', id);
     return bankAccount;
-  }
-
-  async create(db: Kysely<TenantDatabase>, input: CreateBankAccountInput): Promise<BankAccount> {
-    // Must be a postable (leaf, active) account — same rule journal
-    // entry lines themselves are held to, since this is exactly where
-    // this bank account's own movements will be posted.
-    await this.chartOfAccounts.assertPostable(db, input.chartOfAccountId);
-
-    try {
-      return await this.repository.create(db, input);
-    } catch (err) {
-      if (isPostgresUniqueViolation(err)) {
-        throw new BusinessRuleError(
-          'Another bank account is already linked to that chart of accounts entry — each GL account can back at most one bank account.',
-          { code: 'BANK_ACCOUNT.CHART_OF_ACCOUNT_ALREADY_LINKED' },
-        );
-      }
-      throw err;
-    }
-  }
-
-  async update(db: Kysely<TenantDatabase>, id: string, input: UpdateBankAccountInput): Promise<BankAccount> {
-    await this.getById(db, id);
-    const updated = await this.repository.update(db, id, input);
-    if (!updated) throw entityNotFound('BANK_ACCOUNT', id);
-    return updated;
-  }
-
-  async delete(db: Kysely<TenantDatabase>, id: string): Promise<void> {
-    await this.getById(db, id);
-    // No "still referenced" guard needed: deleting a bank account only
-    // removes this descriptive/reconciliation-metadata row — the
-    // journal_entry_lines it was reading from belong to the GL account
-    // (chart_of_accounts), not to the bank account, and are completely
-    // untouched by this delete.
-    const deleted = await this.repository.delete(db, id);
-    if (!deleted) throw entityNotFound('BANK_ACCOUNT', id);
   }
 
   /**

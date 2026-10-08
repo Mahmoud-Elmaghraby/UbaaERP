@@ -1,3 +1,4 @@
+import { PurchasesTreasuryMovements } from './infrastructure/statements/purchases-treasury-movements';
 import { SupplierStatementsController } from './presentation/supplier-statements.controller';
 import { SupplierLedgerSource } from './infrastructure/statements/supplier-ledger.source';
 import { Module } from '@nestjs/common';
@@ -145,6 +146,7 @@ import { StockAvailabilityChecker } from '../../shared/catalog/stock-availabilit
     SupplierPaymentsController,
   ],
   providers: [
+    PurchasesTreasuryMovements,
     SupplierLedgerSource,
     PurchaseOrderPrintProvider,
     GoodsReceiptPrintProvider,

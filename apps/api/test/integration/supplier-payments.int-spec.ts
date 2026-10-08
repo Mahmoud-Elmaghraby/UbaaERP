@@ -195,7 +195,8 @@ describe('Supplier payments (integration, real Postgres)', () => {
       paymentNumber: draft.paymentNumber,
       paymentDate: '2026-10-05',
       paymentMethod: 'cash',
-      bankAccountId: null,
+      // A cash payment with no treasury chosen goes out of the default cash box (migration 0095).
+      treasuryId: expect.any(String),
       amount: { amountMinorUnits: '15000', currency: 'EGP' },
       allocations: [{ purchaseInvoiceId: invoiceId, allocatedAmount: { amountMinorUnits: '6000', currency: 'EGP' } }],
     });
@@ -294,7 +295,7 @@ describe('Supplier payments (integration, real Postgres)', () => {
     expect(await outboxPayloads('purchases.supplier_payment.allocated', payment.id)).toHaveLength(2);
   });
 
-  it('only cancels / deletes drafts, and refuses a bank account on a cash payment', async () => {
+  it('only cancels / deletes drafts, and refuses an unknown treasury', async () => {
     const supplierId = await createSupplier();
     const posted = await service.create(db, { supplierId, amount: egp(5_00n), paymentMethod: 'cash' });
     await service.post(db, posted.id, 'test', null);
@@ -307,7 +308,7 @@ describe('Supplier payments (integration, real Postgres)', () => {
     await expect(service.getById(db, draft.id)).rejects.toMatchObject({ code: 'SUPPLIER_PAYMENT.NOT_FOUND' });
 
     await expect(
-      service.create(db, { supplierId, amount: egp(5_00n), paymentMethod: 'cash', bankAccountId: randomUUID() }),
-    ).rejects.toMatchObject({ code: 'PAYMENT.BANK_ACCOUNT_FOR_CASH' });
+      service.create(db, { supplierId, amount: egp(5_00n), paymentMethod: 'cash', treasuryId: randomUUID() }),
+    ).rejects.toMatchObject({ code: 'PAYMENT.TREASURY_UNUSABLE' });
   });
 });

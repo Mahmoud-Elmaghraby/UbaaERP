@@ -1,3 +1,4 @@
+import { resolvePaymentTreasury } from '../../../../shared/treasury/treasury-reader';
 import { Inject, Injectable } from '@nestjs/common';
 import type { Kysely } from 'kysely';
 import { Money } from '@erp-platform/shared-kernel';
@@ -83,8 +84,14 @@ export class PosSessionsService {
         { code: 'POS_SESSION.WAREHOUSE_REQUIRED' },
       );
     }
+    const treasuryId =
+      (await resolvePaymentTreasury(db, {
+        treasuryId: input.treasuryId,
+        paymentMethod: 'cash',
+        currency: input.openingCashAmount.currency,
+      })) ?? null;
     try {
-      return await this.repository.create(db, input);
+      return await this.repository.create(db, { ...input, treasuryId });
     } catch (err) {
       if (isPostgresForeignKeyViolation(err)) {
         throw entityNotFound('WAREHOUSE', input.warehouseId);
@@ -149,6 +156,7 @@ export class PosSessionsService {
           actorUserId,
           metadata: {
             cashierUserId: existing.cashierUserId,
+            treasuryId: existing.treasuryId,
             varianceAmount: {
               amountMinorUnits: varianceAmount.toMinorUnits().toString(),
               currency: varianceAmount.currency,

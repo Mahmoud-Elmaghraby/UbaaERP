@@ -595,8 +595,8 @@ export interface PaymentsReceivedTable {
   custom_fields: unknown;
   /** Migration 0060 — tags a payment as recorded within a POS cash session; null for every non-POS payment. */
   pos_session_id: string | null;
-  /** Migration 0089 — bank account a non-cash receipt was deposited to. */
-  bank_account_id: string | null;
+  /** Migration 0095 (was bank_account_id, 0089) — the treasury the money went into. */
+  treasury_id: string | null;
   created_at: Generated<Date>;
   updated_at: Generated<Date>;
 }
@@ -621,7 +621,8 @@ export interface SupplierPaymentsTable {
   reference_number: string | null;
   amount_amount: string;
   amount_currency: string;
-  bank_account_id: string | null;
+  /** Migration 0095 (was bank_account_id) — the treasury the money was paid from. */
+  treasury_id: string | null;
   notes: string | null;
   custom_fields: unknown;
   created_at: Generated<Date>;
@@ -1143,7 +1144,9 @@ export interface TenantDatabase {
   journal_entry_lines: JournalEntryLinesTable;
   accounting_settings: AccountingSettingsTable;
   cost_centers: CostCentersTable;
-  bank_accounts: BankAccountsTable;
+  treasuries: TreasuriesTable;
+  treasury_categories: TreasuryCategoriesTable;
+  treasury_vouchers: TreasuryVouchersTable;
   pos_sessions: PosSessionsTable;
   tenant_feature_toggles: TenantFeatureTogglesTable;
   attachments: AttachmentsTable;
@@ -1341,6 +1344,8 @@ export interface PosSessionsTable {
   closed_at: Date | null;
   created_at: Generated<Date>;
   updated_at: Generated<Date>;
+  /** Migration 0095 — the cash box the session's cash goes into. */
+  treasury_id: string | null;
 }
 
 export interface CostCentersTable {
@@ -1355,23 +1360,60 @@ export interface CostCentersTable {
   updated_at: Generated<Date>;
 }
 
-export interface BankAccountsTable {
+/** Migration 0095: the former bank_accounts — every place money sits (cash box, bank, e-wallet). */
+export interface TreasuriesTable {
   id: string;
+  code: string;
   name: string;
-  bank_name: string;
-  account_number: string;
+  kind: Generated<string>;
+  bank_name: string | null;
+  account_number: string | null;
   iban: string | null;
   currency: string;
-  chart_of_account_id: string;
-  opening_balance_amount: string;
+  /** Optional link to the chart of accounts (Accounting on); null → cash / default bank mapping. */
+  chart_of_account_id: string | null;
+  opening_balance_amount: Generated<string>;
   opening_balance_date: string | null;
   /** DB DEFAULT TRUE (migration 0058) — create() intentionally omits it. */
   is_active: Generated<boolean>;
+  is_default: Generated<boolean>;
   notes: string | null;
-  custom_fields: unknown;
+  custom_fields: Generated<unknown>;
   created_at: Generated<Date>;
   updated_at: Generated<Date>;
 }
+
+export interface TreasuryCategoriesTable {
+  id: string;
+  kind: string;
+  name: string;
+  chart_of_account_id: string | null;
+  is_active: Generated<boolean>;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
+export interface TreasuryVouchersTable {
+  id: string;
+  voucher_number: string;
+  kind: string;
+  status: Generated<string>;
+  voucher_date: string;
+  treasury_id: string;
+  to_treasury_id: string | null;
+  category_id: string | null;
+  amount: string;
+  currency: string;
+  counterparty: string | null;
+  description: string | null;
+  reference: string | null;
+  created_by_user_id: string | null;
+  cancelled_at: Date | null;
+  cancel_reason: string | null;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
 
 /** Migration 0069 — Layer 2 of claude/platform-flexibility-strategy.md
  * (tenant self-service module toggles, on top of Layer 1's Plan/

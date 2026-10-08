@@ -1,4 +1,4 @@
-import { assertUsableBankAccount } from '../../../../shared/treasury/bank-account-reader';
+import { resolvePaymentTreasury } from '../../../../shared/treasury/treasury-reader';
 import { Inject, Injectable } from '@nestjs/common';
 import type { Kysely } from 'kysely';
 import type { TenantDatabase } from '../../../../database/tenant/kysely-client';
@@ -221,7 +221,11 @@ export class PaymentsReceivedService {
 
     const allocationInputs = input.allocations ?? [];
     await this.validateAllocations(db, input.customerId, input.amount.currency, input.amount, allocationInputs);
-    await assertUsableBankAccount(db, input.bankAccountId, input.paymentMethod, input.amount.currency);
+    const treasuryId = await resolvePaymentTreasury(db, {
+      treasuryId: input.treasuryId,
+      paymentMethod: input.paymentMethod,
+      currency: input.amount.currency,
+    });
 
     try {
       return await withTransaction(db, async (trx) => {
@@ -237,7 +241,7 @@ export class PaymentsReceivedService {
           notes: input.notes ?? null,
           customFields: input.customFields ?? {},
           posSessionId: input.posSessionId ?? null,
-          bankAccountId: input.bankAccountId ?? null,
+          treasuryId,
         });
 
         const createdAllocations = [];
@@ -321,7 +325,7 @@ export class PaymentsReceivedService {
           paymentNumber: updated.paymentNumber,
           paymentDate: updated.paymentDate,
           paymentMethod: updated.paymentMethod,
-          bankAccountId: updated.bankAccountId,
+          treasuryId: updated.treasuryId,
           amount: { amountMinorUnits: updated.amount.toMinorUnits().toString(), currency: updated.amount.currency },
           allocations: allocations.map((a) => ({
             salesInvoiceId: a.salesInvoiceId,

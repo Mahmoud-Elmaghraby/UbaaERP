@@ -22,6 +22,8 @@ export interface PosSession {
   status: PosSessionStatus;
   openingCashAmount: Money;
   warehouseId: string | null;
+  /** Migration 0095 — the cash box this session's cash belongs to. */
+  treasuryId: string | null;
   expectedCashAmount: Money | null;
   countedCashAmount: Money | null;
   varianceAmount: Money | null;
@@ -36,6 +38,8 @@ export interface OpenPosSessionInput {
   cashierUserId: string;
   openingCashAmount: Money;
   warehouseId: string;
+  /** Optional — defaults to the main cash box of the session's currency. */
+  treasuryId?: string | null;
   notes?: string | null;
 }
 

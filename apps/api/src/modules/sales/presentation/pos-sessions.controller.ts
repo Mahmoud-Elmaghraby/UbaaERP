@@ -128,6 +128,7 @@ export class PosSessionsController {
       cashierUserId: user.sub,
       openingCashAmount: moneyFromDto(body.openingCashAmount),
       warehouseId: body.warehouseId,
+      treasuryId: body.treasuryId ?? null,
       notes: body.notes,
     });
     return toDto(session);

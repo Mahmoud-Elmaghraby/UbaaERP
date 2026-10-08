@@ -18,33 +18,36 @@ export type PartyLedgerKind =
   | 'purchase_invoice'
   | 'supplier_payment';
 
-export interface PartyLedgerEntry {
+export interface PartyLedgerEntry<K extends string = PartyLedgerKind> {
   /** ISO date (YYYY-MM-DD) the entry counts from. */
   date: string;
-  kind: PartyLedgerKind;
+  /** What the entry is (a document type, or 'opening_balance'). */
+  kind: K | 'opening_balance';
   documentId: string | null;
   number: string;
   /** A second reference to show (the supplier's own invoice number, a cheque number…). */
   reference: string | null;
   amountMinor: bigint;
+  /** Free text shown with the entry (a treasury movement's description). */
+  description?: string | null;
   /** Invoices only — when it falls due (aging). Null = due on its date. */
   dueDate: string | null;
   /** Tie-breaker for entries on the same date (creation time, ISO). */
   sequence: string;
 }
 
-export interface StatementRow extends PartyLedgerEntry {
+export interface StatementRow<K extends string = PartyLedgerKind> extends PartyLedgerEntry<K> {
   /** Increase of the balance (عليه for a customer / له for a supplier). */
   increaseMinor: bigint;
   decreaseMinor: bigint;
   balanceMinor: bigint;
 }
 
-export interface AccountStatement {
+export interface AccountStatement<K extends string = PartyLedgerKind> {
   from: string | null;
   to: string | null;
   openingBalanceMinor: bigint;
-  rows: StatementRow[];
+  rows: StatementRow<K>[];
   totalIncreaseMinor: bigint;
   totalDecreaseMinor: bigint;
   closingBalanceMinor: bigint;
@@ -52,7 +55,7 @@ export interface AccountStatement {
 
 const EPOCH = '0001-01-01';
 
-export function sortEntries(entries: readonly PartyLedgerEntry[]): PartyLedgerEntry[] {
+export function sortEntries<E extends PartyLedgerEntry<string>>(entries: readonly E[]): E[] {
   return [...entries].sort((a, b) => {
     if (a.date !== b.date) return a.date < b.date ? -1 : 1;
     // The opening balance always comes first on its date.
@@ -66,17 +69,17 @@ export function sortEntries(entries: readonly PartyLedgerEntry[]): PartyLedgerEn
  * `from` and `to` (inclusive) carry a running balance; anything after `to`
  * is ignored.
  */
-export function buildAccountStatement(
-  entries: readonly PartyLedgerEntry[],
+export function buildAccountStatement<K extends string = PartyLedgerKind>(
+  entries: readonly PartyLedgerEntry<K>[],
   range: { from?: string | null; to?: string | null } = {},
-): AccountStatement {
+): AccountStatement<K> {
   const from = range.from ?? null;
   const to = range.to ?? null;
   let balance = 0n;
   let opening = 0n;
   let totalIncrease = 0n;
   let totalDecrease = 0n;
-  const rows: StatementRow[] = [];
+  const rows: StatementRow<K>[] = [];
 
   for (const entry of sortEntries(entries)) {
     if (to && entry.date > to) break;
@@ -123,7 +126,7 @@ export interface AgingBuckets {
  * Independent of how payments were allocated to individual invoices, so an
  * unallocated payment or an opening balance age correctly too.
  */
-export function ageBalance(entries: readonly PartyLedgerEntry[], asOf: string): AgingBuckets {
+export function ageBalance(entries: readonly PartyLedgerEntry<string>[], asOf: string): AgingBuckets {
   const relevant = sortEntries(entries).filter((entry) => entry.date <= asOf);
   let credit = 0n;
   for (const entry of relevant) if (entry.amountMinor < 0n) credit += -entry.amountMinor;
@@ -164,7 +167,7 @@ export function daysBetween(from: string, to: string): number {
 }
 
 /** The opening balance as a ledger entry (dated first if no date was given). */
-export function openingBalanceEntry(amountMinor: bigint, date: string | null): PartyLedgerEntry | null {
+export function openingBalanceEntry(amountMinor: bigint, date: string | null): PartyLedgerEntry<never> | null {
   if (amountMinor === 0n) return null;
   return {
     date: date ?? EPOCH,

@@ -25,7 +25,7 @@ function toDomain(row: Selectable<PaymentsReceivedTable>): PaymentReceived {
     notes: row.notes,
     customFields: (row.custom_fields ?? {}) as Record<string, unknown>,
     posSessionId: row.pos_session_id,
-    bankAccountId: row.bank_account_id,
+    treasuryId: row.treasury_id,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -68,7 +68,7 @@ export class KyselyPaymentReceivedRepository implements PaymentReceivedRepositor
         notes: input.notes,
         custom_fields: JSON.stringify(input.customFields ?? {}),
         pos_session_id: input.posSessionId,
-        bank_account_id: input.bankAccountId,
+        treasury_id: input.treasuryId,
       })
       .returningAll()
       .executeTakeFirstOrThrow();

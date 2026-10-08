@@ -22,7 +22,7 @@ function toDomain(row: Selectable<SupplierPaymentsTable>): SupplierPayment {
     paymentMethod: row.payment_method as SupplierPaymentMethod,
     referenceNumber: row.reference_number,
     amount: Money.fromMinorUnits(BigInt(row.amount_amount), row.amount_currency),
-    bankAccountId: row.bank_account_id,
+    treasuryId: row.treasury_id,
     notes: row.notes,
     customFields: (row.custom_fields ?? {}) as Record<string, unknown>,
     createdAt: row.created_at,
@@ -64,7 +64,7 @@ export class KyselySupplierPaymentRepository implements SupplierPaymentRepositor
         reference_number: input.referenceNumber,
         amount_amount: input.amount.toMinorUnits().toString(),
         amount_currency: input.amount.currency,
-        bank_account_id: input.bankAccountId,
+        treasury_id: input.treasuryId,
         notes: input.notes,
         custom_fields: JSON.stringify(input.customFields ?? {}),
       })

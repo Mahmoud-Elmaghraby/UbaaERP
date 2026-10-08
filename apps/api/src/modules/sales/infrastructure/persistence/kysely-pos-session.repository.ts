@@ -13,6 +13,7 @@ function toDomain(row: Selectable<PosSessionsTable>): PosSession {
     status: row.status as PosSessionStatus,
     openingCashAmount: Money.fromMinorUnits(BigInt(row.opening_cash_amount), currency),
     warehouseId: row.warehouse_id,
+    treasuryId: row.treasury_id,
     expectedCashAmount: row.expected_cash_amount === null ? null : Money.fromMinorUnits(BigInt(row.expected_cash_amount), currency),
     countedCashAmount: row.counted_cash_amount === null ? null : Money.fromMinorUnits(BigInt(row.counted_cash_amount), currency),
     varianceAmount: row.variance_amount === null ? null : Money.fromMinorUnits(BigInt(row.variance_amount), currency),
@@ -100,6 +101,7 @@ export class KyselyPosSessionRepository implements PosSessionRepository {
         opening_cash_amount: input.openingCashAmount.toMinorUnits().toString(),
         currency: input.openingCashAmount.currency,
         warehouse_id: input.warehouseId,
+        treasury_id: input.treasuryId ?? null,
         notes: input.notes ?? null,
       })
       .returningAll()

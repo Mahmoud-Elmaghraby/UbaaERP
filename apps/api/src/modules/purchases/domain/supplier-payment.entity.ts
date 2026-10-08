@@ -27,7 +27,7 @@ export interface SupplierPayment {
   referenceNumber: string | null;
   amount: Money;
   /** Bank account the payment was made from; null = cash / default bank. */
-  bankAccountId: string | null;
+  treasuryId: string | null;
   notes: string | null;
   customFields: Record<string, unknown>;
   createdAt: Date;
@@ -53,7 +53,7 @@ export interface CreateSupplierPaymentInput {
   paymentDate?: string | null;
   referenceNumber?: string | null;
   allocations?: CreateSupplierPaymentAllocationInput[];
-  bankAccountId?: string | null;
+  treasuryId?: string | null;
   notes?: string | null;
   customFields?: Record<string, unknown>;
 }

@@ -14,7 +14,7 @@ export interface CreateSupplierPaymentRow {
   paymentMethod: SupplierPaymentMethod;
   referenceNumber: string | null;
   amount: Money;
-  bankAccountId: string | null;
+  treasuryId: string | null;
   notes: string | null;
   customFields: Record<string, unknown>;
 }

@@ -30,7 +30,7 @@ export const paymentReceivedSchema = z.object({
   /** Migration 0060 — set when this payment was recorded within a POS cash session (Stage 3 checkout); read-only, never accepted on create. */
   posSessionId: z.string().uuid().nullable(),
   /** Bank account a non-cash receipt was deposited to (null = cash, or the default bank account). */
-  bankAccountId: z.string().uuid().nullable(),
+  treasuryId: z.string().uuid().nullable(),
   createdAt: z.coerce.date(),
   updatedAt: z.coerce.date(),
 });
@@ -55,7 +55,7 @@ export const createPaymentReceivedSchema = z.object({
   paymentDate: z.string().nullable().optional(),
   referenceNumber: z.string().nullable().optional(),
   allocations: z.array(createPaymentAllocationSchema).optional(),
-  bankAccountId: z.string().uuid().nullable().optional(),
+  treasuryId: z.string().uuid().nullable().optional(),
   notes: z.string().nullable().optional(),
   customFields: z.record(z.unknown()).optional(),
 });

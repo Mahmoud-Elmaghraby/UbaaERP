@@ -3,7 +3,7 @@ import type { Kysely } from 'kysely';
 import { Money } from '@erp-platform/shared-kernel';
 import type { TenantDatabase } from '../../../../database/tenant/kysely-client';
 import { withTransaction } from '../../../../database/tenant/transaction.util';
-import { assertUsableBankAccount } from '../../../../shared/treasury/bank-account-reader';
+import { resolvePaymentTreasury } from '../../../../shared/treasury/treasury-reader';
 import { entityNotFound } from '../../../../shared/errors/entity-errors';
 import { NumberingSequencesService } from '../../../settings/application/services/numbering-sequences.service';
 import { OutboxWriterService } from '../../../../shared/outbox/application/services/outbox-writer.service';
@@ -216,7 +216,11 @@ export class SupplierPaymentsService {
 
     const allocationInputs = input.allocations ?? [];
     await this.validateAllocations(db, input.supplierId, input.amount.currency, input.amount, allocationInputs);
-    await assertUsableBankAccount(db, input.bankAccountId, input.paymentMethod, input.amount.currency);
+    const treasuryId = await resolvePaymentTreasury(db, {
+      treasuryId: input.treasuryId,
+      paymentMethod: input.paymentMethod,
+      currency: input.amount.currency,
+    });
 
     try {
       return await withTransaction(db, async (trx) => {
@@ -228,7 +232,7 @@ export class SupplierPaymentsService {
           paymentMethod: input.paymentMethod,
           referenceNumber: input.referenceNumber ?? null,
           amount: input.amount,
-          bankAccountId: input.bankAccountId ?? null,
+          treasuryId,
           notes: input.notes ?? null,
           customFields: input.customFields ?? {},
         });
@@ -288,7 +292,7 @@ export class SupplierPaymentsService {
           paymentNumber: updated.paymentNumber,
           paymentDate: updated.paymentDate,
           paymentMethod: updated.paymentMethod,
-          bankAccountId: updated.bankAccountId,
+          treasuryId: updated.treasuryId,
           amount: { amountMinorUnits: updated.amount.toMinorUnits().toString(), currency: updated.amount.currency },
           allocations: allocationsMetadata(allocations),
         },

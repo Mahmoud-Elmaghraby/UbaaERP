@@ -6,6 +6,7 @@ import { PrismaModule } from './shared/database/prisma.module';
 import { OutboxModule } from './shared/outbox/outbox.module';
 import { StorageModule } from './shared/storage/storage.module';
 import { PrintingModule } from './shared/printing/printing.module';
+import { TreasuryMovementsModule } from './shared/treasury/treasury-movements';
 import { SecretsEncryptionModule } from './shared/crypto/secrets-encryption.module';
 import { AuthInfraModule } from './shared/auth/auth-infra.module';
 import { EmailModule } from './shared/email/email.module';
@@ -19,6 +20,7 @@ import { PurchasesModule } from './modules/purchases/purchases.module';
 import { SalesModule } from './modules/sales/sales.module';
 import { AccountingModule } from './modules/accounting/accounting.module';
 import { AttachmentsModule } from './modules/attachments/attachments.module';
+import { TreasuryModule } from './modules/treasury/treasury.module';
 
 /**
  * Root application module for the ERP API.
@@ -58,6 +60,7 @@ import { AttachmentsModule } from './modules/attachments/attachments.module';
     OutboxModule,
     StorageModule,
     PrintingModule,
+    TreasuryMovementsModule,
     SecretsEncryptionModule,
     AuthInfraModule,
     EmailModule,
@@ -69,6 +72,7 @@ import { AttachmentsModule } from './modules/attachments/attachments.module';
     PurchasesModule,
     SalesModule,
     AccountingModule,
+    TreasuryModule,
     AttachmentsModule,
   ],
   controllers: [HealthController],

@@ -1,17 +1,13 @@
-import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
 import {
   bankAccountSchema,
   bankAccountLookupSchema,
   type BankAccountLookupDto,
   bankAccountRegisterSchema,
   bankAccountRegisterLineSchema,
-  createBankAccountSchema,
-  updateBankAccountSchema,
   type BankAccountDto,
   type BankAccountRegisterDto,
   type BankAccountRegisterLineDto,
-  type CreateBankAccountDto,
-  type UpdateBankAccountDto,
 } from '@erp-platform/contracts';
 import type { BankAccount, BankAccountRegister, BankAccountRegisterLine } from '../domain/bank-account.entity';
 import { TenantConnectionManager } from '../../../shared/tenancy/tenant-connection-manager';
@@ -24,7 +20,6 @@ import { PlanFeatureGuard } from '../../../shared/auth/plan-feature.guard';
 import { RequireAnyPermission, RequirePermissions } from '../../../shared/auth/require-permissions.decorator';
 import { RequireFeature } from '../../../shared/auth/require-feature.decorator';
 import { FEATURE_KEYS } from '../../../shared/plans/feature-catalog';
-import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 import { BankAccountsService } from '../application/services/bank-accounts.service';
 import { AccountingEventPublisher } from '../infrastructure/events/accounting-event-publisher';
 import { moneyToDto } from './money.mapper';
@@ -57,8 +52,9 @@ function registerToDto(register: BankAccountRegister): BankAccountRegisterDto {
 }
 
 /**
- * Bank Accounts (CLAUDE.md §10 — step 5, Accounting, Stage 5). CRUD
- * plus two read/action endpoints: the register (getRegister — a
+ * Bank Accounts (CLAUDE.md §10 — step 5, Accounting, Stage 5) — since
+ * migration 0095 the treasuries linked to a chart account; creating and
+ * editing them is the Treasury module's job. Read endpoints plus: the register (getRegister — a
  * general-ledger-shaped view of this account's own linked GL account,
  * with running balance and reconciliation status) and reconcile/
  * unreconcile (toggle one line's isReconciled flag). Gated behind
@@ -121,43 +117,6 @@ export class BankAccountsController {
     const db = this.connections.getClient(schema);
     const register = await this.service.getRegister(db, id, fromDate, toDate);
     return registerToDto(register);
-  }
-
-  @Post()
-  async create(
-    @CurrentTenantSchema() schema: string,
-    @CurrentUser() user: JwtAccessPayload,
-    @Body(new ZodValidationPipe(createBankAccountSchema)) body: CreateBankAccountDto,
-  ): Promise<BankAccountDto> {
-    const db = this.connections.getClient(schema);
-    const bankAccount = await this.service.create(db, body);
-    this.events.publish('bank_account', 'created', { schema, entityId: bankAccount.id, actorUserId: user.sub });
-    return toDto(bankAccount);
-  }
-
-  @Patch(':id')
-  async update(
-    @CurrentTenantSchema() schema: string,
-    @CurrentUser() user: JwtAccessPayload,
-    @Param('id') id: string,
-    @Body(new ZodValidationPipe(updateBankAccountSchema)) body: UpdateBankAccountDto,
-  ): Promise<BankAccountDto> {
-    const db = this.connections.getClient(schema);
-    const bankAccount = await this.service.update(db, id, body);
-    this.events.publish('bank_account', 'updated', { schema, entityId: bankAccount.id, actorUserId: user.sub });
-    return toDto(bankAccount);
-  }
-
-  @Delete(':id')
-  @HttpCode(HttpStatus.NO_CONTENT)
-  async delete(
-    @CurrentTenantSchema() schema: string,
-    @CurrentUser() user: JwtAccessPayload,
-    @Param('id') id: string,
-  ): Promise<void> {
-    const db = this.connections.getClient(schema);
-    await this.service.delete(db, id);
-    this.events.publish('bank_account', 'deleted', { schema, entityId: id, actorUserId: user.sub });
   }
 
   @Post(':id/lines/:lineId/reconcile')

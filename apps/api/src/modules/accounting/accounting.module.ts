@@ -33,6 +33,7 @@ import { BankAccountsService } from './application/services/bank-accounts.servic
 import { LedgerAmountService } from './application/services/ledger-amount.service';
 import { AccountingPaymentPostingListener } from './infrastructure/events/accounting-payment-posting.listener';
 import { AccountingOpeningBalanceListener } from './infrastructure/events/accounting-opening-balance.listener';
+import { AccountingTreasuryPostingListener } from './infrastructure/events/accounting-treasury-posting.listener';
 import { ExchangeRatesService } from './application/services/exchange-rates.service';
 import { ExchangeRateSyncService } from './application/services/exchange-rate-sync.service';
 import { CurrencyConversionService } from './application/services/currency-conversion.service';
@@ -202,6 +203,7 @@ import { AccountingAutoPostingListeners } from './infrastructure/events/accounti
     LedgerAmountService,
     AccountingPaymentPostingListener,
     AccountingOpeningBalanceListener,
+    AccountingTreasuryPostingListener,
     { provide: CHART_OF_ACCOUNT_REPOSITORY, useClass: KyselyChartOfAccountRepository },
     { provide: FISCAL_YEAR_REPOSITORY, useClass: KyselyFiscalYearRepository },
     { provide: ACCOUNTING_PERIOD_REPOSITORY, useClass: KyselyAccountingPeriodRepository },

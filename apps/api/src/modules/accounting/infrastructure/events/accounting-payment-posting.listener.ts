@@ -11,6 +11,7 @@ import { AccountingSettingsService } from '../../application/services/accounting
 import { LedgerAmountService } from '../../application/services/ledger-amount.service';
 import { BusinessRuleError } from '../../application/errors';
 import type { AccountingSettings } from '../../domain/accounting-settings.entity';
+import { resolveTreasuryAccount } from '../../application/services/treasury-account-resolver';
 
 /** PaymentsReceivedService.post()'s outbox metadata (sales.payment_received.posted). */
 export interface PaymentPostedMetadata {
@@ -18,6 +19,8 @@ export interface PaymentPostedMetadata {
   paymentNumber?: string;
   paymentDate?: string | null;
   paymentMethod?: string;
+  treasuryId?: string | null;
+  /** Outbox rows written before migration 0095. */
   bankAccountId?: string | null;
   amount: { amountMinorUnits: string; currency: string };
 }
@@ -28,6 +31,8 @@ export interface SupplierPaymentPostedMetadata {
   paymentNumber?: string;
   paymentDate?: string | null;
   paymentMethod?: string;
+  treasuryId?: string | null;
+  /** Outbox rows written before migration 0095. */
   bankAccountId?: string | null;
   amount: { amountMinorUnits: string; currency: string };
 }
@@ -125,24 +130,16 @@ export class AccountingPaymentPostingListener {
     });
   }
 
-  /** Where the money sits: the chosen bank account, else cash (cash method) or the default bank account. */
-  private async treasuryAccount(
+  /** Where the money sits — see resolveTreasuryAccount. Old outbox rows carry `bankAccountId` (same ids). */
+  private treasuryAccount(
     db: Kysely<TenantDatabase>,
     settings: AccountingSettings,
-    metadata: { paymentMethod?: string; bankAccountId?: string | null },
+    metadata: { paymentMethod?: string; treasuryId?: string | null; bankAccountId?: string | null },
   ): Promise<string> {
-    if (metadata.bankAccountId) {
-      const bank = await db
-        .selectFrom('bank_accounts')
-        .select(['chart_of_account_id'])
-        .where('id', '=', metadata.bankAccountId)
-        .executeTakeFirst();
-      if (bank) return bank.chart_of_account_id;
-    }
-    if (!metadata.paymentMethod || metadata.paymentMethod === 'cash') {
-      return required(settings.cashAccountId, 'حساب النقدية');
-    }
-    return required(settings.defaultBankAccountId ?? settings.cashAccountId, 'حساب البنك الافتراضي');
+    return resolveTreasuryAccount(db, settings, {
+      treasuryId: metadata.treasuryId ?? metadata.bankAccountId ?? null,
+      paymentMethod: metadata.paymentMethod,
+    });
   }
 }
 

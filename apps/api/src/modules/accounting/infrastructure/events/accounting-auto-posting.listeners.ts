@@ -1,3 +1,4 @@
+import { resolveTreasuryAccount } from '../../application/services/treasury-account-resolver';
 import { localIsoDate } from '../../../../shared/time/local-date';
 import { Injectable, Logger } from '@nestjs/common';
 import { OnOutboxEvent } from '../../../../shared/events/on-outbox-event.decorator';
@@ -79,6 +80,8 @@ interface PurchaseInvoicePostedMetadata extends InvoicePostedMetadata {
 /** PosSessionsService.close()'s outbox metadata (sales.pos_session.closed) — see that method's own comment. */
 interface PosSessionClosedMetadata {
   cashierUserId: string;
+  /** Since migration 0095 — the session's cash box. */
+  treasuryId?: string | null;
   varianceAmount: { amountMinorUnits: string; currency: string };
 }
 
@@ -561,24 +564,29 @@ export class AccountingAutoPostingListeners {
 
     const db = this.connections.getClient(payload.schema);
     const settings = await this.accountingSettings.get(db);
-    if (!settings.cashAccountId || !settings.cashOverShortAccountId) {
+    if (!settings.cashOverShortAccountId) {
       throw new BusinessRuleError(
         'Cannot auto-post the POS cash session variance: accounting_settings has no ' +
-          'cashAccountId/cashOverShortAccountId configured yet. Configure both via the Accounting Settings screen first.',
+          'cashOverShortAccountId configured yet. Configure it via the Accounting Settings screen first.',
       );
     }
+    // The session's own cash box (its linked account, else the cash mapping).
+    const cashAccountId = await resolveTreasuryAccount(db, settings, {
+      treasuryId: metadata.treasuryId ?? null,
+      paymentMethod: 'cash',
+    });
 
     const isOver = varianceMinorUnits > 0n;
     const absMinorUnits = (isOver ? varianceMinorUnits : -varianceMinorUnits).toString();
 
     const lines: CreateJournalEntryLineInput[] = isOver
       ? [
-          { accountId: settings.cashAccountId, debitAmountMinorUnits: absMinorUnits, creditAmountMinorUnits: '0' },
+          { accountId: cashAccountId, debitAmountMinorUnits: absMinorUnits, creditAmountMinorUnits: '0' },
           { accountId: settings.cashOverShortAccountId, debitAmountMinorUnits: '0', creditAmountMinorUnits: absMinorUnits },
         ]
       : [
           { accountId: settings.cashOverShortAccountId, debitAmountMinorUnits: absMinorUnits, creditAmountMinorUnits: '0' },
-          { accountId: settings.cashAccountId, debitAmountMinorUnits: '0', creditAmountMinorUnits: absMinorUnits },
+          { accountId: cashAccountId, debitAmountMinorUnits: '0', creditAmountMinorUnits: absMinorUnits },
         ];
 
     await this.journalEntries.createAuto(db, {

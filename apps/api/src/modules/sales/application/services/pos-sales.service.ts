@@ -212,6 +212,8 @@ export class PosSalesService {
           referenceNumber: tender.referenceNumber ?? null,
           allocations: [{ salesInvoiceId: postedInvoice.id, allocatedAmount: tender.amount }],
           posSessionId: session.id,
+          // Cash goes into the session's cash box; card/other tenders are settled elsewhere.
+          treasuryId: tender.paymentMethod === 'cash' ? session.treasuryId : null,
         });
         payments.push(await this.paymentsReceived.post(trx, payment.id, schema, actorUserId));
       }

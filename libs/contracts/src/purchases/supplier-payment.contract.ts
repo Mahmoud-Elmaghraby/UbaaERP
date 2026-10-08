@@ -25,7 +25,7 @@ export const supplierPaymentSchema = z.object({
   referenceNumber: z.string().nullable(),
   amount: moneySchema,
   /** Bank account the payment was made from (null = cash, or the default bank account). */
-  bankAccountId: z.string().uuid().nullable(),
+  treasuryId: z.string().uuid().nullable(),
   notes: z.string().nullable(),
   customFields: z.record(z.unknown()),
   createdAt: z.coerce.date(),
@@ -52,7 +52,7 @@ export const createSupplierPaymentSchema = z.object({
   paymentDate: z.string().nullable().optional(),
   referenceNumber: z.string().nullable().optional(),
   allocations: z.array(createSupplierPaymentAllocationSchema).optional(),
-  bankAccountId: z.string().uuid().nullable().optional(),
+  treasuryId: z.string().uuid().nullable().optional(),
   notes: z.string().nullable().optional(),
   customFields: z.record(z.unknown()).optional(),
 });

@@ -7,7 +7,7 @@ import {
   allocationLinesDto,
   amountTotalsDto,
   paymentMethodLabel,
-  readBankAccountName,
+  readTreasuryName,
   statusLabel,
 } from '../../../../shared/printing/print-helpers';
 import { SupplierPaymentsService } from '../../application/services/supplier-payments.service';
@@ -34,10 +34,10 @@ export class SupplierPaymentPrintProvider implements PrintProvider {
 
   async build(db: Kysely<TenantDatabase>, id: string): Promise<PrintDocumentBody> {
     const payment = await this.payments.getById(db, id);
-    const [supplier, invoices, bankAccountName] = await Promise.all([
+    const [supplier, invoices, treasuryName] = await Promise.all([
       this.suppliers.findById(db, payment.supplierId),
       Promise.all(payment.allocations.map((allocation) => this.invoices.findById(db, allocation.purchaseInvoiceId))),
-      payment.bankAccountId ? readBankAccountName(db, payment.bankAccountId) : null,
+      payment.treasuryId ? readTreasuryName(db, payment.treasuryId) : null,
     ]);
     return {
       id: payment.id,
@@ -51,7 +51,7 @@ export class SupplierPaymentPrintProvider implements PrintProvider {
       fields: [
         { label: 'طريقة الدفع', value: paymentMethodLabel(payment.paymentMethod) },
         ...(payment.referenceNumber ? [{ label: 'رقم المرجع', value: payment.referenceNumber }] : []),
-        ...(bankAccountName ? [{ label: 'الحساب البنكي', value: bankAccountName }] : []),
+        ...(treasuryName ? [{ label: 'الخزينة', value: treasuryName }] : []),
       ],
       lines: allocationLinesDto(
         payment.allocations.map((allocation, index) => {

@@ -141,8 +141,8 @@ export async function readWarehouseName(db: Kysely<TenantDatabase>, id: string):
   return row?.name ?? null;
 }
 
-export async function readBankAccountName(db: Kysely<TenantDatabase>, id: string): Promise<string | null> {
-  const row = await db.selectFrom('bank_accounts').select('name').where('id', '=', id).executeTakeFirst();
+export async function readTreasuryName(db: Kysely<TenantDatabase>, id: string): Promise<string | null> {
+  const row = await db.selectFrom('treasuries').select('name').where('id', '=', id).executeTakeFirst();
   return row?.name ?? null;
 }
 

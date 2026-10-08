@@ -31,6 +31,10 @@ export const DEFAULT_DOCUMENT_NUMBERING: Record<string, { prefix: string; paddin
   stock_adjustment: { prefix: 'ADJ-', paddingLength: 5 },
   stock_count: { prefix: 'CNT-', paddingLength: 5 },
   stock_opening: { prefix: 'OPN-', paddingLength: 5 },
+  // Treasury
+  treasury_expense: { prefix: 'EXP-', paddingLength: 5 },
+  treasury_income: { prefix: 'INC-', paddingLength: 5 },
+  treasury_transfer: { prefix: 'TRS-', paddingLength: 5 },
   // Accounting
   journal_entry: { prefix: 'JE-', paddingLength: 6 },
 };
