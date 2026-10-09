@@ -10,6 +10,10 @@
  * never touched.
  */
 export const DEFAULT_DOCUMENT_NUMBERING: Record<string, { prefix: string; paddingLength: number }> = {
+  // Master data codes (used when a code is left empty)
+  product: { prefix: 'ITM-', paddingLength: 5 },
+  customer: { prefix: 'CUS-', paddingLength: 5 },
+  supplier: { prefix: 'SUP-', paddingLength: 5 },
   // Sales
   quotation: { prefix: 'QT-', paddingLength: 5 },
   sales_order: { prefix: 'SO-', paddingLength: 5 },

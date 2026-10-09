@@ -20,6 +20,7 @@ import {
 import { useOpeningBalance, useSetOpeningBalance } from './queries';
 import { decimalToMinorUnits, minorUnitsToDecimalString } from '../../lib/money';
 import { ApiError } from '../../lib/api-client';
+import { CurrencySelect } from '../../components/document/currency-select';
 
 /**
  * رصيد أول المدة: amount + which way it goes (عليه / له) + date. Saving
@@ -88,7 +89,7 @@ export function OpeningBalanceDialog({
             <Label>{t('statements.opening.amount')}</Label>
             <div className="flex gap-2">
               <Input inputMode="decimal" dir="ltr" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" />
-              <Input className="w-24" dir="ltr" value={currency} maxLength={3} onChange={(e) => setCurrency(e.target.value.toUpperCase())} />
+              <CurrencySelect className="w-40" value={currency} onChange={setCurrency} />
             </div>
           </div>
           <div className="grid gap-1.5">

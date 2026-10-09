@@ -27,7 +27,8 @@ export type CustomerDto = z.infer<typeof customerSchema>;
 
 export const createCustomerSchema = z.object({
   name: z.string().min(1),
-  code: z.string().min(1),
+  /** Empty → the next automatic code (Settings › Numbering). */
+  code: z.string().trim().optional(),
   customerType: customerTypeSchema.optional(),
   contactPerson: z.string().nullable().optional(),
   email: z.string().email().nullable().optional(),

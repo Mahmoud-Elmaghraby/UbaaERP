@@ -27,7 +27,8 @@ export interface Supplier {
 
 export interface CreateSupplierInput {
   name: string;
-  code: string;
+  /** Empty → the next "supplier" number. */
+  code?: string;
   contactPerson?: string | null;
   email?: string | null;
   phone?: string | null;

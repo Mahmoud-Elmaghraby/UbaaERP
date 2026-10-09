@@ -7,7 +7,7 @@ export interface CustomerRepository {
   findById(db: Kysely<TenantDatabase>, id: string): Promise<Customer | null>;
   /** The tenant's seeded Walk-in Customer (migration 0063) — at most one row can ever match (partial UNIQUE index). Null only for a tenant provisioned before that migration and never backfilled. */
   findSystemDefault(db: Kysely<TenantDatabase>): Promise<Customer | null>;
-  create(db: Kysely<TenantDatabase>, input: CreateCustomerInput): Promise<Customer>;
+  create(db: Kysely<TenantDatabase>, input: CreateCustomerInput & { code: string }): Promise<Customer>;
   update(db: Kysely<TenantDatabase>, id: string, input: UpdateCustomerInput): Promise<Customer | null>;
   delete(db: Kysely<TenantDatabase>, id: string): Promise<boolean>;
 }

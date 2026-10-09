@@ -42,7 +42,8 @@ export interface Customer {
 
 export interface CreateCustomerInput {
   name: string;
-  code: string;
+  /** Empty → the next "customer" number. */
+  code?: string;
   customerType?: CustomerType;
   contactPerson?: string | null;
   email?: string | null;

@@ -43,7 +43,7 @@ export class KyselyCustomerRepository implements CustomerRepository {
     return row ? toDomain(row) : null;
   }
 
-  async create(db: Kysely<TenantDatabase>, input: CreateCustomerInput): Promise<Customer> {
+  async create(db: Kysely<TenantDatabase>, input: CreateCustomerInput & { code: string }): Promise<Customer> {
     const row = await db
       .insertInto('customers')
       .values({

@@ -16,6 +16,7 @@ import { useSalesCreditNotesBySalesReturn } from '../../api/sales-credit-notes/q
 import { useVariantIndex } from '../../hooks/sales-returns/use-variant-index';
 import { SALES_RETURN_STATUS_VARIANT, salesReturnStatusLabelKey } from './sales-return-status';
 import { QuantityWithUnit } from '../../../../components/product/unit-select';
+import { PrintButton } from '../../../../components/printing/print-button';
 
 /** Read-only header + lines, same shape as every other Sales/Purchases entity's details
  * view. No Money column — sales returns carry no unit cost (see PurchaseReturns'
@@ -36,6 +37,9 @@ export function SalesReturnDetailsView({ salesReturn }: { salesReturn: SalesRetu
 
   return (
     <div className="grid gap-3">
+      <div className="flex justify-end">
+        <PrintButton documentType="sales_return" id={salesReturn.id} />
+      </div>
       <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
         <div>
           <p className="text-muted-foreground">{t('sales.salesReturns.returnNumber')}</p>

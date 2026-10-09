@@ -22,7 +22,8 @@ export type SupplierDto = z.infer<typeof supplierSchema>;
 
 export const createSupplierSchema = z.object({
   name: z.string().min(1),
-  code: z.string().min(1),
+  /** Empty → the next automatic code (Settings › Numbering). */
+  code: z.string().trim().optional(),
   contactPerson: z.string().nullable().optional(),
   email: z.string().email().nullable().optional(),
   phone: z.string().nullable().optional(),

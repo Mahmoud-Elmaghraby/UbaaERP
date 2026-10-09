@@ -12,6 +12,7 @@ import type {
   UpdateNumberingSequenceInput,
 } from '../../domain/numbering-sequence.entity';
 import { ConflictError, isPostgresUniqueViolation } from '../errors';
+import { BusinessRuleError } from '../../../../shared/errors/domain-errors';
 import { entityNotFound } from '../../../../shared/errors/entity-errors';
 import { DEFAULT_DOCUMENT_NUMBERING } from '../../domain/numbering-defaults';
 
@@ -21,7 +22,15 @@ export class NumberingSequencesService {
     @Inject(NUMBERING_SEQUENCE_REPOSITORY) private readonly repository: NumberingSequenceRepository,
   ) {}
 
-  list(db: Kysely<TenantDatabase>): Promise<NumberingSequence[]> {
+  /**
+   * Every known document type, so Settings › Numbering shows (and lets the
+   * tenant rename) all of them from day one — not only the ones already
+   * used. Missing tenant-wide sequences are created with their defaults.
+   */
+  async list(db: Kysely<TenantDatabase>): Promise<NumberingSequence[]> {
+    for (const [documentType, defaults] of Object.entries(DEFAULT_DOCUMENT_NUMBERING)) {
+      await this.repository.ensureTenantWide(db, documentType, defaults);
+    }
     return this.repository.list(db);
   }
 
@@ -72,6 +81,26 @@ export class NumberingSequencesService {
     defaults: { prefix: string | null; paddingLength: number },
   ): Promise<void> {
     return this.repository.ensureTenantWide(db, documentType, defaults);
+  }
+
+  /**
+   * A master-data code (customer, supplier…) when the user left it empty:
+   * the next number of `documentType`, skipping numbers someone already
+   * typed by hand.
+   */
+  async allocateCode(
+    db: Kysely<TenantDatabase>,
+    documentType: string,
+    isTaken: (code: string) => Promise<boolean>,
+  ): Promise<string> {
+    for (let attempt = 0; attempt < 50; attempt += 1) {
+      const { formatted } = await this.allocateNext(db, documentType);
+      if (!(await isTaken(formatted))) return formatted;
+    }
+    throw new BusinessRuleError(`Could not find a free ${documentType} code — adjust its numbering in Settings.`, {
+      code: 'NUMBERING.NO_FREE_CODE',
+      params: { documentType },
+    });
   }
 
   /**

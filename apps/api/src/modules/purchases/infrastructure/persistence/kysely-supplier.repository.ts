@@ -36,7 +36,7 @@ export class KyselySupplierRepository implements SupplierRepository {
     return row ? toDomain(row) : null;
   }
 
-  async create(db: Kysely<TenantDatabase>, input: CreateSupplierInput): Promise<Supplier> {
+  async create(db: Kysely<TenantDatabase>, input: CreateSupplierInput & { code: string }): Promise<Supplier> {
     const row = await db
       .insertInto('suppliers')
       .values({

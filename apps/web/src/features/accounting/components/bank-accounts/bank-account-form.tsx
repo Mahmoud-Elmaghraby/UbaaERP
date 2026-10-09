@@ -37,6 +37,7 @@ import { useCreateBankAccount, useUpdateBankAccount } from '../../api/bank-accou
 import { usePostableAccounts } from '../../hooks/use-postable-accounts';
 import { decimalToMinorUnits, minorUnitsToDecimalString } from '../../../../lib/money';
 import { ApiError } from '../../../../lib/api-client';
+import { CurrencySelect } from '../../../../components/document/currency-select';
 
 const BANK_ACCOUNT_ENTITY_TYPE = 'bank_account';
 
@@ -217,7 +218,7 @@ export function CreateBankAccountForm({ onDone }: { onDone: () => void }) {
               <FormItem>
                 <FormLabel>{t('accounting.bankAccounts.currency')}</FormLabel>
                 <FormControl>
-                  <Input {...field} maxLength={3} className="uppercase" />
+                  <CurrencySelect value={field.value} onChange={field.onChange} />
                 </FormControl>
                 <FormMessage />
               </FormItem>

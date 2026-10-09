@@ -40,6 +40,7 @@ import { useCustomFieldDefinitions, useTenantSettings } from '../../../settings/
 import { useCreateCustomer, useUpdateCustomer } from '../../api/customers/queries';
 import { ApiError } from '../../../../lib/api-client';
 import { WhenTaxesInUse } from '../../../../components/taxes/when-taxes-in-use';
+import { CurrencySelect } from '../../../../components/document/currency-select';
 
 /**
  * Feature key from apps/api's FEATURE_KEYS.MULTI_CURRENCY (shared/plans/
@@ -145,7 +146,7 @@ export function CreateCustomerForm({ onDone }: { onDone: () => void }) {
             <FormItem>
               <FormLabel>{t('sales.customers.code')}</FormLabel>
               <FormControl>
-                <Input {...field} />
+                <Input {...field} value={field.value ?? ""} placeholder={t("common.autoCodePlaceholder")} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -263,13 +264,7 @@ export function CreateCustomerForm({ onDone }: { onDone: () => void }) {
             <FormItem>
               <FormLabel>{t('sales.customers.defaultCurrency')}</FormLabel>
               <FormControl>
-                <Input
-                  {...field}
-                  disabled={!multiCurrencyEnabled}
-                  placeholder="SAR"
-                  maxLength={3}
-                  className="uppercase"
-                />
+                <CurrencySelect value={field.value} onChange={field.onChange} disabled={!multiCurrencyEnabled} />
               </FormControl>
               {!multiCurrencyEnabled ? (
                 <p className="text-xs text-muted-foreground">{t('sales.customers.multiCurrencyDisabledHint')}</p>
@@ -534,14 +529,7 @@ export function EditCustomerForm({ customer, onDone }: { customer: CustomerDto; 
             <FormItem>
               <FormLabel>{t('sales.customers.defaultCurrency')}</FormLabel>
               <FormControl>
-                <Input
-                  {...field}
-                  value={field.value ?? ''}
-                  disabled={!multiCurrencyEnabled}
-                  placeholder="SAR"
-                  maxLength={3}
-                  className="uppercase"
-                />
+                <CurrencySelect value={field.value} onChange={field.onChange} disabled={!multiCurrencyEnabled} />
               </FormControl>
               {!multiCurrencyEnabled ? (
                 <p className="text-xs text-muted-foreground">{t('sales.customers.multiCurrencyDisabledHint')}</p>

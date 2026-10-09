@@ -55,6 +55,26 @@ import { ApiError } from '../../lib/api-client';
 
 const TENANT_WIDE = '__tenant_wide__';
 
+/** Document types by module, in the order the screen lists them (the API creates every one). */
+const NUMBERING_GROUPS: { group: string; types: string[] }[] = [
+  { group: 'master', types: ['product', 'customer', 'supplier'] },
+  { group: 'sales', types: ['quotation', 'sales_order', 'delivery', 'sales_invoice', 'sales_return', 'sales_credit_note', 'payment_received'] },
+  {
+    group: 'purchases',
+    types: ['purchase_requisition', 'request_for_quotation', 'purchase_order', 'goods_receipt', 'purchase_invoice', 'purchase_return', 'purchase_debit_note', 'supplier_payment'],
+  },
+  { group: 'inventory', types: ['stock_opening', 'stock_transfer', 'stock_adjustment', 'stock_count'] },
+  { group: 'treasury', types: ['treasury_expense', 'treasury_income', 'treasury_transfer'] },
+  { group: 'accounting', types: ['journal_entry'] },
+];
+const KNOWN_TYPES = NUMBERING_GROUPS.flatMap((g) => g.types);
+/** Internal counters that aren't document numbers. */
+const HIDDEN_TYPES = new Set(['product_barcode']);
+
+function sample(sequence: NumberingSequenceDto): string {
+  return `${sequence.prefix ?? ''}${String(sequence.nextNumber).padStart(sequence.paddingLength, '0')}`;
+}
+
 export function NumberingTab() {
   const { t } = useTranslation();
   const { data: sequences, isLoading } = useNumberingSequences();
@@ -62,6 +82,18 @@ export function NumberingTab() {
   const [createOpen, setCreateOpen] = useState(false);
   const [editing, setEditing] = useState<NumberingSequenceDto | null>(null);
   const deleteSequence = useDeleteNumberingSequence();
+
+  const typeLabel = (type: string) => t(`settings.numbering.types.${type}`, { defaultValue: type });
+  const visible = (sequences ?? []).filter((sequence) => !HIDDEN_TYPES.has(sequence.documentType));
+  const groups = [
+    ...NUMBERING_GROUPS.map(({ group, types }) => ({
+      group,
+      rows: visible
+        .filter((sequence) => types.includes(sequence.documentType))
+        .sort((a, b) => types.indexOf(a.documentType) - types.indexOf(b.documentType)),
+    })),
+    { group: 'other', rows: visible.filter((sequence) => !KNOWN_TYPES.includes(sequence.documentType)) },
+  ].filter((g) => g.rows.length > 0);
 
   const branchName = (branchId: string | null) =>
     branchId
@@ -108,17 +140,25 @@ export function NumberingTab() {
                 <TableHead>{t('settings.numbering.prefix')}</TableHead>
                 <TableHead>{t('settings.numbering.nextNumber')}</TableHead>
                 <TableHead>{t('settings.numbering.paddingLength')}</TableHead>
+                <TableHead>{t('settings.numbering.sample')}</TableHead>
                 <TableHead className="w-10" />
               </TableRow>
             </TableHeader>
             <TableBody>
-              {(sequences ?? []).map((sequence) => (
+              {groups.flatMap(({ group, rows }) => [
+                <TableRow key={`g-${group}`} className="bg-subtle hover:bg-subtle">
+                  <TableCell colSpan={7} className="py-2 text-xs font-semibold text-muted-foreground">
+                    {t(`settings.numbering.groups.${group}`)}
+                  </TableCell>
+                </TableRow>,
+                ...rows.map((sequence) => (
                 <TableRow key={sequence.id}>
-                  <TableCell className="font-medium">{sequence.documentType}</TableCell>
+                  <TableCell className="font-medium">{typeLabel(sequence.documentType)}</TableCell>
                   <TableCell>{branchName(sequence.branchId)}</TableCell>
-                  <TableCell>{sequence.prefix ?? '-'}</TableCell>
+                  <TableCell dir="ltr" className="text-end font-mono text-xs">{sequence.prefix ?? '-'}</TableCell>
                   <TableCell>{sequence.nextNumber}</TableCell>
                   <TableCell>{sequence.paddingLength}</TableCell>
+                  <TableCell dir="ltr" className="text-end font-mono text-xs">{sample(sequence)}</TableCell>
                   <TableCell>
                     <Can permission="settings.manage">
                       <DropdownMenu>
@@ -131,18 +171,22 @@ export function NumberingTab() {
                           <DropdownMenuItem onSelect={() => setEditing(sequence)}>
                             {t('common.edit')}
                           </DropdownMenuItem>
-                          <DropdownMenuItem onSelect={() => handleDelete(sequence.id)}>
-                            {t('common.delete')}
-                          </DropdownMenuItem>
+                          {/* A tenant-wide sequence would come back from 1 — only branch overrides are removable. */}
+                          {sequence.branchId ? (
+                            <DropdownMenuItem onSelect={() => handleDelete(sequence.id)}>
+                              {t('common.delete')}
+                            </DropdownMenuItem>
+                          ) : null}
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </Can>
                   </TableCell>
                 </TableRow>
-              ))}
-              {(sequences ?? []).length === 0 ? (
+                )),
+              ])}
+              {visible.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="py-8 text-center text-muted-foreground">
+                  <TableCell colSpan={7} className="py-8 text-center text-muted-foreground">
                     {t('common.noResults')}
                   </TableCell>
                 </TableRow>
@@ -200,9 +244,20 @@ function CreateSequenceForm({ onDone }: { onDone: () => void }) {
           render={({ field }) => (
             <FormItem>
               <FormLabel>{t('settings.numbering.documentType')}</FormLabel>
-              <FormControl>
-                <Input {...field} placeholder="sales_invoice" />
-              </FormControl>
+              <Select value={field.value || undefined} onValueChange={field.onChange}>
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {KNOWN_TYPES.map((type) => (
+                    <SelectItem key={type} value={type}>
+                      {t(`settings.numbering.types.${type}`)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <FormMessage />
             </FormItem>
           )}

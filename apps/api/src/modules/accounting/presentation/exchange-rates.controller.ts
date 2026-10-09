@@ -53,8 +53,11 @@ import { BusinessRuleError } from '../application/errors';
  * before turning the feature off can still read them.
  */
 @UseGuards(JwtAuthGuard, PermissionsGuard, PlanFeatureGuard)
-@RequirePermissions('accounting.manage')
-@RequireFeature(FEATURE_KEYS.ACCOUNTING)
+// Since 2026-10-09: Settings › Currencies owns rates, so they work without the
+// Accounting module — gated by Multi-Currency instead (receipts, treasuries and
+// parties use foreign currencies whether or not Accounting is on).
+@RequirePermissions('settings.manage')
+@RequireFeature(FEATURE_KEYS.MULTI_CURRENCY)
 @Controller('exchange-rates')
 export class ExchangeRatesController {
   constructor(

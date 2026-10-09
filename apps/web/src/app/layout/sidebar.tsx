@@ -1,7 +1,7 @@
 import { NavLink, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Can, cn, useFeatureChecker, usePermissions } from '@erp-platform/ui';
-import { PanelRightClose, PanelRightOpen } from 'lucide-react';
+import { PanelRightClose, PanelRightOpen, Settings2 } from 'lucide-react';
 
 import { hasAny } from '../../lib/permissions';
 import { NAV_GROUPS, isPathActive, type NavItem } from './nav-items';
@@ -27,7 +27,7 @@ export function Sidebar({ collapsed, onNavigate, onToggleCollapsed }: SidebarPro
     const label = t(item.labelKey);
 
     const node = (
-      <div key={item.to} className="flex flex-col gap-0.5">
+      <div key={item.to} className="group/item relative flex flex-col gap-0.5">
         <NavLink
           to={item.to}
           end={item.to === '/'}
@@ -45,6 +45,23 @@ export function Sidebar({ collapsed, onNavigate, onToggleCollapsed }: SidebarPro
           {Icon ? <Icon className="h-[18px] w-[18px] shrink-0" strokeWidth={1.9} aria-hidden="true" /> : null}
           {collapsed ? <span className="sr-only">{label}</span> : <span className="truncate">{label}</span>}
         </NavLink>
+        {item.settings && !collapsed && hasAny(granted, item.settings.permission) ? (
+          <NavLink
+            to={item.settings.to}
+            onClick={onNavigate}
+            title={t('nav.moduleSettings', { module: label })}
+            aria-label={t('nav.moduleSettings', { module: label })}
+            className={({ isActive }) =>
+              cn(
+                'absolute end-1.5 top-1.5 flex h-7 w-7 items-center justify-center rounded-md text-sidebar-mutedForeground opacity-0 transition hover:bg-sidebar-accent hover:text-sidebar-foreground focus-visible:opacity-100 group-hover/item:opacity-100',
+                (active || isActive) && 'opacity-100',
+                isActive && 'bg-sidebar-accent text-sidebar-accentForeground',
+              )
+            }
+          >
+            <Settings2 className="h-4 w-4" aria-hidden="true" />
+          </NavLink>
+        ) : null}
 
         {hasChildren && active && !collapsed ? (
           <div className="ms-[21px] flex flex-col gap-0.5 border-s border-sidebar-border ps-2.5 pb-1 pt-0.5">

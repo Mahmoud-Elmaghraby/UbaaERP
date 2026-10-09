@@ -1,4 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { NumberingSequencesService } from '../../../settings/application/services/numbering-sequences.service';
 import type { Kysely } from 'kysely';
 import type { TenantDatabase } from '../../../../database/tenant/kysely-client';
 import { CUSTOMER_REPOSITORY, type CustomerRepository } from '../ports/customer.repository';
@@ -8,7 +9,10 @@ import { duplicateEntity, entityNotFound } from '../../../../shared/errors/entit
 
 @Injectable()
 export class CustomersService {
-  constructor(@Inject(CUSTOMER_REPOSITORY) private readonly repository: CustomerRepository) {}
+  constructor(
+    @Inject(CUSTOMER_REPOSITORY) private readonly repository: CustomerRepository,
+    private readonly numbering: NumberingSequencesService,
+  ) {}
 
   list(db: Kysely<TenantDatabase>): Promise<Customer[]> {
     return this.repository.list(db);
@@ -21,8 +25,14 @@ export class CustomersService {
   }
 
   async create(db: Kysely<TenantDatabase>, input: CreateCustomerInput): Promise<Customer> {
+    // An empty code takes the next 'customer' number (Settings › Numbering).
+    const code =
+      input.code?.trim() ||
+      (await this.numbering.allocateCode(db, 'customer', async (candidate) =>
+        Boolean(await db.selectFrom('customers').select('id').where('code', '=', candidate).executeTakeFirst()),
+      ));
     try {
-      return await this.repository.create(db, input);
+      return await this.repository.create(db, { ...input, code });
     } catch (err) {
       if (isPostgresUniqueViolation(err)) {
         throw duplicateEntity('CUSTOMER', 'code', input.code);

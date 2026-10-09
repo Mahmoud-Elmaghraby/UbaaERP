@@ -55,6 +55,7 @@ import { ApiError } from '../../../../lib/api-client';
 import { formatMoney, minorUnitsToDecimalString, sumMinorUnits } from '../../../../lib/money';
 import { INV } from '../../../../lib/permissions';
 import { ADJUSTMENT_STATUS_VARIANT, ADJUSTMENTS_PATH } from '../../lib/document-status';
+import { PrintButton } from '../../../../components/printing/print-button';
 
 const NO_REASON = '__none__';
 
@@ -217,6 +218,7 @@ function AdjustmentEditor({ adjustment }: { adjustment: StockAdjustmentWithLines
                 {t(`inventory.adjustments.statuses.${status}`)}
               </Badge>
             ) : null}
+            {adjustment ? <PrintButton documentType="stock_adjustment" id={adjustment.id} /> : null}
           </h1>
           {adjustment ? (
             <p className="text-sm text-muted-foreground">

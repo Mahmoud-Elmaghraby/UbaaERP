@@ -39,6 +39,16 @@ export interface TenantSettingsTable {
   updated_at: Generated<Date>;
 }
 
+/** Migration 0098. */
+export interface CurrenciesTable {
+  code: string;
+  name: string;
+  symbol: string;
+  is_active: Generated<boolean>;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
 export interface BranchesTable {
   id: string;
   name: string;
@@ -1140,6 +1150,7 @@ export interface TenantDatabase {
   goods_receipts: GoodsReceiptsTable;
   goods_receipt_lines: GoodsReceiptLinesTable;
   purchase_returns: PurchaseReturnsTable;
+  currencies: CurrenciesTable;
   purchase_debit_notes: PurchaseDebitNotesTable;
   purchase_debit_note_lines: PurchaseDebitNoteLinesTable;
   purchase_return_lines: PurchaseReturnLinesTable;

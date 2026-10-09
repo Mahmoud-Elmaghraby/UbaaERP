@@ -6,6 +6,7 @@ import { PurchaseOrderPrintProvider } from './infrastructure/printing/purchase-o
 import { GoodsReceiptPrintProvider } from './infrastructure/printing/goods-receipt.print-provider';
 import { PurchaseInvoicePrintProvider } from './infrastructure/printing/purchase-invoice.print-provider';
 import { SupplierPaymentPrintProvider } from './infrastructure/printing/supplier-payment.print-provider';
+import { PurchaseReturnPrintProvider } from './infrastructure/printing/purchase-return.print-provider';
 import { PurchasesPrintRegistration } from './infrastructure/printing/purchases-print.registration';
 import { SettingsModule } from '../settings/settings.module';
 import { SUPPLIER_REPOSITORY } from './application/ports/supplier.repository';
@@ -153,6 +154,7 @@ import { StockAvailabilityChecker } from '../../shared/catalog/stock-availabilit
     GoodsReceiptPrintProvider,
     PurchaseInvoicePrintProvider,
     SupplierPaymentPrintProvider,
+    PurchaseReturnPrintProvider,
     PurchasesPrintRegistration,
     ProductUnitResolver,
     StockAvailabilityChecker,

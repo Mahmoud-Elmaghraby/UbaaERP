@@ -17,7 +17,7 @@ import {
 
 import { useFeatureToggles, useUpdateFeatureToggle } from './queries';
 import { ApiError } from '../../lib/api-client';
-import { InventorySettingsSection } from './inventory-settings-section';
+import { ModuleSettingsLinks } from './module-settings-links';
 
 /**
  * "الموديولات" tab — Layer 2 of the platform-flexibility design
@@ -105,7 +105,7 @@ export function ModulesTab() {
           </Table>
         )}
 
-        <InventorySettingsSection />
+        <ModuleSettingsLinks />
       </div>
     </Can>
   );

@@ -3,6 +3,9 @@ import { Outlet, type RouteObject } from 'react-router-dom';
 
 import { FirstAllowedRedirect } from '../../app/layout/first-allowed-redirect';
 
+const InventorySettingsPage = lazy(() =>
+  import('./components/inventory-settings-page').then((m) => ({ default: m.InventorySettingsPage })),
+);
 const ProductsPage = lazy(() => import('./components/products').then((m) => ({ default: m.ProductsPage })));
 const WarehousesPage = lazy(() => import('./components/warehouses').then((m) => ({ default: m.WarehousesPage })));
 const UnitsOfMeasurePage = lazy(() =>
@@ -53,6 +56,7 @@ export const inventoryRoutes: RouteObject[] = [
     children: [
       { index: true, element: <FirstAllowedRedirect section="/inventory" fallback="/inventory/products" /> },
       { path: 'products', element: <ProductsPage /> },
+      { path: 'settings', element: <InventorySettingsPage /> },
       { path: 'catalog', element: <CatalogPage /> },
       { path: 'labels', element: <LabelsPage /> },
       { path: 'warehouses', element: <WarehousesPage /> },

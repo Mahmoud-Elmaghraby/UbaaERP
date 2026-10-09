@@ -26,6 +26,7 @@ import {
 import { useCompanyLogo, useTenantSettings, useUpdateTenantSettings } from './queries';
 import { resizeImage } from '../../lib/image-resize';
 import { ApiError } from '../../lib/api-client';
+import { CurrencySelect } from '../../components/document/currency-select';
 
 /**
  * The "General" tab (master doc §9.2 lists currency alongside branches/
@@ -209,7 +210,7 @@ export function GeneralTab() {
                 <FormItem>
                   <FormLabel>{t('settings.general.currencyCode')}</FormLabel>
                   <FormControl>
-                    <Input {...field} maxLength={3} className="uppercase" placeholder="EGP" />
+                    <CurrencySelect value={field.value} onChange={field.onChange} />
                   </FormControl>
                   <FormDescription>{t('settings.general.currencyCodeHint')}</FormDescription>
                   <FormMessage />

@@ -1,5 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type {
+  CreateCurrencyDto,
+  CreateExchangeRateDto,
+  CurrencyDto,
+  ExchangeRateDto,
+  UpdateCurrencyDto,
   BranchDto,
   CreateBranchDto,
   CreateDocumentTemplateDto,
@@ -198,5 +203,33 @@ export function useUpdateFeatureToggle() {
     mutationFn: ({ featureKey, input }: { featureKey: string; input: UpdateFeatureToggleDto }) =>
       apiPatch<FeatureToggleDto>(`/feature-toggles/${encodeURIComponent(featureKey)}`, input),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['feature-toggles'] }),
+  });
+}
+
+/** Settings › Currencies — every currency picker reads this. */
+export function useCurrencies() {
+  return useQuery({ queryKey: ['currencies'], queryFn: () => apiGet<CurrencyDto[]>('/currencies'), staleTime: 5 * 60_000 });
+}
+
+export function useSaveCurrency() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (args: { code?: string; input: CreateCurrencyDto | UpdateCurrencyDto }) =>
+      args.code
+        ? apiPatch<CurrencyDto>(`/currencies/${args.code}`, args.input)
+        : apiPost<CurrencyDto>('/currencies', args.input),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['currencies'] }),
+  });
+}
+
+export function useExchangeRates(enabled: boolean) {
+  return useQuery({ queryKey: ['exchange-rates'], queryFn: () => apiGet<ExchangeRateDto[]>('/exchange-rates'), enabled });
+}
+
+export function useCreateExchangeRate() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: CreateExchangeRateDto) => apiPost<ExchangeRateDto>('/exchange-rates', input),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['exchange-rates'] }),
   });
 }

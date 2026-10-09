@@ -23,6 +23,7 @@ import { useSaveTreasury } from '../api/queries';
 import { ChartAccountSelect } from './chart-account-select';
 import { decimalToMinorUnits, minorUnitsToDecimalString } from '../../../lib/money';
 import { ApiError } from '../../../lib/api-client';
+import { CurrencySelect } from '../../../components/document/currency-select';
 
 const KINDS: TreasuryKindDto[] = ['cash', 'bank', 'wallet'];
 
@@ -138,13 +139,7 @@ export function TreasuryFormDialog({
             </div>
             <div className="grid gap-1.5">
               <Label>{t('treasury.form.currency')}</Label>
-              <Input
-                dir="ltr"
-                maxLength={3}
-                value={currency}
-                disabled={Boolean(treasury)}
-                onChange={(e) => setCurrency(e.target.value.toUpperCase())}
-              />
+<CurrencySelect value={currency} onChange={setCurrency} disabled={Boolean(treasury)} />
             </div>
           </div>
           {kind !== 'cash' ? (

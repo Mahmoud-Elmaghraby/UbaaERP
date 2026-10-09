@@ -1,3 +1,5 @@
+import { CurrenciesController } from './presentation/currencies.controller';
+import { CurrenciesService } from './application/services/currencies.service';
 import { CompanyProfileService } from './application/services/company-profile.service';
 import { Module } from '@nestjs/common';
 import { TENANT_SETTINGS_REPOSITORY } from './application/ports/tenant-settings.repository';
@@ -47,6 +49,7 @@ import { FeatureTogglesController } from './presentation/feature-toggles.control
 @Module({
   controllers: [
     SettingsController,
+    CurrenciesController,
     BranchesController,
     NumberingSequencesController,
     DocumentTemplatesController,
@@ -56,6 +59,7 @@ import { FeatureTogglesController } from './presentation/feature-toggles.control
   ],
   providers: [
     CompanyProfileService,
+    CurrenciesService,
     { provide: TENANT_SETTINGS_REPOSITORY, useClass: KyselyTenantSettingsRepository },
     { provide: BRANCH_REPOSITORY, useClass: KyselyBranchRepository },
     { provide: NUMBERING_SEQUENCE_REPOSITORY, useClass: KyselyNumberingSequenceRepository },
@@ -83,6 +87,6 @@ import { FeatureTogglesController } from './presentation/feature-toggles.control
   // (JournalEntriesService reads it via TenantSettingsService.get()),
   // the same foundational-dependency reasoning as NumberingSequencesService
   // above, not a business-module call.
-  exports: [NumberingSequencesService, TenantSettingsService, CompanyProfileService],
+  exports: [NumberingSequencesService, TenantSettingsService, CompanyProfileService, CurrenciesService],
 })
 export class SettingsModule {}

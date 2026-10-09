@@ -90,6 +90,11 @@ export const AR_MESSAGES: Record<string, string> = {
   'WAREHOUSE.DUPLICATE_CODE': 'يوجد مستودع آخر بنفس الرمز "{value}" بالفعل.',
   'WAREHOUSE_LOCATION.DUPLICATE_CODE_IN_WAREHOUSE':
     'يوجد موقع تخزين آخر بنفس الرمز "{code}" داخل هذا المستودع بالفعل.',
+  'CURRENCY.NOT_FOUND': 'العملة المطلوبة مش موجودة.',
+  'CURRENCY.DUPLICATE_CODE': 'العملة "{value}" موجودة بالفعل.',
+  'CURRENCY.COMPANY_CURRENCY': 'مينفعش توقف عملة الشركة الأساسية.',
+  'CURRENCY.NOT_USABLE': 'العملة "{code}" مش موجودة أو موقوفة — فعّلها من الإعدادات › العملات.',
+  'NUMBERING.NO_FREE_CODE': 'مفيش كود متاح للترقيم التلقائي — عدّل البادئة أو الرقم التالي من الإعدادات › ترقيم المستندات.',
   'PRODUCT.UNIT_REQUIRED': 'اختر وحدة القياس (مفيش وحدة افتراضية محددة في إعدادات المخزون).',
   'PRODUCT.CODE_REQUIRED': 'كود الصنف مطلوب (التوليد التلقائي للأكواد غير مفعّل من إعدادات المخزون).',
   'PRODUCT.CODE_GENERATION_FAILED': 'تعذّر توليد كود صنف جديد — راجع تسلسل ترقيم الأصناف في الإعدادات.',

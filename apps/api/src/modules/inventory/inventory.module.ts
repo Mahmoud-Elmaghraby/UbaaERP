@@ -1,3 +1,4 @@
+import { InventoryPrintRegistration } from './infrastructure/printing/inventory-print.registration';
 import { Module } from '@nestjs/common';
 import { SettingsModule } from '../settings/settings.module';
 import { UNIT_OF_MEASURE_REPOSITORY } from './application/ports/unit-of-measure.repository';
@@ -117,6 +118,7 @@ import { StockAvailabilityChecker } from '../../shared/catalog/stock-availabilit
     ProductImagesController,
   ],
   providers: [
+    InventoryPrintRegistration,
     { provide: UNIT_OF_MEASURE_REPOSITORY, useClass: KyselyUnitOfMeasureRepository },
     { provide: WAREHOUSE_REPOSITORY, useClass: KyselyWarehouseRepository },
     { provide: WAREHOUSE_LOCATION_REPOSITORY, useClass: KyselyWarehouseLocationRepository },

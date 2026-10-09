@@ -29,6 +29,8 @@ export interface NavItem {
   /** Sub-sections rendered as a nested list under this item, expanded whenever the current
    * route is this item's path or a descendant of it (see AppShell). */
   children?: NavItem[];
+  /** The module's own settings page — a gear next to the item in the sidebar. */
+  settings?: { to: string; permission?: string | string[] };
 }
 
 export interface NavGroup {
@@ -92,6 +94,7 @@ export const NAV_GROUPS: NavGroup[] = [
       },
       {
         to: '/inventory',
+        settings: { to: '/inventory/settings', permission: ['settings.manage', 'inventory.settings.manage'] },
         labelKey: 'nav.inventory',
         icon: Package,
         permission: ANY_INVENTORY_PERMISSION,
@@ -155,6 +158,7 @@ export const NAV_GROUPS: NavGroup[] = [
       },
       {
         to: '/accounting',
+        settings: { to: '/accounting/settings', permission: 'accounting.manage' },
         labelKey: 'nav.accounting',
         icon: Calculator,
         permission: 'accounting.manage',

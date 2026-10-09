@@ -58,6 +58,7 @@ import { ApiError } from '../../../../lib/api-client';
 import { formatMoney } from '../../../../lib/money';
 import { INV } from '../../../../lib/permissions';
 import { TRANSFER_STATUS_VARIANT, TRANSFERS_PATH } from '../../lib/document-status';
+import { PrintButton } from '../../../../components/printing/print-button';
 
 interface HeaderDraft {
   fromWarehouseId: string;
@@ -257,6 +258,7 @@ function TransferEditor({ transfer }: { transfer: StockTransferWithLinesDto | nu
                 {t(`inventory.transfers.statuses.${status}`)}
               </Badge>
             ) : null}
+            {transfer ? <PrintButton documentType="stock_transfer" id={transfer.id} /> : null}
           </h1>
           {transfer ? (
             <p className="text-sm text-muted-foreground">

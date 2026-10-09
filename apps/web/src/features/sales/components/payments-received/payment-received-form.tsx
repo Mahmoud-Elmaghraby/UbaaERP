@@ -41,6 +41,7 @@ import {
   PaymentAllocationEditor,
   type PaymentAllocationDraft,
 } from './payment-allocation-editor';
+import { CurrencySelect } from '../../../../components/document/currency-select';
 
 const PAYMENT_RECEIVED_ENTITY_TYPE = 'payment_received';
 
@@ -216,7 +217,7 @@ export function CreatePaymentReceivedForm({ onDone }: { onDone: () => void }) {
               <FormItem>
                 <FormLabel>{t('sales.paymentsReceived.currency')}</FormLabel>
                 <FormControl>
-                  <Input {...field} maxLength={3} className="uppercase" placeholder="SAR" />
+                  <CurrencySelect value={field.value} onChange={field.onChange} />
                 </FormControl>
                 <FormMessage />
               </FormItem>

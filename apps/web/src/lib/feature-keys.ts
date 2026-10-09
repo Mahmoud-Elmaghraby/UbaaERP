@@ -12,4 +12,5 @@ export const FEATURE_KEYS = {
   PURCHASES_SUPPLIER_QUOTATIONS: 'purchases.supplier_quotations',
   PURCHASES_PURCHASE_ORDERS: 'purchases.purchase_orders',
   PURCHASES_GOODS_RECEIPTS: 'purchases.goods_receipts',
+  MULTI_CURRENCY: 'multi_currency',
 } as const;

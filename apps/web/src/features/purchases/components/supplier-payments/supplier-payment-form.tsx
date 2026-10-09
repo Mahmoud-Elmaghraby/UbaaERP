@@ -37,6 +37,7 @@ import {
   SupplierPaymentAllocationEditor,
   type SupplierAllocationDraft,
 } from './supplier-payment-allocation-editor';
+import { CurrencySelect } from '../../../../components/document/currency-select';
 
 const SUPPLIER_PAYMENT_ENTITY_TYPE = 'supplier_payment';
 const PAYMENT_METHODS = paymentMethodSchema.options;
@@ -184,13 +185,7 @@ export function CreateSupplierPaymentForm({ onDone }: { onDone: () => void }) {
               <FormItem>
                 <FormLabel>{t('purchases.supplierPayments.currency')}</FormLabel>
                 <FormControl>
-                  <Input
-                    {...field}
-                    onChange={(e) => field.onChange(e.target.value.toUpperCase())}
-                    maxLength={3}
-                    className="uppercase"
-                    placeholder="EGP"
-                  />
+                  <CurrencySelect value={field.value} onChange={field.onChange} />
                 </FormControl>
                 <FormMessage />
               </FormItem>

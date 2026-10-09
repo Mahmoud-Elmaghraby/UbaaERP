@@ -4,6 +4,7 @@ import { PartyStatementPrintProvider } from '../../../../shared/statements/party
 import { CustomerLedgerSource } from '../statements/customer-ledger.source';
 import { SalesInvoicePrintProvider } from './sales-invoice.print-provider';
 import { SalesCreditNotePrintProvider } from './sales-credit-note.print-provider';
+import { SalesReturnPrintProvider } from './sales-return.print-provider';
 import { PaymentReceivedPrintProvider } from './payment-received.print-provider';
 import { QuotationPrintProvider } from './quotation.print-provider';
 import { SalesOrderPrintProvider } from './sales-order.print-provider';
@@ -21,6 +22,7 @@ export class SalesPrintRegistration implements OnModuleInit {
     private readonly quotation: QuotationPrintProvider,
     private readonly salesOrder: SalesOrderPrintProvider,
     private readonly delivery: DeliveryPrintProvider,
+    private readonly salesReturn: SalesReturnPrintProvider,
   ) {}
 
   onModuleInit(): void {
@@ -30,6 +32,7 @@ export class SalesPrintRegistration implements OnModuleInit {
       this.salesOrder,
       this.delivery,
       this.salesInvoice,
+      this.salesReturn,
       this.salesCreditNote,
       this.paymentReceived,
     );

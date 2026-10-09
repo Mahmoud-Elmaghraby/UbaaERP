@@ -28,6 +28,30 @@ describe('Settings & Users CRUD (e2e, real HTTP)', () => {
     await app.close();
   });
 
+  it('numbering lists every document type, and an empty customer/supplier code is numbered automatically', async () => {
+    const server = app.getHttpServer();
+    const sequences = await request(server).get('/numbering-sequences').set(...ownerAuth).expect(200);
+    const types = sequences.body.map((s: { documentType: string }) => s.documentType);
+    expect(types).toEqual(expect.arrayContaining(['sales_invoice', 'purchase_order', 'customer', 'supplier', 'journal_entry']));
+
+    const customer = await request(server).post('/customers').set(...ownerAuth).send({ name: `Auto ${randomUUID().slice(0, 6)}`, code: '', defaultCurrency: 'EGP' });
+    if (customer.status !== 201) throw new Error(JSON.stringify(customer.body));
+    expect(customer.body.code).toMatch(/^CUS-\d{5}$/);
+    const supplier = await request(server).post('/suppliers').set(...ownerAuth).send({ name: `Auto ${randomUUID().slice(0, 6)}`, defaultCurrency: 'EGP' }).expect(201);
+    expect(supplier.body.code).toMatch(/^SUP-\d{5}$/);
+  });
+
+  it('currencies: listed, addable, and the company currency must be an active one', async () => {
+    const server = app.getHttpServer();
+    const list = await request(server).get('/currencies').set(...ownerAuth).expect(200);
+    expect(list.body.some((c: { code: string }) => c.code === 'EGP')).toBe(true);
+    const code = `Q${randomUUID().replace(/[^a-z]/g, '').slice(0, 2).toUpperCase().padEnd(2, 'Z')}`;
+    await request(server).post('/currencies').set(...ownerAuth).send({ code, name: 'عملة تجربة', symbol: 'ت' }).expect(201);
+    await request(server).patch(`/currencies/${code}`).set(...ownerAuth).send({ isActive: false }).expect(200);
+    const refused = await request(server).patch('/settings').set(...ownerAuth).send({ currencyCode: code });
+    expect(refused.status).toBe(422);
+  });
+
   it('branches: full create -> list -> get -> update -> delete -> 404 round trip', async () => {
     const server = app.getHttpServer();
     const code = `E2E-${randomUUID().slice(0, 8)}`;

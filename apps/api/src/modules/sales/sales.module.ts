@@ -7,6 +7,7 @@ import { PaymentReceivedPrintProvider } from './infrastructure/printing/payment-
 import { QuotationPrintProvider } from './infrastructure/printing/quotation.print-provider';
 import { SalesOrderPrintProvider } from './infrastructure/printing/sales-order.print-provider';
 import { DeliveryPrintProvider } from './infrastructure/printing/delivery.print-provider';
+import { SalesReturnPrintProvider } from './infrastructure/printing/sales-return.print-provider';
 import { SalesPrintRegistration } from './infrastructure/printing/sales-print.registration';
 import { Module } from '@nestjs/common';
 import { SettingsModule } from '../settings/settings.module';
@@ -213,6 +214,7 @@ import { StockAvailabilityChecker } from '../../shared/catalog/stock-availabilit
     CustomerLedgerSource,
     SalesInvoicePrintProvider,
     SalesCreditNotePrintProvider,
+    SalesReturnPrintProvider,
     PaymentReceivedPrintProvider,
     QuotationPrintProvider,
     SalesOrderPrintProvider,

@@ -37,6 +37,7 @@ export const ENTITY_LABELS = {
   FISCAL_YEAR: 'Fiscal year',
   CHART_OF_ACCOUNT: 'Chart of accounts entry',
   BANK_ACCOUNT: 'Bank account',
+  CURRENCY: 'Currency',
   TREASURY: 'Treasury',
   TREASURY_CATEGORY: 'Treasury item',
   TREASURY_VOUCHER: 'Treasury voucher',

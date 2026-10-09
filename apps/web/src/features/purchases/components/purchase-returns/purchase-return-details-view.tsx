@@ -18,6 +18,7 @@ import {
   purchaseReturnStatusLabelKey,
 } from './purchase-return-status';
 import { QuantityWithUnit } from '../../../../components/product/unit-select';
+import { PrintButton } from '../../../../components/printing/print-button';
 
 /** Read-only header + lines, same shape as every other Purchases entity's details view. */
 export function PurchaseReturnDetailsView({
@@ -36,6 +37,9 @@ export function PurchaseReturnDetailsView({
 
   return (
     <div className="grid gap-3">
+      <div className="flex justify-end">
+        <PrintButton documentType="purchase_return" id={purchaseReturn.id} />
+      </div>
       <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
         <div>
           <p className="text-muted-foreground">{t('purchases.purchaseReturns.returnNumber')}</p>

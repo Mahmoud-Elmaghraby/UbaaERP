@@ -35,6 +35,7 @@ import { useCustomFieldDefinitions, useTenantSettings } from '../../../settings/
 import { useCreateSupplier, useUpdateSupplier } from '../../api/suppliers/queries';
 import { ApiError } from '../../../../lib/api-client';
 import { WhenTaxesInUse } from '../../../../components/taxes/when-taxes-in-use';
+import { CurrencySelect } from '../../../../components/document/currency-select';
 
 const SUPPLIER_ENTITY_TYPE = 'supplier';
 
@@ -124,7 +125,7 @@ export function CreateSupplierForm({ onDone }: { onDone: () => void }) {
             <FormItem>
               <FormLabel>{t('purchases.suppliers.code')}</FormLabel>
               <FormControl>
-                <Input {...field} />
+                <Input {...field} value={field.value ?? ""} placeholder={t("common.autoCodePlaceholder")} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -221,13 +222,7 @@ export function CreateSupplierForm({ onDone }: { onDone: () => void }) {
             <FormItem>
               <FormLabel>{t('purchases.suppliers.defaultCurrency')}</FormLabel>
               <FormControl>
-                <Input
-                  {...field}
-                  disabled={!multiCurrencyEnabled}
-                  placeholder="SAR"
-                  maxLength={3}
-                  className="uppercase"
-                />
+                <CurrencySelect value={field.value} onChange={field.onChange} disabled={!multiCurrencyEnabled} />
               </FormControl>
               {!multiCurrencyEnabled ? (
                 <p className="text-xs text-muted-foreground">{t('purchases.suppliers.multiCurrencyDisabledHint')}</p>
@@ -468,14 +463,7 @@ export function EditSupplierForm({ supplier, onDone }: { supplier: SupplierDto; 
             <FormItem>
               <FormLabel>{t('purchases.suppliers.defaultCurrency')}</FormLabel>
               <FormControl>
-                <Input
-                  {...field}
-                  value={field.value ?? ''}
-                  disabled={!multiCurrencyEnabled}
-                  placeholder="SAR"
-                  maxLength={3}
-                  className="uppercase"
-                />
+                <CurrencySelect value={field.value} onChange={field.onChange} disabled={!multiCurrencyEnabled} />
               </FormControl>
               {!multiCurrencyEnabled ? (
                 <p className="text-xs text-muted-foreground">{t('purchases.suppliers.multiCurrencyDisabledHint')}</p>

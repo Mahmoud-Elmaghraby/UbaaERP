@@ -6,6 +6,7 @@ import { PurchaseOrderPrintProvider } from './purchase-order.print-provider';
 import { GoodsReceiptPrintProvider } from './goods-receipt.print-provider';
 import { PurchaseInvoicePrintProvider } from './purchase-invoice.print-provider';
 import { SupplierPaymentPrintProvider } from './supplier-payment.print-provider';
+import { PurchaseReturnPrintProvider } from './purchase-return.print-provider';
 
 /** Registers Purchases' printable documents with the central print service. */
 @Injectable()
@@ -17,6 +18,7 @@ export class PurchasesPrintRegistration implements OnModuleInit {
     private readonly goodsReceipt: GoodsReceiptPrintProvider,
     private readonly purchaseInvoice: PurchaseInvoicePrintProvider,
     private readonly supplierPayment: SupplierPaymentPrintProvider,
+    private readonly purchaseReturn: PurchaseReturnPrintProvider,
   ) {}
 
   onModuleInit(): void {
@@ -25,6 +27,7 @@ export class PurchasesPrintRegistration implements OnModuleInit {
       this.goodsReceipt,
       this.purchaseInvoice,
       this.supplierPayment,
+      this.purchaseReturn,
       new PartyStatementPrintProvider(this.supplierLedger, 'supplier_statement', 'كشف حساب مورد', ['purchases.manage']),
     );
   }

@@ -5,7 +5,7 @@ import type { Supplier, CreateSupplierInput, UpdateSupplierInput } from '../../d
 export interface SupplierRepository {
   list(db: Kysely<TenantDatabase>): Promise<Supplier[]>;
   findById(db: Kysely<TenantDatabase>, id: string): Promise<Supplier | null>;
-  create(db: Kysely<TenantDatabase>, input: CreateSupplierInput): Promise<Supplier>;
+  create(db: Kysely<TenantDatabase>, input: CreateSupplierInput & { code: string }): Promise<Supplier>;
   update(db: Kysely<TenantDatabase>, id: string, input: UpdateSupplierInput): Promise<Supplier | null>;
   delete(db: Kysely<TenantDatabase>, id: string): Promise<boolean>;
 }

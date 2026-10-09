@@ -46,10 +46,10 @@ describe('TenantSettingsService', () => {
   });
 
   it('update() delegates to repository.update() with the given input', async () => {
-    const updated = makeSettings({ currencyCode: 'USD' });
+    const updated = makeSettings({ companyName: 'شركة' });
     repository.update.mockResolvedValue(updated);
 
-    await expect(service.update(FAKE_DB, { currencyCode: 'USD' })).resolves.toBe(updated);
-    expect(repository.update).toHaveBeenCalledWith(FAKE_DB, { currencyCode: 'USD' });
+    await expect(service.update(FAKE_DB, { companyName: 'شركة' })).resolves.toBe(updated);
+    expect(repository.update).toHaveBeenCalledWith(FAKE_DB, { companyName: 'شركة' });
   });
 });
