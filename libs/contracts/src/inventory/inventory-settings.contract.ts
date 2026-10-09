@@ -16,6 +16,8 @@ export const inventorySettingsSchema = z.object({
   scaleItemCodeLength: z.number().int(),
   scaleValueType: scaleValueTypeSchema,
   scaleValueDecimals: z.number().int(),
+  /** Unit of a new product when none is chosen — migration 0097. */
+  defaultUnitOfMeasureId: z.string().uuid().nullable(),
   updatedAt: z.coerce.date(),
 });
 export type InventorySettingsDto = z.infer<typeof inventorySettingsSchema>;
@@ -31,6 +33,7 @@ export const updateInventorySettingsSchema = z
     scaleItemCodeLength: z.number().int().min(3).max(7),
     scaleValueType: scaleValueTypeSchema,
     scaleValueDecimals: z.number().int().min(0).max(3),
+    defaultUnitOfMeasureId: z.string().uuid().nullable(),
   })
   .partial();
 export type UpdateInventorySettingsDto = z.infer<typeof updateInventorySettingsSchema>;

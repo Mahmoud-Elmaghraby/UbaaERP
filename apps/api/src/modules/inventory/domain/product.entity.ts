@@ -51,12 +51,15 @@ export interface CreateProductInput extends ProductMasterDataInput {
   code?: string;
   name: string;
   description?: string | null;
-  unitOfMeasureId: string;
+  /** Omitted → Inventory settings' default unit. */
+  unitOfMeasureId?: string;
   trackVariants?: boolean;
   trackingType?: ProductTrackingType;
   attributes?: string[];
   isActive?: boolean;
   customFields?: Record<string, unknown>;
+  /** Options whose every combination becomes a variant, created with the product. */
+  variantOptions?: Record<string, string[]>;
   /**
    * When trackVariants is false (the common case), the service creates a
    * single default variant for this product. Its SKU defaults to the

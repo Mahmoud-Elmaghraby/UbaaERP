@@ -90,6 +90,7 @@ export const AR_MESSAGES: Record<string, string> = {
   'WAREHOUSE.DUPLICATE_CODE': 'يوجد مستودع آخر بنفس الرمز "{value}" بالفعل.',
   'WAREHOUSE_LOCATION.DUPLICATE_CODE_IN_WAREHOUSE':
     'يوجد موقع تخزين آخر بنفس الرمز "{code}" داخل هذا المستودع بالفعل.',
+  'PRODUCT.UNIT_REQUIRED': 'اختر وحدة القياس (مفيش وحدة افتراضية محددة في إعدادات المخزون).',
   'PRODUCT.CODE_REQUIRED': 'كود الصنف مطلوب (التوليد التلقائي للأكواد غير مفعّل من إعدادات المخزون).',
   'PRODUCT.CODE_GENERATION_FAILED': 'تعذّر توليد كود صنف جديد — راجع تسلسل ترقيم الأصناف في الإعدادات.',
   'PRODUCT_VARIANT.SKU_GENERATION_FAILED': 'تعذّر توليد رمز SKU للصنف.',

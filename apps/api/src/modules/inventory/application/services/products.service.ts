@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import type { Kysely } from 'kysely';
+import { sql, type Kysely } from 'kysely';
 import type { TenantDatabase } from '../../../../database/tenant/kysely-client';
 import { PRODUCT_REPOSITORY, type ProductRepository } from '../ports/product.repository';
 import { PRODUCT_VARIANT_REPOSITORY, type ProductVariantRepository } from '../ports/product-variant.repository';
@@ -36,6 +36,33 @@ export class ProductsService {
     return this.products.list(db);
   }
 
+  /**
+   * The options (size, colour, …) and values this tenant already uses on
+   * its variants, most used first — the product form offers them as
+   * one-click choices, so a shop's size ranges act as ready templates
+   * without a separate setup screen.
+   */
+  async variantOptionSuggestions(db: Kysely<TenantDatabase>): Promise<{ name: string; values: string[] }[]> {
+    const rows = await sql<{ name: string; value: string; uses: string }>`
+      SELECT kv.key AS name, kv.value #>> '{}' AS value, count(*) AS uses
+      FROM product_variants v, jsonb_each(v.attribute_values) kv
+      WHERE jsonb_typeof(kv.value) IN ('string', 'number')
+      GROUP BY 1, 2
+      ORDER BY 1, min(v.created_at), min(length(v.sku)), min(v.sku)
+    `.execute(db);
+    const byName = new Map<string, { uses: number; values: string[] }>();
+    for (const row of rows.rows) {
+      const entry = byName.get(row.name) ?? { uses: 0, values: [] };
+      entry.uses += Number(row.uses);
+      if (entry.values.length < 100) entry.values.push(row.value);
+      byName.set(row.name, entry);
+    }
+    return [...byName.entries()]
+      .sort((a, b) => b[1].uses - a[1].uses)
+      .slice(0, 20)
+      .map(([name, entry]) => ({ name, values: entry.values }));
+  }
+
   async getById(db: Kysely<TenantDatabase>, id: string): Promise<ProductWithVariants> {
     const product = await this.products.findById(db, id);
     if (!product) throw entityNotFound('PRODUCT', id);
@@ -58,7 +85,18 @@ export class ProductsService {
         const code = await this.codes.resolveItemCode(trx, input.code, async (candidate) =>
           Boolean(await this.products.findByCode(trx, candidate)),
         );
-        const product = await this.products.create(trx, { ...input, code });
+        const unitOfMeasureId = await this.codes.resolveUnit(trx, input.unitOfMeasureId);
+        const options = cleanOptions(input.variantOptions);
+        const withOptions = Object.keys(options).length > 0;
+        const product = await this.products.create(trx, {
+          ...input,
+          code,
+          unitOfMeasureId,
+          ...(withOptions ? { trackVariants: true, attributes: Object.keys(options) } : {}),
+        });
+        if (withOptions) {
+          return { ...product, variants: await this.createCombinations(trx, product, options, []) };
+        }
         const variants: ProductVariant[] = [];
         if (!product.trackVariants) {
           const variant = await this.variants.create(trx, {
@@ -225,7 +263,8 @@ export class ProductsService {
     options: Record<string, string[]>,
   ): Promise<ProductVariant[]> {
     const product = await this.getById(db, productId);
-    const names = Object.keys(options).filter((name) => (options[name] ?? []).some((value) => value.trim()));
+    const cleaned = cleanOptions(options);
+    const names = Object.keys(cleaned);
     const unknown = names.filter((name) => !product.attributes.includes(name));
     if (names.length === 0 || unknown.length > 0) {
       throw new BusinessRuleError('Pick values for the product\'s own attributes (e.g. size, colour).', {
@@ -233,7 +272,23 @@ export class ProductsService {
         params: { attributes: unknown.join('، ') },
       });
     }
-    const valueLists = names.map((name) => [...new Set(options[name].map((value) => value.trim()).filter(Boolean))]);
+    try {
+      return await withTransaction(db, (trx) => this.createCombinations(trx, product, cleaned, product.variants));
+    } catch (err) {
+      if (isPostgresUniqueViolation(err)) throw variantUniqueViolation(err, {});
+      throw err;
+    }
+  }
+
+  /** Every missing combination of `options` as a variant (auto SKU / barcode). */
+  private async createCombinations(
+    trx: Kysely<TenantDatabase>,
+    product: Product,
+    options: Record<string, string[]>,
+    existingVariants: readonly ProductVariant[],
+  ): Promise<ProductVariant[]> {
+    const names = Object.keys(options);
+    const valueLists = names.map((name) => options[name]!);
     const total = valueLists.reduce((count, list) => count * list.length, 1);
     if (total > MAX_MATRIX_VARIANTS) {
       throw new BusinessRuleError(`At most ${MAX_MATRIX_VARIANTS} combinations can be generated at once.`, {
@@ -248,28 +303,20 @@ export class ProductsService {
     });
 
     const keyOf = (values: Record<string, unknown>) => names.map((name) => String(values[name] ?? '').trim()).join('\u0000');
-    const existing = new Set(product.variants.map((variant) => keyOf(variant.attributeValues)));
-
-    try {
-      return await withTransaction(db, async (trx) => {
-        const created: ProductVariant[] = [];
-        for (const combo of combinations) {
-          if (existing.has(keyOf(combo))) continue;
-          created.push(
-            await this.variants.create(trx, {
-              productId,
-              attributeValues: combo,
-              sku: await this.codes.resolveVariantSku(trx, undefined, product.code),
-              barcode: await this.codes.resolveBarcode(trx, undefined),
-            }),
-          );
-        }
-        return created;
-      });
-    } catch (err) {
-      if (isPostgresUniqueViolation(err)) throw variantUniqueViolation(err, {});
-      throw err;
+    const existing = new Set(existingVariants.map((variant) => keyOf(variant.attributeValues)));
+    const created: ProductVariant[] = [];
+    for (const combo of combinations) {
+      if (existing.has(keyOf(combo))) continue;
+      created.push(
+        await this.variants.create(trx, {
+          productId: product.id,
+          attributeValues: combo,
+          sku: await this.codes.resolveVariantSku(trx, undefined, product.code),
+          barcode: await this.codes.resolveBarcode(trx, undefined),
+        }),
+      );
     }
+    return created;
   }
 
   private async requireVariantOf(db: Kysely<TenantDatabase>, productId: string, variantId: string): Promise<ProductVariant> {
@@ -331,4 +378,15 @@ function variantUniqueViolation(err: unknown, input: { sku?: string; barcode?: s
   return violatedConstraint(err) === 'product_variants_barcode_unique'
     ? duplicateEntity('PRODUCT_VARIANT', 'barcode', input.barcode ?? undefined)
     : duplicateEntity('PRODUCT_VARIANT', 'sku', input.sku);
+}
+
+/** Option name → its distinct, trimmed values; names without values are dropped. */
+function cleanOptions(options: Record<string, string[]> | undefined): Record<string, string[]> {
+  const result: Record<string, string[]> = {};
+  for (const [rawName, values] of Object.entries(options ?? {})) {
+    const name = rawName.trim();
+    const list = [...new Set((values ?? []).map((value) => value.trim()).filter(Boolean))];
+    if (name && list.length > 0) result[name] = list;
+  }
+  return result;
 }

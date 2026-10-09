@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useTranslation } from 'react-i18next';
@@ -33,7 +33,8 @@ import { useInventorySettings } from '../../api/catalog/queries';
 import { ProductMasterDataFields, usePriceDrafts } from './product-master-data-fields';
 import { useCreateProduct, useUpdateProduct } from '../../api/products/queries';
 import { ApiError } from '../../../../lib/api-client';
-import { AttributesInput, UnitOfMeasureField, TrackingTypeField } from './product-form-fields';
+import { AttributesInput, CompactUnitField, UnitOfMeasureField, TrackingTypeField } from './product-form-fields';
+import { VariantOptionsEditor, variantOptionsToRecord, type VariantOption } from './variant-options-editor';
 
 const PRODUCT_ENTITY_TYPE = 'product';
 
@@ -50,7 +51,9 @@ export function CreateProductForm({ onDone }: { onDone: () => void }) {
 
   const formSchema = useMemo(() => {
     // The form keeps an empty code as '' (auto mode); the API schema wants it omitted.
-    const staticSchema = createProductSchema.omit({ customFields: true }).extend({ code: z.string().trim().optional() });
+    const staticSchema = createProductSchema
+      .omit({ customFields: true })
+      .extend({ code: z.string().trim().optional(), unitOfMeasureId: z.string().optional() });
     if (!definitions) return staticSchema;
     return staticSchema.extend({ customFields: buildCustomFieldsSchema(definitions) });
   }, [definitions]);
@@ -67,7 +70,6 @@ export function CreateProductForm({ onDone }: { onDone: () => void }) {
       attributes: [],
       isActive: true,
       customFields: {},
-      defaultVariantSku: '',
       defaultVariantBarcode: '',
       itemType: 'stock',
       categoryId: null,
@@ -76,7 +78,9 @@ export function CreateProductForm({ onDone }: { onDone: () => void }) {
     },
   });
 
-  const trackVariants = form.watch('trackVariants');
+  const [options, setOptions] = useState<VariantOption[]>([]);
+  const variantOptions = variantOptionsToRecord(options);
+  const hasOptions = Object.keys(variantOptions).length > 0;
 
   async function onSubmit(values: CreateProductDto) {
     if (!autoCode && !values.code?.trim()) {
@@ -94,12 +98,16 @@ export function CreateProductForm({ onDone }: { onDone: () => void }) {
         ...resolvedPrices,
         code: values.code?.trim() || undefined,
         description: values.description || null,
-        defaultVariantSku: values.trackVariants ? undefined : values.defaultVariantSku || undefined,
-        defaultVariantBarcode: values.trackVariants ? undefined : values.defaultVariantBarcode || undefined,
-        attributes: values.trackVariants ? values.attributes : [],
+        unitOfMeasureId: values.unitOfMeasureId || undefined,
+        defaultVariantSku: undefined,
+        defaultVariantBarcode: hasOptions ? undefined : values.defaultVariantBarcode || undefined,
+        trackVariants: undefined,
+        attributes: undefined,
+        variantOptions: hasOptions ? variantOptions : undefined,
       });
       toast.success(t('inventory.products.createSuccess'));
       form.reset();
+      setOptions([]);
       onDone();
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : t('inventory.products.createError'));
@@ -159,52 +167,28 @@ export function CreateProductForm({ onDone }: { onDone: () => void }) {
           )}
         />
         <ProductMasterDataFields prices={prices} currency={currency} />
-        <FormField
-          control={form.control}
-          name="unitOfMeasureId"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>{t('inventory.products.unit')}</FormLabel>
-              <UnitOfMeasureField value={field.value} onChange={field.onChange} />
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="trackingType"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>{t('inventory.products.trackingType')}</FormLabel>
-              <TrackingTypeField value={field.value ?? 'none'} onChange={field.onChange} />
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="trackVariants"
-          render={({ field }) => (
-            <FormItem className="flex flex-row items-center gap-2 space-y-0">
-              <FormControl>
-                <Checkbox checked={field.value} onCheckedChange={field.onChange} />
-              </FormControl>
-              <FormLabel className="!mt-0">{t('inventory.products.trackVariants')}</FormLabel>
-            </FormItem>
-          )}
-        />
-        {trackVariants ? (
+        <VariantOptionsEditor value={options} onChange={setOptions} />
+        {!hasOptions ? (
           <FormField
             control={form.control}
-            name="attributes"
+            name="defaultVariantBarcode"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>{t('inventory.products.attributes')}</FormLabel>
+                <FormLabel>{t('inventory.products.barcode')}</FormLabel>
                 <FormControl>
-                  <AttributesInput
-                    placeholder={t('inventory.products.attributesPlaceholder')}
-                    value={field.value}
-                    onChange={field.onChange}
+                  <Input
+                    {...field}
+                    value={field.value ?? ''}
+                    dir="ltr"
+                    placeholder={
+                      autoBarcode
+                        ? t('inventory.products.barcodeAutoPlaceholder')
+                        : t('inventory.products.barcodePlaceholder')
+                    }
+                    onKeyDown={(event) => {
+                      // Barcode scanners end with Enter — don't let it submit the form.
+                      if (event.key === 'Enter') event.preventDefault();
+                    }}
                   />
                 </FormControl>
                 <FormMessage />
@@ -212,61 +196,36 @@ export function CreateProductForm({ onDone }: { onDone: () => void }) {
             )}
           />
         ) : null}
-        {!trackVariants ? (
-          <div className="grid gap-4 sm:grid-cols-2">
+        <FormField
+          control={form.control}
+          name="unitOfMeasureId"
+          render={({ field }) => (
+            <FormItem>
+              <CompactUnitField
+                value={field.value ?? ''}
+                onChange={field.onChange}
+                defaultUnitId={inventorySettings?.defaultUnitOfMeasureId ?? null}
+              />
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <details className="group rounded-md border px-3 py-2">
+          <summary className="cursor-pointer text-sm text-muted-foreground">{t('inventory.products.advanced')}</summary>
+          <div className="mt-3">
             <FormField
               control={form.control}
-              name="defaultVariantSku"
+              name="trackingType"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>{t('inventory.products.defaultVariantSku')}</FormLabel>
-                  <FormControl>
-                    <Input {...field} value={field.value ?? ''} dir="ltr" />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="defaultVariantBarcode"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{t('inventory.products.barcode')}</FormLabel>
-                  <FormControl>
-                    <Input
-                      {...field}
-                      value={field.value ?? ''}
-                      dir="ltr"
-                      placeholder={
-                        autoBarcode
-                          ? t('inventory.products.barcodeAutoPlaceholder')
-                          : t('inventory.products.barcodePlaceholder')
-                      }
-                      onKeyDown={(event) => {
-                        // Barcode scanners end with Enter — don't let it submit the form.
-                        if (event.key === 'Enter') event.preventDefault();
-                      }}
-                    />
-                  </FormControl>
+                  <FormLabel>{t('inventory.products.trackingType')}</FormLabel>
+                  <TrackingTypeField value={field.value ?? 'none'} onChange={field.onChange} />
                   <FormMessage />
                 </FormItem>
               )}
             />
           </div>
-        ) : null}
-        <FormField
-          control={form.control}
-          name="isActive"
-          render={({ field }) => (
-            <FormItem className="flex flex-row items-center gap-2 space-y-0">
-              <FormControl>
-                <Checkbox checked={field.value} onCheckedChange={field.onChange} />
-              </FormControl>
-              <FormLabel className="!mt-0">{t('common.active')}</FormLabel>
-            </FormItem>
-          )}
-        />
+        </details>
         {!definitionsLoading && definitions && definitions.length > 0 ? (
           <>
             <Separator />

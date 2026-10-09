@@ -21,6 +21,7 @@ import {
 
 import { useInventorySettings, useUpdateInventorySettings } from '../inventory/api/catalog/queries';
 import { ApiError } from '../../lib/api-client';
+import { UnitOfMeasureField } from '../inventory/components/products/product-form-fields';
 
 /**
  * Settings › Modules › Inventory: how item codes and barcodes are produced.
@@ -44,6 +45,7 @@ export function InventorySettingsSection() {
         scaleItemCodeLength: settings.scaleItemCodeLength,
         scaleValueType: settings.scaleValueType,
         scaleValueDecimals: settings.scaleValueDecimals,
+        defaultUnitOfMeasureId: settings.defaultUnitOfMeasureId,
       });
     }
   }, [settings]);
@@ -107,6 +109,14 @@ export function InventorySettingsSection() {
                   </SelectContent>
                 </Select>
                 <p className="text-xs text-muted-foreground">{t('settings.inventory.barcodeHint')}</p>
+              </div>
+              <div className="grid gap-1.5">
+                <label className="text-sm font-medium">{t('settings.inventory.defaultUnit')}</label>
+                <UnitOfMeasureField
+                  value={draft.defaultUnitOfMeasureId ?? ''}
+                  onChange={(value) => setDraft({ ...draft, defaultUnitOfMeasureId: value || null })}
+                />
+                <p className="text-xs text-muted-foreground">{t('settings.inventory.defaultUnitHint')}</p>
               </div>
             </div>
             {draft.barcodeMode === 'auto' ? (

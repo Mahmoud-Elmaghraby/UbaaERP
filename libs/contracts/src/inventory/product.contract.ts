@@ -43,7 +43,8 @@ export const createProductSchema = z.object({
   code: z.string().trim().min(1).optional(),
   name: z.string().min(1),
   description: z.string().nullable().optional(),
-  unitOfMeasureId: z.string().uuid(),
+  /** Optional: defaults to Inventory settings' default unit. */
+  unitOfMeasureId: z.string().uuid().optional(),
   trackVariants: z.boolean().optional(),
   trackingType: productTrackingTypeSchema.optional(),
   attributes: z.array(z.string()).optional(),
@@ -58,6 +59,12 @@ export const createProductSchema = z.object({
   defaultVariantSku: z.string().min(1).optional(),
   /** Barcode for the auto-created default variant of a simple (non-variant) product. */
   defaultVariantBarcode: barcodeInputSchema.optional(),
+  /**
+   * Options (e.g. { "المقاس": ["S","M"], "اللون": ["أحمر"] }): the product is
+   * created with these attributes and every combination as a variant, in
+   * one step. Omitted/empty → a simple product with one default variant.
+   */
+  variantOptions: z.record(z.array(z.string().trim().min(1).max(60)).max(100)).optional(),
 });
 export type CreateProductDto = z.infer<typeof createProductSchema>;
 

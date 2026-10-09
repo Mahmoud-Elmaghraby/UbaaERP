@@ -57,6 +57,13 @@ export class ProductsController {
     return canViewPurchasePrices(user.permissions) ? products : withoutPurchasePrices(products);
   }
 
+  @Get('variant-options')
+  @RequirePermissions()
+  @RequireAnyPermission(...CATALOG_READ_PERMISSIONS)
+  variantOptions(@CurrentTenantSchema() schema: string): Promise<{ name: string; values: string[] }[]> {
+    return this.service.variantOptionSuggestions(this.connections.getClient(schema));
+  }
+
   @Get(':id')
   @RequirePermissions()
   @RequireAnyPermission(...CATALOG_READ_PERMISSIONS)

@@ -31,6 +31,15 @@ export function useProduct(id: string | undefined) {
   });
 }
 
+/** Options (size, colour…) and values already used on this tenant's variants — offered as one-click choices. */
+export function useVariantOptionSuggestions() {
+  return useQuery({
+    queryKey: ['products', 'variant-options'],
+    queryFn: () => apiGet<{ name: string; values: string[] }[]>('/products/variant-options'),
+    staleTime: 60_000,
+  });
+}
+
 export function useCreateProduct() {
   const queryClient = useQueryClient();
   return useMutation({

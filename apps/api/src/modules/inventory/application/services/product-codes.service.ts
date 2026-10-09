@@ -36,6 +36,16 @@ export class ProductCodesService {
     private readonly numbering: NumberingSequencesService,
   ) {}
 
+  /** The unit of a new product: the chosen one, else Inventory settings' default unit. */
+  async resolveUnit(trx: Kysely<TenantDatabase>, chosen: string | undefined): Promise<string> {
+    if (chosen) return chosen;
+    const fallback = (await this.settings.get(trx)).defaultUnitOfMeasureId;
+    if (fallback) return fallback;
+    throw new BusinessRuleError('Choose a unit of measure (no default unit is set in Inventory settings).', {
+      code: 'PRODUCT.UNIT_REQUIRED',
+    });
+  }
+
   /** The code to save: the typed one, or the next 'product' number in auto mode. */
   async resolveItemCode(
     trx: Kysely<TenantDatabase>,

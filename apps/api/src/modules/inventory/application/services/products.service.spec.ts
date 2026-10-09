@@ -102,6 +102,7 @@ describe('ProductsService', () => {
     const codes = {
       resolveItemCode: jest.fn(async (_trx: unknown, typed?: string) => typed ?? 'AUTO-1'),
       resolveVariantSku: jest.fn(async (_trx: unknown, typed: string | undefined, code: string) => typed ?? code),
+      resolveUnit: jest.fn(async (_trx: unknown, chosen?: string) => chosen ?? 'default-unit'),
       resolveBarcode: jest.fn(async (_trx: unknown, typed?: string | null) => typed ?? null),
     } as unknown as ProductCodesService;
     service = new ProductsService(products, variants, codes);
@@ -154,6 +155,25 @@ describe('ProductsService', () => {
 
       expect(variants.create).not.toHaveBeenCalled();
       expect(result.variants).toEqual([]);
+    });
+
+    it('creates the product with its option combinations in one step, on the default unit', async () => {
+      const product = makeProduct({ trackVariants: true, attributes: ['المقاس', 'اللون'] });
+      products.create.mockResolvedValue(product);
+      variants.create.mockImplementation(async (_trx: unknown, input: unknown) => makeVariant(input as never));
+
+      const result = await service.create(FAKE_DB, {
+        name: 'T-Shirt',
+        variantOptions: { ' المقاس ': ['S', 'M', 'M', ' '], اللون: ['أحمر'], فارغ: [] },
+      });
+
+      expect(products.create).toHaveBeenCalledWith(
+        FAKE_TRX,
+        expect.objectContaining({ unitOfMeasureId: 'default-unit', trackVariants: true, attributes: ['المقاس', 'اللون'] }),
+      );
+      expect(variants.create).toHaveBeenCalledTimes(2);
+      expect(variants.create).toHaveBeenCalledWith(FAKE_TRX, expect.objectContaining({ attributeValues: { المقاس: 'M', اللون: 'أحمر' } }));
+      expect(result.variants).toHaveLength(2);
     });
 
     it('translates a unique-violation into ConflictError', async () => {

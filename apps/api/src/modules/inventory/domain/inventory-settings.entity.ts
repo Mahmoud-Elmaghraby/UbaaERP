@@ -15,6 +15,8 @@ export interface InventorySettings {
   scaleItemCodeLength: number;
   scaleValueType: ScaleValueType;
   scaleValueDecimals: number;
+  /** Unit a new product gets when none is chosen (null → the form asks). */
+  defaultUnitOfMeasureId: string | null;
   updatedAt: Date;
 }
 
@@ -29,4 +31,5 @@ export interface UpdateInventorySettingsInput {
   scaleItemCodeLength?: number;
   scaleValueType?: ScaleValueType;
   scaleValueDecimals?: number;
+  defaultUnitOfMeasureId?: string | null;
 }

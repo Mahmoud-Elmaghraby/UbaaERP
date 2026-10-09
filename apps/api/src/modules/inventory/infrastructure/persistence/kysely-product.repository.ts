@@ -77,7 +77,7 @@ export class KyselyProductRepository implements ProductRepository {
     return row ? toDomain(row) : null;
   }
 
-  async create(db: Kysely<TenantDatabase>, input: CreateProductInput & { code: string }): Promise<Product> {
+  async create(db: Kysely<TenantDatabase>, input: CreateProductInput & { code: string; unitOfMeasureId: string }): Promise<Product> {
     const row = await db
       .insertInto('products')
       .values({

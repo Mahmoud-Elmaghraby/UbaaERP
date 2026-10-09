@@ -19,6 +19,7 @@ function toDomain(row: Selectable<InventorySettingsTable>): InventorySettings {
     scaleItemCodeLength: row.scale_item_code_length,
     scaleValueType: row.scale_value_type as ScaleValueType,
     scaleValueDecimals: row.scale_value_decimals,
+    defaultUnitOfMeasureId: row.default_unit_of_measure_id,
     updatedAt: row.updated_at,
   };
 }
@@ -41,6 +42,7 @@ export class KyselyInventorySettingsRepository implements InventorySettingsRepos
         ...(input.scaleItemCodeLength !== undefined ? { scale_item_code_length: input.scaleItemCodeLength } : {}),
         ...(input.scaleValueType !== undefined ? { scale_value_type: input.scaleValueType } : {}),
         ...(input.scaleValueDecimals !== undefined ? { scale_value_decimals: input.scaleValueDecimals } : {}),
+        ...(input.defaultUnitOfMeasureId !== undefined ? { default_unit_of_measure_id: input.defaultUnitOfMeasureId } : {}),
         updated_at: sql`now()`,
       })
       .where('singleton', '=', true)

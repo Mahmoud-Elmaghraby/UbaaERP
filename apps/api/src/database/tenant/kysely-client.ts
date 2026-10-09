@@ -246,6 +246,8 @@ export interface InventorySettingsTable {
   scale_item_code_length: Generated<number>;
   scale_value_type: Generated<string>;
   scale_value_decimals: Generated<number>;
+  /** Migration 0097 — unit of a new product when none is chosen. */
+  default_unit_of_measure_id: string | null;
   created_at: Generated<Date>;
   updated_at: Generated<Date>;
 }
