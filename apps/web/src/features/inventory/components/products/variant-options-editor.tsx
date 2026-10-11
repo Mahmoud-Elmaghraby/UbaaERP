@@ -13,6 +13,8 @@ export interface VariantOption {
 /** Offered on an empty tenant (nothing used yet); afterwards the tenant's own options lead. */
 const STARTER_NAMES = ['المقاس', 'اللون'];
 const PREVIEW_LIMIT = 12;
+/** Above this many combinations the per-row price list is replaced by a preview (prices then via the variants screen). */
+const MAX_PRICED_ROWS = 200;
 
 /** Option name → values, only the complete ones (a name and at least one value). */
 export function variantOptionsToRecord(options: readonly VariantOption[]): Record<string, string[]> {
@@ -33,7 +35,21 @@ function combinationCount(options: readonly VariantOption[]): number {
  * Names and values the shop already used are one click away, so its size
  * ranges work as ready templates.
  */
-export function VariantOptionsEditor({ value, onChange }: { value: VariantOption[]; onChange: (options: VariantOption[]) => void }) {
+export function VariantOptionsEditor({
+  value,
+  onChange,
+  prices,
+  onPricesChange,
+  basePrice,
+}: {
+  value: VariantOption[];
+  onChange: (options: VariantOption[]) => void;
+  /** Sale price text per combination key (see variantCombinations); empty = the product's price. */
+  prices: Record<string, string>;
+  onPricesChange: (prices: Record<string, string>) => void;
+  /** The product's sale price (placeholder of every row). */
+  basePrice: string;
+}) {
   const { t } = useTranslation();
   const { data: suggestions } = useVariantOptionSuggestions();
   const known = suggestions ?? [];
@@ -45,7 +61,8 @@ export function VariantOptionsEditor({ value, onChange }: { value: VariantOption
     onChange(value.map((option, i) => (i === index ? { ...option, ...patch } : option)));
   const add = (name = '') => onChange([...value, { name, values: [] }]);
 
-  const preview = previewCombinations(value);
+  const combinations = variantCombinations(value);
+  const [uniform, setUniform] = useState('');
 
   return (
     <div className="grid min-w-0 gap-3 rounded-lg border border-dashed p-3">
@@ -121,31 +138,77 @@ export function VariantOptionsEditor({ value, onChange }: { value: VariantOption
       </div>
 
       {total > 0 ? (
-        <div className="grid gap-1.5 border-t pt-2.5">
-          <p className="text-sm">{t('inventory.products.options.willCreate', { count: total })}</p>
-          <div className="flex flex-wrap gap-1">
-            {preview.map((label) => (
-              <Badge key={label} variant="secondary" className="font-normal">
-                {label}
-              </Badge>
-            ))}
-            {total > PREVIEW_LIMIT ? <span className="text-xs text-muted-foreground">+{total - PREVIEW_LIMIT}</span> : null}
+        <div className="grid gap-2 border-t pt-2.5">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-sm">{t('inventory.products.options.willCreate', { count: total })}</p>
+            {total <= MAX_PRICED_ROWS ? (
+              <div className="flex items-center gap-2">
+                <Input
+                  className="h-8 w-28 text-end"
+                  dir="ltr"
+                  inputMode="decimal"
+                  value={uniform}
+                  onChange={(e) => setUniform(e.target.value)}
+                  placeholder={basePrice || '0.00'}
+                  aria-label={t('inventory.products.options.uniformPrice')}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={!uniform.trim()}
+                  onClick={() => onPricesChange(Object.fromEntries(combinations.map((c) => [c.key, uniform.trim()])))}
+                >
+                  {t('inventory.products.options.applyToAll')}
+                </Button>
+              </div>
+            ) : null}
           </div>
+          {total <= MAX_PRICED_ROWS ? (
+            <div className="scrollbar-thin grid max-h-72 gap-1 overflow-y-auto">
+              {combinations.map((combo) => (
+                <div key={combo.key} className="flex items-center justify-between gap-3 rounded-md px-2 py-1 hover:bg-subtle">
+                  <span className="text-sm">{combo.label}</span>
+                  <Input
+                    className="h-8 w-28 text-end"
+                    dir="ltr"
+                    inputMode="decimal"
+                    value={prices[combo.key] ?? ''}
+                    onChange={(e) => onPricesChange({ ...prices, [combo.key]: e.target.value })}
+                    placeholder={basePrice || t('inventory.products.options.productPrice')}
+                    aria-label={`${t('inventory.products.salePrice')} ${combo.label}`}
+                  />
+                </div>
+              ))}
+              <p className="px-2 text-xs text-muted-foreground">{t('inventory.products.options.priceHint')}</p>
+            </div>
+          ) : (
+            <div className="flex flex-wrap gap-1">
+              {combinations.slice(0, PREVIEW_LIMIT).map((combo) => (
+                <Badge key={combo.key} variant="secondary" className="font-normal">
+                  {combo.label}
+                </Badge>
+              ))}
+              <span className="text-xs text-muted-foreground">+{total - PREVIEW_LIMIT}</span>
+            </div>
+          )}
         </div>
       ) : null}
     </div>
   );
 }
 
-function previewCombinations(options: readonly VariantOption[]): string[] {
-  const lists = Object.values(variantOptionsToRecord(options));
-  if (lists.length === 0) return [];
-  let combos: string[][] = [[]];
-  for (const list of lists) {
-    combos = combos.flatMap((combo) => list.map((v) => [...combo, v]));
-    if (combos.length > PREVIEW_LIMIT) combos = combos.slice(0, PREVIEW_LIMIT);
-  }
-  return combos.map((combo) => combo.join(' / '));
+/** Every combination of the complete options, in order: its key (stable), label and option → value map. */
+export function variantCombinations(options: readonly VariantOption[]): { key: string; label: string; values: Record<string, string> }[] {
+  const record = variantOptionsToRecord(options);
+  const names = Object.keys(record);
+  if (names.length === 0) return [];
+  let combos: Record<string, string>[] = [{}];
+  for (const name of names) combos = combos.flatMap((combo) => record[name]!.map((v) => ({ ...combo, [name]: v })));
+  return combos.map((values) => {
+    const parts = names.map((n) => values[n]!);
+    return { key: parts.join('\u0000'), label: parts.join(' / '), values };
+  });
 }
 
 /** Values as chips; Enter, "," or "،" adds what was typed (pasting "S، M، L" adds all three). */

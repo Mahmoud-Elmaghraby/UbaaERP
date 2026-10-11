@@ -8,6 +8,9 @@ export const productVariantSchema = z.object({
   attributeValues: z.record(z.unknown()),
   barcode: z.string().nullable(),
   isActive: z.boolean(),
+  /** Own prices (migration 0101); null = the product's price. */
+  salePrice: moneySchema.nullable().default(null),
+  purchasePrice: moneySchema.nullable().default(null),
   createdAt: z.coerce.date(),
   updatedAt: z.coerce.date(),
 });
@@ -35,6 +38,9 @@ export const updateProductVariantSchema = z
     attributeValues: z.record(z.unknown()),
     barcode: barcodeInputSchema,
     isActive: z.boolean(),
+    /** null = back to the product's price. */
+    salePrice: nonNegativeMoneySchema.nullable(),
+    purchasePrice: nonNegativeMoneySchema.nullable(),
   })
   .partial();
 export type UpdateProductVariantDto = z.infer<typeof updateProductVariantSchema>;

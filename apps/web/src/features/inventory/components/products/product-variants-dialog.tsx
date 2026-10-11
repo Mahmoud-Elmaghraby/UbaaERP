@@ -1,4 +1,4 @@
-import { useState, type FormEvent, type KeyboardEvent } from 'react';
+import { useEffect, useState, type FormEvent, type KeyboardEvent } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useTranslation } from 'react-i18next';
@@ -7,6 +7,7 @@ import {
   type CreateProductVariantDto,
   type ProductDto,
   type ProductVariantDto,
+  type MoneyDto,
 } from '@erp-platform/contracts';
 import {
   Badge,
@@ -37,6 +38,7 @@ import {
 
 import { useAddProductVariant, useProduct, useUpdateProductVariant } from '../../api/products/queries';
 import { ApiError } from '../../../../lib/api-client';
+import { decimalToMinorUnits, minorUnitsToDecimalString } from '../../../../lib/money';
 import { ExtraBarcodesForm, GenerateVariantsForm } from './variant-tools';
 import { INV } from '../../../../lib/permissions';
 
@@ -98,6 +100,11 @@ export function ProductVariantsDialog({
               </Can>
             </div>
 
+            {(full?.variants ?? []).length > 1 ? (
+              <Can permission={INV.productsManage}>
+                <UniformPriceBar productId={product.id} variants={full?.variants ?? []} productPrice={product.salePrice} />
+              </Can>
+            ) : null}
             {isLoading ? (
               <Skeleton className="h-32 w-full" />
             ) : (
@@ -107,6 +114,7 @@ export function ProductVariantsDialog({
                     <TableHead>{t('inventory.products.sku')}</TableHead>
                     <TableHead>{t('inventory.products.barcode')}</TableHead>
                     <TableHead>{t('inventory.products.attributes')}</TableHead>
+                    <TableHead>{t('inventory.products.salePrice')}</TableHead>
                     <TableHead>{t('common.status')}</TableHead>
                     <TableHead className="w-40" />
                   </TableRow>
@@ -126,6 +134,9 @@ export function ProductVariantsDialog({
                             </Badge>
                           ))}
                         </div>
+                      </TableCell>
+                      <TableCell>
+                        <VariantPriceCell productId={product.id} variant={variant} productPrice={product.salePrice} />
                       </TableCell>
                       <TableCell>
                         <Badge variant={variant.isActive ? 'success' : 'neutral'} dot>
@@ -148,7 +159,7 @@ export function ProductVariantsDialog({
                   ))}
                   {(full?.variants ?? []).length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={5} className="py-6 text-center text-muted-foreground">
+                      <TableCell colSpan={6} className="py-6 text-center text-muted-foreground">
                         {t('common.noResults')}
                       </TableCell>
                     </TableRow>
@@ -200,6 +211,98 @@ export function ProductVariantsDialog({
         ) : null}
       </DialogContent>
     </Dialog>
+  );
+}
+
+/**
+ * A variant's own sale price, edited in place (saved when leaving the
+ * field). Empty = the product's price, shown as the placeholder.
+ */
+function VariantPriceCell({ productId, variant, productPrice }: { productId: string; variant: ProductVariantDto; productPrice: MoneyDto | null }) {
+  const { t } = useTranslation();
+  const update = useUpdateProductVariant(productId);
+  const initial = variant.salePrice ? minorUnitsToDecimalString(variant.salePrice.amountMinorUnits) : '';
+  const [text, setText] = useState(initial);
+  useEffect(() => setText(initial), [initial]);
+
+  async function save() {
+    if (text.trim() === initial) return;
+    let salePrice: MoneyDto | null = null;
+    if (text.trim()) {
+      try {
+        const minor = decimalToMinorUnits(text.trim());
+        if (minor.startsWith('-')) throw new Error('negative');
+        salePrice = { amountMinorUnits: minor, currency: productPrice?.currency ?? variant.salePrice?.currency ?? 'EGP' };
+      } catch {
+        toast.error(t('inventory.products.invalidPrice'));
+        setText(initial);
+        return;
+      }
+    }
+    try {
+      await update.mutateAsync({ variantId: variant.id, input: { salePrice } });
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : t('common.error'));
+      setText(initial);
+    }
+  }
+
+  return (
+    <Input
+      className="h-8 w-28 text-end"
+      dir="ltr"
+      inputMode="decimal"
+      value={text}
+      onChange={(e) => setText(e.target.value)}
+      onBlur={() => void save()}
+      onKeyDown={(e) => e.key === 'Enter' && (e.currentTarget as HTMLInputElement).blur()}
+      placeholder={productPrice ? minorUnitsToDecimalString(productPrice.amountMinorUnits) : '—'}
+      aria-label={t('inventory.products.salePrice')}
+    />
+  );
+}
+
+/** One price for every variant of the model, or every variant back to the product's price. */
+function UniformPriceBar({ productId, variants, productPrice }: { productId: string; variants: ProductVariantDto[]; productPrice: MoneyDto | null }) {
+  const { t } = useTranslation();
+  const update = useUpdateProductVariant(productId);
+  const [text, setText] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  async function apply(salePrice: MoneyDto | null) {
+    setBusy(true);
+    try {
+      for (const variant of variants) await update.mutateAsync({ variantId: variant.id, input: { salePrice } });
+      toast.success(t('inventory.products.options.pricesApplied'));
+      setText('');
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : t('common.error'));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function applyTyped() {
+    try {
+      const minor = decimalToMinorUnits(text.trim());
+      if (minor.startsWith('-')) throw new Error('negative');
+      void apply({ amountMinorUnits: minor, currency: productPrice?.currency ?? variants[0]?.salePrice?.currency ?? 'EGP' });
+    } catch {
+      toast.error(t('inventory.products.invalidPrice'));
+    }
+  }
+
+  return (
+    <div className="flex flex-wrap items-center gap-2 rounded-lg bg-subtle px-3 py-2 text-sm">
+      <span>{t('inventory.products.options.uniformPrice')}</span>
+      <Input className="h-8 w-28 text-end" dir="ltr" inputMode="decimal" value={text} onChange={(e) => setText(e.target.value)} placeholder="0.00" />
+      <Button size="sm" variant="outline" disabled={busy || !text.trim()} onClick={applyTyped}>
+        {t('inventory.products.options.applyToAll')}
+      </Button>
+      <button type="button" className="text-xs text-primary hover:underline disabled:opacity-50" disabled={busy} onClick={() => void apply(null)}>
+        {t('inventory.products.options.resetToProductPrice')}
+      </button>
+    </div>
   );
 }
 

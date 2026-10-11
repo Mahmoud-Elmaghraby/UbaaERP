@@ -300,6 +300,11 @@ export interface ProductVariantsTable {
   is_active: boolean;
   created_at: Generated<Date>;
   updated_at: Generated<Date>;
+  /** Migration 0101 — the variant's own prices (NULL = the product's). */
+  sale_price_amount: string | null;
+  sale_price_currency: string | null;
+  purchase_price_amount: string | null;
+  purchase_price_currency: string | null;
 }
 
 export interface WarehouseLocationsTable {

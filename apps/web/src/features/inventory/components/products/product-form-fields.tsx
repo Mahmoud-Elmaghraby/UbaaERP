@@ -25,9 +25,9 @@ export function UnitOfMeasureField({ value, onChange }: { value: string; onChang
 }
 
 /**
- * The unit of a new product as one quiet line ("الوحدة: قطعة · تغيير") when
- * Inventory settings have a default unit — most shops sell everything in
- * the same unit and never need to touch it; a full picker otherwise.
+ * The unit of a new product as one quiet line ("الوحدة: قطعة · تغيير") —
+ * optional: left alone, the product gets Inventory settings' default unit
+ * ("قطعة" when none is set). Most shops never touch it.
  */
 export function CompactUnitField({
   value,
@@ -42,7 +42,7 @@ export function CompactUnitField({
   const { data: units } = useUnitsOfMeasure();
   const [open, setOpen] = useState(false);
   const shown = units?.find((u) => u.id === (value || defaultUnitId));
-  if (!defaultUnitId || open) {
+  if (open) {
     return (
       <div className="grid gap-1.5">
         <label className="text-sm font-medium">{t('inventory.products.unit')}</label>
@@ -52,7 +52,8 @@ export function CompactUnitField({
   }
   return (
     <p className="text-sm text-muted-foreground">
-      {t('inventory.products.unit')}: <span className="text-foreground">{shown?.name ?? '—'}</span>
+      {t('inventory.products.unit')}:{' '}
+      <span className="text-foreground">{shown?.name ?? t('inventory.products.unitAutoPiece')}</span>
       {' · '}
       <button type="button" className="text-primary hover:underline" onClick={() => setOpen(true)}>
         {t('inventory.products.changeUnit')}

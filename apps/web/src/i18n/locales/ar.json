@@ -638,8 +638,15 @@
         "willCreate_few": "هيتعمل {{count}} أصناف:",
         "willCreate_many": "هيتعمل {{count}} صنف:",
         "willCreate_other": "هيتعمل {{count}} صنف:",
-        "willCreate_zero": "مفيش تركيبات"
-      }
+        "willCreate_zero": "مفيش تركيبات",
+        "uniformPrice": "سعر واحد للكل",
+        "applyToAll": "تطبيق على الكل",
+        "productPrice": "سعر المنتج",
+        "priceHint": "سيب السعر فاضي عشان المقاس ياخد سعر المنتج، أو اكتب سعر مختلف (مثلاً XXL أغلى).",
+        "pricesApplied": "تم تحديث الأسعار.",
+        "resetToProductPrice": "رجّع الكل لسعر المنتج"
+      },
+      "unitAutoPiece": "قطعة (تلقائي)"
     },
     "stock": {
       "subtitle": "متابعة أرصدة المخزون وحركاته ونقل الأصناف بين المواقع",

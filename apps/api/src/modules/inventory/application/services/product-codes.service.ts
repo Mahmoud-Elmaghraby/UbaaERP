@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
 import type { Kysely } from 'kysely';
 import type { TenantDatabase } from '../../../../database/tenant/kysely-client';
@@ -36,14 +37,26 @@ export class ProductCodesService {
     private readonly numbering: NumberingSequencesService,
   ) {}
 
-  /** The unit of a new product: the chosen one, else Inventory settings' default unit. */
+  /**
+   * The unit of a new product: the chosen one, else Inventory settings'
+   * default unit. A tenant with no default yet gets "قطعة" (found or
+   * created) as its default — the unit is never something the user must pick.
+   */
   async resolveUnit(trx: Kysely<TenantDatabase>, chosen: string | undefined): Promise<string> {
     if (chosen) return chosen;
     const fallback = (await this.settings.get(trx)).defaultUnitOfMeasureId;
     if (fallback) return fallback;
-    throw new BusinessRuleError('Choose a unit of measure (no default unit is set in Inventory settings).', {
-      code: 'PRODUCT.UNIT_REQUIRED',
-    });
+    const piece =
+      (await trx.selectFrom('units_of_measure').select('id').where('name', '=', 'قطعة').where('is_active', '=', true).executeTakeFirst())?.id ??
+      (
+        await trx
+          .insertInto('units_of_measure')
+          .values({ id: randomUUID(), name: 'قطعة', symbol: 'قطعة', base_unit_id: null, conversion_factor: '1', is_active: true })
+          .returning('id')
+          .executeTakeFirstOrThrow()
+      ).id;
+    await this.settings.update(trx, { defaultUnitOfMeasureId: piece });
+    return piece;
   }
 
   /** The code to save: the typed one, or the next 'product' number in auto mode. */

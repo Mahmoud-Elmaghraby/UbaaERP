@@ -95,7 +95,7 @@ export class ProductsService {
           ...(withOptions ? { trackVariants: true, attributes: Object.keys(options) } : {}),
         });
         if (withOptions) {
-          return { ...product, variants: await this.createCombinations(trx, product, options, []) };
+          return { ...product, variants: await this.createCombinations(trx, product, options, [], input.variantPrices) };
         }
         const variants: ProductVariant[] = [];
         if (!product.trackVariants) {
@@ -286,6 +286,7 @@ export class ProductsService {
     product: Product,
     options: Record<string, string[]>,
     existingVariants: readonly ProductVariant[],
+    prices: CreateProductInput['variantPrices'] = [],
   ): Promise<ProductVariant[]> {
     const names = Object.keys(options);
     const valueLists = names.map((name) => options[name]!);
@@ -304,6 +305,7 @@ export class ProductsService {
 
     const keyOf = (values: Record<string, unknown>) => names.map((name) => String(values[name] ?? '').trim()).join('\u0000');
     const existing = new Set(existingVariants.map((variant) => keyOf(variant.attributeValues)));
+    const priceByKey = new Map((prices ?? []).map((p) => [keyOf(p.attributeValues), p]));
     const created: ProductVariant[] = [];
     for (const combo of combinations) {
       if (existing.has(keyOf(combo))) continue;
@@ -313,6 +315,8 @@ export class ProductsService {
           attributeValues: combo,
           sku: await this.codes.resolveVariantSku(trx, undefined, product.code),
           barcode: await this.codes.resolveBarcode(trx, undefined),
+          salePrice: priceByKey.get(keyOf(combo))?.salePrice ?? null,
+          purchasePrice: priceByKey.get(keyOf(combo))?.purchasePrice ?? null,
         }),
       );
     }

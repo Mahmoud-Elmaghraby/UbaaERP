@@ -34,7 +34,8 @@ import { ProductMasterDataFields, usePriceDrafts } from './product-master-data-f
 import { useCreateProduct, useUpdateProduct } from '../../api/products/queries';
 import { ApiError } from '../../../../lib/api-client';
 import { AttributesInput, CompactUnitField, UnitOfMeasureField, TrackingTypeField } from './product-form-fields';
-import { VariantOptionsEditor, variantOptionsToRecord, type VariantOption } from './variant-options-editor';
+import { VariantOptionsEditor, variantCombinations, variantOptionsToRecord, type VariantOption } from './variant-options-editor';
+import { decimalToMinorUnits } from '../../../../lib/money';
 
 const PRODUCT_ENTITY_TYPE = 'product';
 
@@ -79,6 +80,7 @@ export function CreateProductForm({ onDone }: { onDone: () => void }) {
   });
 
   const [options, setOptions] = useState<VariantOption[]>([]);
+  const [variantPrices, setVariantPrices] = useState<Record<string, string>>({});
   const variantOptions = variantOptionsToRecord(options);
   const hasOptions = Object.keys(variantOptions).length > 0;
 
@@ -92,6 +94,21 @@ export function CreateProductForm({ onDone }: { onDone: () => void }) {
       toast.error(t('inventory.products.invalidPrice'));
       return;
     }
+    // Rows whose price differs from the product's become the variant's own price.
+    const ownPrices: NonNullable<CreateProductDto['variantPrices']> = [];
+    for (const combo of hasOptions ? variantCombinations(options) : []) {
+      const text = variantPrices[combo.key]?.trim();
+      if (!text || text === prices.sale.trim()) continue;
+      let minor: string;
+      try {
+        minor = decimalToMinorUnits(text);
+        if (minor.startsWith('-')) throw new Error('negative');
+      } catch {
+        toast.error(t('inventory.products.invalidPrice'));
+        return;
+      }
+      ownPrices.push({ attributeValues: combo.values, salePrice: { amountMinorUnits: minor, currency } });
+    }
     try {
       await createProduct.mutateAsync({
         ...values,
@@ -104,10 +121,12 @@ export function CreateProductForm({ onDone }: { onDone: () => void }) {
         trackVariants: undefined,
         attributes: undefined,
         variantOptions: hasOptions ? variantOptions : undefined,
+        variantPrices: ownPrices.length ? ownPrices : undefined,
       });
       toast.success(t('inventory.products.createSuccess'));
       form.reset();
       setOptions([]);
+      setVariantPrices({});
       onDone();
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : t('inventory.products.createError'));
@@ -167,7 +186,13 @@ export function CreateProductForm({ onDone }: { onDone: () => void }) {
           )}
         />
         <ProductMasterDataFields prices={prices} currency={currency} />
-        <VariantOptionsEditor value={options} onChange={setOptions} />
+        <VariantOptionsEditor
+          value={options}
+          onChange={setOptions}
+          prices={variantPrices}
+          onPricesChange={setVariantPrices}
+          basePrice={prices.sale}
+        />
         {!hasOptions ? (
           <FormField
             control={form.control}

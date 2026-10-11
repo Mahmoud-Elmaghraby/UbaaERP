@@ -8,6 +8,9 @@ export interface ProductVariant {
   attributeValues: Record<string, unknown>;
   barcode: string | null;
   isActive: boolean;
+  /** Migration 0101: own prices; null = the product's price. */
+  salePrice: Money | null;
+  purchasePrice: Money | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -18,6 +21,8 @@ export interface CreateProductVariantInput {
   attributeValues?: Record<string, unknown>;
   barcode?: string | null;
   isActive?: boolean;
+  salePrice?: Money | null;
+  purchasePrice?: Money | null;
 }
 
 export interface UpdateProductVariantInput {
@@ -25,6 +30,8 @@ export interface UpdateProductVariantInput {
   attributeValues?: Record<string, unknown>;
   barcode?: string | null;
   isActive?: boolean;
+  salePrice?: Money | null;
+  purchasePrice?: Money | null;
 }
 
 /**

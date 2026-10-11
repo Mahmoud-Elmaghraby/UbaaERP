@@ -1,8 +1,11 @@
 import {
   productSchema,
+  productVariantSchema,
   productVariantLookupSchema,
   productWithVariantsSchema,
   type CreateProductDto,
+  type MoneyDto,
+  type ProductVariantDto,
   type ProductDto,
   type ProductVariantLookupDto,
   type ProductWithVariantsDto,
@@ -25,7 +28,19 @@ export function productToDto(product: Product): ProductDto {
 }
 
 export function productWithVariantsToDto(product: Product & { variants: ProductVariant[] }): ProductWithVariantsDto {
-  return productWithVariantsSchema.parse(pricesToDto(product));
+  return productWithVariantsSchema.parse({ ...pricesToDto(product), variants: product.variants.map((v) => pricesToDto(v)) });
+}
+
+export function variantToDto(variant: ProductVariant): ProductVariantDto {
+  return productVariantSchema.parse(pricesToDto(variant));
+}
+
+/** Variant price fields from the wire: undefined = unchanged, null = the product's price. */
+export function variantPricesFromDto(dto: { salePrice?: MoneyDto | null; purchasePrice?: MoneyDto | null }) {
+  return {
+    ...(dto.salePrice !== undefined ? { salePrice: dto.salePrice ? moneyFromDto(dto.salePrice) : null } : {}),
+    ...(dto.purchasePrice !== undefined ? { purchasePrice: dto.purchasePrice ? moneyFromDto(dto.purchasePrice) : null } : {}),
+  };
 }
 
 export function variantLookupToDto(variant: ProductVariantLookup): ProductVariantLookupDto {
@@ -38,10 +53,16 @@ export function variantLookupToDto(variant: ProductVariantLookup): ProductVarian
 /** DTO prices (wire Money) → domain Money; undefined stays undefined (= not sent / unchanged). */
 export function productInputFromDto<T extends CreateProductDto | UpdateProductDto>(
   dto: T,
-): Omit<T, 'salePrice' | 'purchasePrice'> & Pick<CreateProductInput & UpdateProductInput, 'salePrice' | 'purchasePrice'> {
+): Omit<T, 'salePrice' | 'purchasePrice' | 'variantPrices'> &
+  Pick<CreateProductInput & UpdateProductInput, 'salePrice' | 'purchasePrice'> &
+  Pick<CreateProductInput, 'variantPrices'> {
   const { salePrice, purchasePrice, ...rest } = dto;
+  const { variantPrices, ...others } = rest as typeof rest & { variantPrices?: CreateProductDto['variantPrices'] };
   return {
-    ...rest,
+    ...(others as Omit<T, 'salePrice' | 'purchasePrice' | 'variantPrices'>),
+    ...(variantPrices
+      ? { variantPrices: variantPrices.map((p) => ({ attributeValues: p.attributeValues, ...variantPricesFromDto(p) })) }
+      : {}),
     ...(salePrice !== undefined ? { salePrice: salePrice ? moneyFromDto(salePrice) : null } : {}),
     ...(purchasePrice !== undefined ? { purchasePrice: purchasePrice ? moneyFromDto(purchasePrice) : null } : {}),
   };

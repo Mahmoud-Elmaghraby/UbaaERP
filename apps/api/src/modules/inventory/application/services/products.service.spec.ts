@@ -43,6 +43,8 @@ function makeVariant(overrides: Partial<ProductVariant> = {}): ProductVariant {
   return {
     id: 'variant-1',
     productId: 'product-1',
+    salePrice: null,
+    purchasePrice: null,
     sku: 'PRD-1',
     attributeValues: {},
     barcode: null,

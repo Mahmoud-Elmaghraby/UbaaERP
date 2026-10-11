@@ -103,7 +103,10 @@ export function Combobox<T>({
   }
 
   return (
+    // modal: inside a (modal) Dialog the body is pointer-events:none, so a
+    // non-modal popover portaled to <body> could open but never be clicked.
     <Popover
+      modal
       open={open}
       onOpenChange={(next) => {
         setOpen(next);

@@ -65,6 +65,17 @@ export const createProductSchema = z.object({
    * one step. Omitted/empty → a simple product with one default variant.
    */
   variantOptions: z.record(z.array(z.string().trim().min(1).max(60)).max(100)).optional(),
+  /** Own prices for some combinations of variantOptions (option name → value); the rest use the product price. */
+  variantPrices: z
+    .array(
+      z.object({
+        attributeValues: z.record(z.string()),
+        salePrice: nonNegativeMoneySchema.nullable().optional(),
+        purchasePrice: nonNegativeMoneySchema.nullable().optional(),
+      }),
+    )
+    .max(500)
+    .optional(),
 });
 export type CreateProductDto = z.infer<typeof createProductSchema>;
 

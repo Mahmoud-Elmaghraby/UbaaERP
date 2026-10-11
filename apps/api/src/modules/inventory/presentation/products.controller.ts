@@ -2,7 +2,6 @@ import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post
 import {
   createProductSchema,
   updateProductSchema,
-  productVariantSchema,
   createProductVariantSchema,
   updateProductVariantSchema,
   createProductBarcodeSchema,
@@ -31,7 +30,7 @@ import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pip
 import { ProductImagesService } from '../application/services/product-images.service';
 import { ProductsService } from '../application/services/products.service';
 import { InventoryEventPublisher } from '../infrastructure/events/inventory-event-publisher';
-import { productInputFromDto, productToDto, productWithVariantsToDto } from './product.mapper';
+import { productInputFromDto, productToDto, productWithVariantsToDto, variantPricesFromDto, variantToDto } from './product.mapper';
 
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 @RequirePermissions(P.productsManage)
@@ -138,7 +137,7 @@ export class ProductsController {
       actorUserId: user.sub,
       metadata: { productId: id },
     });
-    return productVariantSchema.parse(variant);
+    return variantToDto(variant);
   }
 
   @Patch(':id/variants/:variantId')
@@ -150,14 +149,15 @@ export class ProductsController {
     @Body(new ZodValidationPipe(updateProductVariantSchema)) body: UpdateProductVariantDto,
   ): Promise<ProductVariantDto> {
     const db = this.connections.getClient(schema);
-    const variant = await this.service.updateVariant(db, id, variantId, body);
+    const { salePrice, purchasePrice, ...rest } = body;
+    const variant = await this.service.updateVariant(db, id, variantId, { ...rest, ...variantPricesFromDto({ salePrice, purchasePrice }) });
     this.events.publish('product_variant', 'updated', {
       schema,
       entityId: variant.id,
       actorUserId: user.sub,
       metadata: { productId: id },
     });
-    return productVariantSchema.parse(variant);
+    return variantToDto(variant);
   }
 
   /** Variant matrix — every missing combination of the given option values (e.g. sizes × colours). */
@@ -178,7 +178,7 @@ export class ProductsController {
         metadata: { productId: id, generated: true },
       });
     }
-    return created.map((variant) => productVariantSchema.parse(variant));
+    return created.map((variant) => variantToDto(variant));
   }
 
   @Get(':id/variants/:variantId/barcodes')

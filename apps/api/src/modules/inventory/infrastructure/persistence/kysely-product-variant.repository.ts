@@ -25,6 +25,8 @@ function toDomain(row: Selectable<ProductVariantsTable>): ProductVariant {
     attributeValues: (row.attribute_values ?? {}) as Record<string, unknown>,
     barcode: row.barcode,
     isActive: row.is_active,
+    salePrice: money(row.sale_price_amount, row.sale_price_currency),
+    purchasePrice: money(row.purchase_price_amount, row.purchase_price_currency),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -43,6 +45,18 @@ function barcodeToDomain(row: Selectable<ProductBarcodesTable>): ProductBarcode 
 
 function money(amount: string | null, currency: string | null): Money | null {
   return amount !== null && currency !== null ? Money.fromMinorUnits(BigInt(amount), currency) : null;
+}
+
+/** Price columns to write: undefined = unchanged, null = back to the product's price. */
+function priceColumns(input: { salePrice?: Money | null; purchasePrice?: Money | null }) {
+  return {
+    ...(input.salePrice !== undefined
+      ? { sale_price_amount: input.salePrice?.toMinorUnits().toString() ?? null, sale_price_currency: input.salePrice?.currency ?? null }
+      : {}),
+    ...(input.purchasePrice !== undefined
+      ? { purchase_price_amount: input.purchasePrice?.toMinorUnits().toString() ?? null, purchase_price_currency: input.purchasePrice?.currency ?? null }
+      : {}),
+  };
 }
 
 export class KyselyProductVariantRepository implements ProductVariantRepository {
@@ -71,6 +85,7 @@ export class KyselyProductVariantRepository implements ProductVariantRepository 
         attribute_values: JSON.stringify(input.attributeValues ?? {}),
         barcode: input.barcode ?? null,
         is_active: input.isActive ?? true,
+        ...priceColumns(input),
       })
       .returningAll()
       .executeTakeFirstOrThrow();
@@ -147,10 +162,11 @@ export class KyselyProductVariantRepository implements ProductVariantRepository 
         'products.item_type as item_type',
         'products.category_id as category_id',
         'products.brand_id as brand_id',
-        'products.sale_price_amount as sale_price_amount',
-        'products.sale_price_currency as sale_price_currency',
-        'products.purchase_price_amount as purchase_price_amount',
-        'products.purchase_price_currency as purchase_price_currency',
+        // A variant's own price wins over the product's (migration 0101).
+        sql<string | null>`COALESCE(product_variants.sale_price_amount, products.sale_price_amount)`.as('sale_price_amount'),
+        sql<string | null>`CASE WHEN product_variants.sale_price_amount IS NOT NULL THEN product_variants.sale_price_currency ELSE products.sale_price_currency END`.as('sale_price_currency'),
+        sql<string | null>`COALESCE(product_variants.purchase_price_amount, products.purchase_price_amount)`.as('purchase_price_amount'),
+        sql<string | null>`CASE WHEN product_variants.purchase_price_amount IS NOT NULL THEN product_variants.purchase_price_currency ELSE products.purchase_price_currency END`.as('purchase_price_currency'),
         'products.tax_rule_id as tax_rule_id',
       ])
       .orderBy('products.name')
@@ -204,6 +220,7 @@ export class KyselyProductVariantRepository implements ProductVariantRepository 
         ...(input.attributeValues !== undefined ? { attribute_values: JSON.stringify(input.attributeValues) } : {}),
         ...(input.barcode !== undefined ? { barcode: input.barcode } : {}),
         ...(input.isActive !== undefined ? { is_active: input.isActive } : {}),
+        ...priceColumns(input),
         updated_at: sql`now()`,
       })
       .where('id', '=', id)
