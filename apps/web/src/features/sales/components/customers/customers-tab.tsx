@@ -24,6 +24,7 @@ import {
 import { useCustomers, useDeleteCustomer } from '../../api/customers/queries';
 import { CreateCustomerForm, EditCustomerForm } from './customer-form';
 import { ApiError } from '../../../../lib/api-client';
+import { confirmDialog } from '../../../../components/feedback/confirm-dialog';
 
 export function CustomersTab() {
   const { t } = useTranslation();
@@ -34,7 +35,7 @@ export function CustomersTab() {
   const deleteCustomer = useDeleteCustomer();
 
   async function handleDelete(id: string) {
-    if (!window.confirm(t('sales.customers.deleteConfirm'))) return;
+    if (!(await confirmDialog(t('sales.customers.deleteConfirm'), { tone: 'danger' }))) return;
     try {
       await deleteCustomer.mutateAsync(id);
       toast.success(t('sales.customers.deleteSuccess'));

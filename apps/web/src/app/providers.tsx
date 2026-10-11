@@ -5,6 +5,7 @@ import { FeaturesProvider, PermissionsProvider, Toaster } from '@erp-platform/ui
 import { queryClient } from '../lib/query-client';
 import { useAuthStore } from '../lib/auth-store';
 import { ThemeProvider } from './theme/theme-provider';
+import { ConfirmDialogHost } from '../components/feedback/confirm-dialog';
 import '../i18n';
 
 export function AppProviders({ children }: { children: ReactNode }) {
@@ -19,6 +20,7 @@ export function AppProviders({ children }: { children: ReactNode }) {
           <FeaturesProvider features={features} disabledFeatures={disabledFeatures}>
             {children}
             <Toaster />
+            <ConfirmDialogHost />
           </FeaturesProvider>
         </PermissionsProvider>
       </QueryClientProvider>

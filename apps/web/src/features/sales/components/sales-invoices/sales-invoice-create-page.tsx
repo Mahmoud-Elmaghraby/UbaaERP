@@ -73,6 +73,8 @@ import {
 import { SALES_INVOICES_PATH } from './sales-invoices-tab';
 import { useSalesInvoiceActions } from './use-sales-invoice-actions';
 import { WhenTaxesInUse } from '../../../../components/taxes/when-taxes-in-use';
+import { useSalesChannels } from '../../../sales-channels/api';
+import { confirmDialog } from '../../../../components/feedback/confirm-dialog';
 
 const SALES_INVOICE_ENTITY_TYPE = 'sales_invoice';
 
@@ -190,10 +192,14 @@ export function SalesInvoiceCreatePage() {
       invoiceDate: todayIso(),
       dueDate: '',
       pricesIncludeTax: false,
+      salesChannelId: null,
+      externalReference: '',
       notes: '',
       customFields: {},
     },
   });
+  const { data: salesChannels } = useSalesChannels();
+  const activeChannels = (salesChannels ?? []).filter((c) => c.isActive);
 
   // Sensible defaults once the lists load.
   useEffect(() => {
@@ -256,6 +262,8 @@ export function SalesInvoiceCreatePage() {
       notes: headerValues.notes || undefined,
       customFields: headerValues.customFields,
       warehouseId: needsWarehouse ? headerValues.warehouseId || undefined : undefined,
+      salesChannelId: headerValues.salesChannelId || null,
+      externalReference: headerValues.externalReference?.trim() || null,
     };
 
     let payload: CreateSalesInvoiceDto;
@@ -292,7 +300,7 @@ export function SalesInvoiceCreatePage() {
       payload = { ...common, salesOrderId: headerValues.salesOrderId, lines: preparedLines };
     }
 
-    if (submitIntent.current === 'post' && !window.confirm(t('sales.salesInvoices.postConfirm'))) return;
+    if (submitIntent.current === 'post' && !(await confirmDialog(t('sales.salesInvoices.postConfirm')))) return;
 
     try {
       const created = await createInvoice.mutateAsync(payload);
@@ -456,6 +464,56 @@ export function SalesInvoiceCreatePage() {
                         )}
                       />
                     )}
+                    {activeChannels.length > 0 ? (
+                      <>
+                        <FormField
+                          control={form.control}
+                          name="salesChannelId"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>{t('sales.salesInvoices.channel')}</FormLabel>
+                              <Select
+                                value={field.value ?? '__direct__'}
+                                onValueChange={(value) => {
+                                  const channel = activeChannels.find((c) => c.id === value);
+                                  field.onChange(channel ? channel.id : null);
+                                  // A marketplace order is invoiced to the customer that stands for the platform.
+                                  if (directMode && channel?.customerId) form.setValue('customerId', channel.customerId);
+                                }}
+                              >
+                                <FormControl>
+                                  <SelectTrigger>
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  <SelectItem value="__direct__">{t('sales.salesInvoices.noChannel')}</SelectItem>
+                                  {activeChannels.map((c) => (
+                                    <SelectItem key={c.id} value={c.id}>
+                                      {c.name}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </FormItem>
+                          )}
+                        />
+                        {form.watch('salesChannelId') ? (
+                          <FormField
+                            control={form.control}
+                            name="externalReference"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>{t('sales.salesInvoices.externalReference')}</FormLabel>
+                                <FormControl>
+                                  <Input dir="ltr" className="font-mono" {...field} value={field.value ?? ''} />
+                                </FormControl>
+                              </FormItem>
+                            )}
+                          />
+                        ) : null}
+                      </>
+                    ) : null}
                     <FormField
                       control={form.control}
                       name="invoiceDate"

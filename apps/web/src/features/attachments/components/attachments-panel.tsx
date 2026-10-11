@@ -24,6 +24,7 @@ import {
   isAttachmentAllowedMimeType,
 } from '../domain/attachment-constants';
 import { apiGet, ApiError } from '../../../lib/api-client';
+import { confirmDialog } from '../../../components/feedback/confirm-dialog';
 
 function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -109,7 +110,7 @@ function AttachmentsPanelContent({
   }
 
   async function handleDelete(id: string) {
-    if (!window.confirm(t('attachments.deleteConfirm'))) return;
+    if (!(await confirmDialog(t('attachments.deleteConfirm'), { tone: 'danger' }))) return;
     try {
       await deleteAttachment.mutateAsync(id);
       toast.success(t('attachments.deleteSuccess'));

@@ -30,6 +30,7 @@ import { CreateUnitOfMeasureForm, EditUnitOfMeasureForm } from './unit-form';
 import { UnitConverter } from './unit-converter';
 import { ApiError } from '../../../../lib/api-client';
 import { INV } from '../../../../lib/permissions';
+import { confirmDialog } from '../../../../components/feedback/confirm-dialog';
 
 export function UnitsOfMeasureTab() {
   const { t } = useTranslation();
@@ -41,7 +42,7 @@ export function UnitsOfMeasureTab() {
   const unitById = new Map((units ?? []).map((unit) => [unit.id, unit]));
 
   async function handleDelete(id: string) {
-    if (!window.confirm(t('inventory.unitsOfMeasure.deleteConfirm'))) return;
+    if (!(await confirmDialog(t('inventory.unitsOfMeasure.deleteConfirm'), { tone: 'danger' }))) return;
     try {
       await deleteUnit.mutateAsync(id);
       toast.success(t('inventory.unitsOfMeasure.deleteSuccess'));

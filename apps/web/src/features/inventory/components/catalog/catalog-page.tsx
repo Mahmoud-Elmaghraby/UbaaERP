@@ -40,6 +40,7 @@ import {
 } from '../../api/catalog/queries';
 import { ApiError } from '../../../../lib/api-client';
 import { INV } from '../../../../lib/permissions';
+import { confirmDialog } from '../../../../components/feedback/confirm-dialog';
 
 function errorMessage(err: unknown, fallback: string): string {
   return err instanceof ApiError ? err.message : fallback;
@@ -67,7 +68,7 @@ function CategoriesCard() {
   const [newParentId, setNewParentId] = useState<string | null>(null);
 
   async function remove(category: ProductCategoryDto) {
-    if (!window.confirm(t('inventory.catalog.deleteCategoryConfirm', { name: category.name }))) return;
+    if (!(await confirmDialog(t('inventory.catalog.deleteCategoryConfirm', { name: category.name }), { tone: 'danger' }))) return;
     try {
       await deleteCategory.mutateAsync(category.id);
       toast.success(t('inventory.catalog.deleted'));
@@ -242,7 +243,7 @@ function BrandsCard() {
   const [editing, setEditing] = useState<ProductBrandDto | 'new' | null>(null);
 
   async function remove(brand: ProductBrandDto) {
-    if (!window.confirm(t('inventory.catalog.deleteBrandConfirm', { name: brand.name }))) return;
+    if (!(await confirmDialog(t('inventory.catalog.deleteBrandConfirm', { name: brand.name }), { tone: 'danger' }))) return;
     try {
       await deleteBrand.mutateAsync(brand.id);
       toast.success(t('inventory.catalog.deleted'));

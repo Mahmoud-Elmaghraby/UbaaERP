@@ -39,6 +39,7 @@ import {
 } from '../../api/stock-documents/queries';
 import { usePostableAccounts } from '../../../accounting/hooks/use-postable-accounts';
 import { ApiError } from '../../../../lib/api-client';
+import { confirmDialog } from '../../../../components/feedback/confirm-dialog';
 
 const DEFAULT_ACCOUNT = '__default__';
 
@@ -109,7 +110,7 @@ export function AdjustmentReasonsPage() {
                           size="icon-sm"
                           aria-label={t('common.delete')}
                           onClick={async () => {
-                            if (!window.confirm(t('inventory.reasons.deleteConfirm', { name: reason.name }))) return;
+                            if (!(await confirmDialog(t('inventory.reasons.deleteConfirm', { name: reason.name }), { tone: 'danger' }))) return;
                             try {
                               const result = await remove.mutateAsync(reason.id);
                               toast.success(result.deleted ? t('inventory.reasons.deleted') : t('inventory.reasons.deactivated'));

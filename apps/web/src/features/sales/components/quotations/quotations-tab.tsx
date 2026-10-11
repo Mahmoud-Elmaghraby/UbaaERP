@@ -34,6 +34,7 @@ import { CreateQuotationForm, EditQuotationForm } from './quotation-form';
 import { QuotationDetailsView } from './quotation-details-view';
 import { QUOTATION_STATUS_VARIANT, quotationStatusLabelKey } from './quotation-status';
 import { ApiError } from '../../../../lib/api-client';
+import { confirmDialog } from '../../../../components/feedback/confirm-dialog';
 
 export function QuotationsTab() {
   const { t } = useTranslation();
@@ -87,7 +88,7 @@ export function QuotationsTab() {
   }
 
   async function handleReject(id: string) {
-    if (!window.confirm(t('sales.quotations.rejectConfirm'))) return;
+    if (!(await confirmDialog(t('sales.quotations.rejectConfirm'), { tone: 'danger' }))) return;
     await handleTransition(
       rejectQuotation,
       id,
@@ -97,7 +98,7 @@ export function QuotationsTab() {
   }
 
   async function handleCancel(id: string) {
-    if (!window.confirm(t('sales.quotations.cancelConfirm'))) return;
+    if (!(await confirmDialog(t('sales.quotations.cancelConfirm'), { tone: 'danger' }))) return;
     await handleTransition(
       cancelQuotation,
       id,
@@ -107,7 +108,7 @@ export function QuotationsTab() {
   }
 
   async function handleDelete(id: string) {
-    if (!window.confirm(t('sales.quotations.deleteConfirm'))) return;
+    if (!(await confirmDialog(t('sales.quotations.deleteConfirm'), { tone: 'danger' }))) return;
     try {
       await deleteQuotation.mutateAsync(id);
       toast.success(t('sales.quotations.deleteSuccess'));

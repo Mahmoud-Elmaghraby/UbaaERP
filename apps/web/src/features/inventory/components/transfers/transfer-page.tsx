@@ -59,6 +59,7 @@ import { formatMoney } from '../../../../lib/money';
 import { INV } from '../../../../lib/permissions';
 import { TRANSFER_STATUS_VARIANT, TRANSFERS_PATH } from '../../lib/document-status';
 import { PrintButton } from '../../../../components/printing/print-button';
+import { confirmDialog } from '../../../../components/feedback/confirm-dialog';
 
 interface HeaderDraft {
   fromWarehouseId: string;
@@ -197,7 +198,7 @@ function TransferEditor({ transfer }: { transfer: StockTransferWithLinesDto | nu
       return;
     }
     const confirmText = then === 'post' ? t('inventory.transfers.postConfirm') : t('inventory.transfers.dispatchConfirm');
-    if (!window.confirm(confirmText)) return;
+    if (!(await confirmDialog(confirmText))) return;
     await run(
       () => action.mutateAsync({ id: saved.id, action: then }),
       then === 'post' ? t('inventory.transfers.posted') : t('inventory.transfers.dispatched'),
@@ -297,7 +298,7 @@ function TransferEditor({ transfer }: { transfer: StockTransferWithLinesDto | nu
               variant="ghost"
               disabled={busy}
               onClick={async () => {
-                if (!window.confirm(t('inventory.documents.deleteConfirm'))) return;
+                if (!(await confirmDialog(t('inventory.documents.deleteConfirm'), { tone: 'danger' }))) return;
                 if (await run(() => remove.mutateAsync(transfer.id))) navigate(TRANSFERS_PATH);
               }}
             >
@@ -312,8 +313,8 @@ function TransferEditor({ transfer }: { transfer: StockTransferWithLinesDto | nu
               <Button
                 variant="ghost"
                 disabled={busy}
-                onClick={() =>
-                  window.confirm(t('inventory.transfers.cancelTransitConfirm')) &&
+                onClick={async () =>
+                  (await confirmDialog(t('inventory.transfers.cancelTransitConfirm'), { tone: 'danger' })) &&
                   run(() => action.mutateAsync({ id: transfer.id, action: 'cancel' }), t('inventory.transfers.cancelled'))
                 }
               >
@@ -520,7 +521,7 @@ function ReceiveDialog({
   const [received, setReceived] = useState<Record<string, string>>(initial);
   useEffect(() => setReceived(initial), [initial]);
 
-  function submit() {
+  async function submit() {
     const lines = [];
     for (const line of transfer.lines) {
       const text = received[line.id] ?? '';
@@ -532,7 +533,7 @@ function ReceiveDialog({
       lines.push({ lineId: line.id, receivedQuantity: value });
     }
     const short = lines.some((line, index) => line.receivedQuantity < transfer.lines[index]!.dispatchedQuantity);
-    if (short && !window.confirm(t('inventory.transfers.shortageConfirm'))) return;
+    if (short && !(await confirmDialog(t('inventory.transfers.shortageConfirm')))) return;
     onReceive({ lines });
   }
 

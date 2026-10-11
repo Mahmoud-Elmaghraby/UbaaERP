@@ -31,6 +31,7 @@ import { CreateWarehouseForm, EditWarehouseForm } from './warehouse-form';
 import { WarehouseLocationsDialog } from './warehouse-locations-dialog';
 import { ApiError } from '../../../../lib/api-client';
 import { INV } from '../../../../lib/permissions';
+import { confirmDialog } from '../../../../components/feedback/confirm-dialog';
 
 export function WarehousesTab() {
   const { t } = useTranslation();
@@ -44,7 +45,7 @@ export function WarehousesTab() {
   const branchById = new Map((branches ?? []).map((branch) => [branch.id, branch]));
 
   async function handleDelete(id: string) {
-    if (!window.confirm(t('inventory.warehouses.deleteConfirm'))) return;
+    if (!(await confirmDialog(t('inventory.warehouses.deleteConfirm'), { tone: 'danger' }))) return;
     try {
       await deleteWarehouse.mutateAsync(id);
       toast.success(t('inventory.warehouses.deleteSuccess'));

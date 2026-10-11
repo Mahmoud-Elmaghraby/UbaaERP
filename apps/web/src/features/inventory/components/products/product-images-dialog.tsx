@@ -24,6 +24,7 @@ import {
 import { ApiError } from '../../../../lib/api-client';
 import { prepareProductImage } from '../../../../lib/image-resize';
 import { INV } from '../../../../lib/permissions';
+import { confirmDialog } from '../../../../components/feedback/confirm-dialog';
 
 /** صور الصنف: upload (resized in the browser), choose the main image, delete. */
 export function ProductImagesDialog({ product, onClose }: { product: ProductDto | null; onClose: () => void }) {
@@ -130,8 +131,8 @@ export function ProductImagesDialog({ product, onClose }: { product: ProductDto 
                       variant="ghost"
                       size="icon-sm"
                       aria-label={t('common.delete')}
-                      onClick={() =>
-                        window.confirm(t('inventory.images.deleteConfirm')) && run(() => remove.mutateAsync(image.id))
+                      onClick={async () =>
+                        (await confirmDialog(t('inventory.images.deleteConfirm'), { tone: 'danger' })) && run(() => remove.mutateAsync(image.id))
                       }
                     >
                       <Trash2 />

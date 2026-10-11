@@ -34,6 +34,7 @@ import { SupplierPaymentDetailsView } from './supplier-payment-details-view';
 import { SUPPLIER_PAYMENT_STATUS_VARIANT, supplierPaymentStatusLabelKey } from './supplier-payment-status';
 import { formatMoney } from '../../../../lib/money';
 import { ApiError } from '../../../../lib/api-client';
+import { confirmDialog } from '../../../../components/feedback/confirm-dialog';
 
 type ActionKey = 'post' | 'allocate' | 'cancel' | 'delete';
 
@@ -79,7 +80,7 @@ export function SupplierPaymentsTab() {
       cancel: { mutation: cancelPayment, confirm: 'cancelConfirm', success: 'cancelSuccess', error: 'cancelError' },
       delete: { mutation: deletePayment, confirm: 'deleteConfirm', success: 'deleteSuccess', error: 'deleteError' },
     }[action];
-    if (!window.confirm(t(`purchases.supplierPayments.${config.confirm}`))) return;
+    if (!(await confirmDialog(t(`purchases.supplierPayments.${config.confirm}`)))) return;
     try {
       await config.mutation.mutateAsync(id);
       toast.success(t(`purchases.supplierPayments.${config.success}`));

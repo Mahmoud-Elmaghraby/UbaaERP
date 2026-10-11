@@ -22,6 +22,7 @@ import {
 import { useCostCenters, useDeleteCostCenter } from '../../api/cost-centers/queries';
 import { ApiError } from '../../../../lib/api-client';
 import { CreateCostCenterForm, EditCostCenterForm } from './cost-center-form';
+import { confirmDialog } from '../../../../components/feedback/confirm-dialog';
 
 export function CostCentersTab() {
   const { t } = useTranslation();
@@ -31,7 +32,7 @@ export function CostCentersTab() {
   const deleteCostCenter = useDeleteCostCenter();
 
   async function handleDelete(id: string) {
-    if (!window.confirm(t('accounting.costCenters.deleteConfirm'))) return;
+    if (!(await confirmDialog(t('accounting.costCenters.deleteConfirm'), { tone: 'danger' }))) return;
     try {
       await deleteCostCenter.mutateAsync(id);
       toast.success(t('accounting.costCenters.deleteSuccess'));

@@ -29,6 +29,7 @@ import { ApiError } from '../../../../lib/api-client';
 import { CreateFiscalYearForm } from './fiscal-year-form';
 import { FiscalYearPeriodsView } from './fiscal-year-periods-view';
 import { FISCAL_YEAR_STATUS_VARIANT, fiscalYearStatusLabelKey } from './fiscal-year-status';
+import { confirmDialog } from '../../../../components/feedback/confirm-dialog';
 
 export function FiscalYearsTab() {
   const { t } = useTranslation();
@@ -41,7 +42,7 @@ export function FiscalYearsTab() {
   const deleteFiscalYear = useDeleteFiscalYear();
 
   async function handleClose(id: string) {
-    if (!window.confirm(t('accounting.fiscalYears.closeConfirm'))) return;
+    if (!(await confirmDialog(t('accounting.fiscalYears.closeConfirm'), { tone: 'danger' }))) return;
     try {
       await closeFiscalYear.mutateAsync(id);
       toast.success(t('accounting.fiscalYears.closeSuccess'));
@@ -60,7 +61,7 @@ export function FiscalYearsTab() {
   }
 
   async function handleDelete(id: string) {
-    if (!window.confirm(t('accounting.fiscalYears.deleteConfirm'))) return;
+    if (!(await confirmDialog(t('accounting.fiscalYears.deleteConfirm'), { tone: 'danger' }))) return;
     try {
       await deleteFiscalYear.mutateAsync(id);
       toast.success(t('accounting.fiscalYears.deleteSuccess'));

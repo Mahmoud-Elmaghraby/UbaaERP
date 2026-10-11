@@ -26,6 +26,7 @@ import { CreateRfqForm, EditRfqForm } from './rfq-form';
 import { RfqDetailsView } from './rfq-details-view';
 import { RFQ_STATUS_VARIANT, rfqStatusLabelKey } from './rfq-status';
 import { ApiError } from '../../../../lib/api-client';
+import { confirmDialog } from '../../../../components/feedback/confirm-dialog';
 
 export function RfqsTab() {
   const { t } = useTranslation();
@@ -57,7 +58,7 @@ export function RfqsTab() {
   }
 
   async function handleCancel(id: string) {
-    if (!window.confirm(t('purchases.rfqs.cancelConfirm'))) return;
+    if (!(await confirmDialog(t('purchases.rfqs.cancelConfirm'), { tone: 'danger' }))) return;
     try {
       await cancelRfq.mutateAsync(id);
       toast.success(t('purchases.rfqs.cancelSuccess'));
@@ -67,7 +68,7 @@ export function RfqsTab() {
   }
 
   async function handleDelete(id: string) {
-    if (!window.confirm(t('purchases.rfqs.deleteConfirm'))) return;
+    if (!(await confirmDialog(t('purchases.rfqs.deleteConfirm'), { tone: 'danger' }))) return;
     try {
       await deleteRfq.mutateAsync(id);
       toast.success(t('purchases.rfqs.deleteSuccess'));

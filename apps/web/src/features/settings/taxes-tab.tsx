@@ -50,6 +50,7 @@ import {
 
 import { useCreateTaxRule, useDeleteTaxRule, useTaxRules, useUpdateTaxRule } from './queries';
 import { ApiError } from '../../lib/api-client';
+import { confirmDialog } from '../../components/feedback/confirm-dialog';
 
 export function TaxesTab() {
   const { t } = useTranslation();
@@ -59,7 +60,7 @@ export function TaxesTab() {
   const deleteTaxRule = useDeleteTaxRule();
 
   async function handleDelete(id: string) {
-    if (!window.confirm(t('settings.taxes.deleteConfirm'))) return;
+    if (!(await confirmDialog(t('settings.taxes.deleteConfirm'), { tone: 'danger' }))) return;
     try {
       await deleteTaxRule.mutateAsync(id);
       toast.success(t('settings.taxes.deleteSuccess'));

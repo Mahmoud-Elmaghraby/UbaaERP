@@ -35,6 +35,7 @@ import {
   purchaseOrderStatusLabelKey,
 } from './purchase-order-status';
 import { ApiError } from '../../../../lib/api-client';
+import { confirmDialog } from '../../../../components/feedback/confirm-dialog';
 
 export function PurchaseOrdersTab() {
   const { t } = useTranslation();
@@ -77,7 +78,7 @@ export function PurchaseOrdersTab() {
   }
 
   async function handleCancel(id: string) {
-    if (!window.confirm(t('purchases.purchaseOrders.cancelConfirm'))) return;
+    if (!(await confirmDialog(t('purchases.purchaseOrders.cancelConfirm'), { tone: 'danger' }))) return;
     await handleTransition(
       cancelOrder,
       id,
@@ -87,7 +88,7 @@ export function PurchaseOrdersTab() {
   }
 
   async function handleDelete(id: string) {
-    if (!window.confirm(t('purchases.purchaseOrders.deleteConfirm'))) return;
+    if (!(await confirmDialog(t('purchases.purchaseOrders.deleteConfirm'), { tone: 'danger' }))) return;
     try {
       await deleteOrder.mutateAsync(id);
       toast.success(t('purchases.purchaseOrders.deleteSuccess'));

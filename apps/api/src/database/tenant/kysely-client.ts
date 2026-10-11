@@ -574,6 +574,54 @@ export interface SalesInvoicesTable {
   updated_at: Generated<Date>;
   /** Migration 0092 — unit prices include VAT/table tax. */
   prices_include_tax: Generated<boolean>;
+  /** Migration 0099 — the sales channel (Jumia, Noon…) and the platform's own order number. */
+  sales_channel_id: string | null;
+  external_reference: string | null;
+}
+
+/** Migration 0099. */
+export interface SalesChannelsTable {
+  id: string;
+  code: string;
+  name: string;
+  kind: Generated<string>;
+  customer_id: string | null;
+  treasury_id: string | null;
+  warehouse_id: string | null;
+  is_active: Generated<boolean>;
+  notes: string | null;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
+export interface ChannelSettlementsTable {
+  id: string;
+  settlement_number: string;
+  sales_channel_id: string;
+  status: Generated<string>;
+  statement_date: string;
+  period_from: string | null;
+  period_to: string | null;
+  statement_reference: string | null;
+  currency: string;
+  payment_received_id: string | null;
+  notes: string | null;
+  created_by_user_id: string | null;
+  posted_at: Date | null;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
+export interface ChannelSettlementLinesTable {
+  id: string;
+  channel_settlement_id: string;
+  line_number: number;
+  kind: string;
+  external_reference: string | null;
+  description: string | null;
+  amount: string;
+  sales_invoice_id: string | null;
+  category_id: string | null;
 }
 
 export interface SalesInvoiceLinesTable {
@@ -1150,6 +1198,9 @@ export interface TenantDatabase {
   goods_receipts: GoodsReceiptsTable;
   goods_receipt_lines: GoodsReceiptLinesTable;
   purchase_returns: PurchaseReturnsTable;
+  sales_channels: SalesChannelsTable;
+  channel_settlements: ChannelSettlementsTable;
+  channel_settlement_lines: ChannelSettlementLinesTable;
   currencies: CurrenciesTable;
   purchase_debit_notes: PurchaseDebitNotesTable;
   purchase_debit_note_lines: PurchaseDebitNoteLinesTable;

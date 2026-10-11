@@ -31,6 +31,7 @@ import { ChartAccountSelect } from './chart-account-select';
 import { useChartOfAccounts } from '../../accounting/api/chart-of-accounts/queries';
 import { FEATURE_KEYS } from '../../../lib/feature-keys';
 import { ApiError } from '../../../lib/api-client';
+import { confirmDialog } from '../../../components/feedback/confirm-dialog';
 
 /** بنود المصروفات والإيرادات — what an expense / income voucher is booked against. */
 export function TreasuryCategoriesPage() {
@@ -41,7 +42,7 @@ export function TreasuryCategoriesPage() {
   const [editing, setEditing] = useState<TreasuryCategoryDto | { kind: TreasuryCategoryKindDto } | null>(null);
 
   async function handleDelete(category: TreasuryCategoryDto) {
-    if (!window.confirm(t('treasury.categories.deleteConfirm', { name: category.name }))) return;
+    if (!(await confirmDialog(t('treasury.categories.deleteConfirm', { name: category.name }), { tone: 'danger' }))) return;
     try {
       await remove.mutateAsync(category.id);
     } catch (err) {

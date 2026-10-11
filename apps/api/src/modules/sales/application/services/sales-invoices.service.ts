@@ -389,6 +389,8 @@ export class SalesInvoicesService {
           notes: input.notes ?? null,
           customFields: input.customFields ?? {},
           pricesIncludeTax,
+          salesChannelId: input.salesChannelId ?? null,
+          externalReference: input.externalReference ?? null,
         });
 
         const createdLines = [];

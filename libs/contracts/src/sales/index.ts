@@ -10,3 +10,4 @@ export * from './sales-credit-note.contract';
 export * from './pos-session.contract';
 export * from './pos-sale.contract';
 export * from './pos-session-report.contract';
+export * from './sales-channel.contract';

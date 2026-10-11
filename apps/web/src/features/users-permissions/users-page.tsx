@@ -38,6 +38,7 @@ import {
 import { useCreateUser, useRoles, useSendUserInvite, useUsers } from './queries';
 import { UserAccessDialog } from './user-access-dialog';
 import { ApiError } from '../../lib/api-client';
+import { confirmDialog } from '../../components/feedback/confirm-dialog';
 
 export function UsersPage() {
   const { t } = useTranslation();
@@ -130,7 +131,7 @@ function SendInviteButton({ userId }: { userId: string }) {
 
   async function handleClick() {
     // eslint-disable-next-line no-alert
-    if (!window.confirm(t('users.sendInviteConfirm'))) return;
+    if (!(await confirmDialog(t('users.sendInviteConfirm')))) return;
     try {
       await sendInvite.mutateAsync(userId);
       toast.success(t('users.sendInviteSuccess'));

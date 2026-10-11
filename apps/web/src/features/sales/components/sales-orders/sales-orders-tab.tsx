@@ -32,6 +32,7 @@ import { CreateSalesOrderTabs, EditSalesOrderForm } from './sales-order-form';
 import { SalesOrderDetailsView } from './sales-order-details-view';
 import { SALES_ORDER_STATUS_VARIANT, salesOrderStatusLabelKey } from './sales-order-status';
 import { ApiError } from '../../../../lib/api-client';
+import { confirmDialog } from '../../../../components/feedback/confirm-dialog';
 
 export function SalesOrdersTab() {
   const { t } = useTranslation();
@@ -74,7 +75,7 @@ export function SalesOrdersTab() {
   }
 
   async function handleCancel(id: string) {
-    if (!window.confirm(t('sales.salesOrders.cancelConfirm'))) return;
+    if (!(await confirmDialog(t('sales.salesOrders.cancelConfirm'), { tone: 'danger' }))) return;
     await handleTransition(
       cancelOrder,
       id,
@@ -84,7 +85,7 @@ export function SalesOrdersTab() {
   }
 
   async function handleDelete(id: string) {
-    if (!window.confirm(t('sales.salesOrders.deleteConfirm'))) return;
+    if (!(await confirmDialog(t('sales.salesOrders.deleteConfirm'), { tone: 'danger' }))) return;
     try {
       await deleteOrder.mutateAsync(id);
       toast.success(t('sales.salesOrders.deleteSuccess'));

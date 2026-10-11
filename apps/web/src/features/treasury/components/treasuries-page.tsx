@@ -23,6 +23,7 @@ import { TreasuryFormDialog } from './treasury-form-dialog';
 import { useTenantSettings } from '../../settings/queries';
 import { formatAmount, sumMinorUnits } from '../../../lib/money';
 import { ApiError } from '../../../lib/api-client';
+import { confirmDialog } from '../../../components/feedback/confirm-dialog';
 
 const KIND_ICONS: Record<TreasuryKindDto, typeof Banknote> = { cash: Banknote, bank: Building2, wallet: Smartphone };
 
@@ -38,7 +39,7 @@ export function TreasuriesPage() {
   const currencies = [...new Set((treasuries ?? []).filter((x) => x.isActive).map((x) => x.currency))];
 
   async function handleDelete(treasury: TreasuryDto) {
-    if (!window.confirm(t('treasury.deleteConfirm', { name: treasury.name }))) return;
+    if (!(await confirmDialog(t('treasury.deleteConfirm', { name: treasury.name }), { tone: 'danger' }))) return;
     try {
       await remove.mutateAsync(treasury.id);
       toast.success(t('treasury.deleted'));

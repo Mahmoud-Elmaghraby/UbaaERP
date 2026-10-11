@@ -6,6 +6,8 @@ export interface CreateSalesInvoiceRow {
   invoiceNumber: string;
   salesOrderId: string;
   invoiceDate: string | null;
+  salesChannelId?: string | null;
+  externalReference?: string | null;
   dueDate: string | null;
   notes: string | null;
   customFields: Record<string, unknown>;

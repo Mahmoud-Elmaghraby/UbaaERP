@@ -1,3 +1,6 @@
+import { SalesChannelsController } from './presentation/sales-channels.controller';
+import { SalesChannelsService } from './application/services/sales-channels.service';
+import { ChannelSettlementsService } from './application/services/channel-settlements.service';
 import { SalesTreasuryMovements } from './infrastructure/statements/sales-treasury-movements';
 import { CustomerStatementsController } from './presentation/customer-statements.controller';
 import { CustomerLedgerSource } from './infrastructure/statements/customer-ledger.source';
@@ -198,6 +201,7 @@ import { StockAvailabilityChecker } from '../../shared/catalog/stock-availabilit
   imports: [SettingsModule],
   controllers: [
     CustomersController,
+    SalesChannelsController,
     CustomerStatementsController,
     EtaCredentialsController,
     QuotationsController,
@@ -211,6 +215,8 @@ import { StockAvailabilityChecker } from '../../shared/catalog/stock-availabilit
   ],
   providers: [
     SalesTreasuryMovements,
+    SalesChannelsService,
+    ChannelSettlementsService,
     CustomerLedgerSource,
     SalesInvoicePrintProvider,
     SalesCreditNotePrintProvider,

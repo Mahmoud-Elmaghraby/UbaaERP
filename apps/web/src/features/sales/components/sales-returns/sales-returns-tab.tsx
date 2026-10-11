@@ -32,6 +32,7 @@ import { CreateSalesReturnForm } from './sales-return-form';
 import { SalesReturnDetailsView } from './sales-return-details-view';
 import { SALES_RETURN_STATUS_VARIANT, salesReturnStatusLabelKey } from './sales-return-status';
 import { ApiError } from '../../../../lib/api-client';
+import { confirmDialog } from '../../../../components/feedback/confirm-dialog';
 
 export function SalesReturnsTab() {
   const { t } = useTranslation();
@@ -66,7 +67,7 @@ export function SalesReturnsTab() {
   }
 
   async function handleConfirm(id: string) {
-    if (!window.confirm(t('sales.salesReturns.confirmConfirm'))) return;
+    if (!(await confirmDialog(t('sales.salesReturns.confirmConfirm')))) return;
     // confirm() auto-generates a Sales Credit Note in the same transaction (migration
     // 0053) — surface that in the success toast rather than a generic message, since
     // it's the one status transition in this module with a real financial side effect
@@ -80,7 +81,7 @@ export function SalesReturnsTab() {
   }
 
   async function handleCancel(id: string) {
-    if (!window.confirm(t('sales.salesReturns.cancelConfirm'))) return;
+    if (!(await confirmDialog(t('sales.salesReturns.cancelConfirm'), { tone: 'danger' }))) return;
     await handleTransition(
       cancelReturn,
       id,
@@ -90,7 +91,7 @@ export function SalesReturnsTab() {
   }
 
   async function handleDelete(id: string) {
-    if (!window.confirm(t('sales.salesReturns.deleteConfirm'))) return;
+    if (!(await confirmDialog(t('sales.salesReturns.deleteConfirm'), { tone: 'danger' }))) return;
     try {
       await deleteReturn.mutateAsync(id);
       toast.success(t('sales.salesReturns.deleteSuccess'));

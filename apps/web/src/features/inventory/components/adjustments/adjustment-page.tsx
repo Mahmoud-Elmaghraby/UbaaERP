@@ -56,6 +56,7 @@ import { formatMoney, minorUnitsToDecimalString, sumMinorUnits } from '../../../
 import { INV } from '../../../../lib/permissions';
 import { ADJUSTMENT_STATUS_VARIANT, ADJUSTMENTS_PATH } from '../../lib/document-status';
 import { PrintButton } from '../../../../components/printing/print-button';
+import { confirmDialog } from '../../../../components/feedback/confirm-dialog';
 
 const NO_REASON = '__none__';
 
@@ -174,7 +175,7 @@ function AdjustmentEditor({ adjustment }: { adjustment: StockAdjustmentWithLines
   async function save(post: boolean) {
     const input = buildInput();
     if (!input) return;
-    if (post && !window.confirm(t('inventory.adjustments.postConfirm'))) return;
+    if (post && !(await confirmDialog(t('inventory.adjustments.postConfirm')))) return;
     if (!adjustment) {
       const created = await run(
         () => create.mutateAsync({ ...input, post }),
@@ -249,8 +250,8 @@ function AdjustmentEditor({ adjustment }: { adjustment: StockAdjustmentWithLines
               <Button
                 variant="ghost"
                 disabled={busy}
-                onClick={() =>
-                  window.confirm(t('inventory.adjustments.cancelConfirm')) &&
+                onClick={async () =>
+                  (await confirmDialog(t('inventory.adjustments.cancelConfirm'), { tone: 'danger' })) &&
                   run(() => action.mutateAsync({ id: adjustment.id, action: 'cancel' }))
                 }
               >
@@ -260,7 +261,7 @@ function AdjustmentEditor({ adjustment }: { adjustment: StockAdjustmentWithLines
                 variant="ghost"
                 disabled={busy}
                 onClick={async () => {
-                  if (!window.confirm(t('inventory.documents.deleteConfirm'))) return;
+                  if (!(await confirmDialog(t('inventory.documents.deleteConfirm'), { tone: 'danger' }))) return;
                   if (await run(() => remove.mutateAsync(adjustment.id))) navigate(ADJUSTMENTS_PATH);
                 }}
               >

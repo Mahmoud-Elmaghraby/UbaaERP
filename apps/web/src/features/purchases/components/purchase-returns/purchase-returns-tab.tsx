@@ -35,6 +35,7 @@ import {
   purchaseReturnStatusLabelKey,
 } from './purchase-return-status';
 import { ApiError } from '../../../../lib/api-client';
+import { confirmDialog } from '../../../../components/feedback/confirm-dialog';
 
 export function PurchaseReturnsTab() {
   const { t } = useTranslation();
@@ -69,7 +70,7 @@ export function PurchaseReturnsTab() {
   }
 
   async function handleConfirm(id: string) {
-    if (!window.confirm(t('purchases.purchaseReturns.confirmConfirm'))) return;
+    if (!(await confirmDialog(t('purchases.purchaseReturns.confirmConfirm')))) return;
     await handleTransition(
       confirmReturn,
       id,
@@ -79,7 +80,7 @@ export function PurchaseReturnsTab() {
   }
 
   async function handleCancel(id: string) {
-    if (!window.confirm(t('purchases.purchaseReturns.cancelConfirm'))) return;
+    if (!(await confirmDialog(t('purchases.purchaseReturns.cancelConfirm'), { tone: 'danger' }))) return;
     await handleTransition(
       cancelReturn,
       id,
@@ -89,7 +90,7 @@ export function PurchaseReturnsTab() {
   }
 
   async function handleDelete(id: string) {
-    if (!window.confirm(t('purchases.purchaseReturns.deleteConfirm'))) return;
+    if (!(await confirmDialog(t('purchases.purchaseReturns.deleteConfirm'), { tone: 'danger' }))) return;
     try {
       await deleteReturn.mutateAsync(id);
       toast.success(t('purchases.purchaseReturns.deleteSuccess'));

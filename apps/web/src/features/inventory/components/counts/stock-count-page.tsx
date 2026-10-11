@@ -51,6 +51,7 @@ import { COUNT_STATUS_VARIANT, COUNTS_PATH } from './count-status';
 import { PasteLinesDialog } from './paste-lines-dialog';
 import { LoadStockDialog } from './load-stock-dialog';
 import { INV } from '../../../../lib/permissions';
+import { confirmDialog } from '../../../../components/feedback/confirm-dialog';
 
 type LineFilter = 'all' | 'uncounted' | 'differences';
 
@@ -178,11 +179,11 @@ function StockCountEditor({ count, warehouseName }: { count: StockCountWithLines
 
   async function onPost() {
     if (
-      !window.confirm(
+      !(await confirmDialog(
         isOpening
           ? t('inventory.counts.postOpeningConfirm')
           : t('inventory.counts.postConfirm', { count: counted.length }),
-      )
+      ))
     )
       return;
     try {
@@ -287,8 +288,8 @@ function StockCountEditor({ count, warehouseName }: { count: StockCountWithLines
               </Button>
               <Button
                 variant="ghost"
-                onClick={() =>
-                  window.confirm(t('inventory.counts.cancelConfirm')) && run(() => cancel.mutateAsync(undefined))
+                onClick={async () =>
+                  (await confirmDialog(t('inventory.counts.cancelConfirm'), { tone: 'danger' })) && run(() => cancel.mutateAsync(undefined))
                 }
               >
                 {t('inventory.counts.cancel')}

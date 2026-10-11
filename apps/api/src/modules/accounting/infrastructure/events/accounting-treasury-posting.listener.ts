@@ -32,6 +32,15 @@ interface TreasuryOpeningMetadata {
   next: { amountMinorUnits: string; currency: string };
 }
 
+interface SettlementMetadata {
+  settlementNumber: string;
+  statementDate: string;
+  channelName: string;
+  treasuryId: string;
+  currency: string;
+  fees: { categoryName: string | null; categoryAccountId: string | null; amountMinorUnits: string }[];
+}
+
 const TITLES = { expense: 'مصروف', income: 'إيراد', transfer: 'تحويل بين الخزائن' } as const;
 
 /**
@@ -86,6 +95,33 @@ export class AccountingTreasuryPostingListener {
       lines,
       sourceReferenceType: 'treasury_opening_balance',
       sourceReferenceId: m.changeId,
+    });
+  }
+
+  /** Marketplace settlement: the fees the platform kept — Dr each expense item / Cr the channel's treasury. */
+  @OnOutboxEvent('sales.channel_settlement.posted', { requiresFeature: FEATURE_KEYS.ACCOUNTING })
+  async handleChannelSettlement(payload: DomainEventPayload): Promise<void> {
+    const m = payload.metadata as unknown as SettlementMetadata | undefined;
+    if (!m?.fees?.length) return;
+    const db = this.connections.getClient(payload.schema);
+    const settings = await this.accountingSettings.get(db);
+    const treasuryAccount = await resolveTreasuryAccount(db, settings, { treasuryId: m.treasuryId });
+    const lines: CreateJournalEntryLineInput[] = [];
+    let total = 0n;
+    for (const fee of m.fees) {
+      const amount = await this.toLedger(db, { amountMinorUnits: fee.amountMinorUnits, currency: m.currency }, m.statementDate);
+      if (amount === 0n) continue;
+      lines.push(debit(requiredAccount(fee.categoryAccountId, `حساب البند "${fee.categoryName ?? ''}"`), amount.toString()));
+      total += amount;
+    }
+    if (total === 0n) return;
+    lines.push(credit(treasuryAccount, total.toString()));
+    await this.journalEntries.createAuto(db, {
+      entryDate: m.statementDate,
+      description: `خصومات ${m.channelName} — ${m.settlementNumber}`,
+      lines,
+      sourceReferenceType: 'channel_settlement',
+      sourceReferenceId: payload.entityId,
     });
   }
 

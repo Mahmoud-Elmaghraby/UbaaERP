@@ -18,6 +18,8 @@ function toDomain(row: Selectable<SalesInvoicesTable>): SalesInvoice {
     notes: row.notes,
     customFields: (row.custom_fields ?? {}) as Record<string, unknown>,
     pricesIncludeTax: row.prices_include_tax,
+    salesChannelId: row.sales_channel_id,
+    externalReference: row.external_reference,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -57,6 +59,8 @@ export class KyselySalesInvoiceRepository implements SalesInvoiceRepository {
         notes: input.notes,
         custom_fields: JSON.stringify(input.customFields ?? {}),
         prices_include_tax: input.pricesIncludeTax ?? false,
+        sales_channel_id: input.salesChannelId ?? null,
+        external_reference: input.externalReference?.trim() || null,
       })
       .returningAll()
       .executeTakeFirstOrThrow();

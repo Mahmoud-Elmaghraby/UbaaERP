@@ -17,6 +17,7 @@ const MOVEMENT_LABELS: Record<string, string> = {
   payment_received: 'تحصيل من عميل',
   supplier_payment: 'سداد لمورد',
   pos_variance: 'فرق جرد نقطة البيع',
+  marketplace_fees: 'خصومات منصة (عمولات ورسوم)',
   expense: 'مصروف',
   income: 'إيراد',
   transfer_in: 'تحويل وارد',

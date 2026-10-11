@@ -52,6 +52,7 @@ import {
   useUpdateNumberingSequence,
 } from './queries';
 import { ApiError } from '../../lib/api-client';
+import { confirmDialog } from '../../components/feedback/confirm-dialog';
 
 const TENANT_WIDE = '__tenant_wide__';
 
@@ -101,7 +102,7 @@ export function NumberingTab() {
       : t('settings.numbering.tenantWide');
 
   async function handleDelete(id: string) {
-    if (!window.confirm(t('settings.numbering.deleteConfirm'))) return;
+    if (!(await confirmDialog(t('settings.numbering.deleteConfirm'), { tone: 'danger' }))) return;
     try {
       await deleteSequence.mutateAsync(id);
       toast.success(t('settings.numbering.deleteSuccess'));

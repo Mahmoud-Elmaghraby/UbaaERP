@@ -62,6 +62,8 @@ export const NAV_GROUPS: NavGroup[] = [
           { to: '/sales/deliveries', labelKey: 'sales.tabs.deliveries', feature: 'sales.deliveries' },
           { to: '/sales/sales-invoices', labelKey: 'sales.tabs.salesInvoices' },
           { to: '/sales/payments-received', labelKey: 'sales.tabs.paymentsReceived' },
+          { to: '/sales/settlements', labelKey: 'settlements.nav' },
+          { to: '/sales/channels', labelKey: 'channels.nav' },
           { to: '/sales/sales-returns', labelKey: 'sales.tabs.salesReturns' },
           { to: '/sales/sales-credit-notes', labelKey: 'sales.tabs.salesCreditNotes' },
           { to: '/sales/eta-credentials', labelKey: 'sales.tabs.etaCredentials' },

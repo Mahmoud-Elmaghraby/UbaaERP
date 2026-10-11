@@ -41,6 +41,9 @@ export interface SalesInvoice {
   customFields: Record<string, unknown>;
   /** Migration 0092: unit prices were entered including VAT/table tax. */
   pricesIncludeTax: boolean;
+  /** Migration 0099: sales channel and the platform's order number. */
+  salesChannelId: string | null;
+  externalReference: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -100,6 +103,8 @@ export interface CreateSalesInvoiceInput {
    * otherwise.
    */
   warehouseId?: string;
+  salesChannelId?: string | null;
+  externalReference?: string | null;
   invoiceDate?: string | null;
   dueDate?: string | null;
   pricesIncludeTax?: boolean;

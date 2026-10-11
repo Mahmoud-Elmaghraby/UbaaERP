@@ -38,6 +38,8 @@ export const ENTITY_LABELS = {
   CHART_OF_ACCOUNT: 'Chart of accounts entry',
   BANK_ACCOUNT: 'Bank account',
   CURRENCY: 'Currency',
+  SALES_CHANNEL: 'Sales channel',
+  CHANNEL_SETTLEMENT: 'Channel settlement',
   TREASURY: 'Treasury',
   TREASURY_CATEGORY: 'Treasury item',
   TREASURY_VOUCHER: 'Treasury voucher',

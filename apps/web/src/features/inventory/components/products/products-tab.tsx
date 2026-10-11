@@ -32,6 +32,7 @@ import { ProductThumb } from '../../../../components/product/product-thumb';
 import { ProductUnitsDialog } from './product-units-dialog';
 import { ApiError } from '../../../../lib/api-client';
 import { INV } from '../../../../lib/permissions';
+import { confirmDialog } from '../../../../components/feedback/confirm-dialog';
 
 export function ProductsTab() {
   const { t } = useTranslation();
@@ -63,7 +64,7 @@ export function ProductsTab() {
   }, [products, categoryFilter, categoryById, categoryOptions]);
 
   async function handleDelete(id: string) {
-    if (!window.confirm(t('inventory.products.deleteConfirm'))) return;
+    if (!(await confirmDialog(t('inventory.products.deleteConfirm'), { tone: 'danger' }))) return;
     try {
       await deleteProduct.mutateAsync(id);
       toast.success(t('inventory.products.deleteSuccess'));

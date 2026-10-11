@@ -76,6 +76,7 @@ import type { ReceiptLotDto } from '@erp-platform/contracts';
 import { receiptLotsToDto, withImplicitSingleLotQuantity } from '../../../../components/document/lot-entry';
 import { useVariantLookupMap } from '../../../inventory/api/products/queries';
 import { WhenTaxesInUse } from '../../../../components/taxes/when-taxes-in-use';
+import { confirmDialog } from '../../../../components/feedback/confirm-dialog';
 
 const PURCHASE_INVOICE_ENTITY_TYPE = 'purchase_invoice';
 
@@ -317,7 +318,7 @@ export function PurchaseInvoiceCreatePage() {
       payload = { ...common, purchaseOrderId: headerValues.purchaseOrderId, lines: preparedLines };
     }
 
-    if (submitIntent.current === 'post' && !window.confirm(t('purchases.purchaseInvoices.postConfirm')))
+    if (submitIntent.current === 'post' && !(await confirmDialog(t('purchases.purchaseInvoices.postConfirm'))))
       return;
 
     try {

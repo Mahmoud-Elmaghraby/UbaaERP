@@ -24,6 +24,7 @@ import {
 import { useDeleteSupplier, useSuppliers } from '../../api/suppliers/queries';
 import { CreateSupplierForm, EditSupplierForm } from './supplier-form';
 import { ApiError } from '../../../../lib/api-client';
+import { confirmDialog } from '../../../../components/feedback/confirm-dialog';
 
 export function SuppliersTab() {
   const { t } = useTranslation();
@@ -34,7 +35,7 @@ export function SuppliersTab() {
   const deleteSupplier = useDeleteSupplier();
 
   async function handleDelete(id: string) {
-    if (!window.confirm(t('purchases.suppliers.deleteConfirm'))) return;
+    if (!(await confirmDialog(t('purchases.suppliers.deleteConfirm'), { tone: 'danger' }))) return;
     try {
       await deleteSupplier.mutateAsync(id);
       toast.success(t('purchases.suppliers.deleteSuccess'));

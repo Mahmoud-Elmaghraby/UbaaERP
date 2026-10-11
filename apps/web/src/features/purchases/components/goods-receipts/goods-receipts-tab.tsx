@@ -32,6 +32,7 @@ import { CreateGoodsReceiptForm } from './goods-receipt-form';
 import { GoodsReceiptDetailsView } from './goods-receipt-details-view';
 import { GOODS_RECEIPT_STATUS_VARIANT, goodsReceiptStatusLabelKey } from './goods-receipt-status';
 import { ApiError } from '../../../../lib/api-client';
+import { confirmDialog } from '../../../../components/feedback/confirm-dialog';
 
 export function GoodsReceiptsTab() {
   const { t } = useTranslation();
@@ -66,7 +67,7 @@ export function GoodsReceiptsTab() {
   }
 
   async function handleConfirm(id: string) {
-    if (!window.confirm(t('purchases.goodsReceipts.confirmConfirm'))) return;
+    if (!(await confirmDialog(t('purchases.goodsReceipts.confirmConfirm')))) return;
     await handleTransition(
       confirmReceipt,
       id,
@@ -76,7 +77,7 @@ export function GoodsReceiptsTab() {
   }
 
   async function handleCancel(id: string) {
-    if (!window.confirm(t('purchases.goodsReceipts.cancelConfirm'))) return;
+    if (!(await confirmDialog(t('purchases.goodsReceipts.cancelConfirm'), { tone: 'danger' }))) return;
     await handleTransition(
       cancelReceipt,
       id,
@@ -86,7 +87,7 @@ export function GoodsReceiptsTab() {
   }
 
   async function handleDelete(id: string) {
-    if (!window.confirm(t('purchases.goodsReceipts.deleteConfirm'))) return;
+    if (!(await confirmDialog(t('purchases.goodsReceipts.deleteConfirm'), { tone: 'danger' }))) return;
     try {
       await deleteReceipt.mutateAsync(id);
       toast.success(t('purchases.goodsReceipts.deleteSuccess'));

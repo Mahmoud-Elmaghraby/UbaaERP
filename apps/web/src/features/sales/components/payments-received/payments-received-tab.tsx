@@ -37,6 +37,7 @@ import {
 } from './payment-received-status';
 import { formatMoney } from '../../../../lib/money';
 import { ApiError } from '../../../../lib/api-client';
+import { confirmDialog } from '../../../../components/feedback/confirm-dialog';
 
 export function PaymentsReceivedTab() {
   const { t } = useTranslation();
@@ -71,7 +72,7 @@ export function PaymentsReceivedTab() {
   }
 
   async function handlePost(id: string) {
-    if (!window.confirm(t('sales.paymentsReceived.postConfirm'))) return;
+    if (!(await confirmDialog(t('sales.paymentsReceived.postConfirm')))) return;
     await handleTransition(
       postPayment,
       id,
@@ -81,7 +82,7 @@ export function PaymentsReceivedTab() {
   }
 
   async function handleCancel(id: string) {
-    if (!window.confirm(t('sales.paymentsReceived.cancelConfirm'))) return;
+    if (!(await confirmDialog(t('sales.paymentsReceived.cancelConfirm'), { tone: 'danger' }))) return;
     await handleTransition(
       cancelPayment,
       id,
@@ -91,7 +92,7 @@ export function PaymentsReceivedTab() {
   }
 
   async function handleDelete(id: string) {
-    if (!window.confirm(t('sales.paymentsReceived.deleteConfirm'))) return;
+    if (!(await confirmDialog(t('sales.paymentsReceived.deleteConfirm'), { tone: 'danger' }))) return;
     try {
       await deletePayment.mutateAsync(id);
       toast.success(t('sales.paymentsReceived.deleteSuccess'));

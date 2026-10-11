@@ -32,6 +32,8 @@ export const salesInvoiceSchema = z.object({
   notes: z.string().nullable(),
   customFields: z.record(z.unknown()),
   pricesIncludeTax: z.boolean(),
+  salesChannelId: z.string().uuid().nullable().default(null),
+  externalReference: z.string().nullable().default(null),
   createdAt: z.coerce.date(),
   updatedAt: z.coerce.date(),
 });
@@ -88,6 +90,9 @@ export const createSalesInvoiceSchema = z.object({
   dueDate: z.string().nullable().optional(),
   /** Unit prices include VAT/table tax (retail). Default false. */
   pricesIncludeTax: z.boolean().optional(),
+  /** Sales channel (Jumia, Noon…) and the platform's order number — matched by settlements. */
+  salesChannelId: z.string().uuid().nullable().optional(),
+  externalReference: z.string().trim().max(80).nullable().optional(),
   notes: z.string().nullable().optional(),
   customFields: z.record(z.unknown()).optional(),
 });

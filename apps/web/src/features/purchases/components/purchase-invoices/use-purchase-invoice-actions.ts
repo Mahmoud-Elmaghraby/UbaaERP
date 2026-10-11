@@ -7,6 +7,7 @@ import {
   usePostPurchaseInvoice,
 } from '../../api/purchase-invoices/queries';
 import { ApiError } from '../../../../lib/api-client';
+import { confirmDialog } from '../../../../components/feedback/confirm-dialog';
 
 /**
  * Post / cancel / delete with confirmation + toasts — shared by the invoices list and
@@ -24,7 +25,7 @@ export function usePurchaseInvoiceActions() {
     successKey: string,
     errorKey: string,
   ): Promise<boolean> {
-    if (confirmKey && !window.confirm(t(confirmKey))) return false;
+    if (confirmKey && !(await confirmDialog(t(confirmKey)))) return false;
     try {
       await action();
       toast.success(t(successKey));

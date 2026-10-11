@@ -21,6 +21,7 @@ import {
 import { useChartOfAccounts, useDeleteChartOfAccount } from '../../api/chart-of-accounts/queries';
 import { ApiError } from '../../../../lib/api-client';
 import { CreateChartOfAccountForm, EditChartOfAccountForm } from './chart-of-account-form';
+import { confirmDialog } from '../../../../components/feedback/confirm-dialog';
 
 /**
  * A true tree view, not a <DataTable> — the chart of accounts is small (a few dozen
@@ -63,7 +64,7 @@ export function ChartOfAccountsTab() {
   }
 
   async function handleDelete(account: ChartOfAccountDto) {
-    if (!window.confirm(t('accounting.chartOfAccounts.deleteConfirm'))) return;
+    if (!(await confirmDialog(t('accounting.chartOfAccounts.deleteConfirm'), { tone: 'danger' }))) return;
     try {
       await deleteAccount.mutateAsync(account.id);
       toast.success(t('accounting.chartOfAccounts.deleteSuccess'));

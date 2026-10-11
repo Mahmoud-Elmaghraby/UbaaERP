@@ -38,6 +38,7 @@ import { CreateJournalEntryForm, EditJournalEntryForm } from './journal-entry-fo
 import { JournalEntryDetailsView } from './journal-entry-details-view';
 import { ReverseJournalEntryForm } from './journal-entry-reverse-form';
 import { JOURNAL_ENTRY_STATUS_VARIANT, journalEntryStatusLabelKey } from './journal-entry-status';
+import { confirmDialog } from '../../../../components/feedback/confirm-dialog';
 
 const STATUS_FILTERS: Array<JournalEntryStatus | '__all__'> = [
   '__all__',
@@ -68,7 +69,7 @@ export function JournalEntriesTab() {
   const deleteEntry = useDeleteJournalEntry();
 
   async function handlePost(id: string) {
-    if (!window.confirm(t('accounting.journalEntries.postConfirm'))) return;
+    if (!(await confirmDialog(t('accounting.journalEntries.postConfirm')))) return;
     try {
       await postEntry.mutateAsync(id);
       toast.success(t('accounting.journalEntries.postSuccess'));
@@ -78,7 +79,7 @@ export function JournalEntriesTab() {
   }
 
   async function handleCancel(id: string) {
-    if (!window.confirm(t('accounting.journalEntries.cancelConfirm'))) return;
+    if (!(await confirmDialog(t('accounting.journalEntries.cancelConfirm'), { tone: 'danger' }))) return;
     try {
       await cancelEntry.mutateAsync(id);
       toast.success(t('accounting.journalEntries.cancelSuccess'));
@@ -90,7 +91,7 @@ export function JournalEntriesTab() {
   }
 
   async function handleDelete(id: string) {
-    if (!window.confirm(t('accounting.journalEntries.deleteConfirm'))) return;
+    if (!(await confirmDialog(t('accounting.journalEntries.deleteConfirm'), { tone: 'danger' }))) return;
     try {
       await deleteEntry.mutateAsync(id);
       toast.success(t('accounting.journalEntries.deleteSuccess'));

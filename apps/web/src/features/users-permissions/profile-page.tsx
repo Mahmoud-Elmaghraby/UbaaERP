@@ -23,6 +23,7 @@ import { useAuthStore } from '../../lib/auth-store';
 import { useChangeOwnPassword, useRevokeOwnSessions } from './queries';
 import { ApiError } from '../../lib/api-client';
 import { TwoFactorCard } from './two-factor-card';
+import { confirmDialog } from '../../components/feedback/confirm-dialog';
 
 export function ProfilePage() {
   const { t } = useTranslation();
@@ -65,7 +66,7 @@ function RevokeSessionsAction() {
 
   async function handleRevoke() {
     // eslint-disable-next-line no-alert
-    if (!window.confirm(t('profile.revokeSessionsConfirm'))) return;
+    if (!(await confirmDialog(t('profile.revokeSessionsConfirm')))) return;
     try {
       await revokeSessions.mutateAsync();
       toast.success(t('profile.revokeSessionsSuccess'));

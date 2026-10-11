@@ -50,6 +50,7 @@ import {
 } from '../../api/warehouses/queries';
 import { ApiError } from '../../../../lib/api-client';
 import { INV } from '../../../../lib/permissions';
+import { confirmDialog } from '../../../../components/feedback/confirm-dialog';
 
 /**
  * Nested "storage locations" management for one warehouse (CLAUDE.md Stage 3
@@ -71,7 +72,7 @@ export function WarehouseLocationsDialog({
   const deleteLocation = useDeleteWarehouseLocation(warehouse?.id ?? '');
 
   async function handleDelete(id: string) {
-    if (!window.confirm(t('inventory.warehouses.deleteLocationConfirm'))) return;
+    if (!(await confirmDialog(t('inventory.warehouses.deleteLocationConfirm'), { tone: 'danger' }))) return;
     try {
       await deleteLocation.mutateAsync(id);
       toast.success(t('inventory.warehouses.deleteLocationSuccess'));

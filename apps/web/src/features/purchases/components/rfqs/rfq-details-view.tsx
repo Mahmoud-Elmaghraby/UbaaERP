@@ -34,6 +34,7 @@ import { formatMoney } from '../../../../lib/money';
 import { RFQ_STATUS_VARIANT, rfqStatusLabelKey } from './rfq-status';
 import { QUOTATION_STATUS_VARIANT, quotationStatusLabelKey } from './quotation-status';
 import { CreateSupplierQuotationForm, EditSupplierQuotationForm } from './quotation-form';
+import { confirmDialog } from '../../../../components/feedback/confirm-dialog';
 
 /** Read-only lines table for a quotation that is no longer 'received' (selected/rejected)
  * — those can't go through EditSupplierQuotationForm any more (backend only allows editing
@@ -103,7 +104,7 @@ export function RfqDetailsView({ rfq }: { rfq: RfqWithDetailsDto }) {
   const canRecordQuotation = rfq.status === 'sent' && eligibleSupplierIds.length > 0;
 
   async function handleSelect(id: string) {
-    if (!window.confirm(t('purchases.rfqs.selectQuotationConfirm'))) return;
+    if (!(await confirmDialog(t('purchases.rfqs.selectQuotationConfirm')))) return;
     try {
       await selectQuotation.mutateAsync(id);
       toast.success(t('purchases.rfqs.selectQuotationSuccess'));
@@ -113,7 +114,7 @@ export function RfqDetailsView({ rfq }: { rfq: RfqWithDetailsDto }) {
   }
 
   async function handleReject(id: string) {
-    if (!window.confirm(t('purchases.rfqs.rejectQuotationConfirm'))) return;
+    if (!(await confirmDialog(t('purchases.rfqs.rejectQuotationConfirm'), { tone: 'danger' }))) return;
     try {
       await rejectQuotation.mutateAsync(id);
       toast.success(t('purchases.rfqs.rejectQuotationSuccess'));
@@ -123,7 +124,7 @@ export function RfqDetailsView({ rfq }: { rfq: RfqWithDetailsDto }) {
   }
 
   async function handleDeleteQuotation(id: string) {
-    if (!window.confirm(t('purchases.rfqs.deleteQuotationConfirm'))) return;
+    if (!(await confirmDialog(t('purchases.rfqs.deleteQuotationConfirm'), { tone: 'danger' }))) return;
     try {
       await deleteQuotation.mutateAsync({ id, rfqId: rfq.id });
       toast.success(t('purchases.rfqs.deleteQuotationSuccess'));

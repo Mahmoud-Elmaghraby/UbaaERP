@@ -32,6 +32,7 @@ import { CreateDeliveryForm } from './delivery-form';
 import { DeliveryDetailsView } from './delivery-details-view';
 import { DELIVERY_STATUS_VARIANT, deliveryStatusLabelKey } from './delivery-status';
 import { ApiError } from '../../../../lib/api-client';
+import { confirmDialog } from '../../../../components/feedback/confirm-dialog';
 
 export function DeliveriesTab() {
   const { t } = useTranslation();
@@ -66,7 +67,7 @@ export function DeliveriesTab() {
   }
 
   async function handleConfirm(id: string) {
-    if (!window.confirm(t('sales.deliveries.confirmConfirm'))) return;
+    if (!(await confirmDialog(t('sales.deliveries.confirmConfirm')))) return;
     await handleTransition(
       confirmDelivery,
       id,
@@ -76,7 +77,7 @@ export function DeliveriesTab() {
   }
 
   async function handleCancel(id: string) {
-    if (!window.confirm(t('sales.deliveries.cancelConfirm'))) return;
+    if (!(await confirmDialog(t('sales.deliveries.cancelConfirm'), { tone: 'danger' }))) return;
     await handleTransition(
       cancelDelivery,
       id,
@@ -86,7 +87,7 @@ export function DeliveriesTab() {
   }
 
   async function handleDelete(id: string) {
-    if (!window.confirm(t('sales.deliveries.deleteConfirm'))) return;
+    if (!(await confirmDialog(t('sales.deliveries.deleteConfirm'), { tone: 'danger' }))) return;
     try {
       await deleteDelivery.mutateAsync(id);
       toast.success(t('sales.deliveries.deleteSuccess'));
