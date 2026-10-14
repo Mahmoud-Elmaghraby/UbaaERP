@@ -105,6 +105,8 @@ describe('Stock availability at confirm + background operations (integration, re
     ).rejects.toMatchObject({
       code: 'DELIVERY.INSUFFICIENT_STOCK',
       params: { details: expect.stringContaining('المتاح 3') },
+      // What the web's quick "add stock" dialog works from.
+      data: { warehouseId, shortages: [expect.objectContaining({ productVariantId: goods, requested: 4, available: 3 })] },
     });
     await expect(
       checker.assertAvailable(db, warehouseId, [{ productVariantId: goods, quantity: 3 }], {

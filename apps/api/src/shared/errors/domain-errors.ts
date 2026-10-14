@@ -34,6 +34,8 @@ export const LEGACY_ERROR_CODE = 'LEGACY.UNMIGRATED';
 export interface DomainErrorInit {
   code: string;
   params?: Record<string, string | number>;
+  /** Structured detail the UI can act on (returned as `data`), e.g. the stock shortages behind an INSUFFICIENT_STOCK. */
+  data?: Record<string, unknown>;
 }
 
 const LEGACY_INIT: DomainErrorInit = { code: LEGACY_ERROR_CODE };
@@ -41,11 +43,13 @@ const LEGACY_INIT: DomainErrorInit = { code: LEGACY_ERROR_CODE };
 export abstract class DomainError extends Error {
   readonly code: string;
   readonly params: Record<string, string | number>;
+  readonly data: Record<string, unknown> | undefined;
 
   protected constructor(message: string, init: DomainErrorInit = LEGACY_INIT) {
     super(message);
     this.code = init.code;
     this.params = init.params ?? {};
+    this.data = init.data;
   }
 }
 

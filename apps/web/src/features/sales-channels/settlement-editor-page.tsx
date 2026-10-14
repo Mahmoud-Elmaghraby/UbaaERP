@@ -30,7 +30,7 @@ import { decimalToMinorUnits, formatAmount, minorUnitsToDecimalString } from '..
 import { useTreasuryCategories } from '../treasury/api/queries';
 import { useChannelSettlement, useDeleteSettlement, usePostSettlement, useSalesChannels, useSaveSettlement } from './api';
 import { SETTLEMENTS_PATH } from './settlements-page';
-import { StatementImportDialog, type ImportedLine } from './statement-import-dialog';
+import { StatementImportDialog, type ImportedLine, type ImportedStatementMeta } from './statement-import-dialog';
 import { confirmDialog } from '../../components/feedback/confirm-dialog';
 
 interface DraftLine {
@@ -126,7 +126,13 @@ export function SettlementEditorPage() {
   const addLine = (kind: SettlementLineKindDto) =>
     setLines((all) => [...all, { key: newKey(), kind, externalReference: '', description: '', amount: '', categoryId: '' }]);
 
-  function onImport(imported: ImportedLine[]) {
+  function onImport(imported: ImportedLine[], meta: ImportedStatementMeta) {
+    setHeader((h) => ({
+      ...h,
+      reference: meta.statementReference ?? h.reference,
+      periodFrom: meta.periodFrom ?? h.periodFrom,
+      periodTo: meta.periodTo ?? h.periodTo,
+    }));
     setLines((all) => [
       ...all.filter((l) => l.amount.trim()),
       ...imported.map((line) => ({
@@ -238,7 +244,7 @@ export function SettlementEditorPage() {
       </div>
 
       <Card>
-        <CardContent className="grid gap-4 pt-6 sm:grid-cols-5">
+        <CardContent className="grid gap-4 pt-6 sm:grid-cols-6">
           <div className="grid gap-1.5 sm:col-span-2">
             <Label>{t('settlements.channel')}</Label>
             <Select value={header.channelId || NONE} onValueChange={(v) => setHeader({ ...header, channelId: v === NONE ? '' : v })} disabled={readOnly}>
@@ -271,6 +277,10 @@ export function SettlementEditorPage() {
           <div className="grid gap-1.5">
             <Label>{t('settlements.periodTo')}</Label>
             <Input type="date" value={header.periodTo} disabled={readOnly} onChange={(e) => setHeader({ ...header, periodTo: e.target.value })} />
+          </div>
+          <div className="grid gap-1.5">
+            <Label>{t('settlements.reference')}</Label>
+            <Input dir="ltr" className="font-mono text-xs" value={header.reference} disabled={readOnly} onChange={(e) => setHeader({ ...header, reference: e.target.value })} />
           </div>
         </CardContent>
       </Card>

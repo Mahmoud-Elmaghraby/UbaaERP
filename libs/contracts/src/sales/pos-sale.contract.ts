@@ -29,6 +29,8 @@ export const posCheckoutTenderSchema = z.object({
   paymentMethod: paymentMethodSchema,
   amount: moneySchema,
   referenceNumber: z.string().nullable().optional(),
+  /** Where this tender's money goes (bank for card / InstaPay, an e-wallet…); cash always goes to the session's cash box. */
+  treasuryId: z.string().uuid().nullable().optional(),
 });
 export type PosCheckoutTenderDto = z.infer<typeof posCheckoutTenderSchema>;
 

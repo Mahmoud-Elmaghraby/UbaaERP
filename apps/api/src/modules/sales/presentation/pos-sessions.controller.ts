@@ -201,6 +201,7 @@ export class PosSessionsController {
           paymentMethod: tender.paymentMethod,
           amount: moneyFromDto(tender.amount),
           referenceNumber: tender.referenceNumber,
+          treasuryId: tender.treasuryId ?? null,
         })),
         notes: body.notes,
       },

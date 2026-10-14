@@ -146,6 +146,23 @@ export class ChannelSettlementsService {
         });
       }
     }
+    // The same platform statement must not be settled twice.
+    if (input.statementReference) {
+      let dup = db
+        .selectFrom('channel_settlements')
+        .select('settlement_number')
+        .where('sales_channel_id', '=', channel.id)
+        .where('statement_reference', '=', input.statementReference)
+        .where('status', '<>', 'cancelled');
+      if (id) dup = dup.where('id', '<>', id);
+      const existing = await dup.executeTakeFirst();
+      if (existing) {
+        throw new BusinessRuleError(`Statement "${input.statementReference}" is already in settlement ${existing.settlement_number}.`, {
+          code: 'CHANNEL_SETTLEMENT.DUPLICATE_STATEMENT',
+          params: { reference: input.statementReference, number: existing.settlement_number },
+        });
+      }
+    }
     const refs = [...new Set(input.lines.filter((l) => l.kind !== 'fee' && l.externalReference).map((l) => l.externalReference!))];
     const invoiceByRef = new Map<string, string>();
     if (refs.length > 0) {

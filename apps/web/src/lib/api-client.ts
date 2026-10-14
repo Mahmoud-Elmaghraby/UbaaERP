@@ -4,6 +4,21 @@ import { useAuthStore } from './auth-store';
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3000';
 
+/**
+ * App-wide reactions to specific API errors (e.g. the quick "add stock"
+ * offer on an INSUFFICIENT_STOCK), registered by hosts mounted once in
+ * AppProviders. The caller still gets the ApiError as usual.
+ */
+type ApiErrorListener = (body: unknown) => void;
+const apiErrorListeners = new Set<ApiErrorListener>();
+export function onApiError(listener: ApiErrorListener): () => void {
+  apiErrorListeners.add(listener);
+  return () => apiErrorListeners.delete(listener);
+}
+function notifyApiError(body: unknown): void {
+  for (const listener of apiErrorListeners) listener(body);
+}
+
 export class ApiError extends Error {
   constructor(
     message: string,
@@ -118,6 +133,7 @@ export async function apiFetch<T>(path: string, options: RequestOptions = {}): P
       (errorBody && typeof errorBody === 'object' && 'message' in errorBody
         ? String((errorBody as { message: unknown }).message)
         : null) ?? `طلب فشل بالحالة ${response.status}`;
+    notifyApiError(errorBody);
     throw new ApiError(message, response.status, errorBody);
   }
 

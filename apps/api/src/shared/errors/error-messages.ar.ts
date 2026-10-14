@@ -94,6 +94,7 @@ export const AR_MESSAGES: Record<string, string> = {
   'SALES_CHANNEL.DUPLICATE_CODE': 'فيه قناة بيع تانية بنفس الكود "{value}".',
   'SALES_CHANNEL.MARKETPLACE_INCOMPLETE': 'قناة المنصة لازم يتحدد لها العميل اللي بيمثلها والخزينة اللي فلوسها بتتجمع فيها.',
   'CHANNEL_SETTLEMENT.NOT_FOUND': 'التسوية المطلوبة مش موجودة.',
+  'CHANNEL_SETTLEMENT.DUPLICATE_STATEMENT': 'الكشف "{reference}" متسجل قبل كده في التسوية {number}.',
   'CHANNEL_SETTLEMENT.NOT_DRAFT': 'التسوية دي اترحّلت خلاص، ومينفعش تتعدل أو تتمسح.',
   'CHANNEL_SETTLEMENT.FEE_CATEGORY_REQUIRED': 'كل سطر خصم (عمولة/شحن/إعلانات) محتاج يتحدد له بند المصروف.',
   'CHANNEL_SETTLEMENT.REFUNDS_EXCEED_ORDERS': 'المرتجعات المخصومة في الكشف أكبر من الأوردرات المدفوعة — راجع الكشف.',

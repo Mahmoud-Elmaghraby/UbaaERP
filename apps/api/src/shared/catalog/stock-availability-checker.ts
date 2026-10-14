@@ -12,6 +12,9 @@ export interface StockNeedLine {
 }
 
 interface Shortage {
+  productVariantId: string;
+  /** Lot/serial tracked — a quick stock add would need lot numbers, so the UI doesn't offer it. */
+  tracked: boolean;
   name: string;
   requested: number;
   available: number;
@@ -57,6 +60,13 @@ export class StockAvailabilityChecker {
     throw new BusinessRuleError(`Not enough stock: ${JSON.stringify(shortages)}`, {
       code: options.errorCode,
       params: { details },
+      // Lets the UI offer "add stock" for plain shortages (not lots / expiry).
+      data: {
+        warehouseId,
+        shortages: shortages
+          .filter((s) => s.reason === 'insufficient' && !s.tracked)
+          .map((s) => ({ productVariantId: s.productVariantId, name: s.name, requested: s.requested, available: s.available })),
+      },
     });
   }
 
@@ -138,7 +148,7 @@ export class StockAvailabilityChecker {
       if (product.tracking_type === 'none') {
         const available = onHand.get(variantId) ?? 0;
         if (available + EPSILON < need)
-          shortages.push({ name, requested: round(need), available: round(available), reason: 'insufficient' });
+          shortages.push({ productVariantId: variantId, tracked: product.tracking_type !== 'none', name, requested: round(need), available: round(available), reason: 'insufficient' });
         continue;
       }
       const variantLots = lotRows.filter((row) => row.variant_id === variantId);
@@ -146,7 +156,7 @@ export class StockAvailabilityChecker {
         .filter((row) => !(blockExpired && row.expired))
         .reduce((sum, row) => sum + Number(row.quantity), 0);
       if (usable + EPSILON < need) {
-        shortages.push({ name, requested: round(need), available: round(usable), reason: 'insufficient' });
+        shortages.push({ productVariantId: variantId, tracked: product.tracking_type !== 'none', name, requested: round(need), available: round(usable), reason: 'insufficient' });
         continue;
       }
       for (const picked of needByLot.values()) {
@@ -154,6 +164,8 @@ export class StockAvailabilityChecker {
         const lot = variantLots.find((row) => row.lot_number === picked.lotNumber);
         if (!lot) {
           shortages.push({
+            productVariantId: variantId,
+            tracked: true,
             name,
             requested: picked.quantity,
             available: 0,
@@ -162,6 +174,8 @@ export class StockAvailabilityChecker {
           });
         } else if (blockExpired && lot.expired) {
           shortages.push({
+            productVariantId: variantId,
+            tracked: true,
             name,
             requested: picked.quantity,
             available: 0,
@@ -170,6 +184,8 @@ export class StockAvailabilityChecker {
           });
         } else if (Number(lot.quantity) + EPSILON < picked.quantity) {
           shortages.push({
+            productVariantId: variantId,
+            tracked: true,
             name,
             requested: round(picked.quantity),
             available: round(Number(lot.quantity)),

@@ -77,17 +77,18 @@ export function useAddProductVariant(productId: string) {
 /** Every variant of every product in one request — see GET /product-variants. */
 export const VARIANT_LOOKUP_QUERY_KEY = ['product-variants'] as const;
 
-export function useVariantLookup() {
+export function useVariantLookup(enabled = true) {
   return useQuery({
     queryKey: VARIANT_LOOKUP_QUERY_KEY,
     queryFn: () => apiGet<ProductVariantLookupDto[]>('/product-variants'),
     staleTime: 60_000,
+    enabled,
   });
 }
 
 /** id → lookup row, for rendering product names on existing document lines. */
-export function useVariantLookupMap() {
-  const { data } = useVariantLookup();
+export function useVariantLookupMap(enabled = true) {
+  const { data } = useVariantLookup(enabled);
   return useMemo(() => new Map((data ?? []).map((variant) => [variant.id, variant])), [data]);
 }
 

@@ -46,6 +46,8 @@ export interface PosCheckoutTenderInput {
   paymentMethod: PaymentMethod;
   amount: Money;
   referenceNumber?: string | null;
+  /** Non-cash tenders: the treasury the money goes to (bank, e-wallet…). */
+  treasuryId?: string | null;
 }
 
 /**

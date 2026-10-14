@@ -47,6 +47,7 @@ import {
 } from '../../lib/discount-fields';
 import { formatPreviewAmount, previewDiscountedAmount, previewLineAmount } from './pos-totals';
 import { openPrint } from '../../../../components/printing/print-button';
+import { useTreasuryLookup } from '../../../treasury/api/queries';
 
 const PAYMENT_METHODS = paymentMethodSchema.options;
 
@@ -69,6 +70,8 @@ interface CartLine {
 
 interface TenderDraft {
   key: string;
+  /** The treasury the money goes to; the payment method follows from its kind. */
+  treasuryId: string | null;
   paymentMethod: (typeof PAYMENT_METHODS)[number];
   amount: string;
   referenceNumber: string;
@@ -80,8 +83,13 @@ function makeKey(prefix: string): string {
   return `${prefix}-${nextKey}`;
 }
 
-function createEmptyTender(): TenderDraft {
-  return { key: makeKey('tender'), paymentMethod: 'cash', amount: '', referenceNumber: '' };
+function createEmptyTender(treasuryId: string | null = null): TenderDraft {
+  return { key: makeKey('tender'), treasuryId, paymentMethod: 'cash', amount: '', referenceNumber: '' };
+}
+
+/** Cash box → cash; bank → card / transfer; e-wallet → other (the method only labels the receipt). */
+function methodForKind(kind: string | undefined): TenderDraft['paymentMethod'] {
+  return kind === 'bank' ? 'card' : kind === 'wallet' ? 'other' : 'cash';
 }
 
 /**
@@ -108,7 +116,9 @@ export function PosCartPanel({ session }: { session: PosSessionDto }) {
   const [lines, setLines] = useState<CartLine[]>([]);
   const [customerId, setCustomerId] = useState<string>(WALK_IN_SENTINEL);
   const [headerDiscount, setHeaderDiscount] = useState<DiscountDraft>(() => createEmptyDiscountDraft());
-  const [tenders, setTenders] = useState<TenderDraft[]>(() => [createEmptyTender()]);
+  const [tenders, setTenders] = useState<TenderDraft[]>(() => [createEmptyTender(session.treasuryId)]);
+  const { data: treasuryLookup } = useTreasuryLookup();
+  const tenderTreasuries = (treasuryLookup ?? []).filter((tr) => tr.currency === currency);
   const [notes, setNotes] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [lastResult, setLastResult] = useState<PosCheckoutResultDto | null>(null);
@@ -203,7 +213,7 @@ export function PosCartPanel({ session }: { session: PosSessionDto }) {
     setLines([]);
     setCustomerId(WALK_IN_SENTINEL);
     setHeaderDiscount(createEmptyDiscountDraft());
-    setTenders([createEmptyTender()]);
+    setTenders([createEmptyTender(session.treasuryId)]);
     setNotes('');
     setError(null);
   }
@@ -268,6 +278,7 @@ export function PosCartPanel({ session }: { session: PosSessionDto }) {
       }
       preparedTenders.push({
         paymentMethod: tender.paymentMethod,
+        treasuryId: tender.paymentMethod === 'cash' ? null : tender.treasuryId,
         amount: { amountMinorUnits, currency },
         referenceNumber: tender.referenceNumber.trim() === '' ? undefined : tender.referenceNumber,
       });
@@ -526,24 +537,46 @@ export function PosCartPanel({ session }: { session: PosSessionDto }) {
             {tenders.map((tender) => (
               <div key={tender.key} className="grid grid-cols-[1fr_1fr_1fr_auto] items-end gap-2">
                 <div className="grid gap-1">
-                  <label className="text-xs text-muted-foreground">{t('sales.paymentsReceived.paymentMethod')}</label>
-                  <Select
-                    value={tender.paymentMethod}
-                    onValueChange={(value) =>
-                      updateTender(tender.key, { paymentMethod: value as TenderDraft['paymentMethod'] })
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {PAYMENT_METHODS.map((method) => (
-                        <SelectItem key={method} value={method}>
-                          {t(`sales.paymentsReceived.paymentMethodValue.${method}`)}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <label className="text-xs text-muted-foreground">{t('pos.tenders.treasury')}</label>
+                  {tenderTreasuries.length > 0 ? (
+                    <Select
+                      value={tender.treasuryId ?? undefined}
+                      onValueChange={(id) => {
+                        const kind = tenderTreasuries.find((tr) => tr.id === id)?.kind;
+                        // Cash always lands in this session's cash box (it is counted at closing).
+                        const method = id === session.treasuryId ? 'cash' : methodForKind(kind) === 'cash' ? 'other' : methodForKind(kind);
+                        updateTender(tender.key, { treasuryId: id, paymentMethod: method });
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder={t('treasury.select.placeholder')} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {tenderTreasuries.map((tr) => (
+                          <SelectItem key={tr.id} value={tr.id}>
+                            {tr.name}
+                            {tr.id === session.treasuryId ? ` — ${t('pos.tenders.sessionCash')}` : ''}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <Select
+                      value={tender.paymentMethod}
+                      onValueChange={(value) => updateTender(tender.key, { paymentMethod: value as TenderDraft['paymentMethod'] })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {PAYMENT_METHODS.map((method) => (
+                          <SelectItem key={method} value={method}>
+                            {t(`sales.paymentsReceived.paymentMethodValue.${method}`)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
                 </div>
                 <div className="grid gap-1">
                   <label className="text-xs text-muted-foreground">{t('pos.tenders.amount', { currency })}</label>
@@ -577,7 +610,7 @@ export function PosCartPanel({ session }: { session: PosSessionDto }) {
               variant="outline"
               size="sm"
               className="justify-self-start"
-              onClick={() => setTenders((prev) => [...prev, createEmptyTender()])}
+              onClick={() => setTenders((prev) => [...prev, createEmptyTender(session.treasuryId)])}
             >
               <Plus className="me-1 h-4 w-4" />
               {t('pos.tenders.addTender')}

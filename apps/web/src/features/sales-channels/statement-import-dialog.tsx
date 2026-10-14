@@ -26,6 +26,13 @@ import { readSpreadsheet } from '../../lib/xlsx';
 import { decimalToMinorUnits, formatAmount } from '../../lib/money';
 import { useTreasuryCategories } from '../treasury/api/queries';
 
+/** What the file says about the statement itself (Jumia: number, period). */
+export interface ImportedStatementMeta {
+  statementReference: string | null;
+  periodFrom: string | null;
+  periodTo: string | null;
+}
+
 export interface ImportedLine {
   kind: SettlementLineKindDto;
   externalReference: string | null;
@@ -96,14 +103,30 @@ export function StatementImportDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
   channelId: string;
-  onImport: (lines: ImportedLine[]) => void;
+  onImport: (lines: ImportedLine[], meta: ImportedStatementMeta) => void;
 }) {
   const { t } = useTranslation();
   const { data: expenseItems } = useTreasuryCategories('expense');
   const [rows, setRows] = useState<string[][]>([]);
   const [mapping, setMapping] = useState<Mapping>({ orderCol: -1, typeCol: -1, amountCol: -1, types: {} });
+  const [statement, setStatement] = useState<string>('');
   const header = rows[0] ?? [];
-  const body = rows.slice(1);
+  const allBody = rows.slice(1);
+  // A file may hold several weekly statements (Jumia exports a date range): pick one.
+  const cols = useMemo(() => statementColumns(header), [header]);
+  const statements = useMemo(() => {
+    if (cols.number < 0) return [];
+    const seen = new Map<string, { from: string; to: string; paid: string; rows: number }>();
+    for (const row of allBody) {
+      const id = (row[cols.number] ?? '').trim();
+      if (!id) continue;
+      const entry = seen.get(id) ?? { from: (row[cols.start] ?? '').slice(0, 10), to: (row[cols.end] ?? '').slice(0, 10), paid: (row[cols.paid] ?? '').trim(), rows: 0 };
+      entry.rows += 1;
+      seen.set(id, entry);
+    }
+    return [...seen.entries()].map(([id, info]) => ({ id, ...info })).sort((a, b) => b.to.localeCompare(a.to));
+  }, [allBody, cols]);
+  const body = cols.number >= 0 && statement ? allBody.filter((row) => (row[cols.number] ?? '').trim() === statement) : allBody;
 
   async function onFile(file: File | undefined) {
     if (!file) return;
@@ -112,7 +135,22 @@ export function StatementImportDialog({
       if (sheet.length < 2) throw new Error('empty');
       setRows(sheet.map((row) => row.map((cell) => String(cell ?? ''))));
       const remembered = loadMapping(channelId);
-      setMapping(remembered && remembered.amountCol < sheet[0]!.length ? remembered : guessMapping(sheet[0]!));
+      const head = sheet[0]!.map((cell) => String(cell ?? ''));
+      setMapping(
+        remembered && remembered.amountCol < head.length ? remembered : (jumiaPreset(head, expenseItems ?? []) ?? guessMapping(head)),
+      );
+      // Default: the latest statement the platform already paid.
+      const statementCols = statementColumns(head);
+      if (statementCols.number >= 0) {
+        const latest = sheet
+          .slice(1)
+          .map((row) => row.map((cell) => String(cell ?? '')))
+          .filter((row) => statementCols.paid < 0 || /paid/i.test(row[statementCols.paid] ?? ''))
+          .sort((a, b) => (b[statementCols.end] ?? '').localeCompare(a[statementCols.end] ?? ''))[0];
+        setStatement(latest ? (latest[statementCols.number] ?? '').trim() : '');
+      } else {
+        setStatement('');
+      }
     } catch {
       toast.error(t('settlements.import.unreadable'));
     }
@@ -151,11 +189,14 @@ export function StatementImportDialog({
       if (rule.treatment === 'ignore') continue;
       if (rule.treatment === 'fee') {
         if (!rule.categoryId) return null;
-        const key = `${rule.categoryId}|${type}`;
-        // A fee row with a positive amount is a fee given back (reduces the fee).
-        const entry = fees.get(key) ?? { amount: 0n, description: type, categoryId: rule.categoryId };
+        // One line per expense item; a fee row with a positive amount (e.g. "Commission
+        // Credit" on a returned order) gives the fee back, so it nets inside the same line.
+        const entry = fees.get(rule.categoryId) ?? { amount: 0n, description: '', categoryId: rule.categoryId };
         entry.amount += -amount;
-        fees.set(key, entry);
+        if (amount < 0n && !entry.description.split(' + ').includes(type)) {
+          entry.description = entry.description ? `${entry.description} + ${type}` : type;
+        }
+        fees.set(rule.categoryId, entry);
       } else {
         const target = rule.treatment === 'order' ? orders : refunds;
         target.set(ref, (target.get(ref) ?? 0n) + (rule.treatment === 'order' ? amount : abs));
@@ -175,7 +216,8 @@ export function StatementImportDialog({
       return;
     }
     saveMapping(channelId, mapping);
-    onImport(lines);
+    const chosen = statements.find((st) => st.id === statement);
+    onImport(lines, { statementReference: chosen?.id ?? null, periodFrom: chosen?.from || null, periodTo: chosen?.to || null });
     onOpenChange(false);
     setRows([]);
   }
@@ -209,6 +251,26 @@ export function StatementImportDialog({
         <input type="file" accept=".xlsx,.csv" onChange={(e) => void onFile(e.target.files?.[0])} className="text-sm" />
         {rows.length > 0 ? (
           <div className="grid gap-4">
+            {statements.length > 0 ? (
+              <div className="grid gap-1.5">
+                <Label>{t('settlements.import.statement')}</Label>
+                <Select value={statement} onValueChange={setStatement}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {statements.map((st) => (
+                      <SelectItem key={st.id} value={st.id}>
+                        {st.id} — {st.from} → {st.to} — {/open/i.test(st.paid) ? t('settlements.import.open') : t('settlements.import.paid')} ({st.rows})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {statements.find((st) => st.id === statement && /open/i.test(st.paid)) ? (
+                  <p className="text-xs text-warning">{t('settlements.import.openWarning')}</p>
+                ) : null}
+              </div>
+            ) : null}
             <p className="text-sm">{t('settlements.import.rows', { count: body.length })}</p>
             <div className="grid grid-cols-3 gap-3">
               {column(mapping.orderCol, (v) => setMapping({ ...mapping, orderCol: v }), t('settlements.import.orderCol'))}
@@ -295,5 +357,49 @@ function guessMapping(header: string[]): Mapping {
     typeCol: find([/transaction type|type|description/i, /نوع|بيان|وصف/]),
     amountCol: find([/amount|value|total/i, /مبلغ|قيمة|إجمالي/]),
     types: {},
+  };
+}
+
+/** Statement columns of a platform export (Jumia: Statement Number / Start Date / End Date / Paid Status). */
+function statementColumns(header: readonly string[]) {
+  const find = (re: RegExp) => header.findIndex((h) => re.test(h));
+  return {
+    number: find(/statement (number|no)|رقم الكشف/i),
+    start: find(/statement start/i),
+    end: find(/statement end/i),
+    paid: find(/paid status/i),
+  };
+}
+
+/**
+ * Jumia Seller Center "Account Statement" export, recognised by its
+ * columns — ready to import without any setup:
+ *   Item Price Credit → paid order; Item Price (negative) → refund of an
+ *   earlier order; Commission (+Credit) → platform commission; Shipping &
+ *   Processing Fee (+Credit) → delivery fees; Sponsored Products → ads.
+ */
+function jumiaPreset(header: readonly string[], items: readonly { id: string; name: string; isActive: boolean }[]): Mapping | null {
+  const col = (name: string) => header.findIndex((h) => h.trim().toLowerCase() === name.toLowerCase());
+  const orderCol = col('Order No.');
+  const typeCol = col('Transaction Type');
+  const amountCol = col('Amount');
+  if (orderCol < 0 || typeCol < 0 || amountCol < 0) return null;
+  const item = (...names: string[]) => items.find((i) => i.isActive && names.includes(i.name))?.id ?? null;
+  const commission = item('عمولات المنصات');
+  const shipping = item('رسوم شحن وتوصيل المنصات');
+  const ads = item('تسويق وإعلان');
+  return {
+    orderCol,
+    typeCol,
+    amountCol,
+    types: {
+      'Item Price Credit': { treatment: 'order', categoryId: null },
+      'Item Price': { treatment: 'refund', categoryId: null },
+      Commission: { treatment: 'fee', categoryId: commission },
+      'Commission Credit': { treatment: 'fee', categoryId: commission },
+      'Shipping & Processing Fee': { treatment: 'fee', categoryId: shipping },
+      'Shipping & Processing Fee Credit': { treatment: 'fee', categoryId: shipping },
+      'Sponsored Products': { treatment: 'fee', categoryId: ads },
+    },
   };
 }

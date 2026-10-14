@@ -6,6 +6,7 @@ import { queryClient } from '../lib/query-client';
 import { useAuthStore } from '../lib/auth-store';
 import { ThemeProvider } from './theme/theme-provider';
 import { ConfirmDialogHost } from '../components/feedback/confirm-dialog';
+import { QuickStockDialogHost } from '../components/feedback/quick-stock-dialog';
 import '../i18n';
 
 export function AppProviders({ children }: { children: ReactNode }) {
@@ -21,6 +22,7 @@ export function AppProviders({ children }: { children: ReactNode }) {
             {children}
             <Toaster />
             <ConfirmDialogHost />
+            <QuickStockDialogHost />
           </FeaturesProvider>
         </PermissionsProvider>
       </QueryClientProvider>

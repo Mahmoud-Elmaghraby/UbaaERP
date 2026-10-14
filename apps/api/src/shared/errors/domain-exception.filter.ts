@@ -59,6 +59,7 @@ export class DomainExceptionFilter implements ExceptionFilter {
       statusCode: status,
       code: exception.code,
       message: isMigrated ? formatArMessage(exception.code, exception.params) : exception.message,
+      ...(exception.data ? { data: exception.data } : {}),
       ...(isMigrated && process.env.NODE_ENV !== 'production' ? { devMessage: exception.message } : {}),
     });
   }
