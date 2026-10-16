@@ -4,6 +4,8 @@
 
 **Source of truth:** the Claude Project ("ERP system") is still the live, actively-updated copy — any future session working from that Project will keep writing there. This folder is a point-in-time export, originally generated 2026-08-31, refreshed 2026-09-10, and **refreshed again 2026-09-13** (all 19 files re-fetched from the live Project and re-written here byte-for-byte; 5 files that didn't exist in this folder before this refresh were added — see the file list below). If you're continuing work from the Project directly, these files may drift slightly behind it over time — ask whichever session is working to re-export this folder after a significant milestone if you want it kept current.
 
+**Newest first: read `session-handoff-2026-10-16.md` (see the bottom of this file).**
+
 **How to use this with a new Claude session:** attach/open this repo, then point the session at this folder (`docs/claude-context/`) and ask it to read these files before starting — that gives it the same grounding the Project docs give a session with Project access. **Start with `next-steps-backlog.md` first** — it's the newest/most complete handoff file: it names every open item across the whole project, what state each is actually in, and what a new session should check before touching code.
 
 ## Files, in build order
@@ -56,3 +58,8 @@ If continuing via a Claude session with a device-bridge/remote-shell connection 
 ## Post-refresh addendum
 
 See **`session-handoff-2026-10-04.md`** — git state (commit `4a5c3e5` pushed; the many 'modified' files on Windows are line-ending noise only), how to run the app locally on this Windows machine (tenant `demo`, Vite port 5173 blocked, use `--port 8080`), and tooling caveats.
+
+
+## Latest handoff (2026-10-16) — START HERE
+
+Read **`session-handoff-2026-10-16.md`** first. It supersedes `session-handoff-2026-10-04.md` and the 2026-09-13 status above. In short: the first customer (a clothing brand) is live on the Windows desktop build v0.1.0. It covers what was built 2026-10-08 → 10-16, how to build the installer (mirrors, Electron 44, VC++ runtime, `repair.cmd`), an honest comparison against Daftra and Odoo, the prioritised gaps (barcode labels → sales reports → promotions → …), and what is waiting on the user. The detailed per-feature docs live in the Claude Project "ERPplatform" (`claude/*.md`) and are listed in that file.
