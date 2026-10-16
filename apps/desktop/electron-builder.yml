@@ -22,6 +22,8 @@ extraResources:
     to: web
   - from: staging/pgsql    # PostgreSQL binaries (bin, lib, share)
     to: pgsql
+  - from: staging/vcredist # Visual C++ runtime for the PostgreSQL binaries (installed only if missing)
+    to: vcredist
   - from: dist             # setup.js (+ shared/), run by the installer as Node
     to: setup
 
@@ -45,7 +47,8 @@ nsis:
   shortcutName: ERP Platform
   runAfterFinish: true
   deleteAppDataOnUninstall: false
-  installerLanguages: [ar_SA, en_US]
+  installerLanguages: [ar_SA]   # Arabic wizard always (like Nabgha), whatever the Windows language
+  displayLanguageSelector: false
   language: "1025"
   include: installer/installer.nsh
   artifactName: ${productName}-Setup-${version}.${ext}

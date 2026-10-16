@@ -116,9 +116,15 @@ for (const pkg of ['prisma', '@prisma/engines', '@prisma/fetch-engine', '@prisma
   rmSync(join(stagedApi, 'node_modules', pkg), { recursive: true, force: true });
 }
 
-step('Smoke test: requiring the whole API module graph from staging/api');
+// Run it on Electron's own Node (ELECTRON_RUN_AS_NODE) — the exact runtime the
+// installer and the app use on the customer's PC. Running it on the build
+// machine's Node hid a real failure: kysely 0.29 is ESM-only, which Node 22
+// loads via require() but Electron 32's Node 20.18 does not (ERR_REQUIRE_ESM).
+step('Smoke test: requiring the whole API module graph from staging/api (on Electron\'s Node)');
+const electronExe = createRequire(join(desktopDir, 'package.json'))('electron');
+if (typeof electronExe !== 'string' || !existsSync(electronExe)) fail('Electron binary not found — run pnpm install first.');
 const smoke = spawnSync(
-  process.execPath,
+  electronExe,
   ['-e', "require('./dist/app.module'); require('./dist/database/desktop/desktop-setup.command'); console.log('ok')"],
   {
     cwd: stagedApi,
@@ -126,6 +132,7 @@ const smoke = spawnSync(
     env: {
       PATH: process.env.PATH,
       SYSTEMROOT: process.env.SYSTEMROOT,
+      ELECTRON_RUN_AS_NODE: '1',
       DOTENV_CONFIG_PATH: '__none__',
       DATABASE_URL: 'postgresql://smoke:smoke@127.0.0.1:1/smoke',
       JWT_ACCESS_SECRET: 'smoke-test-secret-0123456789',
@@ -197,6 +204,30 @@ if (flag('--no-pg')) {
   }
 }
 
+// ── 5. Microsoft Visual C++ runtime ───────────────────────────────────────
+// The PostgreSQL binaries are built with MSVC and need VCRUNTIME140 — present
+// on most PCs (any app may have installed it) but NOT on a clean Windows. The
+// EDB installer Nabgha used bundles it; the bare binaries zip does not. The
+// installer runs it silently only when the runtime is missing.
+const VC_REDIST_URL = process.env.VC_REDIST_URL ?? 'https://aka.ms/vs/17/release/vc_redist.x64.exe';
+const vcTarget = join(staging, 'vcredist', 'vc_redist.x64.exe');
+if (existsSync(vcTarget)) {
+  console.log('\n▶ Visual C++ runtime already staged');
+} else {
+  step('Staging the Visual C++ runtime (vc_redist.x64.exe)');
+  mkdirSync(cacheDir, { recursive: true });
+  const cached = option('--vc-redist') ?? join(cacheDir, 'vc_redist.x64.exe');
+  if (!existsSync(cached)) {
+    console.log(`  downloading ${VC_REDIST_URL}`);
+    const response = await fetch(VC_REDIST_URL);
+    if (!response.ok) fail(`Download failed (${response.status}). Download vc_redist.x64.exe manually and pass --vc-redist <file>.`);
+    const { writeFile } = await import('node:fs/promises');
+    await writeFile(cached, Buffer.from(await response.arrayBuffer()));
+  }
+  mkdirSync(join(staging, 'vcredist'), { recursive: true });
+  cpSync(cached, vcTarget);
+}
+
 // ── Summary ───────────────────────────────────────────────────────────────
 function sizeOf(path) {
   if (!existsSync(path)) return 0;
@@ -205,6 +236,6 @@ function sizeOf(path) {
   return readdirSync(path).reduce((sum, name) => sum + sizeOf(join(path, name)), 0);
 }
 step('Staged');
-for (const part of ['api', 'web', 'pgsql']) {
+for (const part of ['api', 'web', 'pgsql', 'vcredist']) {
   console.log(`  ${part.padEnd(6)} ${(sizeOf(join(staging, part)) / 1024 / 1024).toFixed(1)} MB`);
 }
