@@ -10,10 +10,13 @@ export interface CreateGoodsReceiptRow {
   exchangeRate: string | null;
   notes: string | null;
   customFields: Record<string, unknown>;
+  sourcePurchaseInvoiceId?: string | null;
 }
 
 export interface GoodsReceiptRepository {
   list(db: Kysely<TenantDatabase>): Promise<GoodsReceipt[]>;
+  /** Receipts a purchase invoice made for itself (direct invoicing). */
+  listBySourcePurchaseInvoiceId(db: Kysely<TenantDatabase>, purchaseInvoiceId: string): Promise<GoodsReceipt[]>;
   listByPurchaseOrderId(db: Kysely<TenantDatabase>, purchaseOrderId: string): Promise<GoodsReceipt[]>;
   findById(db: Kysely<TenantDatabase>, id: string): Promise<GoodsReceipt | null>;
   create(db: Kysely<TenantDatabase>, input: CreateGoodsReceiptRow): Promise<GoodsReceipt>;

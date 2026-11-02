@@ -3,7 +3,7 @@ import type { Kysely } from 'kysely';
 import type { TenantDatabase } from '../../../../database/tenant/kysely-client';
 import { computeDocumentTaxes, toSnapshot, totalsToDto } from '../../../../shared/taxes/document-taxes';
 import { withTransaction } from '../../../../database/tenant/transaction.util';
-import type { ReceiptLot } from '../../domain/goods-receipt.entity';
+import type { CreateGoodsReceiptInput, ReceiptLot } from '../../domain/goods-receipt.entity';
 import {
   PURCHASE_INVOICE_REPOSITORY,
   type PurchaseInvoiceRepository,
@@ -23,6 +23,7 @@ import {
   assertSingleCurrency,
   calculatePurchaseInvoiceTotals,
   type PurchaseInvoice,
+  type PurchaseInvoiceLine,
   type PurchaseInvoiceWithLines,
   type CreatePurchaseInvoiceInput,
 } from '../../domain/purchase-invoice.entity';
@@ -37,6 +38,10 @@ import { FEATURE_KEYS } from '../../../../shared/plans/feature-catalog';
 import { assertCurrencyAllowedForTenant } from '../../../../shared/plans/currency-gate';
 import { PurchaseOrdersService } from './purchase-orders.service';
 import { GoodsReceiptsService } from './goods-receipts.service';
+import { computePurchasePriceDifferences } from './purchase-price-differences';
+import { CurrencyRateReader } from '../../../../shared/catalog/currency-rate-reader';
+import type { PurchasePriceDifference } from '../../../../shared/events/purchase-price-difference';
+import { localIsoDate } from '../../../../shared/time/local-date';
 
 /**
  * Purchase Invoices (master doc §10, step 3 — Purchases, Stage 7). This
@@ -130,6 +135,8 @@ export class PurchaseInvoicesService {
     private readonly goodsReceiptsService: GoodsReceiptsService,
   ) {}
 
+  private readonly currencyRates = new CurrencyRateReader();
+
   list(db: Kysely<TenantDatabase>): Promise<PurchaseInvoice[]> {
     return this.invoices.list(db);
   }
@@ -149,7 +156,6 @@ export class PurchaseInvoicesService {
     db: Kysely<TenantDatabase>,
     input: CreatePurchaseInvoiceInput,
     schema: string,
-    actorUserId: string | null,
   ): Promise<PurchaseInvoiceWithLines> {
     const usingDirectPath = input.purchaseOrderId === undefined;
     if (usingDirectPath) {
@@ -334,6 +340,27 @@ export class PurchaseInvoicesService {
           });
         }
 
+        // Taxes first: an auto-received line enters stock at its net cost (below).
+        const poLineById = new Map(poLines.map((line) => [line.id, line]));
+
+        const pricesIncludeTax = input.pricesIncludeTax ?? false;
+        const supplier = await trx
+          .selectFrom('suppliers')
+          .select('withholding_tax_rule_id')
+          .where('id', '=', supplierId)
+          .executeTakeFirst();
+        const lineTaxes = await computeDocumentTaxes(trx, {
+          scope: 'purchases',
+          partyWithholdingRuleId: supplier?.withholding_tax_rule_id ?? null,
+          pricesIncludeTax,
+          lines: resolvedLines.map((line) => ({
+            productVariantId: poLineById.get(line.purchaseOrderLineId)!.productVariantId,
+            amountMinor: line.unitPrice.multiplyByQuantity(line.quantityInvoiced).toMinorUnits(),
+            taxRuleIds: line.taxRuleIds,
+          })),
+        });
+
+        let autoReceipt: CreateGoodsReceiptInput | null = null;
         const goodsReceiptsEnabled = await this.featureAvailability.isEnabled(
           trx,
           schema,
@@ -363,6 +390,12 @@ export class PurchaseInvoicesService {
             })
             .filter((line) => line.quantityReceived > 0);
 
+          const netUnitCostByPoLineId = new Map(
+            resolvedLines.map((line, index) => [
+              line.purchaseOrderLineId,
+              Money.fromMinorUnits(lineTaxes[index]!.net, line.unitPrice.currency).divideByQuantity(line.quantityInvoiced),
+            ]),
+          );
           if (linesToReceive.length > 0) {
             if (!input.warehouseId) {
               throw new BusinessRuleError(
@@ -371,39 +404,26 @@ export class PurchaseInvoicesService {
                 { code: 'PURCHASE_INVOICE.WAREHOUSE_REQUIRED' },
               );
             }
-            const receipt = await this.goodsReceiptsService.create(trx, {
+            // Made after the invoice (it points at it), as a draft: see autoReceipt below.
+            autoReceipt = {
               purchaseOrderId: poId,
               warehouseId: input.warehouseId,
+              // Same date and net-of-tax cost as the invoice, so stock and GRNI
+              // carry the invoice's own value (a tax-inclusive price used to
+              // put the VAT into the stock value).
+              receivedDate: input.invoiceDate ?? null,
               lines: linesToReceive.map((line) => ({
                 ...line,
+                unitCost: netUnitCostByPoLineId.get(line.purchaseOrderLineId),
                 notes: null,
                 lots: lotsByPoLineId.get(line.purchaseOrderLineId),
               })),
               customFields: {},
-            });
-            await this.goodsReceiptsService.confirm(trx, receipt.id, schema, actorUserId);
+            };
           }
         }
 
-        const poLineById = new Map(poLines.map((line) => [line.id, line]));
         const allocated = await this.numberingSequences.allocateNext(trx, 'purchase_invoice', null);
-
-        const pricesIncludeTax = input.pricesIncludeTax ?? false;
-        const supplier = await trx
-          .selectFrom('suppliers')
-          .select('withholding_tax_rule_id')
-          .where('id', '=', supplierId)
-          .executeTakeFirst();
-        const lineTaxes = await computeDocumentTaxes(trx, {
-          scope: 'purchases',
-          partyWithholdingRuleId: supplier?.withholding_tax_rule_id ?? null,
-          pricesIncludeTax,
-          lines: resolvedLines.map((line) => ({
-            productVariantId: poLineById.get(line.purchaseOrderLineId)!.productVariantId,
-            amountMinor: line.unitPrice.multiplyByQuantity(line.quantityInvoiced).toMinorUnits(),
-            taxRuleIds: line.taxRuleIds,
-          })),
-        });
 
         const invoice = await this.invoices.create(trx, {
           invoiceNumber: allocated.formatted,
@@ -433,6 +453,13 @@ export class PurchaseInvoicesService {
               unitFactor: poLine.unitFactor,
             }),
           );
+        }
+
+        // Direct invoicing: the invoice's own receipt, still a DRAFT — stock
+        // moves when the invoice is posted (post()), never for a draft that
+        // ends up cancelled or deleted.
+        if (autoReceipt) {
+          await this.goodsReceiptsService.create(trx, { ...autoReceipt, sourcePurchaseInvoiceId: invoice.id });
         }
 
         return { ...invoice, lines: createdLines, ...calculatePurchaseInvoiceTotals(createdLines) };
@@ -493,6 +520,11 @@ export class PurchaseInvoicesService {
     return withTransaction(db, async (trx) => {
       const updated = await this.invoices.updateStatus(trx, id, 'posted');
       if (!updated) throw entityNotFound('PURCHASE_INVOICE', id);
+      // Direct invoicing: the goods enter stock now, with the invoice.
+      for (const receipt of await this.goodsReceiptsService.listMadeByInvoice(trx, id)) {
+        if (receipt.status === 'draft') await this.goodsReceiptsService.confirm(trx, receipt.id, schema, actorUserId);
+      }
+      const priceDifferences = await this.priceDifferencesFor(trx, updated, lines);
 
       await this.outboxWriter.write(trx, 'purchases.purchase_invoice.posted', {
         schema,
@@ -514,11 +546,58 @@ export class PurchaseInvoicesService {
             netAmount: { amountMinorUnits: line.netAmount.toMinorUnits().toString(), currency: line.netAmount.currency },
             taxes: line.taxes,
           })),
+          // Inventory corrects the goods' cost by these (and so clears GRNI).
+          priceDifferences,
         },
         occurredAt: new Date(),
       });
 
       return { ...updated, lines, ...totals };
+    });
+  }
+
+  /** See computePurchasePriceDifferences(): received goods whose invoice price differs from the receipt cost. */
+  private async priceDifferencesFor(
+    trx: Kysely<TenantDatabase>,
+    invoice: PurchaseInvoice,
+    lines: PurchaseInvoiceLine[],
+  ): Promise<PurchasePriceDifference[]> {
+    const received = await this.goodsReceiptsService.receivedValueByOrderLine(trx, invoice.purchaseOrderId);
+    if (received.size === 0) return [];
+
+    const poLineIds = [...new Set(lines.map((line) => line.purchaseOrderLineId))];
+    const earlier = await trx
+      .selectFrom('purchase_invoice_lines as l')
+      .innerJoin('purchase_invoices as i', 'i.id', 'l.purchase_invoice_id')
+      .select(['l.purchase_order_line_id', 'l.quantity_invoiced', 'l.unit_factor'])
+      .where('i.status', '=', 'posted')
+      .where('i.id', '!=', invoice.id)
+      .where('l.purchase_order_line_id', 'in', poLineIds)
+      .execute();
+    const previouslyInvoiced = new Map<string, number>();
+    for (const row of earlier) {
+      const base = Number(row.quantity_invoiced) * Number(row.unit_factor);
+      previouslyInvoiced.set(row.purchase_order_line_id, (previouslyInvoiced.get(row.purchase_order_line_id) ?? 0) + base);
+    }
+
+    const tenantCurrency = await this.currencyRates.tenantCurrency(trx);
+    const currency = lines[0].netAmount.currency;
+    const rate =
+      currency === tenantCurrency
+        ? null
+        : await this.currencyRates.effectiveRate(trx, currency, tenantCurrency, invoice.invoiceDate ?? localIsoDate());
+
+    return computePurchasePriceDifferences({
+      lines: lines.map((line) => ({
+        purchaseOrderLineId: line.purchaseOrderLineId,
+        productVariantId: line.productVariantId,
+        baseQuantity: Math.round(line.quantityInvoiced * line.unitFactor * 10_000) / 10_000,
+        netAmount: line.netAmount,
+      })),
+      received,
+      previouslyInvoiced,
+      tenantCurrency,
+      rate,
     });
   }
 
@@ -532,9 +611,12 @@ export class PurchaseInvoicesService {
         { code: 'PURCHASE_INVOICE.NOT_CANCELLABLE', params: { id, status: existing.status } },
       );
     }
-    const updated = await this.invoices.updateStatus(db, id, 'cancelled');
-    if (!updated) throw entityNotFound('PURCHASE_INVOICE', id);
-    return updated;
+    return withTransaction(db, async (trx) => {
+      const updated = await this.invoices.updateStatus(trx, id, 'cancelled');
+      if (!updated) throw entityNotFound('PURCHASE_INVOICE', id);
+      await this.dropOwnReceipts(trx, id, 'cancel');
+      return updated;
+    });
   }
 
   async delete(db: Kysely<TenantDatabase>, id: string): Promise<void> {
@@ -546,6 +628,17 @@ export class PurchaseInvoicesService {
         params: { id, status: existing.status },
       });
     }
-    await this.invoices.delete(db, id);
+    await withTransaction(db, async (trx) => {
+      await this.dropOwnReceipts(trx, id, 'delete');
+      await this.invoices.delete(trx, id);
+    });
+  }
+
+  /** The draft receipt a direct invoice made for itself goes with it (cancelled, or deleted with a deleted invoice). */
+  private async dropOwnReceipts(trx: Kysely<TenantDatabase>, invoiceId: string, mode: 'cancel' | 'delete'): Promise<void> {
+    for (const receipt of await this.goodsReceiptsService.listMadeByInvoice(trx, invoiceId)) {
+      if (receipt.status === 'draft') await this.goodsReceiptsService.cancel(trx, receipt.id);
+      if (mode === 'delete' && receipt.status !== 'confirmed') await this.goodsReceiptsService.delete(trx, receipt.id);
+    }
   }
 }

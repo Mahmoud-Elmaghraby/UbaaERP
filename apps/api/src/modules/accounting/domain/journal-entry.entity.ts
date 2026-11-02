@@ -92,7 +92,12 @@ export interface CreateAutoJournalEntryInput {
   lines: CreateJournalEntryLineInput[];
   sourceReferenceType: string;
   sourceReferenceId: string;
+  /** Year-end closing only: posts into a period that is already closed. */
+  allowClosedPeriod?: boolean;
 }
+
+/** sourceReferenceType of the year-end closing entry (sourceReferenceId = the fiscal year). */
+export const YEAR_END_CLOSING_SOURCE = 'fiscal_year_closing';
 
 /** Built by JournalEntriesService after validation — what the repository actually persists. */
 export interface JournalEntryLineToPersist {

@@ -19,6 +19,8 @@ export interface RecordAuditLogInput {
 export interface AuditLogFilters {
   userId?: string;
   entityType?: string;
+  /** One record's history (with entityType). */
+  entityId?: string;
   action?: string;
   from?: Date;
   to?: Date;

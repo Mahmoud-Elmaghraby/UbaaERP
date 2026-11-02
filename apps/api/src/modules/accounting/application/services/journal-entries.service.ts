@@ -1,5 +1,7 @@
+import { AccountingSettingsService } from './accounting-settings.service';
 import { localIsoDate } from '../../../../shared/time/local-date';
-import { Inject, Injectable } from '@nestjs/common';
+import { withTransaction } from '../../../../database/tenant/transaction.util';
+import { Inject, Injectable, Optional } from '@nestjs/common';
 import type { Kysely } from 'kysely';
 import { Money } from '@erp-platform/shared-kernel';
 import type { TenantDatabase } from '../../../../database/tenant/kysely-client';
@@ -44,7 +46,20 @@ export class JournalEntriesService {
     private readonly periods: AccountingPeriodsService,
     private readonly numberingSequences: NumberingSequencesService,
     private readonly tenantSettings: TenantSettingsService,
+    // Optional so unit tests that build the service by hand keep working; Nest always provides it.
+    @Optional() private readonly accountingSettings?: AccountingSettingsService,
   ) {}
+
+  /**
+   * Whether posting this entry needs 'accounting.approve': a manual entry
+   * when Accounting Settings require approval, an automatic one when
+   * automatic entries go through review.
+   */
+  async needsApproval(db: Kysely<TenantDatabase>, entry: Pick<JournalEntry, 'source'>): Promise<boolean> {
+    if (!this.accountingSettings) return false;
+    const settings = await this.accountingSettings.get(db);
+    return entry.source === 'auto' ? settings.reviewAutoEntries : settings.requireEntryApproval;
+  }
 
   list(db: Kysely<TenantDatabase>, filters?: JournalEntryFilters): Promise<JournalEntry[]> {
     return this.entries.list(db, filters);
@@ -120,7 +135,7 @@ export class JournalEntriesService {
     const currency = tenantSettings.currencyCode;
     const builtLines = await this.buildAndValidateLines(db, currency, input.lines);
 
-    return db.transaction().execute(async (trx) => {
+    return withTransaction(db, async (trx) => {
       const allocated = await this.numberingSequences.allocateNext(trx, 'journal_entry', null);
       const entry = await this.entries.create(trx, {
         entryNumber: allocated.formatted,
@@ -143,6 +158,7 @@ export class JournalEntriesService {
   ): Promise<JournalEntryWithLines> {
     const existing = await this.entries.findById(db, id);
     if (!existing) throw entityNotFound('JOURNAL_ENTRY', id);
+    assertManual(existing);
     if (existing.status !== 'draft') {
       throw new BusinessRuleError(
         `Journal entry "${existing.entryNumber}" is "${existing.status}" and can no longer be edited.`,
@@ -152,7 +168,7 @@ export class JournalEntriesService {
 
     const builtLines = await this.buildAndValidateLines(db, existing.currency, input.lines);
 
-    return db.transaction().execute(async (trx) => {
+    return withTransaction(db, async (trx) => {
       const updated = await this.entries.update(trx, id, {
         entryDate: input.entryDate,
         description: input.description ?? null,
@@ -173,7 +189,11 @@ export class JournalEntriesService {
    * open — a draft can be written for any date, but actually posting is
    * what CLAUDE.md's period-close semantics are meant to block.
    */
-  async post(db: Kysely<TenantDatabase>, id: string): Promise<JournalEntryWithLines> {
+  async post(
+    db: Kysely<TenantDatabase>,
+    id: string,
+    options: { allowClosedPeriod?: boolean; canApprove?: boolean } = {},
+  ): Promise<JournalEntryWithLines> {
     const entry = await this.getById(db, id);
     if (entry.status !== 'draft') {
       throw new BusinessRuleError(
@@ -195,15 +215,30 @@ export class JournalEntriesService {
       });
     }
 
-    await this.periods.assertOpenForDate(db, entry.entryDate);
+    // A person posting (canApprove given) must hold 'accounting.approve' when approval applies.
+    if (options.canApprove === false && (await this.needsApproval(db, entry))) {
+      throw new BusinessRuleError(`Journal entry "${entry.entryNumber}" needs approval by an authorised accountant.`, {
+        code: 'JOURNAL_ENTRY.APPROVAL_REQUIRED',
+        params: { entryNumber: entry.entryNumber },
+      });
+    }
+    if (!options.allowClosedPeriod) await this.periods.assertOpenForDate(db, entry.entryDate);
 
-    const updated = await this.entries.updateStatus(db, id, 'posted', new Date());
-    return { ...(updated ?? entry), lines: entry.lines };
+    // Only while still a draft: a concurrent post/cancel/edit must not slip through.
+    const updated = await this.entries.updateStatus(db, id, 'posted', new Date(), 'draft');
+    if (!updated) {
+      throw new BusinessRuleError(`Journal entry "${entry.entryNumber}" changed meanwhile — reload and try again.`, {
+        code: 'JOURNAL_ENTRY.NOT_POSTABLE',
+        params: { entryNumber: entry.entryNumber, status: 'changed' },
+      });
+    }
+    return { ...updated, lines: entry.lines };
   }
 
   async cancel(db: Kysely<TenantDatabase>, id: string): Promise<JournalEntry> {
     const entry = await this.entries.findById(db, id);
     if (!entry) throw entityNotFound('JOURNAL_ENTRY', id);
+    assertManual(entry);
     if (entry.status !== 'draft') {
       throw new BusinessRuleError(
         `Journal entry "${entry.entryNumber}" is "${entry.status}" — only a draft can be cancelled. ` +
@@ -211,8 +246,14 @@ export class JournalEntriesService {
         { code: 'JOURNAL_ENTRY.NOT_CANCELLABLE', params: { entryNumber: entry.entryNumber, status: entry.status } },
       );
     }
-    const updated = await this.entries.updateStatus(db, id, 'cancelled');
-    return updated!;
+    const updated = await this.entries.updateStatus(db, id, 'cancelled', undefined, 'draft');
+    if (!updated) {
+      throw new BusinessRuleError(`Journal entry "${entry.entryNumber}" changed meanwhile — reload and try again.`, {
+        code: 'JOURNAL_ENTRY.NOT_CANCELLABLE',
+        params: { entryNumber: entry.entryNumber, status: 'changed' },
+      });
+    }
+    return updated;
   }
 
   /**
@@ -239,6 +280,17 @@ export class JournalEntriesService {
       );
     }
 
+    const existingReversal = await this.entries.findActiveReversalOf(db, original.id);
+    if (existingReversal) {
+      throw new BusinessRuleError(
+        `Journal entry "${original.entryNumber}" is already reversed by "${existingReversal.entryNumber}".`,
+        {
+          code: 'JOURNAL_ENTRY.ALREADY_REVERSED',
+          params: { entryNumber: original.entryNumber, reversalNumber: existingReversal.entryNumber },
+        },
+      );
+    }
+
     const reversalDate = options?.reversalDate ?? localIsoDate();
     const description = options?.description ?? `Reversal of ${original.entryNumber}`;
 
@@ -252,7 +304,7 @@ export class JournalEntriesService {
       costCenterId: line.costCenterId,
     }));
 
-    return db.transaction().execute(async (trx) => {
+    return withTransaction(db, async (trx) => {
       const allocated = await this.numberingSequences.allocateNext(trx, 'journal_entry', null);
       const entry = await this.entries.create(trx, {
         entryNumber: allocated.formatted,
@@ -269,9 +321,20 @@ export class JournalEntriesService {
     });
   }
 
+  /**
+   * Removes the automatic entry a source made (posted or not) — only for a
+   * source that is itself being undone by the system, e.g. reopening a
+   * fiscal year drops its closing entry. Never exposed to users.
+   */
+  async removeAutoEntry(db: Kysely<TenantDatabase>, sourceReferenceType: string, sourceReferenceId: string): Promise<void> {
+    const existing = await this.entries.findBySourceReference(db, sourceReferenceType, sourceReferenceId);
+    if (existing && existing.source === 'auto') await this.entries.delete(db, existing.id);
+  }
+
   async delete(db: Kysely<TenantDatabase>, id: string): Promise<void> {
     const entry = await this.entries.findById(db, id);
     if (!entry) throw entityNotFound('JOURNAL_ENTRY', id);
+    assertManual(entry);
     if (entry.status !== 'draft') {
       throw new BusinessRuleError(`Journal entry "${entry.entryNumber}" is "${entry.status}" and cannot be deleted.`, {
         code: 'JOURNAL_ENTRY.NOT_DELETABLE',
@@ -320,7 +383,10 @@ export class JournalEntriesService {
         return { ...existing, lines };
       }
       if (existing.status === 'draft') {
-        return this.post(db, existing.id);
+        if (!input.allowClosedPeriod && (await this.needsApproval(db, existing))) {
+          return { ...existing, lines: await this.lines.listByJournalEntryId(db, existing.id) };
+        }
+        return this.post(db, existing.id, { allowClosedPeriod: input.allowClosedPeriod });
       }
       throw new BusinessRuleError(
         `Journal entry "${existing.entryNumber}" (auto-generated for ${input.sourceReferenceType} ` +
@@ -343,7 +409,7 @@ export class JournalEntriesService {
 
     let created: JournalEntryWithLines;
     try {
-      created = await db.transaction().execute(async (trx) => {
+      created = await withTransaction(db, async (trx) => {
         const allocated = await this.numberingSequences.allocateNext(trx, 'journal_entry', null);
         const entry = await this.entries.create(trx, {
           entryNumber: allocated.formatted,
@@ -376,9 +442,26 @@ export class JournalEntriesService {
         const lines = await this.lines.listByJournalEntryId(db, raced.id);
         return { ...raced, lines };
       }
-      return this.post(db, raced.id);
+      return this.post(db, raced.id, { allowClosedPeriod: input.allowClosedPeriod });
     }
 
-    return this.post(db, created.id);
+    // Under review, automatic entries wait as drafts (the year-end closing never does).
+    if (!input.allowClosedPeriod && (await this.needsApproval(db, created))) return created;
+    return this.post(db, created.id, { allowClosedPeriod: input.allowClosedPeriod });
+  }
+}
+
+/**
+ * An automatic entry mirrors its source document (invoice, payment…): it
+ * may be posted once its period is open, but never edited, cancelled or
+ * deleted by hand — that would leave the document out of the ledger or
+ * disagreeing with it. Fix the source document instead.
+ */
+function assertManual(entry: JournalEntry): void {
+  if (entry.source === 'auto') {
+    throw new BusinessRuleError(
+      `Journal entry "${entry.entryNumber}" was generated automatically and can't be changed by hand.`,
+      { code: 'JOURNAL_ENTRY.AUTO_READ_ONLY', params: { entryNumber: entry.entryNumber } },
+    );
   }
 }

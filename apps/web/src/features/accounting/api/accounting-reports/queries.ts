@@ -46,13 +46,18 @@ export function useTrialBalanceReport(asOfDate: string | undefined) {
   });
 }
 
-export function useIncomeStatementReport(params: { fromDate: string | undefined; toDate: string | undefined }) {
-  const { fromDate, toDate } = params;
+export function useIncomeStatementReport(params: {
+  fromDate: string | undefined;
+  toDate: string | undefined;
+  /** Only lines tagged with this cost center (مركز تكلفة). */
+  costCenterId?: string | null;
+}) {
+  const { fromDate, toDate, costCenterId } = params;
   return useQuery({
-    queryKey: ['accounting-reports', 'income-statement', fromDate, toDate],
+    queryKey: ['accounting-reports', 'income-statement', fromDate, toDate, costCenterId ?? null],
     queryFn: () =>
       apiGet<IncomeStatementReportDto>(
-        `/accounting-reports/income-statement?fromDate=${fromDate}&toDate=${toDate}`,
+        `/accounting-reports/income-statement?fromDate=${fromDate}&toDate=${toDate}${costCenterId ? `&costCenterId=${costCenterId}` : ''}`,
       ),
     enabled: Boolean(fromDate) && Boolean(toDate),
   });

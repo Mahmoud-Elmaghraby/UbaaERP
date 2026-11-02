@@ -21,6 +21,7 @@ function toDomain(row: Selectable<CustomersTable>): Customer {
     notes: row.notes,
     isActive: row.is_active,
     isSystemDefault: row.is_system_default,
+    priceListId: row.price_list_id,
     customFields: (row.custom_fields ?? {}) as Record<string, unknown>,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -62,6 +63,7 @@ export class KyselyCustomerRepository implements CustomerRepository {
         notes: input.notes ?? null,
         is_active: input.isActive ?? true,
         is_system_default: false,
+        price_list_id: input.priceListId ?? null,
         custom_fields: JSON.stringify(input.customFields ?? {}),
       })
       .returningAll()
@@ -86,6 +88,7 @@ export class KyselyCustomerRepository implements CustomerRepository {
         ...(input.paymentTermsDays !== undefined ? { payment_terms_days: input.paymentTermsDays } : {}),
         ...(input.notes !== undefined ? { notes: input.notes } : {}),
         ...(input.isActive !== undefined ? { is_active: input.isActive } : {}),
+        ...(input.priceListId !== undefined ? { price_list_id: input.priceListId } : {}),
         ...(input.customFields !== undefined ? { custom_fields: JSON.stringify(input.customFields) } : {}),
         updated_at: new Date(),
       })

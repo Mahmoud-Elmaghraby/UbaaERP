@@ -139,6 +139,12 @@ export class AccountingInventoryPostingListener {
         return { debit: inventory, credit: this.landedCostClearing(settings) };
       case 'landed_cost_cogs':
         return { debit: this.required(settings, 'cogsAccountId'), credit: this.landedCostClearing(settings) };
+      case 'price_difference_inventory':
+        return { debit: inventory, credit: this.required(settings, 'grniAccountId') };
+      case 'price_difference_cogs':
+        return { debit: this.required(settings, 'cogsAccountId'), credit: this.required(settings, 'grniAccountId') };
+      case 'return_price_difference':
+        return { debit: this.required(settings, 'grniAccountId'), credit: this.required(settings, 'cogsAccountId') };
       default: {
         const unknown: never = kind;
         throw new BusinessRuleError(`Unknown inventory valuation kind "${unknown as string}".`);

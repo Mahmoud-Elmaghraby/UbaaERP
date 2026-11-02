@@ -31,7 +31,7 @@ import {
   toast,
 } from '@erp-platform/ui';
 
-import { useCustomFieldDefinitions } from '../../../settings/queries';
+import { useBaseCurrency, useCustomFieldDefinitions } from '../../../settings/queries';
 import { useCustomers } from '../../api/customers/queries';
 import { useCreatePaymentReceived } from '../../api/payments-received/queries';
 import { useCustomerInvoices } from '../../hooks/payments-received/use-customer-invoices';
@@ -100,6 +100,7 @@ export function CreatePaymentReceivedForm({ onDone }: { onDone: () => void }) {
   const [allocationsError, setAllocationsError] = useState<string | null>(null);
   const [treasuryId, setTreasuryId] = useState<string | null>(null);
 
+  const baseCurrency = useBaseCurrency();
   const formSchema = useMemo(() => {
     const staticSchema = createPaymentReceivedSchema
       .pick({ paymentDate: true, referenceNumber: true, notes: true, paymentMethod: true })
@@ -113,7 +114,7 @@ export function CreatePaymentReceivedForm({ onDone }: { onDone: () => void }) {
     defaultValues: {
       customerId: customers?.[0]?.id ?? '',
       amount: '',
-      currency: customers?.[0]?.defaultCurrency ?? 'SAR',
+      currency: customers?.[0]?.defaultCurrency || baseCurrency,
       paymentMethod: 'bank_transfer',
       paymentDate: '',
       referenceNumber: '',
@@ -175,7 +176,7 @@ export function CreatePaymentReceivedForm({ onDone }: { onDone: () => void }) {
                 onValueChange={(value) => {
                   field.onChange(value);
                   const customer = customers?.find((c) => c.id === value);
-                  if (customer) form.setValue('currency', customer.defaultCurrency);
+                  if (customer) form.setValue('currency', customer.defaultCurrency || baseCurrency);
                 }}
                 value={field.value}
               >

@@ -41,6 +41,7 @@ import { useCreateCustomer, useUpdateCustomer } from '../../api/customers/querie
 import { ApiError } from '../../../../lib/api-client';
 import { WhenTaxesInUse } from '../../../../components/taxes/when-taxes-in-use';
 import { CurrencySelect } from '../../../../components/document/currency-select';
+import { PriceListSelect } from '../price-lists/price-list-select';
 
 /**
  * Feature key from apps/api's FEATURE_KEYS.MULTI_CURRENCY (shared/plans/
@@ -91,6 +92,7 @@ export function CreateCustomerForm({ onDone }: { onDone: () => void }) {
       withholdingTaxRuleId: null,
       defaultCurrency: '',
       paymentTermsDays: null,
+      priceListId: null,
       notes: '',
       isActive: true,
       customFields: {},
@@ -294,6 +296,24 @@ export function CreateCustomerForm({ onDone }: { onDone: () => void }) {
         />
         <FormField
           control={form.control}
+          name="priceListId"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>{t('priceLists.customerDefault')}</FormLabel>
+              <FormControl>
+                <PriceListSelect
+                  value={field.value ?? null}
+                  onChange={field.onChange}
+                  currency={form.watch('defaultCurrency') ?? ''}
+                />
+              </FormControl>
+              <p className="text-xs text-muted-foreground">{t('priceLists.customerDefaultHint')}</p>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
           name="notes"
           render={({ field }) => (
             <FormItem>
@@ -368,6 +388,7 @@ export function EditCustomerForm({ customer, onDone }: { customer: CustomerDto; 
       withholdingTaxRuleId: customer.withholdingTaxRuleId ?? null,
       defaultCurrency: customer.defaultCurrency,
       paymentTermsDays: customer.paymentTermsDays,
+      priceListId: customer.priceListId ?? null,
       notes: customer.notes ?? '',
       isActive: customer.isActive,
       customFields: customer.customFields ?? {},
@@ -553,6 +574,24 @@ export function EditCustomerForm({ customer, onDone }: { customer: CustomerDto; 
                   onChange={(e) => field.onChange(e.target.value === '' ? null : Number(e.target.value))}
                 />
               </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="priceListId"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>{t('priceLists.customerDefault')}</FormLabel>
+              <FormControl>
+                <PriceListSelect
+                  value={field.value ?? null}
+                  onChange={field.onChange}
+                  currency={form.watch('defaultCurrency') ?? ''}
+                />
+              </FormControl>
+              <p className="text-xs text-muted-foreground">{t('priceLists.customerDefaultHint')}</p>
               <FormMessage />
             </FormItem>
           )}

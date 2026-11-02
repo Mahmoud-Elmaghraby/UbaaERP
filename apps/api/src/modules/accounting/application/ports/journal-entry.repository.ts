@@ -33,13 +33,18 @@ export interface JournalEntryRepository {
     sourceReferenceId: string,
   ): Promise<JournalEntry | null>;
   create(db: Kysely<TenantDatabase>, input: CreateJournalEntryRow): Promise<JournalEntry>;
+  /** Updates a DRAFT only — null when the entry is gone or no longer a draft. */
   update(db: Kysely<TenantDatabase>, id: string, input: UpdateJournalEntryRow): Promise<JournalEntry | null>;
+  /** With `expectedStatus`, changes the row only while it still has that status (null otherwise) — guards concurrent post/cancel. */
   updateStatus(
     db: Kysely<TenantDatabase>,
     id: string,
     status: JournalEntryStatus,
     postedAt?: Date | null,
+    expectedStatus?: JournalEntryStatus,
   ): Promise<JournalEntry | null>;
+  /** A non-cancelled entry that reverses `id`, if any. */
+  findActiveReversalOf(db: Kysely<TenantDatabase>, id: string): Promise<JournalEntry | null>;
   delete(db: Kysely<TenantDatabase>, id: string): Promise<boolean>;
 }
 

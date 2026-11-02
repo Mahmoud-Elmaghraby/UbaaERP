@@ -57,6 +57,7 @@ export const NAV_GROUPS: NavGroup[] = [
         children: [
           { to: '/sales/customers', labelKey: 'sales.tabs.customers' },
           { to: '/sales/receivables', labelKey: 'statements.balances.title.customer' },
+          { to: '/sales/price-lists', labelKey: 'priceLists.nav' },
           { to: '/sales/quotations', labelKey: 'sales.tabs.quotations', feature: 'sales.quotations' },
           { to: '/sales/sales-orders', labelKey: 'sales.tabs.salesOrders', feature: 'sales.sales_orders' },
           { to: '/sales/deliveries', labelKey: 'sales.tabs.deliveries', feature: 'sales.deliveries' },
@@ -166,10 +167,14 @@ export const NAV_GROUPS: NavGroup[] = [
         permission: 'accounting.manage',
         feature: 'accounting',
         children: [
+          { to: '/accounting', labelKey: 'accounting.tabs.overview' },
           { to: '/accounting/chart-of-accounts', labelKey: 'accounting.tabs.chartOfAccounts' },
           { to: '/accounting/journal-entries', labelKey: 'accounting.tabs.journalEntries' },
+          { to: '/accounting/recurring-entries', labelKey: 'accounting.tabs.recurring' },
           { to: '/accounting/reports', labelKey: 'accounting.tabs.reports' },
           { to: '/accounting/bank-accounts', labelKey: 'accounting.tabs.bankReconciliation' },
+          { to: '/accounting/fixed-assets', labelKey: 'accounting.tabs.fixedAssets' },
+          { to: '/accounting/budgets', labelKey: 'accounting.tabs.budgets' },
           { to: '/accounting/cost-centers', labelKey: 'accounting.tabs.costCenters' },
           { to: '/accounting/fiscal-years', labelKey: 'accounting.tabs.fiscalYears' },
           { to: '/accounting/settings', labelKey: 'accounting.tabs.settings' },

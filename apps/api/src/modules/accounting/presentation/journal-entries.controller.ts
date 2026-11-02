@@ -116,7 +116,7 @@ export class JournalEntriesController {
     @Param('id') id: string,
   ): Promise<JournalEntryWithLinesDto> {
     const db = this.connections.getClient(schema);
-    const entry = await this.service.post(db, id);
+    const entry = await this.service.post(db, id, { canApprove: user.permissions.includes('accounting.approve') });
     this.events.publish('journal_entry', 'posted', { schema, entityId: entry.id, actorUserId: user.sub });
     return entryWithLinesToDto(entry);
   }

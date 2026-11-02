@@ -1,13 +1,9 @@
-import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { VatReturnRowDto } from '@erp-platform/contracts';
 import {
   Badge,
-  Button,
   Card,
   CardContent,
-  Input,
-  Skeleton,
   Table,
   TableBody,
   TableCell,
@@ -15,20 +11,11 @@ import {
   TableHeader,
   TableRow,
 } from '@erp-platform/ui';
-import { Download } from 'lucide-react';
 
 import { useVatReturnReport } from '../../api/accounting-reports/queries';
+import { PeriodPicker, ReportFrame, periodText, useReportParams } from '../../../../components/report/report-layout';
 import { formatAmount, minorUnitsToDecimalString } from '../../../../lib/money';
 import { downloadXlsx } from '../../../../lib/xlsx';
-
-function monthBounds(offsetMonths = 0): { from: string; to: string } {
-  const now = new Date();
-  const first = new Date(now.getFullYear(), now.getMonth() + offsetMonths, 1);
-  const last = new Date(first.getFullYear(), first.getMonth() + 1, 0);
-  const iso = (date: Date) =>
-    `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-  return { from: iso(first), to: iso(last) };
-}
 
 /**
  * إقرار ضريبة القيمة المضافة — what the monthly VAT return needs: VAT on sales
@@ -38,14 +25,9 @@ function monthBounds(offsetMonths = 0): { from: string; to: string } {
  */
 export function VatReturnReport() {
   const { t } = useTranslation();
-  const initial = monthBounds(-1);
-  const [fromDate, setFromDate] = useState(initial.from);
-  const [toDate, setToDate] = useState(initial.to);
-  const [runParams, setRunParams] = useState<{ fromDate: string | undefined; toDate: string | undefined }>({
-    fromDate: undefined,
-    toDate: undefined,
-  });
-  const { data: report, isLoading } = useVatReturnReport(runParams);
+  // The return is filed for last month, so that is the default period.
+  const params = useReportParams({ preset: 'lastMonth' });
+  const { data: report, isLoading } = useVatReturnReport({ fromDate: params.from, toDate: params.to });
 
   const kindLabel = (row: VatReturnRowDto) => t(`settings.taxes.kinds.${row.kind}`);
 
@@ -81,32 +63,13 @@ export function VatReturnReport() {
   const net = report ? BigInt(report.netVatPayableMinorUnits) : 0n;
 
   return (
-    <div className="grid gap-4">
-      <div className="flex flex-wrap items-end gap-3">
-        <div className="grid gap-1.5">
-          <label className="text-sm font-medium">{t('accounting.reports.fromDate')}</label>
-          <Input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
-        </div>
-        <div className="grid gap-1.5">
-          <label className="text-sm font-medium">{t('accounting.reports.toDate')}</label>
-          <Input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} />
-        </div>
-        <Button
-          onClick={() => setRunParams({ fromDate: fromDate || undefined, toDate: toDate || undefined })}
-          disabled={!fromDate || !toDate}
-        >
-          {t('accounting.reports.run')}
-        </Button>
-        {report ? (
-          <Button variant="outline" onClick={exportXlsx}>
-            <Download />
-            {t('accounting.reports.vat.export')}
-          </Button>
-        ) : null}
-      </div>
-
-      {isLoading ? <Skeleton className="h-40 w-full" /> : null}
-
+    <ReportFrame
+      title={t('accounting.reports.vatReturn')}
+      period={periodText(t, params.from, params.to)}
+      loading={isLoading}
+      onExport={report ? exportXlsx : undefined}
+      filters={<PeriodPicker from={params.from} to={params.to} onChange={(range) => params.set(range)} />}
+    >
       {report ? (
         <>
           <div className="grid gap-3 sm:grid-cols-3">
@@ -174,7 +137,7 @@ export function VatReturnReport() {
           </Table>
         </>
       ) : null}
-    </div>
+    </ReportFrame>
   );
 }
 

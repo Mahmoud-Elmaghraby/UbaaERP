@@ -91,6 +91,27 @@ export class KyselyStockMovementRepository implements StockMovementRepository {
     return toDomain(row);
   }
 
+  async quantityByLocationForReferences(
+    db: Kysely<TenantDatabase>,
+    referenceType: string,
+    referenceIds: readonly string[],
+    productVariantId: string,
+  ): Promise<{ locationId: string; warehouseId: string; quantity: number }[]> {
+    if (referenceIds.length === 0) return [];
+    const rows = await db
+      .selectFrom('stock_movements')
+      .select(['location_id', 'warehouse_id', sql<string>`SUM(quantity)`.as('quantity')])
+      .where('reference_type', '=', referenceType)
+      .where('reference_id', 'in', referenceIds)
+      .where('product_variant_id', '=', productVariantId)
+      .groupBy(['location_id', 'warehouse_id'])
+      .orderBy('location_id')
+      .execute();
+    return rows
+      .map((row) => ({ locationId: row.location_id, warehouseId: row.warehouse_id, quantity: Number(row.quantity) }))
+      .filter((row) => row.quantity > 0);
+  }
+
   async sumForReference(
     db: Kysely<TenantDatabase>,
     referenceType: string,

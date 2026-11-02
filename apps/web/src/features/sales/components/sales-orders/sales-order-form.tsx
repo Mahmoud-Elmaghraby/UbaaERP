@@ -20,6 +20,7 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
+  Label,
   Select,
   SelectContent,
   SelectItem,
@@ -41,8 +42,11 @@ import {
   toast,
 } from '@erp-platform/ui';
 
-import { useCustomFieldDefinitions } from '../../../settings/queries';
+import { useBaseCurrency, useCustomFieldDefinitions } from '../../../settings/queries';
 import { useCustomers } from '../../api/customers/queries';
+import { useDocumentPriceList } from '../../api/price-lists/use-document-price-list';
+import { useVariantLookupMap } from '../../../inventory/api/products/queries';
+import { PriceListSelect } from '../price-lists/price-list-select';
 import { useQuotation } from '../../api/quotations/queries';
 import { useCreateSalesOrder, useUpdateSalesOrder } from '../../api/sales-orders/queries';
 import { useEligibleQuotations } from '../../hooks/sales-orders/use-eligible-quotations';
@@ -124,7 +128,9 @@ export function CreateSalesOrderFromQuotationForm({ onDone }: { onDone: () => vo
 
   const selectedQuotationId = form.watch('sourceQuotationId');
   const { data: quotationDetails, isLoading: quotationLoading } = useQuotation(selectedQuotationId);
-  const currency = quotationDetails?.lines[0]?.unitPrice.currency ?? 'SAR';
+  const baseCurrency = useBaseCurrency();
+
+  const currency = quotationDetails?.lines[0]?.unitPrice.currency || baseCurrency;
   const [discountDraft, setDiscountDraft] = useState<DiscountDraft>(() => createEmptyDiscountDraft());
   const [discountError, setDiscountError] = useState<string | null>(null);
 
@@ -287,7 +293,18 @@ export function CreateSalesOrderManualForm({ onDone }: { onDone: () => void }) {
   });
 
   const selectedCustomerId = form.watch('customerId');
-  const currency = customers?.find((c) => c.id === selectedCustomerId)?.defaultCurrency ?? 'SAR';
+  const selectedCustomer = customers?.find((c) => c.id === selectedCustomerId);
+  const baseCurrency = useBaseCurrency();
+
+  const currency = selectedCustomer?.defaultCurrency || baseCurrency;
+  const variants = useVariantLookupMap();
+  const { priceListId, setPriceListId, pricer } = useDocumentPriceList<SalesOrderLineDraft>({
+    customerPriceListId: selectedCustomer?.priceListId,
+    customerId: selectedCustomerId,
+    currency,
+    variants,
+    setLines,
+  });
   const [discountDraft, setDiscountDraft] = useState<DiscountDraft>(() => createEmptyDiscountDraft());
   const [discountError, setDiscountError] = useState<string | null>(null);
 
@@ -350,6 +367,10 @@ export function CreateSalesOrderManualForm({ onDone }: { onDone: () => void }) {
             </FormItem>
           )}
         />
+        <div className="grid gap-2">
+          <Label>{t('priceLists.field')}</Label>
+          <PriceListSelect value={priceListId} onChange={setPriceListId} currency={currency} />
+        </div>
         <FormField
           control={form.control}
           name="notes"
@@ -371,7 +392,7 @@ export function CreateSalesOrderManualForm({ onDone }: { onDone: () => void }) {
 
         <Separator />
         <p className="text-sm font-medium text-muted-foreground">{t('sales.salesOrders.lines')}</p>
-        <SalesOrderLineItemsEditor lines={lines} onChange={setLines} currency={currency} />
+        <SalesOrderLineItemsEditor lines={lines} onChange={setLines} currency={currency} pricer={pricer} />
         {linesError ? <p className="text-sm text-destructive">{linesError}</p> : null}
 
         {definitions && definitions.length > 0 ? (
@@ -440,8 +461,17 @@ export function EditSalesOrderForm({
   const [discountDraft, setDiscountDraft] = useState<DiscountDraft>(() => discountDraftFromDto(order));
   const [discountError, setDiscountError] = useState<string | null>(null);
 
-  const currency =
-    order.lines[0]?.unitPrice.currency ?? customers?.find((c) => c.id === order.customerId)?.defaultCurrency ?? 'SAR';
+  const baseCurrency = useBaseCurrency();
+
+  const currency = order.lines[0]?.unitPrice.currency || customers?.find((c) => c.id === order.customerId)?.defaultCurrency || baseCurrency;
+  const variants = useVariantLookupMap();
+  const { priceListId, setPriceListId, pricer } = useDocumentPriceList<SalesOrderLineDraft>({
+    customerPriceListId: customers?.find((c) => c.id === order.customerId)?.priceListId,
+    customerId: order.customerId,
+    currency,
+    variants,
+    setLines,
+  });
 
   const formSchema = useMemo(() => {
     const staticSchema = updateSalesOrderSchema.omit({ lines: true, customFields: true });
@@ -493,6 +523,10 @@ export function EditSalesOrderForm({
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-4">
+        <div className="grid gap-2">
+          <Label>{t('priceLists.field')}</Label>
+          <PriceListSelect value={priceListId} onChange={setPriceListId} currency={currency} />
+        </div>
         <FormField
           control={form.control}
           name="notes"
@@ -514,7 +548,7 @@ export function EditSalesOrderForm({
 
         <Separator />
         <p className="text-sm font-medium text-muted-foreground">{t('sales.salesOrders.lines')}</p>
-        <SalesOrderLineItemsEditor lines={lines} onChange={setLines} currency={currency} />
+        <SalesOrderLineItemsEditor lines={lines} onChange={setLines} currency={currency} pricer={pricer} />
         {linesError ? <p className="text-sm text-destructive">{linesError}</p> : null}
 
         {definitions && definitions.length > 0 ? (

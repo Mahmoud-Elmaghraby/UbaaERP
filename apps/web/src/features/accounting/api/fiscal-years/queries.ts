@@ -58,6 +58,9 @@ function useFiscalYearTransition(action: 'close' | 'reopen') {
   return useMutation({
     mutationFn: (id: string) => apiPost<FiscalYearDto>(`/fiscal-years/${id}/${action}`),
     onSuccess: (data) => {
+      // Closing posts (and reopening removes) the year-end closing entry.
+      queryClient.invalidateQueries({ queryKey: ['journal-entries'] });
+      queryClient.invalidateQueries({ queryKey: ['accounting-reports'] });
       queryClient.invalidateQueries({ queryKey: LIST_KEY });
       queryClient.invalidateQueries({ queryKey: ['fiscal-years', data.id] });
     },

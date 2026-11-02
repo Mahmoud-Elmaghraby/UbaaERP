@@ -20,6 +20,13 @@ export interface PostedLedgerLine {
   reconciledAt: Date | null;
 }
 
+export interface PostedSumOptions {
+  /** Leave out entries made for these sources (the year-end closing, for the income statement). */
+  excludeSourceReferenceTypes?: string[];
+  /** Only lines tagged with this cost center. */
+  costCenterId?: string;
+}
+
 export interface JournalEntryLineRepository {
   listByJournalEntryId(db: Kysely<TenantDatabase>, journalEntryId: string): Promise<JournalEntryLine[]>;
   createMany(
@@ -50,6 +57,7 @@ export interface JournalEntryLineRepository {
     accountIds: string[],
     fromDate?: string,
     toDate?: string,
+    options?: PostedSumOptions,
   ): Promise<Record<string, AccountMoneyTotals>>;
 
   /**

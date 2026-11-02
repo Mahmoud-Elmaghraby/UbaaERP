@@ -75,6 +75,7 @@ function balanceSheetToDto(report: BalanceSheetReport): BalanceSheetReportDto {
     ...report,
     totalAssets: moneyToDto(report.totalAssets),
     totalLiabilities: moneyToDto(report.totalLiabilities),
+    priorYearsEarnings: moneyToDto(report.priorYearsEarnings),
     currentYearEarnings: moneyToDto(report.currentYearEarnings),
     totalEquity: moneyToDto(report.totalEquity),
     assetRows: report.assetRows.map((row) => ({ ...row, amount: moneyToDto(row.amount) })),
@@ -165,12 +166,13 @@ export class AccountingReportsController {
     @CurrentTenantSchema() schema: string,
     @Query('fromDate') fromDate?: string,
     @Query('toDate') toDate?: string,
+    @Query('costCenterId') costCenterId?: string,
   ): Promise<IncomeStatementReportDto> {
     if (!fromDate || !toDate) {
       throw new BadRequestException('Query parameters "fromDate" and "toDate" are required.');
     }
     const db = this.connections.getClient(schema);
-    const report = await this.service.incomeStatement(db, fromDate, toDate);
+    const report = await this.service.incomeStatement(db, fromDate, toDate, { costCenterId: costCenterId || undefined });
     return incomeStatementToDto(report);
   }
 

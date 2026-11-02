@@ -1,5 +1,6 @@
 import { Inject, Injectable, Optional } from '@nestjs/common';
-import type { Kysely } from 'kysely';
+import { sql, type Kysely } from 'kysely';
+import { withTransaction } from '../../../../database/tenant/transaction.util';
 import type { TenantDatabase } from '../../../../database/tenant/kysely-client';
 import { ACCOUNTING_PERIOD_REPOSITORY, type AccountingPeriodRepository } from '../ports/accounting-period.repository';
 import type { AccountingPeriod } from '../../domain/accounting-period.entity';
@@ -52,6 +53,13 @@ export class AccountingPeriodsService {
         params: { name: period.name },
       });
     }
+    const fiscalYear = this.fiscalYears ? await this.fiscalYears.getById(db, period.fiscalYearId) : null;
+    if (fiscalYear?.status === 'closed') {
+      throw new BusinessRuleError(`Period "${period.name}" belongs to the closed fiscal year "${fiscalYear.name}".`, {
+        code: 'ACCOUNTING_PERIOD.FISCAL_YEAR_CLOSED',
+        params: { name: period.name, fiscalYear: fiscalYear.name },
+      });
+    }
     const updated = await this.repository.updateStatus(db, id, 'open');
     return updated!;
   }
@@ -64,21 +72,7 @@ export class AccountingPeriodsService {
    */
   async assertOpenForDate(db: Kysely<TenantDatabase>, date: string): Promise<AccountingPeriod> {
     let period = await this.repository.findByDate(db, date);
-    // A tenant that never set up a fiscal year gets the calendar year of its
-    // first posting (with its 12 monthly periods) instead of every automatic
-    // entry failing — Egyptian companies mostly keep a January–December year,
-    // and it stays fully editable. Once ANY fiscal year exists, a date outside
-    // all of them is a real error the accountant must fix, never guessed.
-    if (!period && this.fiscalYears && (await this.fiscalYears.list(db)).length === 0) {
-      const year = date.slice(0, 4);
-      await this.fiscalYears.create(db, {
-        name: `السنة المالية ${year}`,
-        startDate: `${year}-01-01`,
-        endDate: `${year}-12-31`,
-        notes: 'أُنشئت تلقائيًا مع أول قيد محاسبي.',
-      });
-      period = await this.repository.findByDate(db, date);
-    }
+    if (!period && this.fiscalYears) period = await this.autoCreateFiscalYearFor(db, date);
     if (!period) {
       throw new BusinessRuleError(
         `No accounting period covers ${date} — set up a fiscal year covering this date first.`,
@@ -93,4 +87,71 @@ export class AccountingPeriodsService {
     }
     return period;
   }
+
+  /** Serialises automatic fiscal-year creation across concurrent postings (held until the transaction ends). */
+  protected async lockFiscalYearCreation(trx: Kysely<TenantDatabase>): Promise<void> {
+    await sql`SELECT pg_advisory_xact_lock(hashtext('accounting.fiscal_year.autocreate'))`.execute(trx);
+  }
+
+  /**
+   * Fiscal years never block automatic postings:
+   *   - a tenant with none gets the calendar year of its first posting;
+   *   - a date just after the last year rolls forward, year by year (same
+   *     start day and length as the last one), at most MAX_ROLL_FORWARD
+   *     years — so 1 January never stops invoices from reaching the ledger.
+   * A date BEFORE the first year, or far in the future, is a real error the
+   * accountant must fix, never guessed. An advisory lock keeps two postings
+   * running at once from both creating the same year.
+   */
+  private async autoCreateFiscalYearFor(db: Kysely<TenantDatabase>, date: string): Promise<AccountingPeriod | null> {
+    const fiscalYears = this.fiscalYears!;
+    return withTransaction(db, async (trx) => {
+      await this.lockFiscalYearCreation(trx);
+      const again = await this.repository.findByDate(trx, date);
+      if (again) return again;
+
+      const years = await fiscalYears.list(trx);
+      if (years.length === 0) {
+        const year = date.slice(0, 4);
+        await fiscalYears.create(trx, {
+          name: `السنة المالية ${year}`,
+          startDate: `${year}-01-01`,
+          endDate: `${year}-12-31`,
+          notes: 'أُنشئت تلقائيًا مع أول قيد محاسبي.',
+        });
+        return this.repository.findByDate(trx, date);
+      }
+
+      let last = years.reduce((a, b) => (b.endDate > a.endDate ? b : a));
+      if (date <= last.endDate) return null; // a gap or a date before the first year
+      for (let i = 0; i < MAX_ROLL_FORWARD && date > last.endDate; i += 1) {
+        const startDate = addDays(last.endDate, 1);
+        const endDate = addDays(addYears(startDate, 1), -1);
+        const startYear = startDate.slice(0, 4);
+        const endYear = endDate.slice(0, 4);
+        last = await fiscalYears.create(trx, {
+          name: startYear === endYear ? `السنة المالية ${startYear}` : `السنة المالية ${startYear}/${endYear}`,
+          startDate,
+          endDate,
+          notes: 'أُنشئت تلقائيًا بعد نهاية السنة السابقة.',
+        });
+      }
+      return this.repository.findByDate(trx, date);
+    });
+  }
+}
+
+const MAX_ROLL_FORWARD = 2;
+
+/** 'YYYY-MM-DD' ± days, in UTC (date-only values never carry a time zone). */
+function addDays(date: string, days: number): string {
+  const d = new Date(`${date}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+function addYears(date: string, years: number): string {
+  const d = new Date(`${date}T00:00:00Z`);
+  d.setUTCFullYear(d.getUTCFullYear() + years);
+  return d.toISOString().slice(0, 10);
 }

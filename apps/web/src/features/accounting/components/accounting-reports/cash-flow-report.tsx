@@ -1,134 +1,82 @@
-import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import {
-  Badge,
-  Button,
-  Input,
-  Skeleton,
-  Table,
-  TableBody,
-  TableCell,
-  TableFooter,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@erp-platform/ui';
+import { Badge } from '@erp-platform/ui';
 
 import { useCashFlowReport } from '../../api/accounting-reports/queries';
-import { formatMoney } from '../../../../lib/money';
+import { PeriodPicker, ReportFrame, ReportSection, periodText, useReportParams } from '../../../../components/report/report-layout';
+import { formatDate } from '../../../../lib/format-date';
+import { minorUnitsToDecimalString } from '../../../../lib/money';
+import { downloadXlsx } from '../../../../lib/xlsx';
+import { StatementTable, type StatementLine } from './statement-table';
 
-/**
- * قائمة التدفقات النقدية — indirect method, "operating activities" only
- * (see AccountingReportsService.cashFlowStatement()'s own comment for why
- * this platform doesn't yet build a full three-section statement: there's
- * no operating/investing/financing classification on chart_of_accounts,
- * and adding one is a real new domain concept, not a quick report).
- * Same date-range shape as IncomeStatementReport.
- */
+/** قائمة التدفقات النقدية (indirect method) — net profit adjusted by balance-sheet changes. */
 export function CashFlowReport() {
   const { t } = useTranslation();
-  const [fromDate, setFromDate] = useState('');
-  const [toDate, setToDate] = useState('');
-  const [runParams, setRunParams] = useState<{
-    fromDate: string | undefined;
-    toDate: string | undefined;
-  }>({
-    fromDate: undefined,
-    toDate: undefined,
-  });
-  const { data: report, isLoading } = useCashFlowReport(runParams);
+  const navigate = useNavigate();
+  const params = useReportParams();
+  const { data: report, isLoading } = useCashFlowReport({ fromDate: params.from, toDate: params.to });
+  const columns = [`${formatDate(params.from)} – ${formatDate(params.to)}`];
+
+  const lines: StatementLine[] = report
+    ? [
+        { key: 'ni', label: t('accounting.reports.netIncome'), values: [report.netIncome.amountMinorUnits], level: 'subtotal' },
+        { key: 'adj-h', label: t('accounting.reports.operatingAdjustments'), values: [], level: 'subtotal' },
+        ...report.adjustments.map((row) => ({
+          key: row.accountId,
+          code: row.accountCode,
+          label: row.accountName,
+          values: [row.changeAmount.amountMinorUnits],
+          onOpen: () =>
+            navigate(`/accounting/reports/general-ledger?account=${row.accountId}&from=${params.from}&to=${params.to}`),
+        })),
+        {
+          key: 'ops',
+          label: t('accounting.reports.netCashFromOperations'),
+          values: [report.netCashFromOperations.amountMinorUnits],
+          level: 'total',
+        },
+        { key: 'open', label: t('accounting.reports.openingCash'), values: [report.openingCash.amountMinorUnits], level: 'subtotal' },
+        { key: 'close', label: t('accounting.reports.closingCash'), values: [report.closingCash.amountMinorUnits], level: 'total' },
+      ]
+    : [];
+
+  function exportXlsx() {
+    downloadXlsx(
+      `${t('accounting.reports.cashFlow')} ${params.from} ${params.to}`,
+      [t('accounting.chartOfAccounts.code'), t('accounting.chartOfAccounts.name'), columns[0]!],
+      lines.map((line) => [
+        line.code ?? '',
+        typeof line.label === 'string' ? line.label : '',
+        line.values[0] === undefined ? null : Number(minorUnitsToDecimalString(line.values[0])),
+      ]),
+    );
+  }
 
   return (
-    <div className="grid gap-4">
-      <div className="flex flex-wrap items-end gap-3">
-        <div className="grid gap-1.5">
-          <label className="text-sm font-medium">{t('accounting.reports.fromDate')}</label>
-          <Input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
-        </div>
-        <div className="grid gap-1.5">
-          <label className="text-sm font-medium">{t('accounting.reports.toDate')}</label>
-          <Input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} />
-        </div>
-        <Button
-          onClick={() =>
-            setRunParams({ fromDate: fromDate || undefined, toDate: toDate || undefined })
-          }
-          disabled={!fromDate || !toDate}
-        >
-          {t('accounting.reports.run')}
-        </Button>
-      </div>
-
-      {isLoading ? <Skeleton className="h-40 w-full" /> : null}
-
+    <ReportFrame
+      title={t('accounting.reports.cashFlow')}
+      period={periodText(t, params.from, params.to)}
+      loading={isLoading}
+      onExport={report ? exportXlsx : undefined}
+      filters={
+        <>
+          <PeriodPicker from={params.from} to={params.to} onChange={(range) => params.set(range)} />
+          {report ? (
+            <Badge variant={report.isConsistent ? 'success' : 'danger'} className="mb-1.5">
+              {report.isConsistent ? t('accounting.reports.consistent') : t('accounting.reports.inconsistent')}
+            </Badge>
+          ) : null}
+        </>
+      }
+    >
       {report ? (
-        <div className="grid gap-6">
-          <p className="text-sm text-muted-foreground">{t('accounting.reports.cashFlowNote')}</p>
-
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead colSpan={2}>{t('accounting.reports.operatingAdjustments')}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              <TableRow>
-                <TableCell>{t('accounting.reports.netIncome')}</TableCell>
-                <TableCell>
-                  {formatMoney(report.netIncome.amountMinorUnits, report.netIncome.currency)}
-                </TableCell>
-              </TableRow>
-              {report.adjustments.map((row) => (
-                <TableRow key={row.accountId}>
-                  <TableCell>
-                    {row.accountCode} — {row.accountName}
-                  </TableCell>
-                  <TableCell>
-                    {formatMoney(row.changeAmount.amountMinorUnits, row.changeAmount.currency)}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-            <TableFooter>
-              <TableRow>
-                <TableCell>{t('accounting.reports.netCashFromOperations')}</TableCell>
-                <TableCell>
-                  {formatMoney(
-                    report.netCashFromOperations.amountMinorUnits,
-                    report.netCashFromOperations.currency,
-                  )}
-                </TableCell>
-              </TableRow>
-            </TableFooter>
-          </Table>
-
-          <Table>
-            <TableBody>
-              <TableRow>
-                <TableCell>{t('accounting.reports.openingCash')}</TableCell>
-                <TableCell>
-                  {formatMoney(report.openingCash.amountMinorUnits, report.openingCash.currency)}
-                </TableCell>
-              </TableRow>
-              <TableRow>
-                <TableCell>{t('accounting.reports.closingCash')}</TableCell>
-                <TableCell>
-                  {formatMoney(report.closingCash.amountMinorUnits, report.closingCash.currency)}
-                </TableCell>
-              </TableRow>
-            </TableBody>
-          </Table>
-
-          <Badge
-            variant={report.isConsistent ? 'success' : 'danger'}
-            className="justify-self-start"
-          >
-            {report.isConsistent
-              ? t('accounting.reports.consistent')
-              : t('accounting.reports.inconsistent')}
-          </Badge>
-        </div>
+        <>
+          <p className="text-sm text-muted-foreground print:hidden">{t('accounting.reports.cashFlowNote')}</p>
+          <ReportSection>
+            <StatementTable columns={columns} lines={lines} />
+          </ReportSection>
+        </>
       ) : null}
-    </div>
+    </ReportFrame>
   );
 }

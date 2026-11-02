@@ -98,6 +98,7 @@ function makeMockMovementRepository(): jest.Mocked<StockMovementRepository> {
     linkRelatedMovement: jest.fn(),
     existsForReference: jest.fn().mockResolvedValue(false),
     sumForReference: jest.fn().mockResolvedValue(null),
+    quantityByLocationForReferences: jest.fn().mockResolvedValue([]),
   };
 }
 

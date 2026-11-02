@@ -18,6 +18,7 @@ import { withTransaction } from '../../../../database/tenant/transaction.util';
 import { InventoryValuationEventsService } from './inventory-valuation-events.service';
 import { OutboxWriterService } from '../../../../shared/outbox/application/services/outbox-writer.service';
 import { moneyToDto } from '../../presentation/money.mapper';
+import { moneyShare } from '../../domain/money-share';
 
 /**
  * Landed Cost (master doc §17 competitor research; approved 2026-08-28).
@@ -259,13 +260,4 @@ export class LandedCostsService {
 
     return shares.map((minorUnits) => Money.fromMinorUnits(minorUnits, totalCost.currency));
   }
-}
-
-/** value × part / whole in minor units, rounded half-up (part ≤ whole). */
-function moneyShare(value: Money, part: number, whole: number): Money {
-  const partScaled = BigInt(Math.round(part * 10_000));
-  const wholeScaled = BigInt(Math.round(whole * 10_000));
-  if (wholeScaled === 0n) return Money.zero(value.currency);
-  const rounded = (value.toMinorUnits() * partScaled * 2n + wholeScaled) / (wholeScaled * 2n);
-  return Money.fromMinorUnits(rounded, value.currency);
 }

@@ -27,6 +27,7 @@ export const ATTACHMENT_ENTITY_PERMISSIONS: Record<AttachmentEntityTypeDto, stri
   purchase_order: 'purchases.manage',
   supplier: 'purchases.manage',
   product: 'inventory.products.manage',
+  journal_entry: 'accounting.manage',
 };
 
 export const ATTACHMENT_MAX_SIZE_BYTES = 10 * 1024 * 1024;

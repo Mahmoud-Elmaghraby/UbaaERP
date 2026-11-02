@@ -89,6 +89,7 @@ export class KyselyJournalEntryRepository implements JournalEntryRepository {
         updated_at: new Date(),
       })
       .where('id', '=', id)
+      .where('status', '=', 'draft')
       .returningAll()
       .executeTakeFirst();
     return row ? toDomain(row) : null;
@@ -99,16 +100,27 @@ export class KyselyJournalEntryRepository implements JournalEntryRepository {
     id: string,
     status: JournalEntryStatus,
     postedAt?: Date | null,
+    expectedStatus?: JournalEntryStatus,
   ): Promise<JournalEntry | null> {
-    const row = await db
+    let query = db
       .updateTable('journal_entries')
       .set({
         status,
         ...(postedAt !== undefined ? { posted_at: postedAt } : {}),
         updated_at: new Date(),
       })
-      .where('id', '=', id)
-      .returningAll()
+      .where('id', '=', id);
+    if (expectedStatus) query = query.where('status', '=', expectedStatus);
+    const row = await query.returningAll().executeTakeFirst();
+    return row ? toDomain(row) : null;
+  }
+
+  async findActiveReversalOf(db: Kysely<TenantDatabase>, id: string): Promise<JournalEntry | null> {
+    const row = await db
+      .selectFrom('journal_entries')
+      .selectAll()
+      .where('reversal_of_entry_id', '=', id)
+      .where('status', '!=', 'cancelled')
       .executeTakeFirst();
     return row ? toDomain(row) : null;
   }

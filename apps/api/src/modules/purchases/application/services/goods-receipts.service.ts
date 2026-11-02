@@ -178,6 +178,7 @@ export class GoodsReceiptsService {
           exchangeRate: input.exchangeRate ?? null,
           notes: input.notes ?? null,
           customFields: input.customFields ?? {},
+          sourcePurchaseInvoiceId: input.sourcePurchaseInvoiceId ?? null,
         });
 
         const createdLines = [];
@@ -318,6 +319,44 @@ export class GoodsReceiptsService {
   }
 
   /**
+   * What the confirmed receipts of a purchase order put into stock, per PO
+   * line: base quantity and value in the tenant currency — exactly what
+   * Inventory and GRNI were credited with at confirmation (the receipt's
+   * frozen rate). A line whose value can't be stated in the tenant currency
+   * (an old foreign receipt without a frozen rate) is reported `complete: false`.
+   */
+  async receivedValueByOrderLine(
+    db: Kysely<TenantDatabase>,
+    purchaseOrderId: string,
+  ): Promise<Map<string, ReceivedOrderLineValue>> {
+    const tenantCurrency = await this.currencyRates.tenantCurrency(db);
+    const receipts = (await this.receipts.listByPurchaseOrderId(db, purchaseOrderId)).filter(
+      (receipt) => receipt.status === 'confirmed',
+    );
+    const result = new Map<string, ReceivedOrderLineValue>();
+    for (const receipt of receipts) {
+      for (const line of await this.lines.listByGoodsReceiptId(db, receipt.id)) {
+        const entry = result.get(line.purchaseOrderLineId) ?? {
+          baseQuantity: 0,
+          value: Money.zero(tenantCurrency),
+          goodsReceiptIds: [],
+          complete: true,
+        };
+        const { totalCost } = valueInTenantCurrency(line, receipt.exchangeRate, tenantCurrency);
+        if (totalCost.currency === tenantCurrency) {
+          entry.value = entry.value.add(Money.fromMinorUnits(BigInt(totalCost.amountMinorUnits), tenantCurrency));
+        } else {
+          entry.complete = false;
+        }
+        entry.baseQuantity = toBase(entry.baseQuantity + toBase(line.quantityReceived, line.unitFactor), 1);
+        if (!entry.goodsReceiptIds.includes(receipt.id)) entry.goodsReceiptIds.push(receipt.id);
+        result.set(line.purchaseOrderLineId, entry);
+      }
+    }
+    return result;
+  }
+
+  /**
    * The rate a foreign-currency receipt is valued at: the one typed on the
    * receipt, else the effective rate on its date (receivedDate, else today).
    * Null when every line is already in the tenant's currency.
@@ -348,6 +387,11 @@ export class GoodsReceiptsService {
       );
     }
     return rate;
+  }
+
+  /** Receipts a purchase invoice made for itself (direct invoicing, migration 0103). */
+  listMadeByInvoice(db: Kysely<TenantDatabase>, purchaseInvoiceId: string): Promise<GoodsReceipt[]> {
+    return this.receipts.listBySourcePurchaseInvoiceId(db, purchaseInvoiceId);
   }
 
   cancel(db: Kysely<TenantDatabase>, id: string): Promise<GoodsReceipt> {
@@ -453,6 +497,15 @@ export function normalizeReceiptLots(
 }
 
 type MoneyJson = { amountMinorUnits: string; currency: string };
+
+/** See GoodsReceiptsService.receivedValueByOrderLine(). */
+export interface ReceivedOrderLineValue {
+  baseQuantity: number;
+  /** Tenant currency. */
+  value: Money;
+  goodsReceiptIds: string[];
+  complete: boolean;
+}
 
 /**
  * A receipt line's cost for Inventory, in base units and the tenant's

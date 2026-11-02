@@ -7,3 +7,4 @@ export * from './accounting-settings.contract';
 export * from './cost-center.contract';
 export * from './bank-account.contract';
 export * from './exchange-rate.contract';
+export * from './accounting-completion.contract';

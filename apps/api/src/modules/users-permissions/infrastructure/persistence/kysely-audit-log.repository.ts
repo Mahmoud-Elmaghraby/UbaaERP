@@ -41,6 +41,7 @@ export class KyselyAuditLogRepository implements AuditLogRepository {
 
     if (filters.userId) query = query.where('user_id', '=', filters.userId);
     if (filters.entityType) query = query.where('entity_type', '=', filters.entityType);
+    if (filters.entityId) query = query.where('entity_id', '=', filters.entityId);
     if (filters.action) query = query.where('action', '=', filters.action);
     if (filters.from) query = query.where('created_at', '>=', filters.from);
     if (filters.to) query = query.where('created_at', '<=', filters.to);

@@ -71,6 +71,7 @@ export function useUpdateRole() {
 export interface AuditLogFilters {
   userId?: string;
   entityType?: string;
+  entityId?: string;
   action?: string;
   from?: string;
   to?: string;

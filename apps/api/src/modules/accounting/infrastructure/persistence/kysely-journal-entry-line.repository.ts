@@ -3,6 +3,7 @@ import type { Kysely, Selectable } from 'kysely';
 import { Money } from '@erp-platform/shared-kernel';
 import type { JournalEntryLinesTable, TenantDatabase } from '../../../../database/tenant/kysely-client';
 import type {
+  PostedSumOptions,
   JournalEntryLineRepository,
   AccountMoneyTotals,
   PostedLedgerLine,
@@ -173,6 +174,7 @@ export class KyselyJournalEntryLineRepository implements JournalEntryLineReposit
     accountIds: string[],
     fromDate?: string,
     toDate?: string,
+    options: PostedSumOptions = {},
   ): Promise<Record<string, AccountMoneyTotals>> {
     if (accountIds.length === 0) return {};
 
@@ -188,6 +190,16 @@ export class KyselyJournalEntryLineRepository implements JournalEntryLineReposit
       .where('journal_entry_lines.account_id', 'in', accountIds);
     if (fromDate) query = query.where('journal_entries.entry_date', '>=', fromDate);
     if (toDate) query = query.where('journal_entries.entry_date', '<=', toDate);
+    const excluded = options.excludeSourceReferenceTypes ?? [];
+    if (excluded.length > 0) {
+      query = query.where((eb) =>
+        eb.or([
+          eb('journal_entries.source_reference_type', 'is', null),
+          eb('journal_entries.source_reference_type', 'not in', excluded),
+        ]),
+      );
+    }
+    if (options.costCenterId) query = query.where('journal_entry_lines.cost_center_id', '=', options.costCenterId);
 
     const rows = await query.groupBy('journal_entry_lines.account_id').execute();
 

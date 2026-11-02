@@ -32,7 +32,7 @@ import {
   toast,
 } from '@erp-platform/ui';
 
-import { useCustomFieldDefinitions, useTenantSettings } from '../../../settings/queries';
+import { useBaseCurrency, useCustomFieldDefinitions, useTenantSettings } from '../../../settings/queries';
 import { useCreateBankAccount, useUpdateBankAccount } from '../../api/bank-accounts/queries';
 import { usePostableAccounts } from '../../hooks/use-postable-accounts';
 import { decimalToMinorUnits, minorUnitsToDecimalString } from '../../../../lib/money';
@@ -71,6 +71,7 @@ export function CreateBankAccountForm({ onDone }: { onDone: () => void }) {
   const createBankAccount = useCreateBankAccount();
   const postableAccounts = usePostableAccounts();
   const { data: tenantSettings } = useTenantSettings();
+  const baseCurrency = useBaseCurrency();
   const { data: definitions, isLoading: definitionsLoading } = useCustomFieldDefinitions(
     BANK_ACCOUNT_ENTITY_TYPE,
   );
@@ -90,7 +91,7 @@ export function CreateBankAccountForm({ onDone }: { onDone: () => void }) {
       bankName: '',
       accountNumber: '',
       iban: '',
-      currency: tenantSettings?.currencyCode ?? 'EGP',
+      currency: tenantSettings?.currencyCode || baseCurrency,
       chartOfAccountId: '',
       openingBalance: '',
       openingBalanceDate: '',

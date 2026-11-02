@@ -133,6 +133,7 @@ export class DeliveriesService {
           deliveryDate: input.deliveryDate ?? null,
           notes: input.notes ?? null,
           customFields: input.customFields ?? {},
+          sourceSalesInvoiceId: input.sourceSalesInvoiceId ?? null,
         });
 
         const createdLines = [];
@@ -281,6 +282,11 @@ export class DeliveriesService {
 
       return { ...updated, lines };
     });
+  }
+
+  /** Deliveries a sales invoice made for itself (direct invoicing, migration 0104). */
+  listMadeByInvoice(db: Kysely<TenantDatabase>, salesInvoiceId: string): Promise<Delivery[]> {
+    return this.deliveries.listBySourceSalesInvoiceId(db, salesInvoiceId);
   }
 
   cancel(db: Kysely<TenantDatabase>, id: string): Promise<Delivery> {

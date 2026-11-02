@@ -17,6 +17,7 @@ import {
   type SalesOrderLineRepository,
 } from '../ports/sales-order-line.repository';
 import { DELIVERY_LINE_REPOSITORY, type DeliveryLineRepository } from '../ports/delivery-line.repository';
+import type { CreateDeliveryInput } from '../../domain/delivery.entity';
 import { Money } from '@erp-platform/shared-kernel';
 import {
   assertSingleCurrency,
@@ -130,7 +131,6 @@ export class SalesInvoicesService {
     db: Kysely<TenantDatabase>,
     input: CreateSalesInvoiceInput,
     schema: string,
-    actorUserId: string | null,
   ): Promise<SalesInvoiceWithLines> {
     const usingDirectPath = input.salesOrderId === undefined;
     if (usingDirectPath) {
@@ -310,6 +310,7 @@ export class SalesInvoicesService {
           });
         }
 
+        let autoDelivery: CreateDeliveryInput | null = null;
         const deliveriesEnabled = await this.featureAvailability.isEnabled(
           trx,
           schema,
@@ -350,13 +351,15 @@ export class SalesInvoicesService {
                 { code: 'SALES_INVOICE.WAREHOUSE_REQUIRED' },
               );
             }
-            const delivery = await this.deliveriesService.create(trx, {
+            // Made after the invoice (it points at it), as a draft: stock
+            // leaves when the invoice is posted, never for a cancelled draft.
+            autoDelivery = {
               salesOrderId: orderId,
               warehouseId: input.warehouseId,
+              deliveryDate: input.invoiceDate ?? null,
               lines: linesToDeliver.map((line) => ({ ...line, notes: null })),
               customFields: {},
-            });
-            await this.deliveriesService.confirm(trx, delivery.id, schema, actorUserId);
+            };
           }
         }
 
@@ -410,6 +413,10 @@ export class SalesInvoicesService {
               unitFactor: orderLine.unitFactor,
             }),
           );
+        }
+
+        if (autoDelivery) {
+          await this.deliveriesService.create(trx, { ...autoDelivery, sourceSalesInvoiceId: invoice.id });
         }
 
         return { ...invoice, lines: createdLines, ...calculateSalesInvoiceTotals(createdLines) };
@@ -467,6 +474,11 @@ export class SalesInvoicesService {
     const totals = calculateSalesInvoiceTotals(lines);
 
     return withTransaction(db, async (trx) => {
+      // Direct invoicing: the goods leave stock now, with the invoice
+      // (a shortage stops the posting, the draft stays as it was).
+      for (const delivery of await this.deliveriesService.listMadeByInvoice(trx, id)) {
+        if (delivery.status === 'draft') await this.deliveriesService.confirm(trx, delivery.id, schema, actorUserId);
+      }
       const updated = await this.invoices.updateStatus(trx, id, 'posted');
       if (!updated) throw entityNotFound('SALES_INVOICE', id);
 
@@ -507,9 +519,12 @@ export class SalesInvoicesService {
         { code: 'SALES_INVOICE.NOT_CANCELLABLE', params: { id, status: existing.status } },
       );
     }
-    const updated = await this.invoices.updateStatus(db, id, 'cancelled');
-    if (!updated) throw entityNotFound('SALES_INVOICE', id);
-    return updated;
+    return withTransaction(db, async (trx) => {
+      const updated = await this.invoices.updateStatus(trx, id, 'cancelled');
+      if (!updated) throw entityNotFound('SALES_INVOICE', id);
+      await this.dropOwnDeliveries(trx, id, 'cancel');
+      return updated;
+    });
   }
 
   async delete(db: Kysely<TenantDatabase>, id: string): Promise<void> {
@@ -521,6 +536,17 @@ export class SalesInvoicesService {
         params: { id, status: existing.status },
       });
     }
-    await this.invoices.delete(db, id);
+    await withTransaction(db, async (trx) => {
+      await this.dropOwnDeliveries(trx, id, 'delete');
+      await this.invoices.delete(trx, id);
+    });
+  }
+
+  /** The draft delivery a direct invoice made for itself goes with it (cancelled, or deleted with a deleted invoice). */
+  private async dropOwnDeliveries(trx: Kysely<TenantDatabase>, invoiceId: string, mode: 'cancel' | 'delete'): Promise<void> {
+    for (const delivery of await this.deliveriesService.listMadeByInvoice(trx, invoiceId)) {
+      if (delivery.status === 'draft') await this.deliveriesService.cancel(trx, delivery.id);
+      if (mode === 'delete' && delivery.status !== 'confirmed') await this.deliveriesService.delete(trx, delivery.id);
+    }
   }
 }

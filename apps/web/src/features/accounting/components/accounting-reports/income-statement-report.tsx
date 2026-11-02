@@ -1,115 +1,134 @@
-import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import {
-  Button,
-  Input,
-  Skeleton,
-  Table,
-  TableBody,
-  TableCell,
-  TableFooter,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@erp-platform/ui';
+import { Checkbox, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@erp-platform/ui';
+
+import { useActiveCostCenters } from '../../hooks/use-active-cost-centers';
+
+const ALL = '__all__';
 
 import { useIncomeStatementReport } from '../../api/accounting-reports/queries';
-import { formatMoney } from '../../../../lib/money';
+import { PeriodPicker, ReportFrame, ReportSection, periodText, useReportParams } from '../../../../components/report/report-layout';
+import { formatDate } from '../../../../lib/format-date';
+import { minorUnitsToDecimalString } from '../../../../lib/money';
+import { downloadXlsx } from '../../../../lib/xlsx';
+import { StatementTable, mergeAccountRows, type StatementLine } from './statement-table';
+import { previousPeriod } from './period-math';
 
-/** قائمة الدخل — revenue and expense accounts over a date range, net of contra
- * accounts (see AccountingReportsService's categoryCanonicalSide() comment for why
- * this is signed by account-type category, not each account's own normalBalance),
- * rolling up to netIncome. */
+/** قائمة الدخل — revenue, expenses and net profit for a period, optionally next to the previous period. */
 export function IncomeStatementReport() {
   const { t } = useTranslation();
-  const [fromDate, setFromDate] = useState('');
-  const [toDate, setToDate] = useState('');
-  // useIncomeStatementReport's params type requires both keys present (string | undefined),
-  // not merely optional — matches its own signature exactly rather than the wider
-  // { fromDate?: string; toDate?: string } shape (which fails assignability under
-  // exactOptionalPropertyTypes: an absent key and a key set to undefined are distinct types).
-  const [runParams, setRunParams] = useState<{ fromDate: string | undefined; toDate: string | undefined }>({
-    fromDate: undefined,
-    toDate: undefined,
+  const navigate = useNavigate();
+  const params = useReportParams();
+  const compare = params.get('compare') === '1';
+  const costCenterId = params.get('costCenter');
+  const costCenters = useActiveCostCenters();
+  const prev = previousPeriod(params.from, params.to);
+  const current = useIncomeStatementReport({ fromDate: params.from, toDate: params.to, costCenterId });
+  const previous = useIncomeStatementReport({
+    fromDate: compare ? prev.from : undefined,
+    toDate: compare ? prev.to : undefined,
+    costCenterId,
   });
-  const { data: report, isLoading } = useIncomeStatementReport(runParams);
+  const costCenter = costCenters.find((c) => c.id === costCenterId);
+  const report = current.data;
+  const reports = compare ? [report, previous.data] : [report];
+
+  const columns = [
+    `${formatDate(params.from)} – ${formatDate(params.to)}`,
+    ...(compare ? [`${formatDate(prev.from)} – ${formatDate(prev.to)}`] : []),
+  ];
+  const openLedger = (accountId: string) =>
+    navigate(`/accounting/reports/general-ledger?account=${accountId}&from=${params.from}&to=${params.to}`);
+
+  const lines: StatementLine[] = report
+    ? [
+        { key: 'rev-h', label: t('accounting.reports.revenue'), values: [], level: 'subtotal' },
+        ...mergeAccountRows(reports.map((r) => r?.revenueRows), openLedger),
+        {
+          key: 'rev-t',
+          label: t('accounting.reports.totalRevenue'),
+          values: reports.map((r) => r?.totalRevenue.amountMinorUnits),
+          level: 'subtotal',
+        },
+        { key: 'exp-h', label: t('accounting.reports.expenses'), values: [], level: 'subtotal' },
+        ...mergeAccountRows(reports.map((r) => r?.expenseRows), openLedger),
+        {
+          key: 'exp-t',
+          label: t('accounting.reports.totalExpense'),
+          values: reports.map((r) => r?.totalExpense.amountMinorUnits),
+          level: 'subtotal',
+        },
+        {
+          key: 'net',
+          label: t('accounting.reports.netIncome'),
+          values: reports.map((r) => r?.netIncome.amountMinorUnits),
+          level: 'total',
+        },
+      ]
+    : [];
+
+  function exportXlsx() {
+    downloadXlsx(
+      `${t('accounting.reports.incomeStatement')} ${params.from} ${params.to}`,
+      [t('accounting.chartOfAccounts.code'), t('accounting.chartOfAccounts.name'), ...columns],
+      lines.map((line) => [
+        line.code ?? '',
+        typeof line.label === 'string' ? line.label : '',
+        ...line.values.map((v) => (v === undefined ? null : Number(minorUnitsToDecimalString(v)))),
+      ]),
+    );
+  }
 
   return (
-    <div className="grid gap-4">
-      <div className="flex flex-wrap items-end gap-3">
-        <div className="grid gap-1.5">
-          <label className="text-sm font-medium">{t('accounting.reports.fromDate')}</label>
-          <Input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
-        </div>
-        <div className="grid gap-1.5">
-          <label className="text-sm font-medium">{t('accounting.reports.toDate')}</label>
-          <Input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} />
-        </div>
-        <Button
-          onClick={() => setRunParams({ fromDate: fromDate || undefined, toDate: toDate || undefined })}
-          disabled={!fromDate || !toDate}
-        >
-          {t('accounting.reports.run')}
-        </Button>
-      </div>
-
-      {isLoading ? <Skeleton className="h-40 w-full" /> : null}
-
+    <ReportFrame
+      title={
+        costCenter
+          ? `${t('accounting.reports.incomeStatement')} — ${costCenter.code} ${costCenter.name}`
+          : t('accounting.reports.incomeStatement')
+      }
+      period={periodText(t, params.from, params.to)}
+      loading={current.isLoading}
+      onExport={report ? exportXlsx : undefined}
+      filters={
+        <>
+          <PeriodPicker from={params.from} to={params.to} onChange={(range) => params.set(range)} />
+          {costCenters.length > 0 ? (
+            <label className="grid gap-1">
+              <span className="text-xs font-medium text-muted-foreground">{t('accounting.journalEntries.lineCostCenter')}</span>
+              <Select value={costCenterId ?? ALL} onValueChange={(v) => params.set({ costCenter: v === ALL ? null : v })}>
+                <SelectTrigger className="h-9 w-48">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={ALL}>{t('accounting.reports.allCostCenters')}</SelectItem>
+                  {costCenters.map((center) => (
+                    <SelectItem key={center.id} value={center.id}>
+                      {center.code} — {center.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </label>
+          ) : null}
+          <CompareToggle checked={compare} onChange={(on) => params.set({ compare: on ? '1' : null })} />
+        </>
+      }
+    >
       {report ? (
-        <div className="grid gap-6">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead colSpan={2}>{t('accounting.reports.revenue')}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {report.revenueRows.map((row) => (
-                <TableRow key={row.accountId}>
-                  <TableCell>
-                    {row.accountCode} — {row.accountName}
-                  </TableCell>
-                  <TableCell>{formatMoney(row.amount.amountMinorUnits, row.amount.currency)}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-            <TableFooter>
-              <TableRow>
-                <TableCell>{t('accounting.reports.totalRevenue')}</TableCell>
-                <TableCell>{formatMoney(report.totalRevenue.amountMinorUnits, report.totalRevenue.currency)}</TableCell>
-              </TableRow>
-            </TableFooter>
-          </Table>
-
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead colSpan={2}>{t('accounting.reports.expenses')}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {report.expenseRows.map((row) => (
-                <TableRow key={row.accountId}>
-                  <TableCell>
-                    {row.accountCode} — {row.accountName}
-                  </TableCell>
-                  <TableCell>{formatMoney(row.amount.amountMinorUnits, row.amount.currency)}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-            <TableFooter>
-              <TableRow>
-                <TableCell>{t('accounting.reports.totalExpenses')}</TableCell>
-                <TableCell>{formatMoney(report.totalExpense.amountMinorUnits, report.totalExpense.currency)}</TableCell>
-              </TableRow>
-            </TableFooter>
-          </Table>
-
-          <p className="text-lg font-semibold">
-            {t('accounting.reports.netIncome')}: {formatMoney(report.netIncome.amountMinorUnits, report.netIncome.currency)}
-          </p>
-        </div>
+        <ReportSection>
+          <StatementTable columns={columns} lines={lines} />
+        </ReportSection>
       ) : null}
-    </div>
+    </ReportFrame>
+  );
+}
+
+export function CompareToggle({ checked, onChange }: { checked: boolean; onChange: (on: boolean) => void }) {
+  const { t } = useTranslation();
+  return (
+    <label className="mb-2 flex items-center gap-2 text-sm">
+      <Checkbox checked={checked} onCheckedChange={(v) => onChange(v === true)} />
+      {t('reports.compare')}
+    </label>
   );
 }

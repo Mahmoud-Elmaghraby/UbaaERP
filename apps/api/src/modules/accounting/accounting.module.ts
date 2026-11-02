@@ -1,3 +1,4 @@
+import { YearEndClosingService } from './application/services/year-end-closing.service';
 import { Module } from '@nestjs/common';
 import { SettingsModule } from '../settings/settings.module';
 import { CHART_OF_ACCOUNT_REPOSITORY } from './application/ports/chart-of-account.repository';
@@ -47,6 +48,15 @@ import { AccountingSettingsController } from './presentation/accounting-settings
 import { CostCentersController } from './presentation/cost-centers.controller';
 import { BankAccountsController } from './presentation/bank-accounts.controller';
 import { ExchangeRatesController } from './presentation/exchange-rates.controller';
+import { RecurringEntriesController } from './presentation/recurring-entries.controller';
+import { FixedAssetsController } from './presentation/fixed-assets.controller';
+import { BudgetsController } from './presentation/budgets.controller';
+import { BankStatementsController } from './presentation/bank-statements.controller';
+import { RecurringEntriesService } from './application/services/recurring-entries.service';
+import { FixedAssetsService } from './application/services/fixed-assets.service';
+import { BudgetsService } from './application/services/budgets.service';
+import { BankStatementsService } from './application/services/bank-statements.service';
+import { AccountingSchedulerService } from './infrastructure/scheduling/accounting-scheduler.service';
 
 import { AccountingEventPublisher } from './infrastructure/events/accounting-event-publisher';
 import { AccountingInventoryPostingListener } from './infrastructure/events/accounting-inventory-posting.listener';
@@ -198,6 +208,10 @@ import { AccountingAutoPostingListeners } from './infrastructure/events/accounti
     CostCentersController,
     BankAccountsController,
     ExchangeRatesController,
+    RecurringEntriesController,
+    FixedAssetsController,
+    BudgetsController,
+    BankStatementsController,
   ],
   providers: [
     LedgerAmountService,
@@ -216,6 +230,7 @@ import { AccountingAutoPostingListeners } from './infrastructure/events/accounti
     { provide: EXCHANGE_RATE_PROVIDER, useClass: FrankfurterExchangeRateProvider },
     ChartOfAccountsService,
     FiscalYearsService,
+    YearEndClosingService,
     AccountingPeriodsService,
     JournalEntriesService,
     AccountingReportsService,
@@ -228,6 +243,11 @@ import { AccountingAutoPostingListeners } from './infrastructure/events/accounti
     AccountingEventPublisher,
     AccountingAutoPostingListeners,
     AccountingInventoryPostingListener,
+    RecurringEntriesService,
+    FixedAssetsService,
+    BudgetsService,
+    BankStatementsService,
+    AccountingSchedulerService,
   ],
   exports: [
     ChartOfAccountsService,

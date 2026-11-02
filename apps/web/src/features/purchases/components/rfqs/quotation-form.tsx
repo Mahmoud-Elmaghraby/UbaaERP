@@ -33,7 +33,7 @@ import {
   toast,
 } from '@erp-platform/ui';
 
-import { useCustomFieldDefinitions } from '../../../settings/queries';
+import { useBaseCurrency, useCustomFieldDefinitions } from '../../../settings/queries';
 import { useSuppliers } from '../../api/suppliers/queries';
 import { useCreateSupplierQuotation, useUpdateSupplierQuotation } from '../../api/supplier-quotations/queries';
 import { ApiError } from '../../../../lib/api-client';
@@ -121,7 +121,9 @@ export function CreateSupplierQuotationForm({
   });
 
   const selectedSupplierId = form.watch('supplierId');
-  const currency = suppliers?.find((s) => s.id === selectedSupplierId)?.defaultCurrency ?? 'SAR';
+  const baseCurrency = useBaseCurrency();
+
+  const currency = suppliers?.find((s) => s.id === selectedSupplierId)?.defaultCurrency || baseCurrency;
 
   async function onSubmit(headerValues: HeaderFormValues) {
     setLinesError(null);
@@ -256,10 +258,10 @@ export function EditSupplierQuotationForm({
   // supplierId can't change on edit (not part of updateSupplierQuotationSchema) — the
   // currency is whatever the quotation's own lines already carry, falling back to the
   // supplier's current defaultCurrency only if this quotation somehow has no lines yet.
-  const currency =
-    quotation.lines[0]?.unitPrice.currency ??
-    suppliers?.find((s) => s.id === quotation.supplierId)?.defaultCurrency ??
-    'SAR';
+  const baseCurrency = useBaseCurrency();
+
+  const currency = quotation.lines[0]?.unitPrice.currency ||
+    suppliers?.find((s) => s.id === quotation.supplierId)?.defaultCurrency || baseCurrency;
 
   const formSchema = useMemo(() => {
     const staticSchema = updateSupplierQuotationSchema.omit({ lines: true, customFields: true });

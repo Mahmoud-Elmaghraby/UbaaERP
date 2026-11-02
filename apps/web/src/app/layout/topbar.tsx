@@ -38,7 +38,7 @@ export function Topbar({ onOpenMobileNav, onOpenSearch, onOpenAppearance, onLogo
     .join('');
 
   return (
-    <header className="sticky top-0 z-30 flex h-16 shrink-0 items-center gap-3 border-b bg-card/90 px-4 backdrop-blur supports-[backdrop-filter]:bg-card/75 md:px-6">
+    <header className="sticky top-0 z-30 flex print:hidden h-16 shrink-0 items-center gap-3 border-b bg-card/90 px-4 backdrop-blur supports-[backdrop-filter]:bg-card/75 md:px-6">
       <Button
         variant="ghost"
         size="icon"

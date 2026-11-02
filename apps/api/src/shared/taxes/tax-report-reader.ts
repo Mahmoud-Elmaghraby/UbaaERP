@@ -18,7 +18,44 @@ export interface TaxReportRow {
 }
 
 /**
- * Read-only: the taxes on posted invoices and issued credit notes in a date
+ * Every tax line of the documents in the range — the ONE definition of what
+ * the tax report counts: posted sales invoices (+), issued sales credit
+ * notes (−), posted purchase invoices (+) and purchase debit notes (−).
+ * Documents are dated by their own date (else the day they were created).
+ */
+function taxedDocuments(range: { from: string; to: string }) {
+  return sql`
+      SELECT 'output' AS direction, 1 AS sign, i.id AS document_id, l.unit_price_currency AS currency,
+             COALESCE(i.invoice_date, i.created_at::date) AS document_date, t.tax
+        FROM sales_invoices i
+        JOIN sales_invoice_lines l ON l.sales_invoice_id = i.id
+        CROSS JOIN LATERAL jsonb_array_elements(l.taxes) AS t(tax)
+       WHERE i.status = 'posted'
+         AND COALESCE(i.invoice_date, i.created_at::date) BETWEEN ${range.from}::date AND ${range.to}::date
+      UNION ALL
+      SELECT 'output', -1, c.id, l.unit_price_currency, c.created_at::date, t.tax
+        FROM sales_credit_notes c
+        JOIN sales_credit_note_lines l ON l.sales_credit_note_id = c.id
+        CROSS JOIN LATERAL jsonb_array_elements(l.taxes) AS t(tax)
+       WHERE c.created_at::date BETWEEN ${range.from}::date AND ${range.to}::date
+      UNION ALL
+      SELECT 'input', 1, i.id, l.unit_price_currency, COALESCE(i.invoice_date, i.created_at::date), t.tax
+        FROM purchase_invoices i
+        JOIN purchase_invoice_lines l ON l.purchase_invoice_id = i.id
+        CROSS JOIN LATERAL jsonb_array_elements(l.taxes) AS t(tax)
+       WHERE i.status = 'posted'
+         AND COALESCE(i.invoice_date, i.created_at::date) BETWEEN ${range.from}::date AND ${range.to}::date
+      UNION ALL
+      SELECT 'input', -1, d.id, d.currency, d.debit_note_date::date, t.tax
+        FROM purchase_debit_notes d
+        JOIN purchase_debit_note_lines l ON l.purchase_debit_note_id = d.id
+        CROSS JOIN LATERAL jsonb_array_elements(l.taxes) AS t(tax)
+       WHERE d.debit_note_date::date BETWEEN ${range.from}::date AND ${range.to}::date
+  `;
+}
+
+/**
+ * Read-only: the taxes on posted invoices and issued credit/debit notes in a date
  * range, grouped by rule — straight from each line's stored tax snapshot
  * (migration 0092), so the report is exactly what was invoiced and posted.
  * Documents are dated by their invoice date (else the day they were created).
@@ -40,27 +77,7 @@ export async function readTaxReport(
     amount: string;
     documents: string;
   }>`
-    WITH taxed AS (
-      SELECT 'output' AS direction, 1 AS sign, i.id AS document_id, l.unit_price_currency AS currency, t.tax
-        FROM sales_invoices i
-        JOIN sales_invoice_lines l ON l.sales_invoice_id = i.id
-        CROSS JOIN LATERAL jsonb_array_elements(l.taxes) AS t(tax)
-       WHERE i.status = 'posted'
-         AND COALESCE(i.invoice_date, i.created_at::date) BETWEEN ${range.from}::date AND ${range.to}::date
-      UNION ALL
-      SELECT 'output', -1, c.id, l.unit_price_currency, t.tax
-        FROM sales_credit_notes c
-        JOIN sales_credit_note_lines l ON l.sales_credit_note_id = c.id
-        CROSS JOIN LATERAL jsonb_array_elements(l.taxes) AS t(tax)
-       WHERE c.created_at::date BETWEEN ${range.from}::date AND ${range.to}::date
-      UNION ALL
-      SELECT 'input', 1, i.id, l.unit_price_currency, t.tax
-        FROM purchase_invoices i
-        JOIN purchase_invoice_lines l ON l.purchase_invoice_id = i.id
-        CROSS JOIN LATERAL jsonb_array_elements(l.taxes) AS t(tax)
-       WHERE i.status = 'posted'
-         AND COALESCE(i.invoice_date, i.created_at::date) BETWEEN ${range.from}::date AND ${range.to}::date
-    )
+    WITH taxed AS (${taxedDocuments(range)})
     SELECT direction,
            tax->>'kind' AS kind,
            tax->>'taxRuleId' AS tax_rule_id,
@@ -88,5 +105,34 @@ export async function readTaxReport(
     baseMinorUnits: String(row.base),
     amountMinorUnits: String(row.amount),
     documentCount: Number(row.documents),
+  }));
+}
+
+export interface TaxTotalByDate {
+  direction: 'output' | 'input';
+  kind: 'vat' | 'table' | 'withholding';
+  currency: string;
+  documentDate: string;
+  amountMinorUnits: string;
+}
+
+/** Tax totals per direction, kind, currency and document date — for converting foreign-currency tax at each document's date. */
+export async function readTaxTotalsByDate(
+  db: Kysely<TenantDatabase>,
+  range: { from: string; to: string },
+): Promise<TaxTotalByDate[]> {
+  const result = await sql<{ direction: 'output' | 'input'; kind: 'vat' | 'table' | 'withholding'; currency: string; document_date: string; amount: string }>`
+    WITH taxed AS (${taxedDocuments(range)})
+    SELECT direction, tax->>'kind' AS kind, currency, to_char(document_date, 'YYYY-MM-DD') AS document_date,
+           SUM(sign * (tax->>'amountMinorUnits')::numeric) AS amount
+      FROM taxed
+     GROUP BY direction, tax->>'kind', currency, document_date
+  `.execute(db);
+  return result.rows.map((row) => ({
+    direction: row.direction,
+    kind: row.kind,
+    currency: row.currency,
+    documentDate: row.document_date,
+    amountMinorUnits: String(row.amount),
   }));
 }

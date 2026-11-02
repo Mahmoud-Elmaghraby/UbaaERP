@@ -83,6 +83,8 @@ export interface BalanceSheetReport {
   totalLiabilities: Money;
   equityRows: BalanceSheetRow[];
   /** Memo line, not a posted closing entry — see AccountingReportsService.balanceSheet(). */
+  /** Earlier fiscal years' profit not yet closed into equity (memo line). */
+  priorYearsEarnings: Money;
   currentYearEarnings: Money;
   totalEquity: Money;
   isBalanced: boolean;

@@ -44,6 +44,8 @@ import { StockController } from './presentation/stock.controller';
 import { LandedCostsController } from './presentation/landed-costs.controller';
 import { InventoryEventPublisher } from './infrastructure/events/inventory-event-publisher';
 import { GoodsReceiptStockListener } from './infrastructure/events/goods-receipt-stock.listener';
+import { PurchaseCostCorrectionListener } from './infrastructure/events/purchase-cost-correction.listener';
+import { PurchaseCostCorrectionsService } from './application/services/purchase-cost-corrections.service';
 import { PurchaseReturnStockListener } from './infrastructure/events/purchase-return-stock.listener';
 import { DeliveryStockListener } from './infrastructure/events/delivery-stock.listener';
 import { SalesReturnStockListener } from './infrastructure/events/sales-return-stock.listener';
@@ -156,6 +158,8 @@ import { StockAvailabilityChecker } from '../../shared/catalog/stock-availabilit
     StockAvailabilityChecker,
     InventoryEventPublisher,
     GoodsReceiptStockListener,
+    PurchaseCostCorrectionListener,
+    PurchaseCostCorrectionsService,
     PurchaseReturnStockListener,
     DeliveryStockListener,
     SalesReturnStockListener,

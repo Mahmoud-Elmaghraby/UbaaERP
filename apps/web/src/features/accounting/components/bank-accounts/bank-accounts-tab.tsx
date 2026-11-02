@@ -1,70 +1,41 @@
-import { useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useMemo } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { MoreHorizontal } from 'lucide-react';
-import type { ColumnDef, Row } from '@tanstack/react-table';
+import type { ColumnDef } from '@tanstack/react-table';
 import type { BankAccountDto } from '@erp-platform/contracts';
-import {
-  Badge,
-  Button,
-  DataTable,
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@erp-platform/ui';
+import { Badge, Button, DataTable } from '@erp-platform/ui';
 
 import { useBankAccounts } from '../../api/bank-accounts/queries';
-import { BankAccountRegisterView } from './bank-account-register-view';
 
-/**
- * Bank reconciliation: the treasuries linked to a chart account, each with its GL
- * register. Treasuries themselves are created and edited in the Treasury module.
- */
+/** Bank accounts (kept in Treasury) — a row opens its reconciliation. */
 export function BankAccountsTab() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const { data: bankAccounts, isLoading } = useBankAccounts();
-  const [viewingRegisterId, setViewingRegisterId] = useState<string | null>(null);
 
   const columns = useMemo<ColumnDef<BankAccountDto>[]>(
     () => [
-      { accessorKey: 'name', header: t('accounting.bankAccounts.name') },
+      { accessorKey: 'name', header: t('accounting.bankAccounts.name'), cell: ({ row }) => <span className="font-medium">{row.original.name}</span> },
       { accessorKey: 'bankName', header: t('accounting.bankAccounts.bankName') },
-      { accessorKey: 'accountNumber', header: t('accounting.bankAccounts.accountNumber') },
+      { accessorKey: 'accountNumber', header: t('accounting.bankAccounts.accountNumber'), cell: ({ row }) => <span dir="ltr" className="tabular-nums">{row.original.accountNumber}</span> },
       { accessorKey: 'currency', header: t('accounting.bankAccounts.currency') },
       {
         id: 'isActive',
         header: t('common.status'),
-        cell: ({ row }: { row: Row<BankAccountDto> }) => (
+        cell: ({ row }) => (
           <Badge variant={row.original.isActive ? 'success' : 'neutral'} dot>
             {t(row.original.isActive ? 'common.active' : 'common.inactive')}
           </Badge>
         ),
       },
       {
-        id: 'actions',
+        id: 'open',
         header: '',
-        cell: ({ row }: { row: Row<BankAccountDto> }) => {
-          const bankAccount = row.original;
-          return (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon">
-                  <MoreHorizontal className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onSelect={() => setViewingRegisterId(bankAccount.id)}>
-                  {t('accounting.bankAccounts.viewRegister')}
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          );
-        },
+        cell: () => (
+          <Button variant="outline" size="sm">
+            {t('accounting.bankAccounts.reconcile')}
+          </Button>
+        ),
       },
     ],
     [t],
@@ -78,20 +49,12 @@ export function BankAccountsTab() {
           {t('treasury.title')}
         </Link>
       </p>
-
-      <DataTable columns={columns} data={bankAccounts ?? []} isLoading={isLoading} />
-
-      <Dialog
-        open={viewingRegisterId !== null}
-        onOpenChange={(open) => !open && setViewingRegisterId(null)}
-      >
-        <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-4xl">
-          <DialogHeader>
-            <DialogTitle>{t('accounting.bankAccounts.register')}</DialogTitle>
-          </DialogHeader>
-          {viewingRegisterId ? <BankAccountRegisterView bankAccountId={viewingRegisterId} /> : null}
-        </DialogContent>
-      </Dialog>
+      <DataTable
+        columns={columns}
+        data={bankAccounts ?? []}
+        isLoading={isLoading}
+        onRowClick={(account) => navigate(`/accounting/bank-accounts/${account.id}`)}
+      />
     </div>
   );
 }

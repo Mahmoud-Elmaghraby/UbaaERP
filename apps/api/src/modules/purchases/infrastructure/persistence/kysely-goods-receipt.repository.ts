@@ -17,6 +17,7 @@ function toDomain(row: Selectable<GoodsReceiptsTable>): GoodsReceipt {
     status: row.status as GoodsReceiptStatus,
     receivedDate: row.received_date,
     exchangeRate: row.exchange_rate === null ? null : normalizeRate(String(row.exchange_rate)),
+    sourcePurchaseInvoiceId: row.source_purchase_invoice_id ?? null,
     notes: row.notes,
     customFields: (row.custom_fields ?? {}) as Record<string, unknown>,
     createdAt: row.created_at,
@@ -58,10 +59,21 @@ export class KyselyGoodsReceiptRepository implements GoodsReceiptRepository {
         exchange_rate: input.exchangeRate,
         notes: input.notes,
         custom_fields: JSON.stringify(input.customFields ?? {}),
+        source_purchase_invoice_id: input.sourcePurchaseInvoiceId ?? null,
       })
       .returningAll()
       .executeTakeFirstOrThrow();
     return toDomain(row);
+  }
+
+  async listBySourcePurchaseInvoiceId(db: Kysely<TenantDatabase>, purchaseInvoiceId: string): Promise<GoodsReceipt[]> {
+    const rows = await db
+      .selectFrom('goods_receipts')
+      .selectAll()
+      .where('source_purchase_invoice_id', '=', purchaseInvoiceId)
+      .orderBy('created_at')
+      .execute();
+    return rows.map(toDomain);
   }
 
   async updateStatus(

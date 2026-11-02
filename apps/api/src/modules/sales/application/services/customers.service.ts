@@ -4,7 +4,7 @@ import type { Kysely } from 'kysely';
 import type { TenantDatabase } from '../../../../database/tenant/kysely-client';
 import { CUSTOMER_REPOSITORY, type CustomerRepository } from '../ports/customer.repository';
 import type { Customer, CreateCustomerInput, UpdateCustomerInput } from '../../domain/customer.entity';
-import { BusinessRuleError, isPostgresUniqueViolation } from '../errors';
+import { BusinessRuleError, isPostgresForeignKeyViolation, isPostgresUniqueViolation } from '../errors';
 import { duplicateEntity, entityNotFound } from '../../../../shared/errors/entity-errors';
 
 @Injectable()
@@ -37,6 +37,7 @@ export class CustomersService {
       if (isPostgresUniqueViolation(err)) {
         throw duplicateEntity('CUSTOMER', 'code', input.code);
       }
+      if (isPriceListViolation(err) && input.priceListId) throw entityNotFound('PRICE_LIST', input.priceListId);
       throw err;
     }
   }
@@ -50,6 +51,7 @@ export class CustomersService {
       if (isPostgresUniqueViolation(err)) {
         throw duplicateEntity('CUSTOMER', 'code', input.code);
       }
+      if (isPriceListViolation(err) && input.priceListId) throw entityNotFound('PRICE_LIST', input.priceListId);
       throw err;
     }
   }
@@ -66,4 +68,12 @@ export class CustomersService {
     const deleted = await this.repository.delete(db, id);
     if (!deleted) throw entityNotFound('CUSTOMER', id);
   }
+}
+
+/** The customer's price list FK (migration 0102) — told apart from the withholding-rule FK by its constraint name. */
+function isPriceListViolation(err: unknown): boolean {
+  return (
+    isPostgresForeignKeyViolation(err) &&
+    String((err as { constraint?: unknown }).constraint ?? '').includes('price_list')
+  );
 }

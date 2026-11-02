@@ -22,6 +22,9 @@ function toDomain(row: Selectable<AccountingSettingsTable>): AccountingSettings 
     inventoryAdjustmentAccountId: row.inventory_adjustment_account_id,
     openingBalanceEquityAccountId: row.opening_balance_equity_account_id,
     landedCostClearingAccountId: row.landed_cost_clearing_account_id,
+    retainedEarningsAccountId: row.retained_earnings_account_id ?? null,
+    requireEntryApproval: row.require_entry_approval ?? false,
+    reviewAutoEntries: row.review_auto_entries ?? false,
     defaultBankAccountId: row.default_bank_account_id,
     vatOutputAccountId: row.vat_output_account_id,
     vatInputAccountId: row.vat_input_account_id,
@@ -61,6 +64,7 @@ const DEFAULT_CODES = {
   table_tax_input_account_id: '55',
   withholding_payable_account_id: '219',
   withholding_receivable_account_id: '118',
+  retained_earnings_account_id: '32',
 } as const;
 
 export class KyselyAccountingSettingsRepository implements AccountingSettingsRepository {
@@ -99,6 +103,7 @@ export class KyselyAccountingSettingsRepository implements AccountingSettingsRep
           inventory_adjustment_account_id: accountIdByCode.get(DEFAULT_CODES.inventory_adjustment_account_id) ?? null,
           opening_balance_equity_account_id: accountIdByCode.get(DEFAULT_CODES.opening_balance_equity_account_id) ?? null,
           landed_cost_clearing_account_id: null,
+          retained_earnings_account_id: accountIdByCode.get(DEFAULT_CODES.retained_earnings_account_id) ?? null,
           default_bank_account_id: accountIdByCode.get(DEFAULT_CODES.default_bank_account_id) ?? null,
           vat_output_account_id: accountIdByCode.get(DEFAULT_CODES.vat_output_account_id) ?? null,
           vat_input_account_id: accountIdByCode.get(DEFAULT_CODES.vat_input_account_id) ?? null,
@@ -154,6 +159,11 @@ export class KyselyAccountingSettingsRepository implements AccountingSettingsRep
           : {}),
         ...(input.openingBalanceEquityAccountId !== undefined
           ? { opening_balance_equity_account_id: input.openingBalanceEquityAccountId }
+          : {}),
+        ...(input.requireEntryApproval !== undefined ? { require_entry_approval: input.requireEntryApproval } : {}),
+        ...(input.reviewAutoEntries !== undefined ? { review_auto_entries: input.reviewAutoEntries } : {}),
+        ...(input.retainedEarningsAccountId !== undefined
+          ? { retained_earnings_account_id: input.retainedEarningsAccountId }
           : {}),
         ...(input.landedCostClearingAccountId !== undefined
           ? { landed_cost_clearing_account_id: input.landedCostClearingAccountId }

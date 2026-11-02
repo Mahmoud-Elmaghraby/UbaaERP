@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { NavLink, Navigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Tabs, TabsContent, TabsList, TabsTrigger, PageHeader } from '@erp-platform/ui';
+import { PageHeader, cn } from '@erp-platform/ui';
 
 import { GeneralLedgerReport } from './general-ledger-report';
 import { TrialBalanceReport } from './trial-balance-report';
@@ -9,51 +9,51 @@ import { BalanceSheetReport } from './balance-sheet-report';
 import { CashFlowReport } from './cash-flow-report';
 import { VatReturnReport } from './vat-return-report';
 
+const REPORTS = {
+  'trial-balance': { label: 'accounting.reports.trialBalance', Component: TrialBalanceReport },
+  'income-statement': { label: 'accounting.reports.incomeStatement', Component: IncomeStatementReport },
+  'balance-sheet': { label: 'accounting.reports.balanceSheet', Component: BalanceSheetReport },
+  'general-ledger': { label: 'accounting.reports.generalLedger', Component: GeneralLedgerReport },
+  'cash-flow': { label: 'accounting.reports.cashFlow', Component: CashFlowReport },
+  'vat-return': { label: 'accounting.reports.vatReturn', Component: VatReturnReport },
+} as const;
+type ReportKey = keyof typeof REPORTS;
+
 /**
- * All four reports (دفتر الأستاذ / ميزان المراجعة / قائمة الدخل / الميزانية العمومية)
- * grouped under one routed page with an in-page Tabs switcher, same nested-Tabs shape
- * as Inventory's own StockTab (levels/movements/lots) — rather than four separate
- * top-level nav entries, since they're all pure read-only report viewers a user picks
- * between, not independently manageable entities with their own create/edit lifecycle.
+ * Accounting reports: one route per report (/accounting/reports/:report), so
+ * a report can be bookmarked and other reports can drill into it (trial
+ * balance → general ledger → journal entry). Filters live in the URL.
  */
 export function AccountingReportsPage() {
   const { t } = useTranslation();
-  const [activeView, setActiveView] = useState('general-ledger');
+  const { report } = useParams<{ report: string }>();
+  if (!report || !(report in REPORTS)) return <Navigate to="/accounting/reports/trial-balance" replace />;
+  const { Component } = REPORTS[report as ReportKey];
 
   return (
-    <div className="grid gap-6">
-      <PageHeader title={t('accounting.tabs.reports')} />
-
-      <Tabs value={activeView} onValueChange={setActiveView}>
-        <div className="overflow-x-auto">
-          <TabsList className="w-max">
-            <TabsTrigger value="general-ledger">{t('accounting.reports.generalLedger')}</TabsTrigger>
-            <TabsTrigger value="trial-balance">{t('accounting.reports.trialBalance')}</TabsTrigger>
-            <TabsTrigger value="income-statement">{t('accounting.reports.incomeStatement')}</TabsTrigger>
-            <TabsTrigger value="balance-sheet">{t('accounting.reports.balanceSheet')}</TabsTrigger>
-            <TabsTrigger value="cash-flow">{t('accounting.reports.cashFlow')}</TabsTrigger>
-            <TabsTrigger value="vat-return">{t('accounting.reports.vatReturn')}</TabsTrigger>
-          </TabsList>
-        </div>
-        <TabsContent value="general-ledger">
-          <GeneralLedgerReport />
-        </TabsContent>
-        <TabsContent value="trial-balance">
-          <TrialBalanceReport />
-        </TabsContent>
-        <TabsContent value="income-statement">
-          <IncomeStatementReport />
-        </TabsContent>
-        <TabsContent value="balance-sheet">
-          <BalanceSheetReport />
-        </TabsContent>
-        <TabsContent value="cash-flow">
-          <CashFlowReport />
-        </TabsContent>
-        <TabsContent value="vat-return">
-          <VatReturnReport />
-        </TabsContent>
-      </Tabs>
+    <div className="grid gap-5">
+      <div className="print:hidden">
+        <PageHeader title={t('accounting.tabs.reports')} />
+      </div>
+      <nav className="-mb-1 flex gap-1 overflow-x-auto border-b print:hidden" aria-label={t('accounting.tabs.reports')}>
+        {(Object.keys(REPORTS) as ReportKey[]).map((key) => (
+          <NavLink
+            key={key}
+            to={`/accounting/reports/${key}`}
+            className={({ isActive }) =>
+              cn(
+                '-mb-px whitespace-nowrap border-b-2 px-3 py-2 text-sm font-medium transition-colors',
+                isActive
+                  ? 'border-primary text-foreground'
+                  : 'border-transparent text-muted-foreground hover:text-foreground',
+              )
+            }
+          >
+            {t(REPORTS[key].label)}
+          </NavLink>
+        ))}
+      </nav>
+      <Component />
     </div>
   );
 }

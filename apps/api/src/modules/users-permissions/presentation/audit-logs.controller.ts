@@ -21,6 +21,7 @@ export class AuditLogsController {
     @CurrentTenantSchema() schema: string,
     @Query('userId') userId?: string,
     @Query('entityType') entityType?: string,
+    @Query('entityId') entityId?: string,
     @Query('action') action?: string,
     @Query('from') from?: string,
     @Query('to') to?: string,
@@ -33,6 +34,7 @@ export class AuditLogsController {
       {
         userId,
         entityType,
+        entityId,
         action,
         from: from ? new Date(from) : undefined,
         to: to ? new Date(to) : undefined,

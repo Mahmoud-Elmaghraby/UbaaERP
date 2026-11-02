@@ -22,6 +22,7 @@ import {
   FormField,
   FormItem,
   FormLabel,
+  Label,
   FormMessage,
   Input,
   Select,
@@ -39,6 +40,9 @@ import { CheckCircle2, FileWarning, Info } from 'lucide-react';
 import { useCustomFieldDefinitions } from '../../../settings/queries';
 import { useWarehouses } from '../../../inventory/api/warehouses/queries';
 import { useCustomers } from '../../api/customers/queries';
+import { useDocumentPriceList } from '../../api/price-lists/use-document-price-list';
+import { PriceListSelect } from '../price-lists/price-list-select';
+import { useVariantLookupMap } from '../../../inventory/api/products/queries';
 import { useSalesOrders } from '../../api/sales-orders/queries';
 import { useCreateSalesInvoice } from '../../api/sales-invoices/queries';
 import {
@@ -225,6 +229,14 @@ export function SalesInvoiceCreatePage() {
   const currency = directMode
     ? (customer?.defaultCurrency ?? '')
     : (selectedOrder?.currency ?? invoiceableLines[0]?.unitPrice.currency ?? '');
+  const variants = useVariantLookupMap();
+  const { priceListId, setPriceListId, pricer } = useDocumentPriceList<DirectLineDraft>({
+    customerPriceListId: customer?.priceListId,
+    customerId: directMode ? selectedCustomerId : null,
+    currency,
+    variants,
+    setLines: setDirectLines,
+  });
 
   // The invoicing worksheet's rows depend entirely on which sales order is selected —
   // reset the drafts whenever that changes, same as the delivering/returnable worksheets.
@@ -464,6 +476,12 @@ export function SalesInvoiceCreatePage() {
                         )}
                       />
                     )}
+                    {directMode ? (
+                      <div className="grid gap-2">
+                        <Label>{t('priceLists.field')}</Label>
+                        <PriceListSelect value={priceListId} onChange={setPriceListId} currency={currency} />
+                      </div>
+                    ) : null}
                     {activeChannels.length > 0 ? (
                       <>
                         <FormField
@@ -592,6 +610,7 @@ export function SalesInvoiceCreatePage() {
                       priceKind="sale"
                       currency={currency}
                       taxes={lineTaxes}
+                      pricer={pricer}
                     />
                   ) : invoiceableLoading ? (
                     <div className="px-5 pb-5">

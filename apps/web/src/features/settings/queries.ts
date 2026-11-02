@@ -53,6 +53,15 @@ export function useTenantSettings() {
   return useQuery({ queryKey: ['tenant-settings'], queryFn: () => apiGet<TenantSettingsDto>('/settings') });
 }
 
+/**
+ * The company's own (ledger) currency from Settings — THE fallback for any
+ * document whose party has no default currency. Never hard-code one ('SAR',
+ * 'EGP'…). Empty string while settings load.
+ */
+export function useBaseCurrency(): string {
+  return useTenantSettings().data?.currencyCode ?? '';
+}
+
 export function useUpdateTenantSettings() {
   const queryClient = useQueryClient();
   return useMutation({

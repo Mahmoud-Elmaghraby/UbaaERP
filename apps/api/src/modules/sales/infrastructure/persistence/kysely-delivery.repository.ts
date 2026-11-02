@@ -15,6 +15,7 @@ function toDomain(row: Selectable<DeliveriesTable>): Delivery {
     warehouseId: row.warehouse_id,
     status: row.status as DeliveryStatus,
     deliveryDate: row.delivery_date,
+    sourceSalesInvoiceId: row.source_sales_invoice_id ?? null,
     notes: row.notes,
     customFields: (row.custom_fields ?? {}) as Record<string, unknown>,
     createdAt: row.created_at,
@@ -55,10 +56,21 @@ export class KyselyDeliveryRepository implements DeliveryRepository {
         delivery_date: input.deliveryDate,
         notes: input.notes,
         custom_fields: JSON.stringify(input.customFields ?? {}),
+        source_sales_invoice_id: input.sourceSalesInvoiceId ?? null,
       })
       .returningAll()
       .executeTakeFirstOrThrow();
     return toDomain(row);
+  }
+
+  async listBySourceSalesInvoiceId(db: Kysely<TenantDatabase>, salesInvoiceId: string): Promise<Delivery[]> {
+    const rows = await db
+      .selectFrom('deliveries')
+      .selectAll()
+      .where('source_sales_invoice_id', '=', salesInvoiceId)
+      .orderBy('created_at')
+      .execute();
+    return rows.map(toDomain);
   }
 
   async updateStatus(db: Kysely<TenantDatabase>, id: string, status: DeliveryStatus): Promise<Delivery | null> {

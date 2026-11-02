@@ -19,6 +19,8 @@ export const customerSchema = z.object({
   isActive: z.boolean(),
   /** POS feature Stage 2 — read-only; never settable via createCustomerSchema/updateCustomerSchema. */
   isSystemDefault: z.boolean(),
+  /** Default price list (null = the items' normal prices). */
+  priceListId: z.string().uuid().nullable(),
   customFields: z.record(z.unknown()),
   createdAt: z.coerce.date(),
   updatedAt: z.coerce.date(),
@@ -40,6 +42,7 @@ export const createCustomerSchema = z.object({
   paymentTermsDays: z.number().int().nonnegative().nullable().optional(),
   notes: z.string().nullable().optional(),
   isActive: z.boolean().optional(),
+  priceListId: z.string().uuid().nullable().optional(),
   customFields: z.record(z.unknown()).optional(),
 });
 export type CreateCustomerDto = z.infer<typeof createCustomerSchema>;

@@ -43,6 +43,12 @@ export interface AccountingSettings {
   openingBalanceEquityAccountId: string | null;
   /** Migration 0084: landed costs are credited here; null = purchaseExpenseAccountId. */
   landedCostClearingAccountId: string | null;
+  /** Migration 0105: year-end closing posts the year's profit or loss here. */
+  retainedEarningsAccountId: string | null;
+  /** Migration 0106: only 'accounting.approve' may post manual entries. */
+  requireEntryApproval: boolean;
+  /** Migration 0106: automatic entries wait as drafts until someone with 'accounting.approve' posts them. */
+  reviewAutoEntries: boolean;
   /** Migration 0089: non-cash receipts/payments when no bank account was chosen (default 112). */
   defaultBankAccountId: string | null;
   /** Migration 0091: invoice taxes (see that migration). */
@@ -71,6 +77,9 @@ export interface UpdateAccountingSettingsInput {
   inventoryAdjustmentAccountId?: string | null;
   openingBalanceEquityAccountId?: string | null;
   landedCostClearingAccountId?: string | null;
+  retainedEarningsAccountId?: string | null;
+  requireEntryApproval?: boolean;
+  reviewAutoEntries?: boolean;
   defaultBankAccountId?: string | null;
   vatOutputAccountId?: string | null;
   vatInputAccountId?: string | null;

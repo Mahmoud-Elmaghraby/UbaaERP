@@ -35,6 +35,8 @@ export interface Delivery {
   warehouseId: string;
   status: DeliveryStatus;
   deliveryDate: string | null;
+  /** Migration 0104 — set when a sales invoice made this delivery (direct invoicing). */
+  sourceSalesInvoiceId: string | null;
   notes: string | null;
   customFields: Record<string, unknown>;
   createdAt: Date;
@@ -65,4 +67,6 @@ export interface CreateDeliveryInput {
   deliveryDate?: string | null;
   notes?: string | null;
   customFields?: Record<string, unknown>;
+  /** Direct invoicing only: the invoice this delivery belongs to (confirmed/cancelled with it). */
+  sourceSalesInvoiceId?: string | null;
 }

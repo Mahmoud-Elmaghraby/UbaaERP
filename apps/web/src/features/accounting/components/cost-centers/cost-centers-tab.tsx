@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { MoreHorizontal } from 'lucide-react';
 import type { ColumnDef, Row } from '@tanstack/react-table';
@@ -26,6 +27,7 @@ import { confirmDialog } from '../../../../components/feedback/confirm-dialog';
 
 export function CostCentersTab() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const { data: costCenters, isLoading } = useCostCenters();
   const [createOpen, setCreateOpen] = useState(false);
   const [editing, setEditing] = useState<CostCenterDto | null>(null);
@@ -67,6 +69,9 @@ export function CostCentersTab() {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
+                <DropdownMenuItem onSelect={() => navigate(`/accounting/reports/income-statement?costCenter=${costCenter.id}`)}>
+                  {t('accounting.costCenters.viewIncomeStatement')}
+                </DropdownMenuItem>
                 <Can permission="accounting.manage">
                   <>
                     <DropdownMenuItem onSelect={() => setEditing(costCenter)}>
@@ -83,7 +88,7 @@ export function CostCentersTab() {
         },
       },
     ],
-    [t],
+    [t, navigate],
   );
 
   return (

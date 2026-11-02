@@ -48,6 +48,8 @@ export interface GoodsReceipt {
    * null for a tenant-currency receipt.
    */
   exchangeRate: string | null;
+  /** Migration 0103 — set when a purchase invoice made this receipt (direct invoicing). */
+  sourcePurchaseInvoiceId: string | null;
   notes: string | null;
   customFields: Record<string, unknown>;
   createdAt: Date;
@@ -82,4 +84,6 @@ export interface CreateGoodsReceiptInput {
   exchangeRate?: string | null;
   notes?: string | null;
   customFields?: Record<string, unknown>;
+  /** Direct invoicing only: the invoice this receipt belongs to (confirmed/cancelled with it). */
+  sourcePurchaseInvoiceId?: string | null;
 }

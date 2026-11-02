@@ -13,6 +13,10 @@ const SettlementsPage = lazy(() => import('../sales-channels/settlements-page').
 const SettlementEditorPage = lazy(() =>
   import('../sales-channels/settlement-editor-page').then((m) => ({ default: m.SettlementEditorPage })),
 );
+const PriceListsPage = lazy(() => import('./components/price-lists').then((m) => ({ default: m.PriceListsPage })));
+const PriceListEditorPage = lazy(() =>
+  import('./components/price-lists').then((m) => ({ default: m.PriceListEditorPage })),
+);
 const CustomersPage = lazy(() => import('./components/customers').then((m) => ({ default: m.CustomersPage })));
 const QuotationsPage = lazy(() => import('./components/quotations').then((m) => ({ default: m.QuotationsPage })));
 const SalesOrdersPage = lazy(() =>
@@ -64,6 +68,8 @@ export const salesRoutes: RouteObject[] = [
       { index: true, element: <Navigate to="customers" replace /> },
       { path: 'customers', element: <CustomersPage /> },
       { path: 'channels', element: <ChannelsPage /> },
+      { path: 'price-lists', element: <PriceListsPage /> },
+      { path: 'price-lists/:id', element: <PriceListEditorPage /> },
       { path: 'settlements', element: <SettlementsPage /> },
       { path: 'settlements/:id', element: <SettlementEditorPage /> },
       { path: 'customers/:id/statement', element: <PartyStatementPage kind="customer" /> },

@@ -21,6 +21,7 @@ import {
   FormLabel,
   FormMessage,
   Input,
+  Label,
   Select,
   SelectContent,
   SelectItem,
@@ -32,8 +33,11 @@ import {
   toast,
 } from '@erp-platform/ui';
 
-import { useCustomFieldDefinitions } from '../../../settings/queries';
+import { useBaseCurrency, useCustomFieldDefinitions } from '../../../settings/queries';
 import { useCustomers } from '../../api/customers/queries';
+import { useDocumentPriceList } from '../../api/price-lists/use-document-price-list';
+import { useVariantLookupMap } from '../../../inventory/api/products/queries';
+import { PriceListSelect } from '../price-lists/price-list-select';
 import { useCreateQuotation, useUpdateQuotation } from '../../api/quotations/queries';
 import { ApiError } from '../../../../lib/api-client';
 import { decimalToMinorUnits, minorUnitsToDecimalString } from '../../../../lib/money';
@@ -109,7 +113,18 @@ export function CreateQuotationForm({ onDone }: { onDone: () => void }) {
   });
 
   const selectedCustomerId = form.watch('customerId');
-  const currency = customers?.find((c) => c.id === selectedCustomerId)?.defaultCurrency ?? 'SAR';
+  const selectedCustomer = customers?.find((c) => c.id === selectedCustomerId);
+  const baseCurrency = useBaseCurrency();
+
+  const currency = selectedCustomer?.defaultCurrency || baseCurrency;
+  const variants = useVariantLookupMap();
+  const { priceListId, setPriceListId, pricer } = useDocumentPriceList<QuotationLineDraft>({
+    customerPriceListId: selectedCustomer?.priceListId,
+    customerId: selectedCustomerId,
+    currency,
+    variants,
+    setLines,
+  });
 
   async function onSubmit(headerValues: HeaderFormValues) {
     setLinesError(null);
@@ -164,6 +179,10 @@ export function CreateQuotationForm({ onDone }: { onDone: () => void }) {
             </FormItem>
           )}
         />
+        <div className="grid gap-2">
+          <Label>{t('priceLists.field')}</Label>
+          <PriceListSelect value={priceListId} onChange={setPriceListId} currency={currency} />
+        </div>
         <FormField
           control={form.control}
           name="validUntilDate"
@@ -193,7 +212,7 @@ export function CreateQuotationForm({ onDone }: { onDone: () => void }) {
 
         <Separator />
         <p className="text-sm font-medium text-muted-foreground">{t('sales.quotations.lines')}</p>
-        <QuotationLineItemsEditor lines={lines} onChange={setLines} currency={currency} />
+        <QuotationLineItemsEditor lines={lines} onChange={setLines} currency={currency} pricer={pricer} />
         {linesError ? <p className="text-sm text-destructive">{linesError}</p> : null}
 
         {definitions && definitions.length > 0 ? (
@@ -240,7 +259,18 @@ export function EditQuotationForm({
   );
   const [linesError, setLinesError] = useState<string | null>(null);
 
-  const currency = quotation.lines[0]?.unitPrice.currency ?? 'SAR';
+  const baseCurrency = useBaseCurrency();
+
+  const currency = quotation.lines[0]?.unitPrice.currency || baseCurrency;
+  const { data: customers } = useCustomers();
+  const variants = useVariantLookupMap();
+  const { priceListId, setPriceListId, pricer } = useDocumentPriceList<QuotationLineDraft>({
+    customerPriceListId: customers?.find((c) => c.id === quotation.customerId)?.priceListId,
+    customerId: quotation.customerId,
+    currency,
+    variants,
+    setLines,
+  });
 
   const formSchema = useMemo(() => {
     const staticSchema = updateQuotationSchema.omit({ lines: true, customFields: true });
@@ -287,6 +317,10 @@ export function EditQuotationForm({
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-4">
+        <div className="grid gap-2">
+          <Label>{t('priceLists.field')}</Label>
+          <PriceListSelect value={priceListId} onChange={setPriceListId} currency={currency} />
+        </div>
         <FormField
           control={form.control}
           name="validUntilDate"
@@ -316,7 +350,7 @@ export function EditQuotationForm({
 
         <Separator />
         <p className="text-sm font-medium text-muted-foreground">{t('sales.quotations.lines')}</p>
-        <QuotationLineItemsEditor lines={lines} onChange={setLines} currency={currency} />
+        <QuotationLineItemsEditor lines={lines} onChange={setLines} currency={currency} pricer={pricer} />
         {linesError ? <p className="text-sm text-destructive">{linesError}</p> : null}
 
         {definitions && definitions.length > 0 ? (

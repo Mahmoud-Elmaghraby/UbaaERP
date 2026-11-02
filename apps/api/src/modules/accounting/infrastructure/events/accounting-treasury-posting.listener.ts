@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { localIsoDate } from '../../../../shared/time/local-date';
 import type { Kysely } from 'kysely';
 import { OnOutboxEvent } from '../../../../shared/events/on-outbox-event.decorator';
 import { FEATURE_KEYS } from '../../../../shared/plans/feature-catalog';
@@ -149,8 +150,11 @@ export class AccountingTreasuryPostingListener {
     if (reverse) [debitAccount, creditAccount] = [creditAccount, debitAccount];
 
     const title = `${reverse ? 'إلغاء ' : ''}${TITLES[m.kind]} — ${m.voucherNumber}`;
+    // A cancellation is booked on the day it happened (never before the
+    // voucher), so a voucher in a since-closed period can still be cancelled.
+    const cancelledOn = localIsoDate(payload.occurredAt);
     await this.journalEntries.createAuto(db, {
-      entryDate: m.voucherDate,
+      entryDate: reverse && cancelledOn > m.voucherDate ? cancelledOn : m.voucherDate,
       description: [title, m.categoryName, m.description].filter(Boolean).join(' — '),
       lines: [debit(debitAccount, amount), credit(creditAccount, amount)],
       sourceReferenceType: reverse ? 'treasury_voucher_cancellation' : 'treasury_voucher',

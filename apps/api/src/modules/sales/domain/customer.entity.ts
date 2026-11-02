@@ -35,6 +35,8 @@ export interface Customer {
    * both. CustomersService.delete() rejects deleting one.
    */
   isSystemDefault: boolean;
+  /** Migration 0102 — default price list; null = the items' normal prices. */
+  priceListId: string | null;
   customFields: Record<string, unknown>;
   createdAt: Date;
   updatedAt: Date;
@@ -55,6 +57,7 @@ export interface CreateCustomerInput {
   paymentTermsDays?: number | null;
   notes?: string | null;
   isActive?: boolean;
+  priceListId?: string | null;
   customFields?: Record<string, unknown>;
 }
 
@@ -72,5 +75,6 @@ export interface UpdateCustomerInput {
   paymentTermsDays?: number | null;
   notes?: string | null;
   isActive?: boolean;
+  priceListId?: string | null;
   customFields?: Record<string, unknown>;
 }

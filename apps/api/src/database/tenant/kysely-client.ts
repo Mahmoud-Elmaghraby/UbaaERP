@@ -495,6 +495,8 @@ export interface CustomersTable {
   is_active: boolean;
   /** Migration 0063 — POS feature Stage 2's Walk-in Customer. At most one TRUE row per tenant (partial UNIQUE index). */
   is_system_default: boolean;
+  /** Migration 0102 — default price list (NULL = the items' normal prices). */
+  price_list_id: Generated<string | null>;
   custom_fields: unknown;
   created_at: Generated<Date>;
   updated_at: Generated<Date>;
@@ -550,6 +552,8 @@ export interface DeliveriesTable {
   custom_fields: unknown;
   created_at: Generated<Date>;
   updated_at: Generated<Date>;
+  /** Migration 0104 — the sales invoice that made this delivery (direct invoicing); NULL = by hand / POS. */
+  source_sales_invoice_id: Generated<string | null>;
 }
 
 export interface DeliveryLinesTable {
@@ -597,6 +601,30 @@ export interface SalesChannelsTable {
   notes: string | null;
   created_at: Generated<Date>;
   updated_at: Generated<Date>;
+}
+
+/** Migration 0102 — price lists (wholesale, retail…). */
+export interface PriceListsTable {
+  id: string;
+  name: string;
+  currency: string;
+  /** NUMERIC(5,2) — comes back as a string. */
+  discount_percent: Generated<string>;
+  is_active: Generated<boolean>;
+  notes: string | null;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
+export interface PriceListItemsTable {
+  id: string;
+  price_list_id: string;
+  product_id: string;
+  /** NULL = every variant of the product. */
+  product_variant_id: string | null;
+  /** NUMERIC(18,3), base units — the break this price starts at. */
+  min_quantity: Generated<string>;
+  price_amount: string;
 }
 
 export interface ChannelSettlementsTable {
@@ -906,6 +934,8 @@ export interface GoodsReceiptsTable {
   created_at: Generated<Date>;
   updated_at: Generated<Date>;
   exchange_rate: string | null;
+  /** Migration 0103 — the purchase invoice that made this receipt (direct invoicing); NULL = made by hand. */
+  source_purchase_invoice_id: Generated<string | null>;
 }
 
 export interface GoodsReceiptLinesTable {
@@ -1147,6 +1177,86 @@ export interface ProductImagesTable {
   created_at: Generated<Date>;
 }
 
+/** Migration 0106 — recurring journal entries. */
+export interface RecurringJournalEntriesTable {
+  id: string;
+  name: string;
+  description: string | null;
+  frequency: string;
+  start_date: string;
+  next_run_date: string;
+  end_date: string | null;
+  auto_post: Generated<boolean>;
+  is_active: Generated<boolean>;
+  lines: unknown;
+  last_entry_id: string | null;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
+/** Migration 0106 — fixed assets register. Amounts in minor units (tenant currency). */
+export interface FixedAssetsTable {
+  id: string;
+  code: string;
+  name: string;
+  acquisition_date: string;
+  depreciation_start: string;
+  cost_amount: string;
+  salvage_amount: Generated<string>;
+  opening_accumulated_amount: Generated<string>;
+  useful_life_months: number;
+  asset_account_id: string;
+  accumulated_account_id: string;
+  expense_account_id: string;
+  cost_center_id: string | null;
+  status: Generated<string>;
+  disposed_at: string | null;
+  notes: string | null;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
+export interface FixedAssetDepreciationsTable {
+  id: string;
+  fixed_asset_id: string;
+  period_end: string;
+  amount: string;
+  journal_entry_id: string | null;
+  created_at: Generated<Date>;
+}
+
+/** Migration 0106 — budgets (budget vs actual). */
+export interface BudgetsTable {
+  id: string;
+  name: string;
+  fiscal_year_id: string;
+  notes: string | null;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
+export interface BudgetLinesTable {
+  id: string;
+  budget_id: string;
+  account_id: string;
+  month: number;
+  amount: string;
+}
+
+/** Migration 0106 — imported bank statement lines (signed amount: + deposit, − withdrawal). */
+export interface BankStatementLinesTable {
+  id: string;
+  treasury_id: string;
+  line_date: string;
+  description: string | null;
+  reference: string | null;
+  amount: string;
+  status: Generated<string>;
+  matched_line_id: string | null;
+  import_batch: string | null;
+  created_at: Generated<Date>;
+}
+
 export interface TenantDatabase {
   schema_migrations: SchemaMigrationsTable;
   tenant_settings: TenantSettingsTable;
@@ -1204,6 +1314,8 @@ export interface TenantDatabase {
   goods_receipt_lines: GoodsReceiptLinesTable;
   purchase_returns: PurchaseReturnsTable;
   sales_channels: SalesChannelsTable;
+  price_lists: PriceListsTable;
+  price_list_items: PriceListItemsTable;
   channel_settlements: ChannelSettlementsTable;
   channel_settlement_lines: ChannelSettlementLinesTable;
   currencies: CurrenciesTable;
@@ -1239,6 +1351,12 @@ export interface TenantDatabase {
   accounting_settings: AccountingSettingsTable;
   cost_centers: CostCentersTable;
   treasuries: TreasuriesTable;
+  recurring_journal_entries: RecurringJournalEntriesTable;
+  fixed_assets: FixedAssetsTable;
+  fixed_asset_depreciations: FixedAssetDepreciationsTable;
+  budgets: BudgetsTable;
+  budget_lines: BudgetLinesTable;
+  bank_statement_lines: BankStatementLinesTable;
   treasury_categories: TreasuryCategoriesTable;
   treasury_vouchers: TreasuryVouchersTable;
   pos_sessions: PosSessionsTable;
@@ -1394,6 +1512,12 @@ export interface AccountingSettingsTable {
   inventory_adjustment_account_id: string | null;
   opening_balance_equity_account_id: string | null;
   landed_cost_clearing_account_id: string | null;
+  /** Migration 0105 — year-end closing posts the year's result here (default 32 أرباح مرحّلة). */
+  retained_earnings_account_id: Generated<string | null>;
+  /** Migration 0106 — only 'accounting.approve' may post manual entries. */
+  require_entry_approval: Generated<boolean>;
+  /** Migration 0106 — automatic entries wait as drafts for review. */
+  review_auto_entries: Generated<boolean>;
   /** Migration 0089 — non-cash receipts/payments without a chosen bank account. */
   default_bank_account_id: string | null;
   /** Migration 0091 — invoice tax postings. */

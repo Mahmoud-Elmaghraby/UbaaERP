@@ -9,9 +9,12 @@ export interface CreateDeliveryRow {
   deliveryDate: string | null;
   notes: string | null;
   customFields: Record<string, unknown>;
+  sourceSalesInvoiceId?: string | null;
 }
 
 export interface DeliveryRepository {
+  /** Deliveries a sales invoice made for itself (direct invoicing). */
+  listBySourceSalesInvoiceId(db: Kysely<TenantDatabase>, salesInvoiceId: string): Promise<Delivery[]>;
   list(db: Kysely<TenantDatabase>): Promise<Delivery[]>;
   listBySalesOrderId(db: Kysely<TenantDatabase>, salesOrderId: string): Promise<Delivery[]>;
   findById(db: Kysely<TenantDatabase>, id: string): Promise<Delivery | null>;

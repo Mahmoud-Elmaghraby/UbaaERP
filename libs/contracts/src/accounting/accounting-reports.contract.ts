@@ -107,6 +107,8 @@ export const balanceSheetReportSchema = z.object({
    * here as a memo line so the balance sheet still balances
    * (assets = liabilities + equity) before closing entries exist.
    */
+  /** Earlier fiscal years' profit not yet closed into equity (memo line). */
+  priorYearsEarnings: moneySchema,
   currentYearEarnings: moneySchema,
   totalEquity: moneySchema,
   /** True when totalAssets === totalLiabilities + totalEquity. */

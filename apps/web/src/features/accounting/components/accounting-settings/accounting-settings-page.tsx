@@ -6,10 +6,7 @@ import { updateAccountingSettingsSchema, type UpdateAccountingSettingsDto } from
 import {
   Button,
   Can,
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
+  Checkbox,
   Form,
   FormControl,
   FormDescription,
@@ -17,23 +14,19 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
   Skeleton,
   toast,
   PageHeader,
 } from '@erp-platform/ui';
 
+import { X } from 'lucide-react';
+
 import { useAccountingSettings, useUpdateAccountingSettings } from '../../api/accounting-settings/queries';
+import { AccountPicker } from '../account-picker';
 import { usePostableAccounts } from '../../hooks/use-postable-accounts';
 import { ApiError } from '../../../../lib/api-client';
 
-const NONE = '__none__';
-
-type MappingName = keyof UpdateAccountingSettingsDto;
+type MappingName = Exclude<keyof UpdateAccountingSettingsDto, 'requireEntryApproval' | 'reviewAutoEntries'>;
 
 /** Grouped the way an accountant thinks about them; every mapping the auto-posting listeners read. */
 const MAPPING_GROUPS: { titleKey: string; fields: { name: MappingName; labelKey: string }[] }[] = [
@@ -83,9 +76,27 @@ const MAPPING_GROUPS: { titleKey: string; fields: { name: MappingName; labelKey:
       { name: 'exchangeGainLossAccountId', labelKey: 'accounting.settings.exchangeGainLoss' },
     ],
   },
+  {
+    titleKey: 'accounting.settings.groups.closing',
+    fields: [{ name: 'retainedEarningsAccountId', labelKey: 'accounting.settings.retainedEarnings' }],
+  },
 ];
 
 const MAPPING_FIELDS = MAPPING_GROUPS.flatMap((group) => group.fields);
+
+/** Review controls (not account mappings): who may post, and whether automatic entries wait for review. */
+const CONTROL_FIELDS = [
+  { name: 'requireEntryApproval', labelKey: 'accounting.settings.requireEntryApproval' },
+  { name: 'reviewAutoEntries', labelKey: 'accounting.settings.reviewAutoEntries' },
+] as const;
+const CONTROLS_ID = 'accounting.settings.groups.controls';
+
+function formValues(settings: Partial<Record<string, unknown>> | undefined): UpdateAccountingSettingsDto {
+  return {
+    ...Object.fromEntries(MAPPING_FIELDS.map(({ name }) => [name, settings?.[name] ?? null])),
+    ...Object.fromEntries(CONTROL_FIELDS.map(({ name }) => [name, settings?.[name] ?? false])),
+  } as UpdateAccountingSettingsDto;
+}
 
 /**
  * GET+PATCH singleton, same shape as Sales' EtaCredentialsPage / Settings' GeneralTab
@@ -108,14 +119,12 @@ export function AccountingSettingsPage() {
 
   const form = useForm<UpdateAccountingSettingsDto>({
     resolver: zodResolver(updateAccountingSettingsSchema),
-    defaultValues: Object.fromEntries(MAPPING_FIELDS.map(({ name }) => [name, null])) as UpdateAccountingSettingsDto,
+    defaultValues: formValues(undefined),
   });
 
   useEffect(() => {
     if (settings) {
-      form.reset(
-        Object.fromEntries(MAPPING_FIELDS.map(({ name }) => [name, settings[name] ?? null])) as UpdateAccountingSettingsDto,
-      );
+      form.reset(formValues(settings));
     }
   }, [settings, form]);
 
@@ -128,68 +137,118 @@ export function AccountingSettingsPage() {
     }
   }
 
-  return (
-    <div className="grid gap-6">
-      <PageHeader title={t('accounting.tabs.settings')} />
+  const dirty = form.formState.isDirty;
 
-      <Card className="max-w-2xl">
-        <CardHeader>
-          <CardTitle>{t('accounting.settings.title')}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <Skeleton className="h-64 w-full" />
-          ) : (
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-4">
-                <p className="text-sm text-muted-foreground">{t('accounting.settings.description')}</p>
+  return (
+    <div className="grid gap-6 pb-20">
+      <PageHeader title={t('accounting.tabs.settings')} description={t('accounting.settings.description')} />
+
+      {isLoading ? (
+        <Skeleton className="h-96 w-full rounded-xl" />
+      ) : (
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-6 lg:grid-cols-[200px_minmax(0,1fr)]">
+            <nav className="hidden lg:block">
+              <ul className="sticky top-24 flex flex-col gap-1 text-sm">
+                <li>
+                  <a href={`#${CONTROLS_ID}`} className="block rounded-md px-3 py-1.5 text-muted-foreground hover:bg-muted hover:text-foreground">
+                    {t(CONTROLS_ID)}
+                  </a>
+                </li>
                 {MAPPING_GROUPS.map((group) => (
-                  <fieldset key={group.titleKey} className="grid gap-4 rounded-lg border p-4">
-                    <legend className="px-1 text-sm font-semibold">{t(group.titleKey)}</legend>
+                  <li key={group.titleKey}>
+                    <a
+                      href={`#${group.titleKey}`}
+                      className="block rounded-md px-3 py-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+                    >
+                      {t(group.titleKey)}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </nav>
+            <div className="grid gap-5">
+              <section id={CONTROLS_ID} className="scroll-mt-24 overflow-hidden rounded-xl border bg-card">
+                <h2 className="border-b px-5 py-3 text-base font-semibold">{t(CONTROLS_ID)}</h2>
+                <div className="divide-y">
+                  {CONTROL_FIELDS.map(({ name, labelKey }) => (
+                    <FormField
+                      key={name}
+                      control={form.control}
+                      name={name}
+                      render={({ field }) => (
+                        <FormItem className="flex items-start gap-3 space-y-0 px-5 py-4">
+                          <FormControl>
+                            <Checkbox className="mt-0.5" checked={field.value === true} onCheckedChange={(v) => field.onChange(v === true)} />
+                          </FormControl>
+                          <div className="grid gap-0.5">
+                            <FormLabel>{t(labelKey)}</FormLabel>
+                            <FormDescription className="text-xs">{t(`${labelKey}Description`)}</FormDescription>
+                          </div>
+                        </FormItem>
+                      )}
+                    />
+                  ))}
+                </div>
+              </section>
+              {MAPPING_GROUPS.map((group) => (
+                <section key={group.titleKey} id={group.titleKey} className="scroll-mt-24 overflow-hidden rounded-xl border bg-card">
+                  <h2 className="border-b px-5 py-3 text-base font-semibold">{t(group.titleKey)}</h2>
+                  <div className="divide-y">
                     {group.fields.map(({ name, labelKey }) => (
                       <FormField
                         key={name}
                         control={form.control}
                         name={name}
                         render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>{t(labelKey)}</FormLabel>
-                            <Select
-                              value={field.value ?? NONE}
-                              onValueChange={(value) => field.onChange(value === NONE ? null : value)}
-                            >
+                          <FormItem className="grid gap-2 px-5 py-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,320px)] sm:items-center sm:gap-6">
+                            <div className="grid gap-0.5">
+                              <FormLabel>{t(labelKey)}</FormLabel>
+                              <FormDescription className="text-xs">{t(`${labelKey}Description`)}</FormDescription>
+                            </div>
+                            <div className="flex items-center gap-1">
                               <FormControl>
-                                <SelectTrigger>
-                                  <SelectValue />
-                                </SelectTrigger>
+                                <AccountPicker
+                                  className="h-9 w-full"
+                                  accounts={postableAccounts}
+                                  value={field.value ?? null}
+                                  placeholder={t('accounting.settings.noAccount')}
+                                  onChange={(id) => field.onChange(id)}
+                                />
                               </FormControl>
-                              <SelectContent>
-                                <SelectItem value={NONE}>{t('accounting.settings.noAccount')}</SelectItem>
-                                {postableAccounts.map((account) => (
-                                  <SelectItem key={account.id} value={account.id}>
-                                    {account.code} — {account.name}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                            <FormDescription>{t(`${labelKey}Description`)}</FormDescription>
+                              {field.value ? (
+                                <Button type="button" variant="ghost" size="icon-sm" aria-label={t('accounting.settings.noAccount')} onClick={() => field.onChange(null)}>
+                                  <X className="h-4 w-4" />
+                                </Button>
+                              ) : null}
+                            </div>
                             <FormMessage />
                           </FormItem>
                         )}
                       />
                     ))}
-                  </fieldset>
-                ))}
-                <Can permission="accounting.manage">
-                  <Button type="submit" disabled={updateSettings.isPending} className="justify-self-start">
+                  </div>
+                </section>
+              ))}
+            </div>
+            <Can permission="accounting.manage">
+              <div
+                className={`fixed inset-x-0 bottom-0 z-30 border-t bg-card/95 px-4 py-3 backdrop-blur transition-transform md:ps-72 ${dirty ? 'translate-y-0' : 'translate-y-full'}`}
+              >
+                <div className="mx-auto flex max-w-[1440px] items-center justify-end gap-3">
+                  <span className="text-sm text-muted-foreground">{t('common.unsavedChanges')}</span>
+                  <Button type="button" variant="outline" onClick={() => settings && form.reset(formValues(settings))}>
+                    {t('common.cancel')}
+                  </Button>
+                  <Button type="submit" disabled={updateSettings.isPending}>
                     {t('common.save')}
                   </Button>
-                </Can>
-              </form>
-            </Form>
-          )}
-        </CardContent>
-      </Card>
+                </div>
+              </div>
+            </Can>
+          </form>
+        </Form>
+      )}
     </div>
   );
 }

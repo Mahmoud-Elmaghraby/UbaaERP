@@ -1,4 +1,7 @@
-import { readTaxReport } from '../../../../shared/taxes/tax-report-reader';
+import { readTaxReport, readTaxTotalsByDate } from '../../../../shared/taxes/tax-report-reader';
+import { LedgerAmountService } from './ledger-amount.service';
+import { listCashAccountIds } from './treasury-account-resolver';
+import { YEAR_END_CLOSING_SOURCE } from '../../domain/journal-entry.entity';
 import { Inject, Injectable } from '@nestjs/common';
 import type { Kysely } from 'kysely';
 import { Money } from '@erp-platform/shared-kernel';
@@ -58,6 +61,7 @@ export class AccountingReportsService {
     @Inject(ACCOUNTING_SETTINGS_REPOSITORY) private readonly accountingSettings: AccountingSettingsRepository,
     @Inject(BANK_ACCOUNT_REPOSITORY) private readonly bankAccounts: BankAccountRepository,
     private readonly tenantSettings: TenantSettingsService,
+    private readonly ledgerAmounts: LedgerAmountService,
   ) {}
 
   private moneyFromTotals(totals: AccountMoneyTotals, currency: string): { debit: Money; credit: Money } {
@@ -174,16 +178,24 @@ export class AccountingReportsService {
   }
 
   /** قائمة الدخل — revenue/expense accounts, net of contra accounts, over a date range. */
-  async incomeStatement(db: Kysely<TenantDatabase>, fromDate: string, toDate: string): Promise<IncomeStatementReport> {
+  async incomeStatement(
+    db: Kysely<TenantDatabase>,
+    fromDate: string,
+    toDate: string,
+    options: { costCenterId?: string } = {},
+  ): Promise<IncomeStatementReport> {
     const currency = (await this.tenantSettings.get(db)).currencyCode;
     const allAccounts = await this.accounts.list(db);
     const revenueAccounts = allAccounts.filter((a) => !a.isGroup && a.accountType === 'revenue');
     const expenseAccounts = allAccounts.filter((a) => !a.isGroup && a.accountType === 'expense');
+    // The year-end closing entry empties these accounts into retained
+    // earnings; it is not the year's activity, so the statement leaves it out.
     const sums = await this.journalEntryLines.sumPostedByAccounts(
       db,
       [...revenueAccounts, ...expenseAccounts].map((a) => a.id),
       fromDate,
       toDate,
+      { excludeSourceReferenceTypes: [YEAR_END_CLOSING_SOURCE], costCenterId: options.costCenterId },
     );
 
     const revenue = this.buildAmountRows(revenueAccounts, sums, currency);
@@ -210,6 +222,27 @@ export class AccountingReportsService {
    * it, NOT a posted closing entry — no year-end closing process exists
    * yet).
    */
+  /** Revenue − expense over posted entries in [fromDate, toDate] (open start when undefined). */
+  private async netIncomeBetween(
+    db: Kysely<TenantDatabase>,
+    fromDate: string | undefined,
+    toDate: string,
+    currency: string,
+  ): Promise<Money> {
+    const allAccounts = await this.accounts.list(db);
+    const revenueAccounts = allAccounts.filter((a) => !a.isGroup && a.accountType === 'revenue');
+    const expenseAccounts = allAccounts.filter((a) => !a.isGroup && a.accountType === 'expense');
+    const sums = await this.journalEntryLines.sumPostedByAccounts(
+      db,
+      [...revenueAccounts, ...expenseAccounts].map((a) => a.id),
+      fromDate,
+      toDate,
+    );
+    const revenue = this.buildAmountRows(revenueAccounts, sums, currency);
+    const expense = this.buildAmountRows(expenseAccounts, sums, currency);
+    return revenue.total.subtract(expense.total);
+  }
+
   async balanceSheet(db: Kysely<TenantDatabase>, asOfDate: string): Promise<BalanceSheetReport> {
     const currency = (await this.tenantSettings.get(db)).currencyCode;
     const allAccounts = await this.accounts.list(db);
@@ -227,17 +260,20 @@ export class AccountingReportsService {
     const liabilities = this.buildAmountRows(liabilityAccounts, sums, currency);
     const equity = this.buildAmountRows(equityAccounts, sums, currency);
 
-    let currentYearEarnings = Money.zero(currency);
+    // Profit not yet closed into equity, split at the start of asOfDate's
+    // fiscal year: earlier years' unclosed profit + this year's to date.
+    // Without a covering fiscal year, everything counts as this year's.
+    // Stays correct once year-end closing entries exist (closed revenue and
+    // expense accounts then net to zero for those years).
+    let fiscalYearStart: string | null = null;
     const period = await this.accountingPeriods.findByDate(db, asOfDate);
-    if (period) {
-      const fiscalYear = await this.fiscalYears.findById(db, period.fiscalYearId);
-      if (fiscalYear) {
-        const incomeStatement = await this.incomeStatement(db, fiscalYear.startDate, asOfDate);
-        currentYearEarnings = incomeStatement.netIncome;
-      }
-    }
+    if (period) fiscalYearStart = (await this.fiscalYears.findById(db, period.fiscalYearId))?.startDate ?? null;
+    const priorYearsEarnings = fiscalYearStart
+      ? await this.netIncomeBetween(db, undefined, dayBefore(fiscalYearStart), currency)
+      : Money.zero(currency);
+    const currentYearEarnings = await this.netIncomeBetween(db, fiscalYearStart ?? undefined, asOfDate, currency);
 
-    const totalEquity = equity.total.add(currentYearEarnings);
+    const totalEquity = equity.total.add(priorYearsEarnings).add(currentYearEarnings);
 
     return {
       asOfDate,
@@ -247,6 +283,7 @@ export class AccountingReportsService {
       liabilityRows: liabilities.rows,
       totalLiabilities: liabilities.total,
       equityRows: equity.rows,
+      priorYearsEarnings,
       currentYearEarnings,
       totalEquity,
       isBalanced: assets.total.equals(liabilities.total.add(totalEquity)),
@@ -282,14 +319,7 @@ export class AccountingReportsService {
     const currency = (await this.tenantSettings.get(db)).currencyCode;
 
     const settings = await this.accountingSettings.getOrCreate(db);
-    const activeBankAccounts = await this.bankAccounts.list(db, { isActive: true });
-    const cashAccountIds = Array.from(
-      new Set(
-        [settings.cashAccountId, ...activeBankAccounts.map((b) => b.chartOfAccountId)].filter(
-          (id): id is string => id !== null,
-        ),
-      ),
-    );
+    const cashAccountIds = await listCashAccountIds(db, settings);
 
     const netIncome = (await this.incomeStatement(db, fromDate, toDate)).netIncome;
 
@@ -300,11 +330,14 @@ export class AccountingReportsService {
         (a.accountType === 'asset' || a.accountType === 'liability' || a.accountType === 'equity') &&
         !cashAccountIds.includes(a.id),
     );
+    // Same rule as the income statement: the closing entry's move into
+    // retained earnings is not a balance change that generated cash.
     const periodSums = await this.journalEntryLines.sumPostedByAccounts(
       db,
       nonCashAccounts.map((a) => a.id),
       fromDate,
       toDate,
+      { excludeSourceReferenceTypes: [YEAR_END_CLOSING_SOURCE] },
     );
 
     const adjustments: CashFlowRow[] = [];
@@ -363,15 +396,29 @@ export class AccountingReportsService {
   /**
    * VAT return for a period, built from the stored tax snapshot of every
    * posted invoice and issued credit note (shared/taxes/tax-report-reader).
-   * Amounts are in the documents' currency; the totals count the tenant
-   * currency only (foreign-currency rows are listed separately).
+   * Rows are in the documents' currency; the totals are in the tenant
+   * currency, foreign-currency tax converted at each document's date — the
+   * same rate the ledger posted it at.
    */
   async vatReturn(db: Kysely<TenantDatabase>, from: string, to: string, tenantCurrency: string) {
     const rows = await readTaxReport(db, { from, to });
+    const totals = new Map<string, bigint>();
+    for (const entry of await readTaxTotalsByDate(db, { from, to })) {
+      let amount = BigInt(entry.amountMinorUnits);
+      if (amount !== 0n && entry.currency !== tenantCurrency) {
+        const abs = amount < 0n ? -amount : amount;
+        const ledger = await this.ledgerAmounts.toLedger(
+          db,
+          { amountMinorUnits: abs.toString(), currency: entry.currency },
+          entry.documentDate,
+        );
+        amount = amount < 0n ? -BigInt(ledger.amountMinorUnits) : BigInt(ledger.amountMinorUnits);
+      }
+      const key = `${entry.direction}|${entry.kind}`;
+      totals.set(key, (totals.get(key) ?? 0n) + amount);
+    }
     const sum = (direction: 'output' | 'input', kind: 'vat' | 'table' | 'withholding') =>
-      rows
-        .filter((row) => row.direction === direction && row.kind === kind && row.currency === tenantCurrency)
-        .reduce((total, row) => total + BigInt(row.amountMinorUnits), 0n);
+      totals.get(`${direction}|${kind}`) ?? 0n;
     const outputVat = sum('output', 'vat');
     const inputVat = sum('input', 'vat');
     return {
@@ -387,4 +434,11 @@ export class AccountingReportsService {
       withholdingFromSuppliersMinorUnits: sum('input', 'withholding').toString(),
     };
   }
+}
+
+/** 'YYYY-MM-DD' minus one day (UTC; date-only values carry no time zone). */
+function dayBefore(date: string): string {
+  const d = new Date(`${date}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() - 1);
+  return d.toISOString().slice(0, 10);
 }

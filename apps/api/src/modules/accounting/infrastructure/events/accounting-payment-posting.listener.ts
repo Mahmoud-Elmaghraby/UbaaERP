@@ -23,6 +23,7 @@ export interface PaymentPostedMetadata {
   /** Outbox rows written before migration 0095. */
   bankAccountId?: string | null;
   amount: { amountMinorUnits: string; currency: string };
+  allocations?: { salesInvoiceId: string; allocatedAmount: { amountMinorUnits: string; currency: string } }[];
 }
 
 /** SupplierPaymentsService.post()'s outbox metadata (purchases.supplier_payment.posted). */
@@ -35,6 +36,7 @@ export interface SupplierPaymentPostedMetadata {
   /** Outbox rows written before migration 0095. */
   bankAccountId?: string | null;
   amount: { amountMinorUnits: string; currency: string };
+  allocations?: { purchaseInvoiceId: string; allocatedAmount: { amountMinorUnits: string; currency: string } }[];
 }
 
 /**
@@ -92,7 +94,18 @@ export class AccountingPaymentPostingListener {
       ],
       sourceReferenceType: 'payment_received',
       sourceReferenceId: payload.entityId,
-    });
+    });    await this.postExchangeDifferences(db, 'customer', payload.entityId, entryDate, metadata.allocations ?? []);
+  }
+
+  /** A later allocation of a posted customer payment to more invoices. */
+  @OnOutboxEvent('sales.payment_received.allocated', { requiresFeature: FEATURE_KEYS.ACCOUNTING })
+  async handlePaymentReceivedAllocated(payload: DomainEventPayload): Promise<void> {
+    const metadata = payload.metadata as unknown as Pick<PaymentPostedMetadata, 'allocations'> | undefined;
+    if (!metadata?.allocations?.length) return;
+    const db = this.connections.getClient(payload.schema);
+    const row = await db.selectFrom('payments_received').select('payment_date').where('id', '=', payload.entityId).executeTakeFirst();
+    const paymentDate = row?.payment_date ? calendarDate(row.payment_date) : localIsoDate(payload.occurredAt);
+    await this.postExchangeDifferences(db, 'customer', payload.entityId, paymentDate, metadata.allocations);
   }
 
   @OnOutboxEvent('purchases.supplier_payment.posted', { requiresFeature: FEATURE_KEYS.ACCOUNTING })
@@ -127,7 +140,78 @@ export class AccountingPaymentPostingListener {
       ],
       sourceReferenceType: 'supplier_payment',
       sourceReferenceId: payload.entityId,
-    });
+    });    await this.postExchangeDifferences(db, 'supplier', payload.entityId, entryDate, metadata.allocations ?? []);
+  }
+
+  /** A later allocation of a posted supplier payment to more invoices. */
+  @OnOutboxEvent('purchases.supplier_payment.allocated', { requiresFeature: FEATURE_KEYS.ACCOUNTING })
+  async handleSupplierPaymentAllocated(payload: DomainEventPayload): Promise<void> {
+    const metadata = payload.metadata as unknown as Pick<SupplierPaymentPostedMetadata, 'allocations'> | undefined;
+    if (!metadata?.allocations?.length) return;
+    const db = this.connections.getClient(payload.schema);
+    const row = await db.selectFrom('supplier_payments').select('payment_date').where('id', '=', payload.entityId).executeTakeFirst();
+    const paymentDate = row?.payment_date ? calendarDate(row.payment_date) : localIsoDate(payload.occurredAt);
+    await this.postExchangeDifferences(db, 'supplier', payload.entityId, paymentDate, metadata.allocations);
+  }
+
+  /**
+   * فروق العملة المحققة. A foreign-currency invoice entered the receivable
+   * (payable) at its own date's rate; the payment settling it left at the
+   * payment date's rate. For each allocation the difference between the
+   * two goes to the exchange gain/loss account, so the customer (supplier)
+   * balance in the ledger ends at zero once the invoice is fully paid.
+   * One entry per payment and invoice ('payment_fx:<invoice>' / payment).
+   */
+  private async postExchangeDifferences(
+    db: Kysely<TenantDatabase>,
+    party: 'customer' | 'supplier',
+    paymentId: string,
+    paymentDate: string,
+    allocations: { salesInvoiceId?: string; purchaseInvoiceId?: string; allocatedAmount: { amountMinorUnits: string; currency: string } }[],
+  ): Promise<void> {
+    if (allocations.length === 0) return;
+    const settings = await this.accountingSettings.get(db);
+    for (const allocation of allocations) {
+      const invoiceId = allocation.salesInvoiceId ?? allocation.purchaseInvoiceId;
+      const amount = allocation.allocatedAmount;
+      if (!invoiceId || amount.amountMinorUnits === '0') continue;
+      const invoice =
+        party === 'customer'
+          ? await db.selectFrom('sales_invoices').select(['invoice_date', 'created_at']).where('id', '=', invoiceId).executeTakeFirst()
+          : await db.selectFrom('purchase_invoices').select(['invoice_date', 'created_at']).where('id', '=', invoiceId).executeTakeFirst();
+      if (!invoice) continue;
+      const invoiceDate = invoice.invoice_date ? calendarDate(invoice.invoice_date) : localIsoDate(invoice.created_at);
+      const atInvoice = await this.ledgerAmounts.toLedger(db, amount, invoiceDate);
+      if (!atInvoice.wasConverted) continue;
+      const atPayment = await this.ledgerAmounts.toLedger(db, amount, paymentDate);
+      // > 0: the payment moved more local currency than the invoice booked.
+      const diff = BigInt(atPayment.amountMinorUnits) - BigInt(atInvoice.amountMinorUnits);
+      if (diff === 0n) continue;
+      const fx = required(settings.exchangeGainLossAccountId, 'حساب أرباح وخسائر فروق العملة');
+      const partyAccount =
+        party === 'customer'
+          ? required(settings.accountsReceivableAccountId, 'حساب العملاء')
+          : required(settings.accountsPayableAccountId, 'حساب الموردين');
+      const abs = (diff < 0n ? -diff : diff).toString();
+      // Customer: AR was credited by the payment's value — more than booked → debit AR back (gain).
+      // Supplier: AP was debited by the payment's value — more than booked → credit AP back (loss).
+      const partyDebit = party === 'customer' ? diff > 0n : diff < 0n;
+      await this.journalEntries.createAuto(db, {
+        entryDate: paymentDate,
+        description: `فرق عملة محقق — ${amount.currency}`,
+        lines: partyDebit
+          ? [
+              { accountId: partyAccount, debitAmountMinorUnits: abs, creditAmountMinorUnits: '0' },
+              { accountId: fx, debitAmountMinorUnits: '0', creditAmountMinorUnits: abs },
+            ]
+          : [
+              { accountId: fx, debitAmountMinorUnits: abs, creditAmountMinorUnits: '0' },
+              { accountId: partyAccount, debitAmountMinorUnits: '0', creditAmountMinorUnits: abs },
+            ],
+        sourceReferenceType: `payment_fx:${invoiceId}`,
+        sourceReferenceId: paymentId,
+      });
+    }
   }
 
   /** Where the money sits — see resolveTreasuryAccount. Old outbox rows carry `bankAccountId` (same ids). */
@@ -151,4 +235,9 @@ function required(accountId: string | null, label: string): string {
     });
   }
   return accountId;
+}
+
+/** YYYY-MM-DD of a DATE column (pg hands it back as a local-midnight Date despite the string type). */
+function calendarDate(value: string | Date): string {
+  return typeof value === 'string' ? value.slice(0, 10) : localIsoDate(value);
 }

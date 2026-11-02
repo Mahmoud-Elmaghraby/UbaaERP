@@ -35,6 +35,19 @@ export async function resolveTreasuryAccount(
   return requiredAccount(settings.defaultBankAccountId ?? settings.cashAccountId, 'حساب البنك الافتراضي');
 }
 
+/**
+ * Every ledger account that holds cash or bank money — the same set
+ * resolveTreasuryAccount() can post to: the cash and default bank mappings,
+ * and each treasury's own account (cash box, bank, wallet), active or not (a
+ * deactivated one still had movements in past periods).
+ */
+export async function listCashAccountIds(db: Kysely<TenantDatabase>, settings: AccountingSettings): Promise<string[]> {
+  // Bank accounts are treasuries since migration 0095.
+  const treasuries = await db.selectFrom('treasuries').select('chart_of_account_id').execute();
+  const ids = [settings.cashAccountId, settings.defaultBankAccountId, ...treasuries.map((t) => t.chart_of_account_id)];
+  return [...new Set(ids.filter((id): id is string => Boolean(id)))];
+}
+
 export function requiredAccount(accountId: string | null, label: string): string {
   if (!accountId) {
     throw new BusinessRuleError(`Account mapping "${label}" is not configured.`, {

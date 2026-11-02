@@ -39,6 +39,7 @@ export const ENTITY_LABELS = {
   BANK_ACCOUNT: 'Bank account',
   CURRENCY: 'Currency',
   SALES_CHANNEL: 'Sales channel',
+  PRICE_LIST: 'Price list',
   CHANNEL_SETTLEMENT: 'Channel settlement',
   TREASURY: 'Treasury',
   TREASURY_CATEGORY: 'Treasury item',
@@ -73,6 +74,10 @@ export const ENTITY_LABELS = {
   USER: 'User',
   ROLE: 'Role',
   ATTACHMENT: 'Attachment',
+  RECURRING_ENTRY: 'Recurring entry',
+  FIXED_ASSET: 'Fixed asset',
+  BUDGET: 'Budget',
+  BANK_STATEMENT_LINE: 'Bank statement line',
 } as const;
 
 export type EntityKey = keyof typeof ENTITY_LABELS;

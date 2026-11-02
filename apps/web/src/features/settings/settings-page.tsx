@@ -1,3 +1,4 @@
+import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Tabs, TabsContent, TabsList, TabsTrigger, PageHeader } from '@erp-platform/ui';
 
@@ -12,12 +13,15 @@ import { BackgroundOperationsTab } from './background-operations-tab';
 
 export function SettingsPage() {
   const { t } = useTranslation();
+  // ?tab=operations etc. — so other screens can link straight to a tab.
+  const [params, setParams] = useSearchParams();
+  const tab = params.get('tab') ?? 'branches';
 
   return (
     <div className="grid gap-6">
       <PageHeader title={t('settings.title')} description={t('settings.pageDescription')} />
 
-      <Tabs defaultValue="branches">
+      <Tabs value={tab} onValueChange={(value) => setParams({ tab: value }, { replace: true })}>
         <TabsList>
           <TabsTrigger value="general">{t('settings.tabs.general')}</TabsTrigger>
           <TabsTrigger value="branches">{t('settings.tabs.branches')}</TabsTrigger>

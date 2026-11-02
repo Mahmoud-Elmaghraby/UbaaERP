@@ -42,7 +42,7 @@ import {
   toast,
 } from '@erp-platform/ui';
 
-import { useCustomFieldDefinitions } from '../../../settings/queries';
+import { useBaseCurrency, useCustomFieldDefinitions } from '../../../settings/queries';
 import { useSuppliers } from '../../api/suppliers/queries';
 import { useSupplierQuotation } from '../../api/supplier-quotations/queries';
 import { useCreatePurchaseOrder, useUpdatePurchaseOrder } from '../../api/purchase-orders/queries';
@@ -290,7 +290,9 @@ export function CreatePurchaseOrderManualForm({ onDone }: { onDone: () => void }
   });
 
   const selectedSupplierId = form.watch('supplierId');
-  const currency = suppliers?.find((s) => s.id === selectedSupplierId)?.defaultCurrency ?? 'SAR';
+  const baseCurrency = useBaseCurrency();
+
+  const currency = suppliers?.find((s) => s.id === selectedSupplierId)?.defaultCurrency || baseCurrency;
 
   async function onSubmit(headerValues: ManualHeaderValues) {
     setLinesError(null);
@@ -440,8 +442,9 @@ export function EditPurchaseOrderForm({
   );
   const [linesError, setLinesError] = useState<string | null>(null);
 
-  const currency =
-    order.lines[0]?.unitPrice.currency ?? suppliers?.find((s) => s.id === order.supplierId)?.defaultCurrency ?? 'SAR';
+  const baseCurrency = useBaseCurrency();
+
+  const currency = order.lines[0]?.unitPrice.currency || suppliers?.find((s) => s.id === order.supplierId)?.defaultCurrency || baseCurrency;
 
   const formSchema = useMemo(() => {
     const staticSchema = updatePurchaseOrderSchema.omit({ lines: true, customFields: true });

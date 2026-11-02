@@ -95,7 +95,6 @@ export class PurchaseInvoicesController {
         })),
       },
       schema,
-      user.sub,
     );
     this.events.publish('purchase_invoice', 'created', { schema, entityId: invoice.id, actorUserId: user.sub });
     return invoiceWithLinesToDto(invoice);

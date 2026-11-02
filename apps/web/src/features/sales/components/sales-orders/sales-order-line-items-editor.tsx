@@ -17,7 +17,8 @@ import {
 } from '@erp-platform/ui';
 
 import { ProductVariantPicker } from '../../../../components/product/product-variant-picker';
-import { defaultUnitId, unitPriceText } from '../../../../components/product/variant-search';
+import { defaultUnitId } from '../../../../components/product/variant-search';
+import { repricedValue, type SalePricer } from '../../../../components/product/sale-pricing';
 import { LineUnitSelect } from '../../../../components/product/unit-select';
 import { useVariantLookupMap } from '../../../inventory/api/products/queries';
 import { createEmptyDiscountDraft, DiscountDraft } from '../../lib/discount-fields';
@@ -62,10 +63,13 @@ export function SalesOrderLineItemsEditor({
   lines,
   onChange,
   currency,
+  pricer,
 }: {
   lines: SalesOrderLineDraft[];
   onChange: (lines: SalesOrderLineDraft[]) => void;
   currency: string;
+  /** Default line prices: the document's price list (sale-pricing.ts). */
+  pricer: SalePricer;
 }) {
   const { t } = useTranslation();
   const variants = useVariantLookupMap();
@@ -106,7 +110,7 @@ export function SalesOrderLineItemsEditor({
                     onChange={(value, variant) => {
                       const unitOfMeasureId = defaultUnitId(variant, 'sale');
                       const price =
-                        line.unitPrice.trim() === '' ? unitPriceText(variant, unitOfMeasureId, 'sale', currency) : null;
+                        line.unitPrice.trim() === '' ? pricer(variant, unitOfMeasureId, line.quantity) : null;
                       updateLine(line.key, {
                         productVariantId: value,
                         unitOfMeasureId,
@@ -119,12 +123,7 @@ export function SalesOrderLineItemsEditor({
                     variant={variants.get(line.productVariantId ?? '')}
                     value={line.unitOfMeasureId}
                     onChange={(unitOfMeasureId) => {
-                      const price = unitPriceText(
-                        variants.get(line.productVariantId ?? ''),
-                        unitOfMeasureId,
-                        'sale',
-                        currency,
-                      );
+                      const price = pricer(variants.get(line.productVariantId ?? ''), unitOfMeasureId, line.quantity);
                       updateLine(line.key, { unitOfMeasureId, ...(price ? { unitPrice: price } : {}) });
                     }}
                   />
@@ -136,7 +135,11 @@ export function SalesOrderLineItemsEditor({
                     step="any"
                     inputMode="decimal"
                     value={line.quantity}
-                    onChange={(e) => updateLine(line.key, { quantity: e.target.value })}
+                    onChange={(e) => {
+                      const quantity = e.target.value;
+                      const price = repricedValue(line, variants, { pricer }, pricer, { quantity });
+                      updateLine(line.key, { quantity, ...(price ? { unitPrice: price } : {}) });
+                    }}
                   />
                 </TableCell>
                 <TableCell>

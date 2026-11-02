@@ -14,3 +14,5 @@ coverage/
 # Desktop packaging (apps/desktop/scripts/stage.mjs)
 apps/desktop/staging/
 apps/desktop/.cache/
+
+Claude outputs/

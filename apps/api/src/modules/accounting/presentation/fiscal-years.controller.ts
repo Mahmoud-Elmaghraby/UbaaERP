@@ -21,6 +21,7 @@ import { RequireFeature } from '../../../shared/auth/require-feature.decorator';
 import { FEATURE_KEYS } from '../../../shared/plans/feature-catalog';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 import { FiscalYearsService } from '../application/services/fiscal-years.service';
+import { YearEndClosingService } from '../application/services/year-end-closing.service';
 import { AccountingPeriodsService } from '../application/services/accounting-periods.service';
 import { AccountingEventPublisher } from '../infrastructure/events/accounting-event-publisher';
 
@@ -35,6 +36,7 @@ export class FiscalYearsController {
     private readonly periodsService: AccountingPeriodsService,
     private readonly connections: TenantConnectionManager,
     private readonly events: AccountingEventPublisher,
+    private readonly closing: YearEndClosingService,
   ) {}
 
   @Get()
@@ -93,7 +95,7 @@ export class FiscalYearsController {
     @Param('id') id: string,
   ): Promise<FiscalYearDto> {
     const db = this.connections.getClient(schema);
-    const fiscalYear = await this.service.close(db, id);
+    const fiscalYear = await this.closing.close(db, id);
     this.events.publish('fiscal_year', 'closed', { schema, entityId: fiscalYear.id, actorUserId: user.sub });
     return fiscalYearSchema.parse(fiscalYear);
   }
@@ -105,7 +107,7 @@ export class FiscalYearsController {
     @Param('id') id: string,
   ): Promise<FiscalYearDto> {
     const db = this.connections.getClient(schema);
-    const fiscalYear = await this.service.reopen(db, id);
+    const fiscalYear = await this.closing.reopen(db, id);
     this.events.publish('fiscal_year', 'reopened', { schema, entityId: fiscalYear.id, actorUserId: user.sub });
     return fiscalYearSchema.parse(fiscalYear);
   }

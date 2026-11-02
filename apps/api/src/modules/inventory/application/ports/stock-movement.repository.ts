@@ -39,6 +39,13 @@ export interface StockMovementRepository {
     productVariantId: string,
   ): Promise<{ quantity: number; totalCostMinorUnits: bigint; currency: string } | null>;
   linkRelatedMovement(db: Kysely<TenantDatabase>, id: string, relatedMovementId: string): Promise<void>;
+  /** Where some documents' movements of one variant landed: Σ quantity per location. */
+  quantityByLocationForReferences(
+    db: Kysely<TenantDatabase>,
+    referenceType: string,
+    referenceIds: readonly string[],
+    productVariantId: string,
+  ): Promise<{ locationId: string; warehouseId: string; quantity: number }[]>;
 }
 
 export interface StockMovementListFilter {

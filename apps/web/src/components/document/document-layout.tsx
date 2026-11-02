@@ -32,7 +32,7 @@ export function DocumentHeaderBar({
   actions,
 }: DocumentHeaderBarProps) {
   return (
-    <div className="sticky top-16 z-20 -mx-4 -mt-6 mb-6 flex flex-wrap items-center gap-x-4 gap-y-3 border-b bg-card/95 px-4 py-3 backdrop-blur supports-[backdrop-filter]:bg-card/85 md:-mx-8 md:px-8">
+    <div className="sticky top-16 z-20 -mx-4 -mt-6 mb-6 flex flex-wrap print:static print:mx-0 print:mt-0 print:border-0 items-center gap-x-4 gap-y-3 border-b bg-card/95 px-4 py-3 backdrop-blur supports-[backdrop-filter]:bg-card/85 md:-mx-8 md:px-8">
       <Link
         to={backTo}
         aria-label={backLabel}
@@ -115,7 +115,7 @@ export function DocumentChain({ steps, label }: { steps: ChainStep[]; label: str
 
 export function DocumentBody({ main, side }: { main: ReactNode; side?: ReactNode }) {
   return (
-    <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
+    <div className={cn('grid items-start gap-5', side && 'xl:grid-cols-[minmax(0,1fr)_340px]')}>
       <div className="flex min-w-0 flex-col gap-5">{main}</div>
       {side ? <aside className="flex min-w-0 flex-col gap-5 xl:sticky xl:top-36">{side}</aside> : null}
     </div>

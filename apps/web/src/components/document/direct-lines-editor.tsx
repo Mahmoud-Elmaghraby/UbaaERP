@@ -15,6 +15,7 @@ import { Plus, Trash2 } from 'lucide-react';
 import { ProductVariantPicker } from '../product/product-variant-picker';
 import { defaultUnitId, unitPriceText } from '../product/variant-search';
 import { LineUnitSelect } from '../product/unit-select';
+import { repricedValue, type SalePricer } from '../product/sale-pricing';
 import { decimalToMinorUnits, formatAmount, multiplyMinorUnits } from '../../lib/money';
 import { useVariantLookupMap } from '../../features/inventory/api/products/queries';
 import { emptyReceiptLotsDraft, ReceiptLotsEditor, type ReceiptLotsDraft } from './lot-entry';
@@ -109,6 +110,7 @@ export function DirectLinesEditor({
   currency,
   receiveLots = false,
   taxes,
+  pricer: salePricer,
 }: {
   lines: DirectLineDraft[];
   onChange: (lines: DirectLineDraft[]) => void;
@@ -119,9 +121,13 @@ export function DirectLinesEditor({
   receiveLots?: boolean;
   /** Per-line tax choice (invoices); omitted = no tax column. */
   taxes?: LineTaxesController;
+  /** Sales: default prices from the document's price list (sale-pricing.ts). */
+  pricer?: SalePricer;
 }) {
   const { t } = useTranslation();
   const variants = useVariantLookupMap();
+  const pricer: SalePricer =
+    salePricer ?? ((variant, unitOfMeasureId) => unitPriceText(variant, unitOfMeasureId, priceKind, currency));
 
   function update(key: string, patch: Partial<DirectLineDraft>) {
     onChange(lines.map((line) => (line.key === key ? { ...line, ...patch } : line)));
@@ -156,9 +162,7 @@ export function DirectLinesEditor({
                         onChange={(value, variant) => {
                           const unitOfMeasureId = defaultUnitId(variant, priceKind);
                           const price =
-                            line.unitPrice.trim() === ''
-                              ? unitPriceText(variant, unitOfMeasureId, priceKind, currency)
-                              : null;
+                            line.unitPrice.trim() === '' ? pricer(variant, unitOfMeasureId, line.quantity) : null;
                           update(line.key, { productVariantId: value, unitOfMeasureId, ...(price ? { unitPrice: price } : {}) });
                         }}
                       />
@@ -166,7 +170,7 @@ export function DirectLinesEditor({
                         variant={variants.get(line.productVariantId)}
                         value={line.unitOfMeasureId}
                         onChange={(unitOfMeasureId) => {
-                          const price = unitPriceText(variants.get(line.productVariantId), unitOfMeasureId, priceKind, currency);
+                          const price = pricer(variants.get(line.productVariantId), unitOfMeasureId, line.quantity);
                           update(line.key, { unitOfMeasureId, ...(price ? { unitPrice: price } : {}) });
                         }}
                       />
@@ -195,7 +199,11 @@ export function DirectLinesEditor({
                       className="h-9 text-end"
                       aria-label={t('documents.quantity')}
                       value={line.quantity}
-                      onChange={(e) => update(line.key, { quantity: e.target.value })}
+                      onChange={(e) => {
+                        const quantity = e.target.value;
+                        const price = repricedValue(line, variants, { pricer }, pricer, { quantity });
+                        update(line.key, { quantity, ...(price ? { unitPrice: price } : {}) });
+                      }}
                     />
                   </TableCell>
                   <TableCell>

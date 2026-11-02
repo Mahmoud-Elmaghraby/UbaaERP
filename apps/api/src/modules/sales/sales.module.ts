@@ -1,3 +1,5 @@
+import { PriceListsController } from './presentation/price-lists.controller';
+import { PriceListsService } from './application/services/price-lists.service';
 import { SalesChannelsController } from './presentation/sales-channels.controller';
 import { SalesChannelsService } from './application/services/sales-channels.service';
 import { ChannelSettlementsService } from './application/services/channel-settlements.service';
@@ -202,6 +204,7 @@ import { StockAvailabilityChecker } from '../../shared/catalog/stock-availabilit
   controllers: [
     CustomersController,
     SalesChannelsController,
+    PriceListsController,
     CustomerStatementsController,
     EtaCredentialsController,
     QuotationsController,
@@ -216,6 +219,7 @@ import { StockAvailabilityChecker } from '../../shared/catalog/stock-availabilit
   providers: [
     SalesTreasuryMovements,
     SalesChannelsService,
+    PriceListsService,
     ChannelSettlementsService,
     CustomerLedgerSource,
     SalesInvoicePrintProvider,

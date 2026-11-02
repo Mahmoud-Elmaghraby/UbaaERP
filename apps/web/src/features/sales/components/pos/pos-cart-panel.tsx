@@ -28,10 +28,12 @@ import {
 
 import { useCustomers } from '../../api/customers/queries';
 import { usePosCheckout } from '../../api/pos/queries';
-import { useVariantLookup } from '../../../inventory/api/products/queries';
+import { useVariantLookup, useVariantLookupMap } from '../../../inventory/api/products/queries';
+import { useDocumentPriceList } from '../../api/price-lists/use-document-price-list';
+import { PriceListSelect } from '../price-lists/price-list-select';
+import { repricedValue } from '../../../../components/product/sale-pricing';
 import { useInventorySettings } from '../../../inventory/api/catalog/queries';
 import {
-  unitPriceText,
   resolveScan,
   searchVariants,
   variantDisplayName,
@@ -115,6 +117,18 @@ export function PosCartPanel({ session }: { session: PosSessionDto }) {
   const [search, setSearch] = useState('');
   const [lines, setLines] = useState<CartLine[]>([]);
   const [customerId, setCustomerId] = useState<string>(WALK_IN_SENTINEL);
+  const variants = useVariantLookupMap();
+  // The walk-in sentinel stands for the tenant's Walk-in Customer, whose list applies too.
+  const pricedCustomer = (customers ?? []).find((c) =>
+    customerId === WALK_IN_SENTINEL ? c.isSystemDefault : c.id === customerId,
+  );
+  const { priceListId, setPriceListId, pricer } = useDocumentPriceList<CartLine>({
+    customerPriceListId: pricedCustomer?.priceListId,
+    customerId,
+    currency,
+    variants,
+    setLines,
+  });
   const [headerDiscount, setHeaderDiscount] = useState<DiscountDraft>(() => createEmptyDiscountDraft());
   const [tenders, setTenders] = useState<TenderDraft[]>(() => [createEmptyTender(session.treasuryId)]);
   const { data: treasuryLookup } = useTreasuryLookup();
@@ -160,14 +174,18 @@ export function PosCartPanel({ session }: { session: PosSessionDto }) {
 
   function addToCart(productVariantId: string, label: string, quantity = 1, unitOfMeasureId: string | null = null) {
     const variant = sellable.find((entry) => entry.id === productVariantId);
-    const defaultPrice = variant ? unitPriceText(variant, unitOfMeasureId, 'sale', currency) : null;
+    const defaultPrice = variant ? pricer(variant, unitOfMeasureId, String(quantity)) : null;
     setLines((prev) => {
       const existing = prev.find(
         (l) => l.productVariantId === productVariantId && l.unitOfMeasureId === unitOfMeasureId,
       );
       if (existing) {
-        const nextQuantity = Math.round(((Number(existing.quantity) || 0) + quantity) * 1000) / 1000;
-        return prev.map((l) => (l.key === existing.key ? { ...l, quantity: String(nextQuantity) } : l));
+        const nextQuantity = String(Math.round(((Number(existing.quantity) || 0) + quantity) * 1000) / 1000);
+        // A quantity break may now apply (price lists); a typed price is kept.
+        const price = repricedValue(existing, variants, { pricer }, pricer, { quantity: nextQuantity });
+        return prev.map((l) =>
+          l.key === existing.key ? { ...l, quantity: nextQuantity, ...(price ? { unitPrice: price } : {}) } : l,
+        );
       }
       return [
         ...prev,
@@ -408,7 +426,7 @@ export function PosCartPanel({ session }: { session: PosSessionDto }) {
                             value={line.unitOfMeasureId}
                             onChange={(unitOfMeasureId) => {
                               const variant = sellable.find((entry) => entry.id === line.productVariantId);
-                              const price = variant ? unitPriceText(variant, unitOfMeasureId, 'sale', currency) : null;
+                              const price = variant ? pricer(variant, unitOfMeasureId, line.quantity) : null;
                               updateLine(line.key, { unitOfMeasureId, ...(price ? { unitPrice: price } : {}) });
                             }}
                           />
@@ -421,7 +439,11 @@ export function PosCartPanel({ session }: { session: PosSessionDto }) {
                           step="any"
                           inputMode="decimal"
                           value={line.quantity}
-                          onChange={(e) => updateLine(line.key, { quantity: e.target.value })}
+                          onChange={(e) => {
+                            const quantity = e.target.value;
+                            const price = repricedValue(line, variants, { pricer }, pricer, { quantity });
+                            updateLine(line.key, { quantity, ...(price ? { unitPrice: price } : {}) });
+                          }}
                         />
                       </TableCell>
                       <TableCell>
@@ -525,6 +547,10 @@ export function PosCartPanel({ session }: { session: PosSessionDto }) {
                   ))}
               </SelectContent>
             </Select>
+          </div>
+          <div className="grid gap-2 sm:max-w-sm">
+            <label className="text-sm font-medium">{t('priceLists.field')}</label>
+            <PriceListSelect value={priceListId} onChange={setPriceListId} currency={currency} />
           </div>
 
           <Separator />

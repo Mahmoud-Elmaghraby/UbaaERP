@@ -199,7 +199,6 @@ export class PosSalesService {
           customFields: {},
         },
         schema,
-        actorUserId,
       );
       const postedInvoice = await this.salesInvoices.post(trx, invoice.id, schema, actorUserId);
 

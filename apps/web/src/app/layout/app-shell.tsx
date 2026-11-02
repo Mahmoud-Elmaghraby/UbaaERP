@@ -81,7 +81,7 @@ export function AppShell() {
       {/* Desktop sidebar */}
       <aside
         className={cn(
-          'sticky top-0 hidden h-screen shrink-0 border-e border-sidebar-border bg-sidebar text-sidebar-foreground transition-[width] duration-200 md:block',
+          'sticky top-0 hidden h-screen shrink-0 border-e border-sidebar-border bg-sidebar text-sidebar-foreground transition-[width] duration-200 md:block print:hidden',
           collapsed ? 'w-[72px]' : 'w-64',
         )}
       >
@@ -122,7 +122,7 @@ export function AppShell() {
           onOpenAppearance={() => setAppearanceOpen(true)}
           onLogout={() => void handleLogout()}
         />
-        <main className="mx-auto w-full max-w-[1440px] flex-1 px-4 pb-12 pt-6 md:px-8">
+        <main className="mx-auto w-full max-w-[1440px] flex-1 px-4 pb-12 pt-6 md:px-8 print:max-w-none print:p-0">
           <Suspense fallback={<PageFallback />}>
             <Outlet />
           </Suspense>
