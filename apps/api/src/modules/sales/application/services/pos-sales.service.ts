@@ -11,8 +11,10 @@ import {
   distributeOrderTotalAcrossLines,
 } from '../../domain/sales-order.entity';
 import type { PosCheckoutInput, PosCheckoutResult } from '../../domain/pos-sale.entity';
-import { BusinessRuleError } from '../errors';
+import { isPostgresUniqueViolation, BusinessRuleError } from '../errors';
 import { entityNotFound } from '../../../../shared/errors/entity-errors';
+import { lockRowsForUpdate } from '../../../../shared/persistence/row-locks';
+import { assertSessionUsable, settleTenders } from './pos-rules';
 import { SalesOrdersService } from './sales-orders.service';
 import { DeliveriesService } from './deliveries.service';
 import { SalesInvoicesService } from './sales-invoices.service';
@@ -76,26 +78,21 @@ export class PosSalesService {
     input: PosCheckoutInput,
     schema: string,
     actorUserId: string | null,
+    options: { canSupervise?: boolean } = {},
   ): Promise<PosCheckoutResult> {
     if (input.lines.length === 0) {
       throw new BusinessRuleError('A checkout must have at least one line.', {
         code: 'POS_SALE.AT_LEAST_ONE_LINE_REQUIRED',
       });
     }
-    if (input.tenders.length === 0) {
-      throw new BusinessRuleError('A checkout must have at least one tender (payment).', {
-        code: 'POS_SALE.AT_LEAST_ONE_TENDER_REQUIRED',
-      });
+    if (input.checkoutId) {
+      const done = await this.findCheckout(db, input.checkoutId);
+      if (done) return done;
     }
 
     const session = await this.posSessions.findById(db, posSessionId);
     if (!session) throw entityNotFound('POS_SESSION', posSessionId);
-    if (session.status !== 'open') {
-      throw new BusinessRuleError(
-        `POS session "${posSessionId}" is "${session.status}" — only an open session can check out a sale.`,
-        { code: 'POS_SALE.SESSION_NOT_OPEN', params: { id: posSessionId, status: session.status } },
-      );
-    }
+    assertSessionUsable(session, posSessionId, actorUserId, options.canSupervise ?? false);
     if (!session.warehouseId) {
       // Guards against a session opened before migration 0064 (application-enforced-required going
       // forward, per PosSessionsService.open() — see that migration's comment for why the column
@@ -112,6 +109,16 @@ export class PosSalesService {
       const message = err instanceof Error ? err.message : String(err);
       throw new BusinessRuleError(message, { code: 'POS_SALE.MULTIPLE_CURRENCIES', params: { reason: message } });
     }
+    const sessionCurrency = session.openingCashAmount.currency;
+    if (
+      input.lines.some((line) => line.unitPrice.currency !== sessionCurrency) ||
+      input.tenders.some((tender) => tender.amount.currency !== sessionCurrency)
+    ) {
+      throw new BusinessRuleError(`Every price and payment must be in the session currency ${sessionCurrency}.`, {
+        code: 'POS_SALE.SESSION_CURRENCY_MISMATCH',
+        params: { currency: sessionCurrency },
+      });
+    }
 
     let totalAmount: Money;
     try {
@@ -121,105 +128,139 @@ export class PosSalesService {
       throw new BusinessRuleError(message, { code: 'POS_SALE.INVALID_DISCOUNT', params: { reason: message } });
     }
 
-    const tenderedTotal = input.tenders.reduce((sum, tender) => sum.add(tender.amount), Money.zero(totalAmount.currency));
-    if (!tenderedTotal.equals(totalAmount)) {
-      throw new BusinessRuleError(
-        `Tendered amount (${tenderedTotal.toDecimalString()}) does not match the sale total ` +
-          `(${totalAmount.toDecimalString()}).`,
-        {
-          code: 'POS_SALE.TENDERED_TOTAL_MISMATCH',
-          params: { tendered: tenderedTotal.toDecimalString(), total: totalAmount.toDecimalString() },
-        },
-      );
-    }
+    const { tenders, change } = settleTenders(input.tenders, totalAmount);
 
     const customerId = input.customerId ?? (await this.resolveWalkInCustomerId(db));
 
-    return withTransaction(db, async (trx) => {
-      const order = await this.salesOrders.create(
-        trx,
-        {
-          customerId,
-          lines: input.lines.map((line) => ({
-            productVariantId: line.productVariantId,
-            quantity: line.quantity,
-            unitPrice: line.unitPrice,
-            discountType: line.discountType ?? null,
-            discountPercentage: line.discountPercentage ?? null,
-            discountFixedAmount: line.discountFixedAmount ?? null,
-            notes: line.notes ?? null,
-            unitOfMeasureId: line.unitOfMeasureId ?? null,
-          })),
-          discountType: input.discountType ?? null,
-          discountPercentage: input.discountPercentage ?? null,
-          discountFixedAmount: input.discountFixedAmount ?? null,
-          notes: input.notes ?? null,
-          customFields: {},
-        },
-        schema,
-      );
-      await this.salesOrders.confirm(trx, order.id);
+    try {
+      return await withTransaction(db, async (trx) => {
+        // The session can't be closed (or change hands) while this sale lands in it.
+        await lockRowsForUpdate(trx, 'pos_sessions', [session.id]);
+        const current = await this.posSessions.findById(trx, session.id);
+        assertSessionUsable(current, posSessionId, actorUserId, options.canSupervise ?? false);
 
-      const delivery = await this.deliveries.create(trx, {
-        salesOrderId: order.id,
-        warehouseId: session.warehouseId!,
-        lines: order.lines.map((line) => ({
-          salesOrderLineId: line.id,
-          quantityDelivered: line.quantity,
-          notes: null,
-        })),
-        deliveryDate: null,
-        notes: input.notes ?? null,
-        customFields: {},
-      });
-      const confirmedDelivery = await this.deliveries.confirm(trx, delivery.id, schema, actorUserId);
+        const order = await this.salesOrders.create(
+          trx,
+          {
+            customerId,
+            lines: input.lines.map((line) => ({
+              productVariantId: line.productVariantId,
+              quantity: line.quantity,
+              unitPrice: line.unitPrice,
+              discountType: line.discountType ?? null,
+              discountPercentage: line.discountPercentage ?? null,
+              discountFixedAmount: line.discountFixedAmount ?? null,
+              notes: line.notes ?? null,
+              unitOfMeasureId: line.unitOfMeasureId ?? null,
+            })),
+            discountType: input.discountType ?? null,
+            discountPercentage: input.discountPercentage ?? null,
+            discountFixedAmount: input.discountFixedAmount ?? null,
+            // POS sales carry no sales rep.
+            salesRepId: null,
+            notes: input.notes ?? null,
+            customFields: {},
+          },
+          schema,
+        );
+        await this.salesOrders.confirm(trx, order.id);
+        if (input.checkoutId) {
+          await trx.updateTable('sales_orders').set({ pos_checkout_id: input.checkoutId }).where('id', '=', order.id).execute();
+        }
 
-      // Full order total (line + header discount, already combined) split back across the
-      // order's own lines — see distributeOrderTotalAcrossLines()'s own comment for why this,
-      // and not each line's raw/line-discounted unitPrice, is what the invoice must charge.
-      const netLineTotals = distributeOrderTotalAcrossLines(order, order.lines);
-      const invoice = await this.salesInvoices.create(
-        trx,
-        {
+        const delivery = await this.deliveries.create(trx, {
           salesOrderId: order.id,
-          lines: order.lines.map((line, i) => ({
+          warehouseId: session.warehouseId!,
+          lines: order.lines.map((line) => ({
             salesOrderLineId: line.id,
-            quantityInvoiced: line.quantity,
-            unitPrice: netLineTotals[i].divideByQuantity(line.quantity),
-            lineAmount: netLineTotals[i],
+            quantityDelivered: line.quantity,
             notes: null,
           })),
-          // Shelf prices include VAT (Egyptian retail): the invoice total stays exactly
-          // the tendered total, and VAT is backed out of it line by line.
-          pricesIncludeTax: true,
-          applyCustomerWithholding: false,
-          invoiceDate: null,
-          dueDate: null,
+          deliveryDate: null,
           notes: input.notes ?? null,
           customFields: {},
-        },
-        schema,
-      );
-      const postedInvoice = await this.salesInvoices.post(trx, invoice.id, schema, actorUserId);
-
-      const payments = [];
-      for (const tender of input.tenders) {
-        const payment = await this.paymentsReceived.create(trx, {
-          customerId,
-          amount: tender.amount,
-          paymentMethod: tender.paymentMethod,
-          referenceNumber: tender.referenceNumber ?? null,
-          allocations: [{ salesInvoiceId: postedInvoice.id, allocatedAmount: tender.amount }],
-          posSessionId: session.id,
-          // Cash goes into the session's cash box (it is counted at closing); any other
-          // tender goes to the treasury the cashier picked (bank, e-wallet…).
-          treasuryId: tender.paymentMethod === 'cash' ? session.treasuryId : (tender.treasuryId ?? null),
         });
-        payments.push(await this.paymentsReceived.post(trx, payment.id, schema, actorUserId));
-      }
+        const confirmedDelivery = await this.deliveries.confirm(trx, delivery.id, schema, actorUserId);
 
-      return { salesOrder: order, delivery: confirmedDelivery, salesInvoice: postedInvoice, payments };
-    });
+        // Full order total (line + header discount, already combined) split back across the
+        // order's own lines — see distributeOrderTotalAcrossLines()'s own comment for why this,
+        // and not each line's raw/line-discounted unitPrice, is what the invoice must charge.
+        const netLineTotals = distributeOrderTotalAcrossLines(order, order.lines);
+        const invoice = await this.salesInvoices.create(
+          trx,
+          {
+            salesOrderId: order.id,
+            lines: order.lines.map((line, i) => ({
+              salesOrderLineId: line.id,
+              quantityInvoiced: line.quantity,
+              unitPrice: netLineTotals[i].divideByQuantity(line.quantity),
+              lineAmount: netLineTotals[i],
+              notes: null,
+            })),
+            // Shelf prices include VAT (Egyptian retail): the invoice total stays exactly
+            // the tendered total, and VAT is backed out of it line by line.
+            pricesIncludeTax: true,
+            applyCustomerWithholding: false,
+            invoiceDate: null,
+            dueDate: null,
+            salesRepId: null,
+            notes: input.notes ?? null,
+            customFields: {},
+          },
+          schema,
+        );
+        const postedInvoice = await this.salesInvoices.post(trx, invoice.id, schema, actorUserId);
+
+        const payments = [];
+        for (const tender of tenders) {
+          const payment = await this.paymentsReceived.create(trx, {
+            customerId,
+            amount: tender.amount,
+            paymentMethod: tender.paymentMethod,
+            referenceNumber: tender.referenceNumber ?? null,
+            allocations: [{ salesInvoiceId: postedInvoice.id, allocatedAmount: tender.amount }],
+            posSessionId: session.id,
+            // Cash goes into the session's cash box (it is counted at closing); any other
+            // tender goes to the treasury the cashier picked (bank, e-wallet…).
+            treasuryId: tender.paymentMethod === 'cash' ? session.treasuryId : (tender.treasuryId ?? null),
+          });
+          payments.push(await this.paymentsReceived.post(trx, payment.id, schema, actorUserId));
+        }
+
+        return { salesOrder: order, delivery: confirmedDelivery, salesInvoice: postedInvoice, payments, changeAmount: change };
+      });
+    } catch (err) {
+      // The same sale sent twice at once: the second one returns the first.
+      if (input.checkoutId && isPostgresUniqueViolation(err)) {
+        const done = await this.findCheckout(db, input.checkoutId);
+        if (done) return done;
+      }
+      throw err;
+    }
+  }
+
+  /** A sale already made for this checkout id, rebuilt for the receipt (change is not known again: 0). */
+  private async findCheckout(db: Kysely<TenantDatabase>, checkoutId: string): Promise<PosCheckoutResult | null> {
+    const order = await db.selectFrom('sales_orders').select('id').where('pos_checkout_id', '=', checkoutId).executeTakeFirst();
+    if (!order) return null;
+    const [delivery, invoice] = await Promise.all([
+      db.selectFrom('deliveries').select('id').where('sales_order_id', '=', order.id).where('status', '=', 'confirmed').executeTakeFirst(),
+      db.selectFrom('sales_invoices').select('id').where('sales_order_id', '=', order.id).where('status', '=', 'posted').executeTakeFirst(),
+    ]);
+    if (!delivery || !invoice) return null;
+    const paymentIds = await db
+      .selectFrom('payment_allocations')
+      .select('payment_received_id')
+      .where('sales_invoice_id', '=', invoice.id)
+      .execute();
+    const salesOrder = await this.salesOrders.getById(db, order.id);
+    return {
+      salesOrder,
+      delivery: await this.deliveries.getById(db, delivery.id),
+      salesInvoice: await this.salesInvoices.getById(db, invoice.id),
+      payments: await Promise.all(paymentIds.map((row) => this.paymentsReceived.getById(db, row.payment_received_id))),
+      changeAmount: Money.zero(salesOrder.lines[0]?.unitPrice.currency ?? 'EGP'),
+    };
   }
 
   private async resolveWalkInCustomerId(db: Kysely<TenantDatabase>): Promise<string> {
@@ -233,3 +274,4 @@ export class PosSalesService {
     return walkIn.id;
   }
 }
+

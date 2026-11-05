@@ -52,6 +52,8 @@ export interface SalesOrder extends Discountable {
   status: SalesOrderStatus;
   /** Populated from the order's own lines at creation time — see this file's own comment and migration 0062's. Null only for orders created before that migration. */
   currency: string | null;
+  /** Migration 0110 — the rep the order counts for; null = none. */
+  salesRepId: string | null;
   notes: string | null;
   customFields: Record<string, unknown>;
   createdAt: Date;
@@ -88,6 +90,8 @@ export interface CreateSalesOrderInput extends Discountable {
   sourceQuotationId?: string | null;
   customerId?: string;
   lines?: CreateSalesOrderLineInput[];
+  /** Omitted = the customer's default rep (when active); null = none. */
+  salesRepId?: string | null;
   notes?: string | null;
   customFields?: Record<string, unknown>;
 }
@@ -97,6 +101,7 @@ export interface UpdateSalesOrderInput extends Discountable {
   notes?: string | null;
   customFields?: Record<string, unknown>;
   lines?: CreateSalesOrderLineInput[];
+  salesRepId?: string | null;
 }
 
 /** All lines on one sales order must share a currency — same rule as Purchase Orders/Quotations. */

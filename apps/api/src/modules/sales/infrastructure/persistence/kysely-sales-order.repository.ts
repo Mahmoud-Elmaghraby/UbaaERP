@@ -17,6 +17,7 @@ function toDomain(row: Selectable<SalesOrdersTable>): SalesOrder {
     sourceQuotationId: row.source_quotation_id,
     status: row.status as SalesOrderStatus,
     currency: row.currency,
+    salesRepId: row.sales_rep_id,
     discountType: row.discount_type as DiscountType | null,
     discountPercentage: row.discount_percentage === null ? null : Number(row.discount_percentage),
     // row.currency is guaranteed non-null whenever discount_fixed_amount is
@@ -54,6 +55,7 @@ export class KyselySalesOrderRepository implements SalesOrderRepository {
         discount_type: input.discountType,
         discount_percentage: input.discountPercentage === null ? null : String(input.discountPercentage),
         discount_fixed_amount: input.discountFixedAmount ? input.discountFixedAmount.toMinorUnits().toString() : null,
+        sales_rep_id: input.salesRepId,
         notes: input.notes,
         custom_fields: JSON.stringify(input.customFields ?? {}),
       })
@@ -67,6 +69,7 @@ export class KyselySalesOrderRepository implements SalesOrderRepository {
       .updateTable('sales_orders')
       .set({
         ...(input.notes !== undefined ? { notes: input.notes } : {}),
+        ...(input.salesRepId !== undefined ? { sales_rep_id: input.salesRepId } : {}),
         ...(input.customFields !== undefined ? { custom_fields: JSON.stringify(input.customFields) } : {}),
         ...(input.discountType !== undefined ? { discount_type: input.discountType } : {}),
         ...(input.discountPercentage !== undefined
@@ -83,11 +86,19 @@ export class KyselySalesOrderRepository implements SalesOrderRepository {
     return row ? toDomain(row) : null;
   }
 
-  async updateStatus(db: Kysely<TenantDatabase>, id: string, status: SalesOrderStatus): Promise<SalesOrder | null> {
+  async updateStatus(
+    db: Kysely<TenantDatabase>,
+    id: string,
+    status: SalesOrderStatus,
+    expectedStatus?: SalesOrderStatus | SalesOrderStatus[],
+  ): Promise<SalesOrder | null> {
     const row = await db
       .updateTable('sales_orders')
       .set({ status, updated_at: new Date() })
       .where('id', '=', id)
+      .$if(expectedStatus !== undefined, (q) =>
+        q.where('status', 'in', ([] as SalesOrderStatus[]).concat(expectedStatus ?? [])),
+      )
       .returningAll()
       .executeTakeFirst();
     return row ? toDomain(row) : null;

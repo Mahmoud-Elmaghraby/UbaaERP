@@ -73,11 +73,19 @@ export class KyselyDeliveryRepository implements DeliveryRepository {
     return rows.map(toDomain);
   }
 
-  async updateStatus(db: Kysely<TenantDatabase>, id: string, status: DeliveryStatus): Promise<Delivery | null> {
+  async updateStatus(
+    db: Kysely<TenantDatabase>,
+    id: string,
+    status: DeliveryStatus,
+    expectedStatus?: DeliveryStatus | DeliveryStatus[],
+  ): Promise<Delivery | null> {
     const row = await db
       .updateTable('deliveries')
       .set({ status, updated_at: new Date() })
       .where('id', '=', id)
+      .$if(expectedStatus !== undefined, (q) =>
+        q.where('status', 'in', ([] as DeliveryStatus[]).concat(expectedStatus ?? [])),
+      )
       .returningAll()
       .executeTakeFirst();
     return row ? toDomain(row) : null;

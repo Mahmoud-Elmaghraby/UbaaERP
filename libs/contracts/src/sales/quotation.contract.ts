@@ -36,6 +36,13 @@ export const quotationWithLinesSchema = quotationSchema.extend({
 });
 export type QuotationWithLinesDto = z.infer<typeof quotationWithLinesSchema>;
 
+/** GET /quotations row: the header plus its server-computed total (null only for a
+ * quotation with no lines, which the service never allows). */
+export const quotationListItemSchema = quotationSchema.extend({
+  totalAmount: moneySchema.nullable(),
+});
+export type QuotationListItemDto = z.infer<typeof quotationListItemSchema>;
+
 export const createQuotationLineSchema = z.object({
   productVariantId: z.string().uuid(),
   /** Line unit (carton, sack…); omitted/null = the product's base unit. */

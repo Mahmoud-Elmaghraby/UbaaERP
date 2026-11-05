@@ -1,4 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
+import type { Money } from '@erp-platform/shared-kernel';
 import type { Kysely } from 'kysely';
 import type { TenantDatabase } from '../../../../database/tenant/kysely-client';
 import { withTransaction } from '../../../../database/tenant/transaction.util';
@@ -21,13 +22,17 @@ import {
   type UpdateSalesOrderInput,
 } from '../../domain/sales-order.entity';
 import { BusinessRuleError } from '../errors';
-import { entityNotFound } from '../../../../shared/errors/entity-errors';
+import { entityNotFound, statusChanged } from '../../../../shared/errors/entity-errors';
+import { lockRowsForUpdate } from '../../../../shared/persistence/row-locks';
+import { localIsoDate } from '../../../../shared/time/local-date';
 import { NumberingSequencesService } from '../../../settings/application/services/numbering-sequences.service';
 import { TenantSettingsService } from '../../../settings/application/services/tenant-settings.service';
 import { FeatureAvailabilityService } from '../../../../shared/plans/feature-availability.service';
 import { FEATURE_KEYS } from '../../../../shared/plans/feature-catalog';
 import { assertCurrencyAllowedForTenant } from '../../../../shared/plans/currency-gate';
 import { ProductUnitResolver } from '../../../../shared/catalog/product-unit-resolver';
+import { resolveSalesRepId } from './sales-reps.service';
+import { CustomerCreditService } from './customer-credit.service';
 
 @Injectable()
 export class SalesOrdersService {
@@ -41,6 +46,7 @@ export class SalesOrdersService {
     private readonly tenantSettings: TenantSettingsService,
     private readonly featureAvailability: FeatureAvailabilityService,
     private readonly unitResolver: ProductUnitResolver,
+    private readonly customerCredit: CustomerCreditService,
   ) {}
 
   /** Shared by create()/update() — see currency-gate.ts's own comment. */
@@ -62,6 +68,22 @@ export class SalesOrdersService {
 
   list(db: Kysely<TenantDatabase>): Promise<SalesOrder[]> {
     return this.orders.list(db);
+  }
+
+  /** The list plus each order's total (both discount levels) — all lines read in one query. */
+  async listWithTotals(db: Kysely<TenantDatabase>): Promise<(SalesOrder & { totalAmount: Money | null })[]> {
+    const orders = await this.orders.list(db);
+    const lines = await this.lines.listBySalesOrderIds(db, orders.map((o) => o.id));
+    const byOrder = new Map<string, typeof lines>();
+    for (const line of lines) {
+      const bucket = byOrder.get(line.salesOrderId);
+      if (bucket) bucket.push(line);
+      else byOrder.set(line.salesOrderId, [line]);
+    }
+    return orders.map((order) => {
+      const own = byOrder.get(order.id);
+      return { ...order, totalAmount: own?.length ? calculateSalesOrderTotal(order, own).totalAmount : null };
+    });
   }
 
   async getById(db: Kysely<TenantDatabase>, id: string): Promise<SalesOrderWithLines> {
@@ -100,6 +122,25 @@ export class SalesOrdersService {
             params: { id: input.sourceQuotationId, status: quotation.status },
           },
         );
+      }
+      if (quotation.validUntilDate && quotation.validUntilDate.slice(0, 10) < localIsoDate()) {
+        throw new BusinessRuleError(`Quotation "${quotation.id}" expired on ${quotation.validUntilDate}.`, {
+          code: 'SALES_ORDER.QUOTATION_EXPIRED',
+          params: { id: quotation.id, validUntil: quotation.validUntilDate.slice(0, 10) },
+        });
+      }
+      // One quotation → one live order (cancel the order to raise a new one).
+      const existingOrder = await db
+        .selectFrom('sales_orders')
+        .select('so_number')
+        .where('source_quotation_id', '=', quotation.id)
+        .where('status', '!=', 'cancelled')
+        .executeTakeFirst();
+      if (existingOrder) {
+        throw new BusinessRuleError(`Quotation "${quotation.id}" was already turned into sales order "${existingOrder.so_number}".`, {
+          code: 'SALES_ORDER.QUOTATION_ALREADY_CONVERTED',
+          params: { id: quotation.id, orderNumber: existingOrder.so_number },
+        });
       }
       const quotationLines = await this.quotationLines.listByQuotationId(db, quotation.id);
       return {
@@ -165,6 +206,10 @@ export class SalesOrdersService {
       throw new BusinessRuleError(message, { code: 'SALES_ORDER.INVALID_DISCOUNT', params: { reason: message } });
     }
 
+    // Rep: as given, else the customer's default (migration 0110).
+    const customerRep = await db.selectFrom('customers').select('sales_rep_id').where('id', '=', customerId).executeTakeFirst();
+    const salesRepId = await resolveSalesRepId(db, input.salesRepId, customerRep?.sales_rep_id ?? null);
+
     return withTransaction(db, async (trx) => {
       const order = await this.orders.create(trx, {
         soNumber: allocated.formatted,
@@ -174,6 +219,7 @@ export class SalesOrdersService {
         discountType: input.discountType ?? null,
         discountPercentage: input.discountPercentage ?? null,
         discountFixedAmount: input.discountFixedAmount ?? null,
+        salesRepId,
         notes: input.notes ?? null,
         customFields: input.customFields ?? {},
       });
@@ -223,6 +269,10 @@ export class SalesOrdersService {
     }
 
     const newLines = input.lines !== undefined ? await this.unitResolver.resolve(db, input.lines) : undefined;
+    const salesRepId =
+      input.salesRepId === undefined || input.salesRepId === existing.salesRepId
+        ? undefined
+        : await resolveSalesRepId(db, input.salesRepId, null);
     return db.transaction().execute(async (trx) => {
       const updated = await this.orders.update(trx, id, {
         notes: input.notes,
@@ -230,6 +280,7 @@ export class SalesOrdersService {
         discountType: input.discountType,
         discountPercentage: input.discountPercentage,
         discountFixedAmount: input.discountFixedAmount,
+        salesRepId,
       });
       if (!updated) throw entityNotFound('SALES_ORDER', id);
 
@@ -271,17 +322,49 @@ export class SalesOrdersService {
         },
       );
     }
-    const updated = await this.orders.updateStatus(db, id, to);
-    if (!updated) throw entityNotFound('SALES_ORDER', id);
+    const updated = await this.orders.updateStatus(db, id, to, from);
+    if (!updated) throw statusChanged('SALES_ORDER', id);
     return updated;
   }
 
-  confirm(db: Kysely<TenantDatabase>, id: string): Promise<SalesOrder> {
+  /**
+   * `creditCheck` is passed by the controller only (a user confirming): the
+   * customer's credit limit is enforced then (migration 0109). POS and the
+   * automatic order behind a direct invoice confirm without it.
+   */
+  async confirm(db: Kysely<TenantDatabase>, id: string, creditCheck?: { canOverride: boolean }): Promise<SalesOrder> {
+    if (creditCheck) {
+      const order = await this.orders.findById(db, id);
+      const lines = order?.status === 'draft' ? await this.lines.listBySalesOrderId(db, id) : [];
+      if (order && lines.length > 0) {
+        const { totalAmount } = calculateSalesOrderTotal(order, lines);
+        await this.customerCredit.assertWithinLimit(db, order.customerId, totalAmount, creditCheck.canOverride);
+      }
+    }
     return this.transitionStatus(db, id, ['draft'], 'confirmed');
   }
 
+  /**
+   * Only an order nothing was delivered or invoiced against (cancel those
+   * drafts first): a delivery confirmed later would otherwise ship goods for
+   * a cancelled order and revive it.
+   */
   cancel(db: Kysely<TenantDatabase>, id: string): Promise<SalesOrder> {
-    return this.transitionStatus(db, id, ['draft', 'confirmed'], 'cancelled');
+    return withTransaction(db, async (trx) => {
+      await lockRowsForUpdate(trx, 'sales_orders', [id]);
+      const [delivery, invoice] = await Promise.all([
+        trx.selectFrom('deliveries').select('delivery_number as number').where('sales_order_id', '=', id).where('status', '!=', 'cancelled').executeTakeFirst(),
+        trx.selectFrom('sales_invoices').select('invoice_number as number').where('sales_order_id', '=', id).where('status', '!=', 'cancelled').executeTakeFirst(),
+      ]);
+      const blocker = delivery ?? invoice;
+      if (blocker) {
+        throw new BusinessRuleError(`Sales order "${id}" has document "${blocker.number}" — cancel it first.`, {
+          code: 'SALES_ORDER.HAS_DOCUMENTS',
+          params: { id, documentNumber: blocker.number },
+        });
+      }
+      return this.transitionStatus(trx, id, ['draft', 'confirmed'], 'cancelled');
+    });
   }
 
   async delete(db: Kysely<TenantDatabase>, id: string): Promise<void> {

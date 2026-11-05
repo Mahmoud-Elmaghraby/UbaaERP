@@ -38,6 +38,7 @@ export class CustomersService {
         throw duplicateEntity('CUSTOMER', 'code', input.code);
       }
       if (isPriceListViolation(err) && input.priceListId) throw entityNotFound('PRICE_LIST', input.priceListId);
+      if (isSalesRepViolation(err) && input.salesRepId) throw entityNotFound('SALES_REP', input.salesRepId);
       throw err;
     }
   }
@@ -52,6 +53,7 @@ export class CustomersService {
         throw duplicateEntity('CUSTOMER', 'code', input.code);
       }
       if (isPriceListViolation(err) && input.priceListId) throw entityNotFound('PRICE_LIST', input.priceListId);
+      if (isSalesRepViolation(err) && input.salesRepId) throw entityNotFound('SALES_REP', input.salesRepId);
       throw err;
     }
   }
@@ -68,6 +70,14 @@ export class CustomersService {
     const deleted = await this.repository.delete(db, id);
     if (!deleted) throw entityNotFound('CUSTOMER', id);
   }
+}
+
+/** The customer's default sales rep FK (migration 0110). */
+function isSalesRepViolation(err: unknown): boolean {
+  return (
+    isPostgresForeignKeyViolation(err) &&
+    String((err as { constraint?: unknown }).constraint ?? '').includes('sales_rep')
+  );
 }
 
 /** The customer's price list FK (migration 0102) — told apart from the withholding-rule FK by its constraint name. */

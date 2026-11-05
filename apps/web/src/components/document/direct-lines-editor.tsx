@@ -16,7 +16,7 @@ import { ProductVariantPicker } from '../product/product-variant-picker';
 import { defaultUnitId, unitPriceText } from '../product/variant-search';
 import { LineUnitSelect } from '../product/unit-select';
 import { repricedValue, type SalePricer } from '../product/sale-pricing';
-import { decimalToMinorUnits, formatAmount, multiplyMinorUnits } from '../../lib/money';
+import { decimalToMinorUnits, formatAmount, minorUnitsToDecimalString, multiplyMinorUnits } from '../../lib/money';
 import { useVariantLookupMap } from '../../features/inventory/api/products/queries';
 import { emptyReceiptLotsDraft, ReceiptLotsEditor, type ReceiptLotsDraft } from './lot-entry';
 import { LineTaxPicker } from '../taxes/line-tax-picker';
@@ -32,6 +32,8 @@ export interface DirectLineDraft {
   notes: string;
   /** Lots/serials received with this line — only when the invoice also receives the goods. */
   lots: ReceiptLotsDraft;
+  /** Line discount as typed: "10%" (percentage) or "25" (fixed amount); '' = none. */
+  discount: string;
 }
 
 let keySeq = 0;
@@ -45,7 +47,44 @@ export function newDirectLine(): DirectLineDraft {
     unitPrice: '',
     notes: '',
     lots: emptyReceiptLotsDraft(),
+    discount: '',
   };
+}
+
+export type LineDiscount =
+  | { discountType: null; discountPercentage: null; discountFixedAmount: null }
+  | { discountType: 'percentage'; discountPercentage: number; discountFixedAmount: null }
+  | { discountType: 'fixed'; discountPercentage: null; discountFixedAmount: { amountMinorUnits: string; currency: string } };
+
+/** "10%" → 10 percent, "25" → a fixed 25.00, "" → none; null when it can't be read. */
+export function parseLineDiscount(text: string, currency: string): LineDiscount | null {
+  const value = text.trim().replace(/[٠-٩]/g, (d) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(d))).replace('٪', '%');
+  if (value === '') return { discountType: null, discountPercentage: null, discountFixedAmount: null };
+  if (value.endsWith('%')) {
+    const pct = Number(value.slice(0, -1));
+    if (!Number.isFinite(pct) || pct < 0 || pct > 100) return null;
+    return { discountType: 'percentage', discountPercentage: pct, discountFixedAmount: null };
+  }
+  try {
+    const amountMinorUnits = decimalToMinorUnits(value);
+    if (BigInt(amountMinorUnits) < 0n) return null;
+    return { discountType: 'fixed', discountPercentage: null, discountFixedAmount: { amountMinorUnits, currency } };
+  } catch {
+    return null;
+  }
+}
+
+/** The saved discount back as the text a user would type. */
+export function lineDiscountText(source: {
+  discountType?: string | null;
+  discountPercentage?: number | null;
+  discountFixedAmount?: { amountMinorUnits: string } | null;
+}): string {
+  if (source.discountType === 'percentage' && source.discountPercentage !== null && source.discountPercentage !== undefined) {
+    return `${source.discountPercentage}%`;
+  }
+  if (source.discountType === 'fixed' && source.discountFixedAmount) return minorUnitsToDecimalString(source.discountFixedAmount.amountMinorUnits);
+  return '';
 }
 
 /** Minor-unit amount of one row for the live preview, or null when incomplete. */
@@ -53,7 +92,14 @@ export function previewDirectLineAmount(line: DirectLineDraft): string | null {
   const quantity = Number(line.quantity);
   if (!line.unitPrice.trim() || !Number.isFinite(quantity) || quantity <= 0) return null;
   try {
-    return multiplyMinorUnits(decimalToMinorUnits(line.unitPrice), line.quantity.trim());
+    const gross = BigInt(multiplyMinorUnits(decimalToMinorUnits(line.unitPrice), line.quantity.trim()));
+    const discount = parseLineDiscount(line.discount ?? '', 'XXX');
+    if (!discount || discount.discountType === null) return gross.toString();
+    const off =
+      discount.discountType === 'percentage'
+        ? (gross * BigInt(Math.round(discount.discountPercentage * 100))) / 10000n
+        : BigInt(discount.discountFixedAmount.amountMinorUnits);
+    return (gross - off < 0n ? 0n : gross - off).toString();
   } catch {
     return null;
   }
@@ -111,6 +157,7 @@ export function DirectLinesEditor({
   receiveLots = false,
   taxes,
   pricer: salePricer,
+  discounts = false,
 }: {
   lines: DirectLineDraft[];
   onChange: (lines: DirectLineDraft[]) => void;
@@ -123,6 +170,8 @@ export function DirectLinesEditor({
   taxes?: LineTaxesController;
   /** Sales: default prices from the document's price list (sale-pricing.ts). */
   pricer?: SalePricer;
+  /** Show a per-line discount cell ("10%" or a fixed amount). */
+  discounts?: boolean;
 }) {
   const { t } = useTranslation();
   const variants = useVariantLookupMap();
@@ -142,6 +191,7 @@ export function DirectLinesEditor({
             <TableHead>{t('sales.salesInvoices.lineProduct')}</TableHead>
             <TableHead className="w-28">{t('documents.quantity')}</TableHead>
             <TableHead className="w-36">{t('documents.unitPrice')}</TableHead>
+            {discounts ? <TableHead className="w-28">{t('documents.lineDiscount')}</TableHead> : null}
             <TableHead className="w-32 text-end">{t('documents.lineTotal')}</TableHead>
             <TableHead className="w-12" />
           </TableRow>
@@ -216,6 +266,18 @@ export function DirectLinesEditor({
                       onChange={(e) => update(line.key, { unitPrice: e.target.value })}
                     />
                   </TableCell>
+                  {discounts ? (
+                    <TableCell>
+                      <Input
+                        className={`h-9 text-end ${parseLineDiscount(line.discount ?? '', currency) ? '' : 'border-destructive'}`}
+                        placeholder="0 / 10%"
+                        dir="ltr"
+                        aria-label={t('documents.lineDiscount')}
+                        value={line.discount ?? ''}
+                        onChange={(e) => update(line.key, { discount: e.target.value })}
+                      />
+                    </TableCell>
+                  ) : null}
                   <TableCell className="text-end font-semibold">
                     {amount ? formatAmount(amount) : <span className="text-muted-foreground">—</span>}
                   </TableCell>
@@ -235,7 +297,7 @@ export function DirectLinesEditor({
                 {trackingType !== 'none' ? (
                   <TableRow className="hover:bg-transparent">
                     <TableCell />
-                    <TableCell colSpan={5} className="pt-0">
+                    <TableCell colSpan={discounts ? 6 : 5} className="pt-0">
                       <ReceiptLotsEditor
                         trackingType={trackingType}
                         quantity={Number(line.quantity) || 0}

@@ -34,6 +34,8 @@ export const salesInvoiceSchema = z.object({
   pricesIncludeTax: z.boolean(),
   salesChannelId: z.string().uuid().nullable().default(null),
   externalReference: z.string().nullable().default(null),
+  /** Sales rep (migration 0110); null = none. */
+  salesRepId: z.string().uuid().nullable().default(null),
   createdAt: z.coerce.date(),
   updatedAt: z.coerce.date(),
 });
@@ -93,7 +95,55 @@ export const createSalesInvoiceSchema = z.object({
   /** Sales channel (Jumia, Noon…) and the platform's order number — matched by settlements. */
   salesChannelId: z.string().uuid().nullable().optional(),
   externalReference: z.string().trim().max(80).nullable().optional(),
+  /** Omitted = the order's rep, else the customer's default; null = none. */
+  salesRepId: z.string().uuid().nullable().optional(),
   notes: z.string().nullable().optional(),
   customFields: z.record(z.unknown()).optional(),
 });
 export type CreateSalesInvoiceDto = z.infer<typeof createSalesInvoiceSchema>;
+
+/**
+ * A row of the invoice register: an invoice with its customer and money state
+ * (total, paid by posted receipts, credited by credit notes, still open).
+ */
+export const salesInvoiceRegisterRowSchema = z.object({
+  id: z.string().uuid(),
+  invoiceNumber: z.string(),
+  status: salesInvoiceStatusSchema,
+  invoiceDate: z.string().nullable(),
+  /** Due date, or invoice date + the customer's payment terms. */
+  dueDate: z.string().nullable(),
+  customerId: z.string().uuid(),
+  customerName: z.string(),
+  salesRepId: z.string().uuid().nullable().default(null),
+  salesRepName: z.string().nullable().default(null),
+  salesOrderId: z.string().uuid(),
+  currency: z.string(),
+  totalMinorUnits: z.string(),
+  paidMinorUnits: z.string(),
+  creditedMinorUnits: z.string(),
+  outstandingMinorUnits: z.string(),
+  /** Days past due (0 when not due / settled). */
+  overdueDays: z.number().int(),
+  /** Installment schedule rows (0 = none); with a schedule, dueDate is the earliest unpaid installment's. */
+  installmentsCount: z.number().int().default(0),
+  createdAt: z.coerce.date(),
+});
+export type SalesInvoiceRegisterRowDto = z.infer<typeof salesInvoiceRegisterRowSchema>;
+
+/** Customer 360 header: balance, what is overdue, aging buckets. */
+export const customerAccountSummarySchema = z.object({
+  customerId: z.string().uuid(),
+  currency: z.string(),
+  /** Open invoices − unallocated receipts − unapplied credit (what the customer owes now). */
+  balanceMinorUnits: z.string(),
+  openInvoicesMinorUnits: z.string(),
+  overdueMinorUnits: z.string(),
+  unallocatedPaymentsMinorUnits: z.string(),
+  /** current, 1–30, 31–60, 61–90, 90+ days past due. */
+  aging: z.array(z.object({ bucket: z.enum(['current', '1_30', '31_60', '61_90', '90_plus']), amountMinorUnits: z.string() })),
+  lastInvoiceDate: z.string().nullable(),
+  lastPaymentDate: z.string().nullable(),
+  salesThisYearMinorUnits: z.string(),
+});
+export type CustomerAccountSummaryDto = z.infer<typeof customerAccountSummarySchema>;

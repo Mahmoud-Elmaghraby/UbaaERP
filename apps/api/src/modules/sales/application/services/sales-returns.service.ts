@@ -1,4 +1,5 @@
 import { totalsToDto } from '../../../../shared/taxes/line-tax-snapshot';
+import { withTransaction } from '../../../../database/tenant/transaction.util';
 import { Inject, Injectable } from '@nestjs/common';
 import type { Kysely } from 'kysely';
 import type { TenantDatabase } from '../../../../database/tenant/kysely-client';
@@ -17,7 +18,8 @@ import type {
   CreateSalesReturnInput,
 } from '../../domain/sales-return.entity';
 import { BusinessRuleError, NotFoundError, isPostgresForeignKeyViolation } from '../errors';
-import { entityNotFound } from '../../../../shared/errors/entity-errors';
+import { entityNotFound, statusChanged } from '../../../../shared/errors/entity-errors';
+import { lockRowsForUpdate } from '../../../../shared/persistence/row-locks';
 import { NumberingSequencesService } from '../../../settings/application/services/numbering-sequences.service';
 import { OutboxWriterService } from '../../../../shared/outbox/application/services/outbox-writer.service';
 import { SalesCreditNotesService } from './sales-credit-notes.service';
@@ -218,10 +220,26 @@ export class SalesReturnsService {
       );
     }
 
-    return db.transaction().execute(async (trx) => {
-      const updated = await this.returns.updateStatus(trx, id, 'confirmed');
-      if (!updated) throw entityNotFound('SALES_RETURN', id);
+    return withTransaction(db, async (trx) => {
       const lines = await this.lines.listBySalesReturnId(trx, id);
+      // Re-checked under a lock: two drafts can't both return (and credit) the same delivered units.
+      const deliveryLineIds = lines.map((line) => line.deliveryLineId);
+      await lockRowsForUpdate(trx, 'delivery_lines', deliveryLineIds);
+      const delivered = new Map((await this.deliveryLines.listByDeliveryId(trx, existing.deliveryId)).map((line) => [line.id, line.quantityDelivered]));
+      const returned = await this.lines.sumReturnedQuantityByDeliveryLineIds(trx, deliveryLineIds);
+      const thisReturn = new Map<string, number>();
+      for (const line of lines) thisReturn.set(line.deliveryLineId, (thisReturn.get(line.deliveryLineId) ?? 0) + line.quantityReturned);
+      for (const [lineId, quantity] of thisReturn) {
+        const remaining = (delivered.get(lineId) ?? 0) - (returned[lineId] ?? 0);
+        if (quantity > remaining) {
+          throw new BusinessRuleError(`Cannot return ${quantity} against delivery line "${lineId}" — only ${remaining} remaining returnable.`, {
+            code: 'SALES_RETURN.QUANTITY_EXCEEDS_REMAINING',
+            params: { lineId, quantityReturned: quantity, remaining, quantityDelivered: delivered.get(lineId) ?? 0, returned: returned[lineId] ?? 0 },
+          });
+        }
+      }
+      const updated = await this.returns.updateStatus(trx, id, 'confirmed', 'draft');
+      if (!updated) throw statusChanged('SALES_RETURN', id);
 
       const delivery = await this.deliveries.findById(trx, updated.deliveryId);
       if (!delivery) {
@@ -294,8 +312,8 @@ export class SalesReturnsService {
         },
       );
     }
-    const updated = await this.returns.updateStatus(db, id, to);
-    if (!updated) throw entityNotFound('SALES_RETURN', id);
+    const updated = await this.returns.updateStatus(db, id, to, from);
+    if (!updated) throw statusChanged('SALES_RETURN', id);
     return updated;
   }
 

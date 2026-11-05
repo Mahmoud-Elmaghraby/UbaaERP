@@ -1,5 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { CreateCustomerDto, CustomerDto, UpdateCustomerDto } from '@erp-platform/contracts';
+import type {
+  CreateCustomerDto,
+  CustomerAccountSummaryDto,
+  CustomerCreditCheckDto,
+  CustomerDto,
+  UpdateCustomerDto,
+} from '@erp-platform/contracts';
 
 import { apiDelete, apiGet, apiPatch, apiPost } from '../../../../lib/api-client';
 
@@ -37,5 +43,33 @@ export function useDeleteCustomer() {
   return useMutation({
     mutationFn: (id: string) => apiDelete<void>(`/customers/${id}`),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['customers'] }),
+  });
+}
+
+/** Balance, overdue, aging — the customer page header. */
+export function useCustomerAccountSummary(customerId: string | undefined) {
+  return useQuery({
+    queryKey: ['customers', customerId, 'account-summary'],
+    queryFn: () => apiGet<CustomerAccountSummaryDto>(`/customers/${customerId}/account-summary`),
+    enabled: Boolean(customerId),
+  });
+}
+
+/**
+ * Credit limit status for a new document of `amountMinorUnits` (migration 0109) —
+ * the same rule the confirm / post endpoints enforce. Disabled without a customer.
+ */
+export function useCustomerCreditCheck(
+  customerId: string | null | undefined,
+  amountMinorUnits: string | null | undefined,
+  currency?: string | null,
+) {
+  const amount = amountMinorUnits && /^\d+$/.test(amountMinorUnits) ? amountMinorUnits : '0';
+  const params = new URLSearchParams({ amountMinorUnits: amount });
+  if (currency) params.set('currency', currency);
+  return useQuery({
+    queryKey: ['customers', customerId, 'credit-check', amount, currency ?? null],
+    queryFn: () => apiGet<CustomerCreditCheckDto>(`/customers/${customerId}/credit-check?${params.toString()}`),
+    enabled: Boolean(customerId),
   });
 }

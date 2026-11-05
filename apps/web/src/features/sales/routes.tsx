@@ -44,6 +44,23 @@ const EtaCredentialsPage = lazy(() =>
 const SalesCreditNotesPage = lazy(() =>
   import('./components/sales-credit-notes').then((m) => ({ default: m.SalesCreditNotesPage })),
 );
+const CustomerPage = lazy(() => import('./components/customers').then((m) => ({ default: m.CustomerPage })));
+const CustomerEditorPage = lazy(() => import('./components/customers').then((m) => ({ default: m.CustomerEditorPage })));
+const QuotationPage = lazy(() => import('./components/quotations').then((m) => ({ default: m.QuotationPage })));
+const QuotationEditorPage = lazy(() => import('./components/quotations').then((m) => ({ default: m.QuotationEditorPage })));
+const SalesOrderPage = lazy(() => import('./components/sales-orders').then((m) => ({ default: m.SalesOrderPage })));
+const SalesOrderEditorPage = lazy(() => import('./components/sales-orders').then((m) => ({ default: m.SalesOrderEditorPage })));
+const DeliveryCreatePage = lazy(() => import('./components/deliveries').then((m) => ({ default: m.DeliveryCreatePage })));
+const DeliveryDetailsPage = lazy(() => import('./components/deliveries').then((m) => ({ default: m.DeliveryDetailsPage })));
+const SalesReturnCreatePage = lazy(() => import('./components/sales-returns').then((m) => ({ default: m.SalesReturnCreatePage })));
+const SalesReturnDetailsPage = lazy(() => import('./components/sales-returns').then((m) => ({ default: m.SalesReturnDetailsPage })));
+const SalesCreditNoteDetailsPage = lazy(() => import('./components/sales-credit-notes').then((m) => ({ default: m.SalesCreditNoteDetailsPage })));
+const PaymentReceivedEditorPage = lazy(() => import('./components/payments-received').then((m) => ({ default: m.PaymentReceivedEditorPage })));
+const PaymentReceivedPage = lazy(() => import('./components/payments-received').then((m) => ({ default: m.PaymentReceivedPage })));
+const SalesRepsPage = lazy(() => import('./components/sales-reps').then((m) => ({ default: m.SalesRepsPage })));
+const SalesAnalysisPage = lazy(() => import('./components/sales-reps').then((m) => ({ default: m.SalesAnalysisPage })));
+const ChequesPage = lazy(() => import('./components/cheques').then((m) => ({ default: m.ChequesPage })));
+const InstallmentsDuePage = lazy(() => import('./components/sales-invoices').then((m) => ({ default: m.InstallmentsDuePage })));
 const PosPage = lazy(() => import('./components/pos').then((m) => ({ default: m.PosPage })));
 
 /**
@@ -67,22 +84,42 @@ export const salesRoutes: RouteObject[] = [
     children: [
       { index: true, element: <Navigate to="customers" replace /> },
       { path: 'customers', element: <CustomersPage /> },
+      { path: 'customers/new', element: <CustomerEditorPage /> },
+      { path: 'customers/:id', element: <CustomerPage /> },
+      { path: 'customers/:id/edit', element: <CustomerEditorPage /> },
       { path: 'channels', element: <ChannelsPage /> },
       { path: 'price-lists', element: <PriceListsPage /> },
       { path: 'price-lists/:id', element: <PriceListEditorPage /> },
+      { path: 'sales-reps', element: <SalesRepsPage /> },
+      { path: 'reports/analysis', element: <SalesAnalysisPage /> },
+      { path: 'installments-due', element: <InstallmentsDuePage /> },
       { path: 'settlements', element: <SettlementsPage /> },
       { path: 'settlements/:id', element: <SettlementEditorPage /> },
       { path: 'customers/:id/statement', element: <PartyStatementPage kind="customer" /> },
       { path: 'receivables', element: <PartyBalancesPage kind="customer" /> },
       { path: 'quotations', element: <QuotationsPage /> },
+      { path: 'quotations/new', element: <QuotationEditorPage /> },
+      { path: 'quotations/:id', element: <QuotationPage /> },
+      { path: 'quotations/:id/edit', element: <QuotationEditorPage /> },
       { path: 'sales-orders', element: <SalesOrdersPage /> },
+      { path: 'sales-orders/new', element: <SalesOrderEditorPage /> },
+      { path: 'sales-orders/:id', element: <SalesOrderPage /> },
+      { path: 'sales-orders/:id/edit', element: <SalesOrderEditorPage /> },
       { path: 'deliveries', element: <DeliveriesPage /> },
+      { path: 'deliveries/new', element: <DeliveryCreatePage /> },
+      { path: 'deliveries/:id', element: <DeliveryDetailsPage /> },
       { path: 'sales-invoices', element: <SalesInvoicesPage /> },
       { path: 'sales-invoices/new', element: <SalesInvoiceCreatePage /> },
       { path: 'sales-invoices/:id', element: <SalesInvoiceDetailsPage /> },
       { path: 'payments-received', element: <PaymentsReceivedPage /> },
+      { path: 'payments-received/new', element: <PaymentReceivedEditorPage /> },
+      { path: 'payments-received/:id', element: <PaymentReceivedPage /> },
+      { path: 'cheques', element: <ChequesPage /> },
       { path: 'sales-returns', element: <SalesReturnsPage /> },
+      { path: 'sales-returns/new', element: <SalesReturnCreatePage /> },
+      { path: 'sales-returns/:id', element: <SalesReturnDetailsPage /> },
       { path: 'sales-credit-notes', element: <SalesCreditNotesPage /> },
+      { path: 'sales-credit-notes/:id', element: <SalesCreditNoteDetailsPage /> },
       { path: 'eta-credentials', element: <EtaCredentialsPage /> },
     ],
   },

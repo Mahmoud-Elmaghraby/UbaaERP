@@ -21,14 +21,16 @@ export class PurchasesTreasuryMovements implements TreasuryMovementSource, OnMod
     let payments = db
       .selectFrom('supplier_payments as p')
       .innerJoin('suppliers as s', 's.id', 'p.supplier_id')
-      .select(['p.id', 'p.payment_number', 'p.payment_date', 'p.created_at', 'p.amount_amount', 'p.amount_currency', 'p.treasury_id', 'p.reference_number', 's.name'])
+      .select(['p.id', 'p.payment_number', 'p.payment_date', 'p.created_at', 'p.amount_amount', 'p.amount_currency', 'p.treasury_id', 'p.reference_number', 's.name', 'p.payment_method', 'p.cheque_status_date'])
       .where('p.status', '=', 'posted')
-      .where('p.treasury_id', 'is not', null);
+      .where('p.treasury_id', 'is not', null)
+      // Our cheque leaves the bank only when it clears.
+      .where((eb) => eb.or([eb('p.payment_method', '!=', 'check'), eb('p.cheque_status', '=', 'cleared')]));
     if (treasuryId) payments = payments.where('p.treasury_id', '=', treasuryId);
     const rows = await payments.execute();
     return rows.map((r) => ({
       treasuryId: r.treasury_id!,
-      date: r.payment_date ?? localIsoDate(r.created_at),
+      date: r.payment_method === 'check' && r.cheque_status_date ? String(r.cheque_status_date).slice(0, 10) : (r.payment_date ?? localIsoDate(r.created_at)),
       amountMinor: -BigInt(r.amount_amount),
       currency: r.amount_currency,
       kind: 'supplier_payment' as const,

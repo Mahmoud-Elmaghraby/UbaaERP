@@ -51,6 +51,8 @@ export const salesOrderSchema = z
     status: salesOrderStatusSchema,
     /** Populated from the order's own lines at creation (migration 0062) — null only for orders created before that migration. */
     currency: z.string().regex(/^[A-Z]{3}$/).nullable(),
+    /** Sales rep (migration 0110); null = none. */
+    salesRepId: z.string().uuid().nullable().default(null),
     notes: z.string().nullable(),
     customFields: z.record(z.unknown()),
     createdAt: z.coerce.date(),
@@ -67,6 +69,13 @@ export const salesOrderWithLinesSchema = salesOrderSchema.extend({
   totalAmount: moneySchema,
 });
 export type SalesOrderWithLinesDto = z.infer<typeof salesOrderWithLinesSchema>;
+
+/** GET /sales-orders row: the header plus its server-computed total (after both
+ * discount levels; null only for an order with no lines). */
+export const salesOrderListItemSchema = salesOrderSchema.extend({
+  totalAmount: moneySchema.nullable(),
+});
+export type SalesOrderListItemDto = z.infer<typeof salesOrderListItemSchema>;
 
 export const createSalesOrderLineSchema = z
   .object({
@@ -85,6 +94,8 @@ export const createSalesOrderSchema = z
     sourceQuotationId: z.string().uuid().nullable().optional(),
     customerId: z.string().uuid().optional(),
     lines: z.array(createSalesOrderLineSchema).min(1).optional(),
+    /** Omitted = the customer's default rep; null = none. */
+    salesRepId: z.string().uuid().nullable().optional(),
     notes: z.string().nullable().optional(),
     customFields: z.record(z.unknown()).optional(),
   })
@@ -96,6 +107,7 @@ export const updateSalesOrderSchema = z
     notes: z.string().nullable().optional(),
     customFields: z.record(z.unknown()).optional(),
     lines: z.array(createSalesOrderLineSchema).min(1).optional(),
+    salesRepId: z.string().uuid().nullable().optional(),
   })
   .merge(createDiscountableSchema);
 export type UpdateSalesOrderDto = z.infer<typeof updateSalesOrderSchema>;

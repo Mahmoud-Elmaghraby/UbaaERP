@@ -17,6 +17,8 @@ export interface CreateSupplierPaymentRow {
   treasuryId: string | null;
   notes: string | null;
   customFields: Record<string, unknown>;
+  cheque?: { number: string; bank?: string | null; dueDate: string } | null;
+  endorsedChequeId?: string | null;
 }
 
 export interface SupplierPaymentRepository {
@@ -28,6 +30,8 @@ export interface SupplierPaymentRepository {
     db: Kysely<TenantDatabase>,
     id: string,
     status: SupplierPaymentStatus,
+    /** Only when the row is still in this status (a concurrent change returns null). */
+    expectedStatus?: SupplierPaymentStatus,
   ): Promise<SupplierPayment | null>;
   delete(db: Kysely<TenantDatabase>, id: string): Promise<boolean>;
 }

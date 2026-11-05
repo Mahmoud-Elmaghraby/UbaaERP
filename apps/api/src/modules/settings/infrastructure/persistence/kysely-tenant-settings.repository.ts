@@ -18,6 +18,7 @@ function toDomain(row: Selectable<TenantSettingsTable>): TenantSettings {
     email: row.email,
     website: row.website,
     logoObjectKey: row.logo_object_key,
+    creditLimitMode: row.credit_limit_mode === 'warn' || row.credit_limit_mode === 'block' ? row.credit_limit_mode : 'off',
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -57,7 +58,8 @@ export class KyselyTenantSettingsRepository implements TenantSettingsRepository 
       input.phone !== undefined ||
       input.email !== undefined ||
       input.website !== undefined ||
-      input.logoObjectKey !== undefined;
+      input.logoObjectKey !== undefined ||
+      input.creditLimitMode !== undefined;
     if (!hasChanges) return settings;
 
     const updated = await db
@@ -74,6 +76,7 @@ export class KyselyTenantSettingsRepository implements TenantSettingsRepository 
         ...(input.email !== undefined ? { email: input.email } : {}),
         ...(input.website !== undefined ? { website: input.website } : {}),
         ...(input.logoObjectKey !== undefined ? { logo_object_key: input.logoObjectKey } : {}),
+        ...(input.creditLimitMode !== undefined ? { credit_limit_mode: input.creditLimitMode } : {}),
         updated_at: sql`now()`,
       })
       .where('id', '=', settings.id)

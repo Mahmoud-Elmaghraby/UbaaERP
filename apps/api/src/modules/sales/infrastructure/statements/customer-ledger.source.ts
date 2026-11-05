@@ -14,7 +14,7 @@ export const CUSTOMER_OPENING_BALANCE_EVENT = 'sales.customer.opening_balance_se
 type LineRow = { unit_price_amount: string; unit_price_currency: string; quantity: string; net_amount: string | null; taxes: unknown };
 
 /** Same rule as the line repositories: lines before migration 0092 have no stored net → price × quantity. */
-function lineForTotals(row: LineRow) {
+export function lineForTotals(row: LineRow) {
   const unitPrice = Money.fromMinorUnits(BigInt(row.unit_price_amount), row.unit_price_currency);
   return {
     netAmount:
@@ -25,7 +25,7 @@ function lineForTotals(row: LineRow) {
   };
 }
 
-function groupBy<T>(rows: T[], key: (row: T) => string): Map<string, T[]> {
+export function groupBy<T>(rows: T[], key: (row: T) => string): Map<string, T[]> {
   const map = new Map<string, T[]>();
   for (const row of rows) {
     const k = key(row);
@@ -151,8 +151,8 @@ export class CustomerLedgerSource implements PartyLedgerSource {
     // Posted receipts.
     let payments = db
       .selectFrom('payments_received')
-      .select(['id', 'payment_number', 'customer_id', 'payment_date', 'reference_number', 'amount_amount', 'amount_currency', 'created_at'])
-      .where('status', '=', 'posted');
+      .select(['id', 'payment_number', 'customer_id', 'payment_date', 'reference_number', 'amount_amount', 'amount_currency', 'created_at', 'status', 'cheque_number', 'cheque_status_date'])
+      .where('status', 'in', ['posted', 'bounced']);
     if (customerId) payments = payments.where('customer_id', '=', customerId);
     for (const payment of await payments.execute()) {
       entries.push({
@@ -167,6 +167,22 @@ export class CustomerLedgerSource implements PartyLedgerSource {
         dueDate: null,
         sequence: payment.created_at.toISOString(),
       });
+      // A bounced cheque: the receipt stays on the statement, and the customer owes it again from the bounce date.
+      if (payment.status === 'bounced') {
+        const bounceDate = payment.cheque_status_date ? String(payment.cheque_status_date).slice(0, 10) : localIsoDate(payment.created_at);
+        entries.push({
+          partyId: payment.customer_id,
+          currency: payment.amount_currency,
+          date: bounceDate,
+          kind: 'cheque_bounced',
+          documentId: payment.id,
+          number: payment.payment_number,
+          reference: payment.cheque_number,
+          amountMinor: BigInt(payment.amount_amount),
+          dueDate: null,
+          sequence: `${bounceDate}T23:59:59`,
+        });
+      }
     }
 
     return entries;

@@ -4,6 +4,8 @@ import type { QuotationLine, CreateQuotationLineInput } from '../../domain/quota
 
 export interface QuotationLineRepository {
   listByQuotationId(db: Kysely<TenantDatabase>, quotationId: string): Promise<QuotationLine[]>;
+  /** Every line of the given quotations in one query (list totals). */
+  listByQuotationIds(db: Kysely<TenantDatabase>, quotationIds: string[]): Promise<QuotationLine[]>;
   create(db: Kysely<TenantDatabase>, quotationId: string, input: CreateQuotationLineInput): Promise<QuotationLine>;
   deleteByQuotationId(db: Kysely<TenantDatabase>, quotationId: string): Promise<void>;
 }

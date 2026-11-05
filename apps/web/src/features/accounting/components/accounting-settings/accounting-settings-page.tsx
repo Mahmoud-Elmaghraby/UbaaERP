@@ -70,6 +70,8 @@ const MAPPING_GROUPS: { titleKey: string; fields: { name: MappingName; labelKey:
   {
     titleKey: 'accounting.settings.groups.cash',
     fields: [
+      { name: 'notesReceivableAccountId', labelKey: 'accounting.settings.notesReceivable' },
+      { name: 'notesPayableAccountId', labelKey: 'accounting.settings.notesPayable' },
       { name: 'cashAccountId', labelKey: 'accounting.settings.cash' },
       { name: 'defaultBankAccountId', labelKey: 'accounting.settings.defaultBank' },
       { name: 'cashOverShortAccountId', labelKey: 'accounting.settings.cashOverShort' },

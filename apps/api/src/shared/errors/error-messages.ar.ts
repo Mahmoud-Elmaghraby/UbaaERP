@@ -103,8 +103,14 @@ export const AR_MESSAGES: Record<string, string> = {
   'PRICE_LIST.IN_USE': 'القائمة دي متحددة لعملاء، فمينفعش تتمسح. وقّفها بدل ما تمسحها.',
   'PRICE_LIST.DUPLICATE_ITEM': 'نفس الصنف بنفس الحد الأدنى للكمية متكرر في القائمة.',
   'PRICE_LIST.VARIANT_MISMATCH': 'فيه سطر في القائمة مقاسه/لونه مش تابع للمنتج المختار.',
+  'SALES_REP.NOT_FOUND': 'المندوب المطلوب مش موجود.',
+  'SALES_REP.DUPLICATE_CODE': 'فيه مندوب تاني بنفس الكود "{value}".',
+  'SALES_REP.IN_USE': 'المندوب ده عليه عملاء أو مستندات، فمينفعش يتمسح. وقّفه بدل ما تمسحه.',
+  'SALES_REP.INACTIVE': 'المندوب "{name}" موقوف، اختار مندوب تاني.',
+  'SALES_REP.USER_NOT_FOUND': 'المستخدم اللي اخترته للمندوب مش موجود.',
   'CHANNEL_SETTLEMENT.NOT_FOUND': 'التسوية المطلوبة مش موجودة.',
   'CHANNEL_SETTLEMENT.DUPLICATE_STATEMENT': 'الكشف "{reference}" متسجل قبل كده في التسوية {number}.',
+  'CHANNEL_SETTLEMENT.FEE_ACCOUNT_MISSING': 'بند المصروف "{name}" ملوش حساب في دليل الحسابات — حدده من بنود الخزينة قبل الترحيل.',
   'CHANNEL_SETTLEMENT.NOT_DRAFT': 'التسوية دي اترحّلت خلاص، ومينفعش تتعدل أو تتمسح.',
   'CHANNEL_SETTLEMENT.FEE_CATEGORY_REQUIRED': 'كل سطر خصم (عمولة/شحن/إعلانات) محتاج يتحدد له بند المصروف.',
   'CHANNEL_SETTLEMENT.REFUNDS_EXCEED_ORDERS': 'المرتجعات المخصومة في الكشف أكبر من الأوردرات المدفوعة — راجع الكشف.',
@@ -326,6 +332,8 @@ export const AR_MESSAGES: Record<string, string> = {
 
   // ---- Sales module ----
   'CUSTOMER.DUPLICATE_CODE': 'يوجد عميل آخر بنفس الرمز "{value}" بالفعل.',
+  'CUSTOMER.CREDIT_LIMIT_EXCEEDED':
+    'العملية دي هتخلّي مديونية العميل {exposure} {currency}، وده أكتر من حد الائتمان بتاعه ({limit} {currency}). محتاج صلاحية تجاوز حد الائتمان أو تحصيل جزء من المديونية الأول.',
   'CUSTOMER.CANNOT_DELETE_SYSTEM_DEFAULT': 'العميل "{name}" هو عميل "زائر" الافتراضي في النظام ولا يمكن حذفه.',
   'ETA_CREDENTIALS.MISSING_REQUIRED_FIELDS': 'لا يمكن تفعيل الفوترة الإلكترونية (ETA): الحقول التالية ناقصة: {missing}.',
   'QUOTATION.AT_LEAST_ONE_LINE_REQUIRED': 'يجب أن يحتوي عرض السعر على سطر واحد على الأقل.',
@@ -340,6 +348,9 @@ export const AR_MESSAGES: Record<string, string> = {
   'QUOTATION.NOT_DELETABLE': 'عرض السعر "{id}" في حالة "{status}" ولا يمكن حذفه.',
   'SALES_ORDER.AMBIGUOUS_SOURCE':
     'يجب تحديد إما عرض سعر مصدر (sourceQuotationId) أو عميل وسطور مباشرة — وليس كليهما معًا.',
+  'SALES_ORDER.HAS_DOCUMENTS': 'أمر البيع عليه مستند "{documentNumber}" — ألغيه الأول وبعدين ألغي الأمر.',
+  'SALES_ORDER.QUOTATION_ALREADY_CONVERTED': 'عرض السعر ده اتحوّل قبل كده لأمر البيع "{orderNumber}".',
+  'SALES_ORDER.QUOTATION_EXPIRED': 'عرض السعر انتهت صلاحيته يوم {validUntil}.',
   'SALES_ORDER.SOURCE_QUOTATION_NOT_ACCEPTED':
     'عرض السعر "{id}" في حالة "{status}"، وليس "مقبول" — لا يمكن إنشاء أمر بيع إلا من عرض سعر مقبول.',
   'SALES_ORDER.MISSING_SOURCE': 'يجب تحديد عرض سعر مصدر، أو عميل مع سطر واحد على الأقل، لإنشاء أمر بيع.',
@@ -449,13 +460,28 @@ export const AR_MESSAGES: Record<string, string> = {
     'جلسة نقطة البيع "{id}" ليس لها مستودع محدد ولا يمكن إتمام عملية بيع من خلالها. يرجى إغلاقها وفتح جلسة جديدة.',
   'POS_SALE.MULTIPLE_CURRENCIES': 'تعذّر إتمام عملية البيع: {reason}',
   'POS_SALE.INVALID_DISCOUNT': 'تعذّر تطبيق الخصم: {reason}',
-  'POS_SALE.TENDERED_TOTAL_MISMATCH': 'المبلغ المدفوع ({tendered}) لا يطابق إجمالي عملية البيع ({total}).',
+  'POS_SALE.TENDERED_TOTAL_MISMATCH': 'المدفوع ({tendered}) أقل من إجمالي البيع ({total})، أو الدفع بالكارت/المحفظة أكبر من الإجمالي — الزيادة مسموحة في الكاش بس (بترجع باقي).',
+  'POS_SALE.SESSION_CURRENCY_MISMATCH': 'كل الأسعار والمدفوعات لازم تكون بعملة الوردية ({currency}).',
+  'POS_SALE.NOT_YOUR_SESSION': 'الوردية دي بتاعة كاشير تاني — اقفلها أو بيع فيها بس لو معاك صلاحية الإشراف على نقاط البيع.',
+  'POS_SALE.TENDER_NOT_POSITIVE': 'كل مبلغ مدفوع لازم يكون أكبر من صفر.',
   'POS_SALE.NO_WALK_IN_CUSTOMER':
     'لا يوجد عميل "زائر" افتراضي مُعد لهذا المستأجر. يرجى تشغيل أمر db:seed-walk-in-customer، أو تحديد معرّف عميل (customerId) صراحةً.',
   'SALES_INVOICE.MISSING_DIRECT_SOURCE':
     'يجب تحديد أمر بيع، أو عميل مع سطر مباشر واحد على الأقل، لإنشاء فاتورة بيع.',
   'SALES_INVOICE.AMBIGUOUS_SOURCE': 'يجب تحديد إما أمر بيع وسطوره أو عميل وسطور مباشرة — وليس كليهما معًا.',
   'SALES_INVOICE.AT_LEAST_ONE_LINE_REQUIRED': 'يجب أن تحتوي فاتورة البيع على سطر واحد على الأقل.',
+  // ---- installment schedules (migration 0111) & document share links ----
+  'SALES_INVOICE_INSTALLMENTS.EMPTY_INVOICE': 'الفاتورة مالهاش قيمة عشان تتقسط.',
+  'SALES_INVOICE_INSTALLMENTS.INVALID_COUNT': 'عدد الأقساط لازم يكون من 1 لـ {max}، ومبلغ كل قسط أكبر من صفر.',
+  'SALES_INVOICE_INSTALLMENTS.INVALID_INTERVAL': 'المدة بين الأقساط لازم تكون من شهر لـ 12 شهر.',
+  'SALES_INVOICE_INSTALLMENTS.INVALID_DATE': 'تاريخ استحقاق قسط غير صحيح.',
+  'SALES_INVOICE_INSTALLMENTS.INVALID_AMOUNT': 'مبلغ كل قسط لازم يكون أكبر من صفر.',
+  'SALES_INVOICE_INSTALLMENTS.DOWN_PAYMENT_TOO_LARGE': 'المقدم لازم يكون أقل من إجمالي الفاتورة.',
+  'SALES_INVOICE_INSTALLMENTS.SUM_MISMATCH': 'مجموع الأقساط لازم يساوي إجمالي الفاتورة بالظبط.',
+  'SALES_INVOICE_INSTALLMENTS.INVOICE_CANCELLED': 'مينفعش تعمل جدول أقساط لفاتورة ملغاة.',
+  'SALES_INVOICE_INSTALLMENTS.ALREADY_COLLECTED': 'اتحصّل مبلغ على الفاتورة دي بالفعل، فجدول الأقساط اتقفل ومينفعش يتعدل.',
+  'DOCUMENT_SHARE.INVALID_LINK': 'الرابط ده غير صالح أو انتهت صلاحيته.',
+  'DOCUMENT_SHARE.CANCELLED': 'مينفعش تشارك مستند ملغي.',
   'SALES_INVOICE.SALES_ORDERS_REQUIRED':
     'ميزة أوامر البيع مفعّلة لهذا المستأجر — يجب إنشاء أمر بيع أولاً ثم إصدار الفاتورة عليه.',
   'SALES_INVOICE.SALES_ORDER_NOT_INVOICEABLE':
@@ -524,6 +550,11 @@ export const AR_MESSAGES: Record<string, string> = {
   'FIXED_ASSET.PROCEEDS_ACCOUNT_REQUIRED': 'اختار الحساب اللي استلمت فيه قيمة البيع.',
   'BANK_STATEMENT.LINE_MISMATCH': 'سطر القيد ده مش حركة مرحّلة على حساب البنك ده.',
   'BANK_STATEMENT.ALREADY_MATCHED': 'السطر ده متطابق بالفعل — فك المطابقة الأول.',
+  'CHEQUE.DETAILS_REQUIRED': 'الدفع بشيك محتاج رقم الشيك وتاريخ استحقاقه.',
+  'CHEQUE.NOT_IN_HAND': 'الشيك "{number}" مش في الخزنة (حالته: {status}) — مينفعش يتحصّل أو يرتد أو يتظهّر.',
+  'CHEQUE.ENDORSE_AMOUNT_MISMATCH': 'الشيك "{number}" بيتظهّر بقيمته كاملة — خلّي مبلغ السداد نفس قيمة الشيك.',
+  'CHEQUE.NOT_OUTSTANDING': 'الشيك "{number}" مش تحت الدفع (اتصرف أو السداد مش مترحّل).',
+  'DOCUMENT.STATUS_CHANGED': 'المستند ده اتغيّرت حالته من مستخدم تاني في نفس اللحظة — حدّث الصفحة وشوف حالته الحالية.',
   'JOURNAL_ENTRY.APPROVAL_REQUIRED': 'القيد "{entryNumber}" محتاج اعتماد من محاسب عنده صلاحية الاعتماد.',
   'JOURNAL_ENTRY.AUTO_READ_ONLY': 'القيد "{entryNumber}" اتعمل تلقائيًا من مستند، فمينفعش يتعدّل أو يتلغي أو يتمسح بإيدك. عدّل المستند نفسه.',
   'JOURNAL_ENTRY.NOT_DELETABLE': 'القيد المحاسبي "{entryNumber}" في حالة "{status}" ولا يمكن حذفه.',

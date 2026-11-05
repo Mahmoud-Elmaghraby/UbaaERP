@@ -1,4 +1,5 @@
 import { resolvePaymentTreasury } from '../../../../shared/treasury/treasury-reader';
+import { withTransaction } from '../../../../database/tenant/transaction.util';
 import { Inject, Injectable } from '@nestjs/common';
 import type { Kysely } from 'kysely';
 import { Money } from '@erp-platform/shared-kernel';
@@ -12,7 +13,8 @@ import type {
   PosSessionReport,
 } from '../../domain/pos-session.entity';
 import { BusinessRuleError, isPostgresForeignKeyViolation } from '../errors';
-import { entityNotFound } from '../../../../shared/errors/entity-errors';
+import { entityNotFound, statusChanged } from '../../../../shared/errors/entity-errors';
+import { lockRowsForUpdate } from '../../../../shared/persistence/row-locks';
 import { OutboxWriterService } from '../../../../shared/outbox/application/services/outbox-writer.service';
 
 /**
@@ -115,6 +117,7 @@ export class PosSessionsService {
     input: ClosePosSessionInput,
     schema: string,
     actorUserId: string | null,
+    options: { canSupervise?: boolean } = {},
   ): Promise<PosSession> {
     const existing = await this.getById(db, id);
     if (existing.status !== 'open') {
@@ -129,15 +132,26 @@ export class PosSessionsService {
       });
     }
 
-    const currency = existing.openingCashAmount.currency;
-    const cashTendersMinorUnits = await this.repository.sumCashTendersForSession(db, id);
-    const cashTendersMoney = cashTendersMinorUnits
-      ? Money.fromMinorUnits(BigInt(cashTendersMinorUnits), currency)
-      : Money.zero(currency);
-    const expectedCashAmount = existing.openingCashAmount.add(cashTendersMoney);
-    const varianceAmount = input.countedCashAmount.subtract(expectedCashAmount);
+    if (!options.canSupervise && actorUserId !== null && existing.cashierUserId !== actorUserId) {
+      throw new BusinessRuleError(`POS session "${id}" belongs to another cashier.`, {
+        code: 'POS_SALE.NOT_YOUR_SESSION',
+        params: { id },
+      });
+    }
 
-    return db.transaction().execute(async (trx) => {
+    return withTransaction(db, async (trx) => {
+      // Locked first, so a sale finishing right now is either counted here or refused (session closed).
+      await lockRowsForUpdate(trx, 'pos_sessions', [id]);
+      const current = await this.repository.findById(trx, id);
+      if (!current || current.status !== 'open') throw statusChanged('POS_SESSION', id);
+      const currency = existing.openingCashAmount.currency;
+      const cashTendersMinorUnits = await this.repository.sumCashTendersForSession(trx, id);
+      const cashTendersMoney = cashTendersMinorUnits
+        ? Money.fromMinorUnits(BigInt(cashTendersMinorUnits), currency)
+        : Money.zero(currency);
+      const expectedCashAmount = existing.openingCashAmount.add(cashTendersMoney);
+      const varianceAmount = input.countedCashAmount.subtract(expectedCashAmount);
+
       const closed = await this.repository.close(trx, id, {
         expectedCashAmount,
         countedCashAmount: input.countedCashAmount,

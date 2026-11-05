@@ -25,6 +25,17 @@ function toDomain(row: Selectable<SupplierPaymentsTable>): SupplierPayment {
     treasuryId: row.treasury_id,
     notes: row.notes,
     customFields: (row.custom_fields ?? {}) as Record<string, unknown>,
+    cheque:
+      row.payment_method === 'check' && !row.endorsed_cheque_id
+        ? {
+            number: row.cheque_number ?? null,
+            bank: row.cheque_bank ?? null,
+            dueDate: row.cheque_due_date ? String(row.cheque_due_date).slice(0, 10) : null,
+            status: (row.cheque_status ?? null) as 'issued' | 'cleared' | null,
+            statusDate: row.cheque_status_date ? String(row.cheque_status_date).slice(0, 10) : null,
+          }
+        : null,
+    endorsedChequeId: row.endorsed_cheque_id ?? null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -67,6 +78,10 @@ export class KyselySupplierPaymentRepository implements SupplierPaymentRepositor
         treasury_id: input.treasuryId,
         notes: input.notes,
         custom_fields: JSON.stringify(input.customFields ?? {}),
+        cheque_number: input.cheque?.number ?? null,
+        cheque_bank: input.cheque?.bank ?? null,
+        cheque_due_date: input.cheque?.dueDate ?? null,
+        endorsed_cheque_id: input.endorsedChequeId ?? null,
       })
       .returningAll()
       .executeTakeFirstOrThrow();
@@ -77,11 +92,13 @@ export class KyselySupplierPaymentRepository implements SupplierPaymentRepositor
     db: Kysely<TenantDatabase>,
     id: string,
     status: SupplierPaymentStatus,
+    expectedStatus?: SupplierPaymentStatus,
   ): Promise<SupplierPayment | null> {
     const row = await db
       .updateTable('supplier_payments')
       .set({ status, updated_at: new Date() })
       .where('id', '=', id)
+      .$if(expectedStatus !== undefined, (q) => q.where('status', '=', expectedStatus!))
       .returningAll()
       .executeTakeFirst();
     return row ? toDomain(row) : null;

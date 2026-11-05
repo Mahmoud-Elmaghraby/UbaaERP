@@ -22,6 +22,8 @@ const SETTINGS = {
   accountsPayableAccountId: 'ap',
   cashAccountId: 'cash',
   defaultBankAccountId: 'bank-default',
+  notesReceivableAccountId: 'notes-receivable',
+  notesPayableAccountId: 'notes-payable',
 } as AccountingSettings;
 
 function payload(metadata: Record<string, unknown>): DomainEventPayload {
@@ -52,6 +54,21 @@ describe('AccountingPaymentPostingListener', () => {
   }
 
   const debitAccount = () => createAuto.mock.calls[0][1].lines[0].accountId;
+
+  it('a cheque receipt waits in notes receivable', async () => {
+    await listener().handlePaymentReceived(payload({ paymentMethod: 'check' }));
+    expect(debitAccount()).toBe('notes-receivable');
+  });
+
+  it('a bounced cheque: Dr receivables / Cr notes receivable, on the bounce date', async () => {
+    await listener().handleChequeBounced(
+      payload({ chequeNumber: '1001', date: '2026-11-04', paymentDate: '2026-10-01', treasuryId: null }),
+    );
+    const entry = createAuto.mock.calls[0][1];
+    expect(entry.entryDate).toBe('2026-11-04');
+    expect(entry.lines.map((l: { accountId: string }) => l.accountId)).toEqual(['ar', 'notes-receivable']);
+    expect(entry.sourceReferenceType).toBe('cheque_bounced');
+  });
 
   it('a cash receipt: Dr cash / Cr receivables, dated on the payment date', async () => {
     await listener().handlePaymentReceived(payload({ paymentMethod: 'cash', paymentDate: '2026-10-01' }));
@@ -119,9 +136,14 @@ describe('AccountingPaymentPostingListener', () => {
       expect(creditAccount()).toBe('bank-cib');
     });
 
-    it('a cheque payment without a bank account comes from the default bank account', async () => {
+    it('our cheque waits in notes payable until it clears', async () => {
       await listener().handleSupplierPayment(supplierPayload({ paymentMethod: 'check' }));
-      expect(creditAccount()).toBe('bank-default');
+      expect(creditAccount()).toBe('notes-payable');
+    });
+
+    it('an endorsed customer cheque leaves notes receivable', async () => {
+      await listener().handleSupplierPayment(supplierPayload({ paymentMethod: 'check', endorsedChequeId: 'chq-1' }));
+      expect(creditAccount()).toBe('notes-receivable');
     });
 
     it('posts the amount converted to the ledger currency', async () => {

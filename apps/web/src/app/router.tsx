@@ -2,6 +2,7 @@ import { createBrowserRouter } from 'react-router-dom';
 
 import { ProtectedRoute } from './protected-route';
 import { PrintPage } from '../features/printing/print-page';
+import { SharePage } from '../features/printing/share-page';
 import { AppShell } from './layout/app-shell';
 import { HomePage } from './pages/home-page';
 import { NotFoundPage, RouteErrorPage } from './pages/route-error-page';
@@ -26,6 +27,8 @@ export const router = createBrowserRouter([
   { path: '/setup', element: <DesktopSetupPage />, errorElement: <RouteErrorPage /> },
   { path: '/forgot-password', element: <ForgotPasswordPage /> },
   { path: '/reset-password', element: <ResetPasswordPage /> },
+  // Public view of a shared document (WhatsApp link) — no login; the signed token authorizes it.
+  { path: '/share/:token', element: <SharePage />, errorElement: <RouteErrorPage /> },
   {
     // Central print page — signed in, but outside the app shell (nothing but the document prints).
     path: '/print/:documentType/:id',

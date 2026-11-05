@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { Printer, X } from 'lucide-react';
-import type { PaperSizeDto } from '@erp-platform/contracts';
+import type { PaperSizeDto, PrintResponseDto } from '@erp-platform/contracts';
 import { Button, Skeleton } from '@erp-platform/ui';
 import { useTranslation } from 'react-i18next';
 
@@ -22,7 +22,6 @@ const PAGE_CSS: Record<PaperSizeDto, string> = {
  * browser's print dialog. ?paper=thermal80 and ?autoprint=1 are supported.
  */
 export function PrintPage() {
-  const { t } = useTranslation();
   const { documentType, id } = useParams();
   const [params] = useSearchParams();
   // Everything except the page's own switches goes to the API (e.g. a statement's period).
@@ -30,9 +29,42 @@ export function PrintPage() {
   forwarded.delete('paper');
   forwarded.delete('autoprint');
   const { data, isLoading, error } = usePrintDocument(documentType, id, forwarded.toString());
+  return (
+    <PrintView
+      data={data}
+      isLoading={isLoading}
+      error={error}
+      requestedPaper={params.get('paper') as PaperSizeDto | null}
+      autoprint={params.get('autoprint') === '1'}
+      onClose={() => window.close()}
+    />
+  );
+}
+
+/**
+ * The document with its layout, toolbar and @page rules — shared by the
+ * signed-in print page and the public share page (/share/:token).
+ */
+export function PrintView({
+  data,
+  isLoading,
+  error,
+  requestedPaper,
+  autoprint = false,
+  onClose,
+}: {
+  data: PrintResponseDto | undefined;
+  isLoading: boolean;
+  error: unknown;
+  requestedPaper?: PaperSizeDto | null;
+  autoprint?: boolean;
+  /** Shows the close button when given. */
+  onClose?: () => void;
+}) {
+  const { t } = useTranslation();
   const [paper, setPaper] = useState<PaperSizeDto | null>(null);
 
-  const requested = params.get('paper') as PaperSizeDto | null;
+  const requested = requestedPaper ?? null;
   const activePaper: PaperSizeDto | null = data
     ? (paper ??
       (requested && data.document.paperSizes.includes(requested) ? requested : data.template.paperSize))
@@ -43,12 +75,12 @@ export function PrintPage() {
   }, [data]);
 
   useEffect(() => {
-    if (data && params.get('autoprint') === '1') {
+    if (data && autoprint) {
       const timer = window.setTimeout(() => window.print(), 400);
       return () => window.clearTimeout(timer);
     }
     return undefined;
-  }, [data, params]);
+  }, [data, autoprint]);
 
   return (
     <div className="min-h-screen bg-neutral-200 print:bg-white" dir="rtl">
@@ -71,10 +103,12 @@ export function PrintPage() {
             ))
           : null}
         <span className="text-xs text-muted-foreground">{t('printing.pdfHint')}</span>
-        <Button variant="ghost" size="sm" className="ms-auto" onClick={() => window.close()}>
-          <X />
-          {t('printing.close')}
-        </Button>
+        {onClose ? (
+          <Button variant="ghost" size="sm" className="ms-auto" onClick={onClose}>
+            <X />
+            {t('printing.close')}
+          </Button>
+        ) : null}
       </div>
 
       <div className="py-6 print:py-0">

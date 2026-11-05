@@ -1,6 +1,8 @@
 import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, UseGuards } from '@nestjs/common';
 import {
   quotationSchema,
+  quotationListItemSchema,
+  type QuotationListItemDto,
   quotationWithLinesSchema,
   createQuotationSchema,
   updateQuotationSchema,
@@ -50,10 +52,15 @@ export class QuotationsController {
   ) {}
 
   @Get()
-  async list(@CurrentTenantSchema() schema: string): Promise<QuotationDto[]> {
+  async list(@CurrentTenantSchema() schema: string): Promise<QuotationListItemDto[]> {
     const db = this.connections.getClient(schema);
-    const quotations = await this.service.list(db);
-    return quotations.map(quotationToDto);
+    const quotations = await this.service.listWithTotals(db);
+    return quotations.map((quotation) =>
+      quotationListItemSchema.parse({
+        ...quotation,
+        totalAmount: quotation.totalAmount ? moneyToDto(quotation.totalAmount) : null,
+      }),
+    );
   }
 
   @Get(':id')

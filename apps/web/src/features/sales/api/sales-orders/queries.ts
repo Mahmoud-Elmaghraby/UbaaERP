@@ -1,12 +1,19 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { CreateSalesOrderDto, SalesOrderDto, SalesOrderWithLinesDto, UpdateSalesOrderDto } from '@erp-platform/contracts';
+import type {
+  CreateSalesOrderDto,
+  SalesOrderDto,
+  SalesOrderListItemDto,
+  SalesOrderWithLinesDto,
+  UpdateSalesOrderDto,
+} from '@erp-platform/contracts';
 
 import { apiDelete, apiGet, apiPatch, apiPost } from '../../../../lib/api-client';
 
 const LIST_KEY = ['sales-orders'];
 
-export function useSalesOrders() {
-  return useQuery({ queryKey: LIST_KEY, queryFn: () => apiGet<SalesOrderDto[]>('/sales-orders') });
+/** Each row carries its server-computed total (after both discount levels). */
+export function useSalesOrders(enabled = true) {
+  return useQuery({ queryKey: LIST_KEY, queryFn: () => apiGet<SalesOrderListItemDto[]>('/sales-orders'), enabled });
 }
 
 export function useSalesOrder(id: string | null | undefined) {
@@ -25,7 +32,7 @@ export function useCreateSalesOrder() {
       queryClient.invalidateQueries({ queryKey: LIST_KEY });
       // Creating a sales order from a quotation doesn't change the quotation's own
       // status, but it does change whether it's still "eligible" for another sales
-      // order (see hooks/sales-orders/use-eligible-quotations.ts).
+      // order (the quotation page offers "convert" only while none exists).
       queryClient.invalidateQueries({ queryKey: ['quotations'] });
     },
   });

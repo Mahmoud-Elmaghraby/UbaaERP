@@ -36,6 +36,17 @@ export class KyselySalesOrderLineRepository implements SalesOrderLineRepository 
     return rows.map(toDomain);
   }
 
+  async listBySalesOrderIds(db: Kysely<TenantDatabase>, salesOrderIds: string[]): Promise<SalesOrderLine[]> {
+    if (salesOrderIds.length === 0) return [];
+    const rows = await db
+      .selectFrom('sales_order_lines')
+      .selectAll()
+      .where('sales_order_id', 'in', salesOrderIds)
+      .orderBy('created_at')
+      .execute();
+    return rows.map(toDomain);
+  }
+
   async create(
     db: Kysely<TenantDatabase>,
     salesOrderId: string,

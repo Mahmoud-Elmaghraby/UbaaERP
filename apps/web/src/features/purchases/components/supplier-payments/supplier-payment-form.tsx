@@ -38,9 +38,23 @@ import {
   type SupplierAllocationDraft,
 } from './supplier-payment-allocation-editor';
 import { CurrencySelect } from '../../../../components/document/currency-select';
+import {
+  ChequeFields,
+  EMPTY_CHEQUE_DRAFT,
+  prepareCheque,
+  type ChequeDraft,
+  type ChequeDraftErrors,
+} from '../../../../components/document/cheque-fields';
+import { DocumentPicker, type PickableDocument } from '../../../../components/document/document-picker';
+import { StatusTabs } from '../../../../components/list/status-tabs';
+import { useReceivedCheques } from '../../../sales/api/cheques/queries';
+import { minorUnitsToDecimalString } from '../../../../lib/money';
 
 const SUPPLIER_PAYMENT_ENTITY_TYPE = 'supplier_payment';
 const PAYMENT_METHODS = paymentMethodSchema.options;
+/** A cheque payment is either our own cheque (drawn on a bank treasury) or a customer cheque in hand endorsed over (تظهير). */
+type ChequeMode = 'own' | 'endorse';
+const CHEQUE_MODES: readonly ChequeMode[] = ['own', 'endorse'];
 
 type HeaderFormValues = {
   supplierId: string;
@@ -62,6 +76,10 @@ export function CreateSupplierPaymentForm({ onDone }: { onDone: () => void }) {
   const [allocationDrafts, setAllocationDrafts] = useState<SupplierAllocationDraft[]>([]);
   const [formError, setFormError] = useState<string | null>(null);
   const [treasuryId, setTreasuryId] = useState<string | null>(null);
+  const [chequeMode, setChequeMode] = useState<ChequeMode>('own');
+  const [cheque, setCheque] = useState<ChequeDraft>(EMPTY_CHEQUE_DRAFT);
+  const [chequeErrors, setChequeErrors] = useState<ChequeDraftErrors>({});
+  const [endorsedChequeId, setEndorsedChequeId] = useState<string | null>(null);
 
   const formSchema = useMemo(() => {
     const staticSchema = createSupplierPaymentSchema
@@ -89,6 +107,33 @@ export function CreateSupplierPaymentForm({ onDone }: { onDone: () => void }) {
   const currency = form.watch('currency');
   const paymentMethod = form.watch('paymentMethod');
   const { data: outstanding, isLoading: outstandingLoading } = useSupplierOutstandingInvoices(supplierId);
+  const isCheque = paymentMethod === 'check';
+  const endorsing = isCheque && chequeMode === 'endorse';
+  const { data: chequesInHand, isLoading: chequesLoading } = useReceivedCheques({ status: 'in_hand' }, endorsing);
+  const chequeDocuments = useMemo<PickableDocument[]>(
+    () =>
+      (chequesInHand ?? []).map((row) => ({
+        id: row.id,
+        number: row.chequeNumber ?? row.paymentNumber,
+        date: row.dueDate,
+        party: row.bank ? `${row.customerName} — ${row.bank}` : row.customerName,
+        amountMinorUnits: row.amount.amountMinorUnits,
+        currency: row.amount.currency,
+      })),
+    [chequesInHand],
+  );
+
+  /** Endorsing: the amount and currency are the cheque's own (locked). */
+  function pickEndorsedCheque(id: string) {
+    const picked = chequesInHand?.find((row) => row.id === id);
+    if (!picked) return;
+    setEndorsedChequeId(id);
+    form.setValue('amount', minorUnitsToDecimalString(picked.amount.amountMinorUnits));
+    if (picked.amount.currency !== form.getValues('currency')) {
+      form.setValue('currency', picked.amount.currency);
+      setAllocationDrafts([]);
+    }
+  }
 
   async function onSubmit(values: HeaderFormValues) {
     setFormError(null);
@@ -103,6 +148,22 @@ export function CreateSupplierPaymentForm({ onDone }: { onDone: () => void }) {
       setFormError(t('purchases.supplierPayments.amountError'));
       return;
     }
+    let chequePayload: { number: string; bank: string | null; dueDate: string } | null = null;
+    if (values.paymentMethod === 'check' && chequeMode === 'endorse') {
+      if (!endorsedChequeId) {
+        setFormError(t('cheques.pickChequeRequired'));
+        return;
+      }
+    } else if (values.paymentMethod === 'check') {
+      const prepared = prepareCheque(cheque);
+      if ('errors' in prepared) {
+        setChequeErrors(prepared.errors);
+        return;
+      }
+      chequePayload = prepared.cheque;
+    }
+    setChequeErrors({});
+    const endorse = values.paymentMethod === 'check' && chequeMode === 'endorse';
     const allocations = prepareSupplierAllocations(allocationDrafts, values.currency);
     if (allocations === null) {
       setFormError(t('purchases.supplierPayments.allocationsError'));
@@ -115,7 +176,9 @@ export function CreateSupplierPaymentForm({ onDone }: { onDone: () => void }) {
         paymentMethod: values.paymentMethod,
         paymentDate: values.paymentDate || undefined,
         referenceNumber: values.referenceNumber || undefined,
-        treasuryId,
+        treasuryId: endorse ? null : treasuryId,
+        cheque: chequePayload,
+        endorsedChequeId: endorse ? endorsedChequeId : null,
         notes: values.notes || undefined,
         customFields: values.customFields,
         allocations: allocations.length > 0 ? allocations : undefined,
@@ -142,7 +205,7 @@ export function CreateSupplierPaymentForm({ onDone }: { onDone: () => void }) {
                 onValueChange={(value) => {
                   field.onChange(value);
                   const supplier = suppliers?.find((s) => s.id === value);
-                  if (supplier) form.setValue('currency', supplier.defaultCurrency);
+                  if (supplier && !endorsing) form.setValue('currency', supplier.defaultCurrency);
                   setAllocationDrafts([]);
                 }}
                 value={field.value}
@@ -172,7 +235,7 @@ export function CreateSupplierPaymentForm({ onDone }: { onDone: () => void }) {
               <FormItem>
                 <FormLabel>{t('purchases.supplierPayments.amount')}</FormLabel>
                 <FormControl>
-                  <Input inputMode="decimal" placeholder="0.00" {...field} />
+                  <Input inputMode="decimal" placeholder="0.00" readOnly={endorsing} {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -185,7 +248,7 @@ export function CreateSupplierPaymentForm({ onDone }: { onDone: () => void }) {
               <FormItem>
                 <FormLabel>{t('purchases.supplierPayments.currency')}</FormLabel>
                 <FormControl>
-                  <CurrencySelect value={field.value} onChange={field.onChange} />
+                  <CurrencySelect value={field.value} onChange={field.onChange} disabled={endorsing} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -216,7 +279,40 @@ export function CreateSupplierPaymentForm({ onDone }: { onDone: () => void }) {
             </FormItem>
           )}
         />
-        <TreasurySelect value={treasuryId} onChange={setTreasuryId} currency={currency} paymentMethod={paymentMethod} />
+        {isCheque ? (
+          <StatusTabs
+            tabs={CHEQUE_MODES}
+            value={chequeMode}
+            onChange={(mode) => {
+              setChequeMode(mode);
+              setEndorsedChequeId(null);
+              setChequeErrors({});
+            }}
+            label={(mode) => t(`cheques.mode.${mode}`)}
+          />
+        ) : null}
+        {endorsing ? (
+          <div className="grid gap-2">
+            <span className="text-sm font-medium">{t('cheques.pickCheque')}</span>
+            <DocumentPicker
+              documents={chequeDocuments}
+              value={endorsedChequeId}
+              onChange={(id) => pickEndorsedCheque(id)}
+              placeholder={chequesLoading ? t('common.loading') : t('cheques.pickCheque')}
+              disabled={chequesLoading}
+            />
+            <p className="text-xs text-muted-foreground">
+              {!chequesLoading && chequeDocuments.length === 0 ? t('cheques.noChequesInHand') : t('cheques.endorseHint')}
+            </p>
+          </div>
+        ) : (
+          <TreasurySelect value={treasuryId} onChange={setTreasuryId} currency={currency} paymentMethod={paymentMethod} />
+        )}
+        {isCheque && !endorsing ? (
+          <div className="grid gap-4 sm:grid-cols-3">
+            <ChequeFields value={cheque} onChange={setCheque} errors={chequeErrors} />
+          </div>
+        ) : null}
         <div className="grid grid-cols-2 gap-4">
           <FormField
             control={form.control}

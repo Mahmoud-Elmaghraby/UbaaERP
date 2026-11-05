@@ -11,6 +11,7 @@ const KIND_LABELS: Record<PartyLedgerKind, string> = {
   sales_invoice: 'فاتورة مبيعات',
   sales_credit_note: 'إشعار دائن',
   payment_received: 'سند قبض',
+  cheque_bounced: 'شيك مرتد',
   purchase_invoice: 'فاتورة مشتريات',
   supplier_payment: 'سند صرف لمورد',
   purchase_debit_note: 'إشعار خصم (مرتجع مشتريات)',

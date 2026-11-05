@@ -20,6 +20,7 @@ import { NumberingSequencesService } from '../../../settings/application/service
 import { SALES_INVOICE_LINE_REPOSITORY, type SalesInvoiceLineRepository } from '../ports/sales-invoice-line.repository';
 import { calculateSalesInvoiceTotal } from '../../domain/sales-invoice.entity';
 import { PaymentsReceivedService } from './payments-received.service';
+import { SalesReturnsService } from './sales-returns.service';
 
 export const CHANNEL_SETTLEMENT_POSTED = 'sales.channel_settlement.posted';
 
@@ -64,6 +65,7 @@ export class ChannelSettlementsService {
     private readonly outbox: OutboxWriterService,
     private readonly payments: PaymentsReceivedService,
     @Inject(SALES_INVOICE_LINE_REPOSITORY) private readonly invoiceLines: SalesInvoiceLineRepository,
+    private readonly returns: SalesReturnsService,
   ) {}
 
   async list(db: Kysely<TenantDatabase>, channelId?: string): Promise<ChannelSettlementSummaryDto[]> {
@@ -106,8 +108,22 @@ export class ChannelSettlementsService {
       .execute();
     const invoices = await this.invoiceStates(db, lines.map((l) => l.sales_invoice_id).filter((v): v is string => Boolean(v)), row.status === 'posted' ? row.payment_received_id : null);
     const total = (kind: string) => lines.filter((l) => l.kind === kind).reduce((sum, l) => sum + BigInt(l.amount), 0n);
+    const returns = await db
+      .selectFrom('sales_returns as r')
+      .innerJoin('deliveries as d', 'd.id', 'r.delivery_id')
+      .leftJoin('sales_invoices as i', (join) => join.onRef('i.sales_order_id', '=', 'd.sales_order_id').on('i.status', '=', 'posted'))
+      .select(['r.id', 'r.return_number', 'r.status', 'i.id as invoice_id'])
+      .where('r.channel_settlement_id', '=', id)
+      .orderBy('r.return_number')
+      .execute();
+    const refunded = refundsByInvoice(lines);
     return {
       ...summary(row, row.channel_name, total('order'), total('refund'), total('fee')),
+      salesReturns: returns.map((r) => ({ id: r.id, returnNumber: r.return_number, status: r.status, salesInvoiceId: r.invoice_id })),
+      partialRefundInvoiceIds: [...refunded].filter(([invoiceId, amount]) => {
+        const invoice = invoices.get(invoiceId);
+        return invoice !== undefined && amount < invoice.total;
+      }).map(([invoiceId]) => invoiceId),
       lines: lines.map((line): ChannelSettlementLineDto => {
         const invoice = line.sales_invoice_id ? invoices.get(line.sales_invoice_id) : undefined;
         const amount = BigInt(line.amount);
@@ -301,6 +317,15 @@ export class ChannelSettlementsService {
         )
       : new Map<string, string | null>();
 
+    // Accounting books each fee on its item's account — one without would stall the posting for good.
+    const unmapped = [...feesByCategory.values()].find((fee) => !fee.categoryId || !categoryAccounts.get(fee.categoryId));
+    if (unmapped) {
+      throw new BusinessRuleError(`Fee item "${unmapped.categoryName ?? '—'}" has no ledger account.`, {
+        code: 'CHANNEL_SETTLEMENT.FEE_ACCOUNT_MISSING',
+        params: { name: unmapped.categoryName ?? '—' },
+      });
+    }
+
     await withTransaction(db, async (trx) => {
       const locked = await trx.selectFrom('channel_settlements').select('status').where('id', '=', id).forUpdate().executeTakeFirstOrThrow();
       if (locked.status !== 'draft') {
@@ -320,6 +345,16 @@ export class ChannelSettlementsService {
         });
         await this.payments.post(trx, payment.id, context.schema, context.actorUserId);
         paymentId = payment.id;
+      }
+      // Fully refunded orders: the goods come back, so a draft return waits for them.
+      const fullRefunds = [...refundsByInvoice(settlement.lines.map((l) => ({ kind: l.kind, sales_invoice_id: l.salesInvoiceId, amount: l.amount.amountMinorUnits })))]
+        .filter(([invoiceId, amount]) => {
+          const line = settlement.lines.find((l) => l.salesInvoiceId === invoiceId);
+          return line?.invoiceTotal !== null && line?.invoiceTotal !== undefined && amount >= BigInt(line.invoiceTotal.amountMinorUnits);
+        })
+        .map(([invoiceId]) => invoiceId);
+      for (const invoiceId of fullRefunds) {
+        await this.openReturnForRefund(trx, invoiceId, id, settlement.settlementNumber, channel.name, settlement.statementDate);
       }
       await trx
         .updateTable('channel_settlements')
@@ -350,6 +385,50 @@ export class ChannelSettlementsService {
       });
     });
     return this.getById(db, id);
+  }
+
+  /** A draft return of everything still returnable on the invoice's deliveries (not already returned, nor waiting in another draft). */
+  private async openReturnForRefund(
+    trx: Kysely<TenantDatabase>,
+    invoiceId: string,
+    settlementId: string,
+    settlementNumber: string,
+    channelName: string,
+    date: string,
+  ): Promise<void> {
+    const invoice = await trx.selectFrom('sales_invoices').select(['sales_order_id', 'invoice_number']).where('id', '=', invoiceId).executeTakeFirst();
+    if (!invoice) return;
+    const deliveries = await trx
+      .selectFrom('deliveries')
+      .select('id')
+      .where('sales_order_id', '=', invoice.sales_order_id)
+      .where('status', '=', 'confirmed')
+      .execute();
+    for (const delivery of deliveries) {
+      const lines = await trx.selectFrom('delivery_lines').select(['id', 'quantity_delivered']).where('delivery_id', '=', delivery.id).execute();
+      if (lines.length === 0) continue;
+      const taken = await trx
+        .selectFrom('sales_return_lines as rl')
+        .innerJoin('sales_returns as r', 'r.id', 'rl.sales_return_id')
+        .select(['rl.delivery_line_id', sql<string>`SUM(rl.quantity_returned)`.as('quantity')])
+        .where('r.status', 'in', ['draft', 'confirmed'])
+        .where('rl.delivery_line_id', 'in', lines.map((l) => l.id))
+        .groupBy('rl.delivery_line_id')
+        .execute();
+      const takenBy = new Map(taken.map((t) => [t.delivery_line_id, Number(t.quantity)]));
+      const returnLines = lines
+        .map((line) => ({ deliveryLineId: line.id, quantityReturned: Number(line.quantity_delivered) - (takenBy.get(line.id) ?? 0) }))
+        .filter((line) => line.quantityReturned > 0)
+        .map((line) => ({ ...line, reason: `مرتجع ${channelName}`, notes: null }));
+      if (returnLines.length === 0) continue;
+      const created = await this.returns.create(trx, {
+        deliveryId: delivery.id,
+        lines: returnLines,
+        returnDate: date,
+        notes: `مرتجع من تسوية ${channelName} ${settlementNumber} — الفاتورة ${invoice.invoice_number}. أكّده لما البضاعة توصل المخزن.`,
+      });
+      await trx.updateTable('sales_returns').set({ channel_settlement_id: settlementId }).where('id', '=', created.id).execute();
+    }
   }
 
   /** The channel's posted invoices the platform hasn't fully paid yet, oldest first. */
@@ -478,4 +557,14 @@ function summary(
     notes: row.notes,
     createdAt: row.created_at,
   };
+}
+
+/** Refunded amount per matched invoice. */
+function refundsByInvoice(lines: Array<{ kind: string; sales_invoice_id: string | null; amount: string }>): Map<string, bigint> {
+  const result = new Map<string, bigint>();
+  for (const line of lines) {
+    if (line.kind !== 'refund' || !line.sales_invoice_id) continue;
+    result.set(line.sales_invoice_id, (result.get(line.sales_invoice_id) ?? 0n) + BigInt(line.amount));
+  }
+  return result;
 }

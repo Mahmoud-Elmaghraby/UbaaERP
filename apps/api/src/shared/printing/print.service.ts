@@ -34,6 +34,22 @@ export class PrintService {
     if (!provider.permissions.some((permission) => userPermissions.includes(permission))) {
       throw new ForbiddenException('You are not allowed to print this document.');
     }
+    return this.renderAuthorized(db, documentType, id, query);
+  }
+
+  /**
+   * Renders without a permission check — only for callers that already
+   * authorized the request another way (a verified document share token,
+   * PublicDocumentsController).
+   */
+  async renderAuthorized(
+    db: Kysely<TenantDatabase>,
+    documentType: string,
+    id: string,
+    query: Record<string, string> = {},
+  ): Promise<PrintResponseDto> {
+    const provider = this.registry.get(documentType);
+    if (!provider) throw new NotFoundException(`No printable document type "${documentType}".`);
     const [body, company, template] = await Promise.all([
       provider.build(db, id, { query }),
       this.companyProfile.get(db),

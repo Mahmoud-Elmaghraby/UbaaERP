@@ -17,6 +17,8 @@ import { PermissionsGuard } from '../../../shared/auth/permissions.guard';
 import { RequirePermissions } from '../../../shared/auth/require-permissions.decorator';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 import { SalesInvoicesService } from '../application/services/sales-invoices.service';
+import { SalesRegisterService } from '../application/services/sales-register.service';
+import type { SalesInvoiceRegisterRowDto } from '@erp-platform/contracts';
 import { SalesEventPublisher } from '../infrastructure/events/sales-event-publisher';
 import { moneyFromDto, moneyToDto } from './money.mapper';
 import { totalsToDto } from '../../../shared/taxes/line-tax-snapshot';
@@ -50,7 +52,29 @@ export class SalesInvoicesController {
     private readonly service: SalesInvoicesService,
     private readonly connections: TenantConnectionManager,
     private readonly events: SalesEventPublisher,
+    private readonly register: SalesRegisterService,
   ) {}
+
+  /** Invoices with customer and money state (paid / credited / outstanding / overdue) for lists and pickers. */
+  @Get('register')
+  invoiceRegister(
+    @CurrentTenantSchema() schema: string,
+    @Query('customerId') customerId?: string,
+    @Query('status') status?: string,
+    @Query('openOnly') openOnly?: string,
+    @Query('fromDate') fromDate?: string,
+    @Query('toDate') toDate?: string,
+    @Query('salesRepId') salesRepId?: string,
+  ): Promise<SalesInvoiceRegisterRowDto[]> {
+    return this.register.invoices(this.connections.getClient(schema), {
+      customerId: customerId || undefined,
+      status: status || undefined,
+      openOnly: openOnly === 'true',
+      fromDate: fromDate || undefined,
+      toDate: toDate || undefined,
+      salesRepId: salesRepId || undefined,
+    });
+  }
 
   @Get()
   async list(
@@ -118,7 +142,9 @@ export class SalesInvoicesController {
     @Param('id') id: string,
   ): Promise<SalesInvoiceWithLinesDto> {
     const db = this.connections.getClient(schema);
-    const invoice = await this.service.post(db, id, schema, user.sub);
+    const invoice = await this.service.post(db, id, schema, user.sub, {
+      canOverride: user.permissions.includes('sales.override_credit_limit'),
+    });
     return invoiceWithLinesToDto(invoice);
   }
 

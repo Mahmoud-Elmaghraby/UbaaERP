@@ -23,6 +23,8 @@ function toDomain(row: Selectable<AccountingSettingsTable>): AccountingSettings 
     openingBalanceEquityAccountId: row.opening_balance_equity_account_id,
     landedCostClearingAccountId: row.landed_cost_clearing_account_id,
     retainedEarningsAccountId: row.retained_earnings_account_id ?? null,
+    notesReceivableAccountId: row.notes_receivable_account_id ?? null,
+    notesPayableAccountId: row.notes_payable_account_id ?? null,
     requireEntryApproval: row.require_entry_approval ?? false,
     reviewAutoEntries: row.review_auto_entries ?? false,
     defaultBankAccountId: row.default_bank_account_id,
@@ -65,6 +67,8 @@ const DEFAULT_CODES = {
   withholding_payable_account_id: '219',
   withholding_receivable_account_id: '118',
   retained_earnings_account_id: '32',
+  notes_receivable_account_id: '119',
+  notes_payable_account_id: '2110',
 } as const;
 
 export class KyselyAccountingSettingsRepository implements AccountingSettingsRepository {
@@ -104,6 +108,8 @@ export class KyselyAccountingSettingsRepository implements AccountingSettingsRep
           opening_balance_equity_account_id: accountIdByCode.get(DEFAULT_CODES.opening_balance_equity_account_id) ?? null,
           landed_cost_clearing_account_id: null,
           retained_earnings_account_id: accountIdByCode.get(DEFAULT_CODES.retained_earnings_account_id) ?? null,
+          notes_receivable_account_id: accountIdByCode.get(DEFAULT_CODES.notes_receivable_account_id) ?? null,
+          notes_payable_account_id: accountIdByCode.get(DEFAULT_CODES.notes_payable_account_id) ?? null,
           default_bank_account_id: accountIdByCode.get(DEFAULT_CODES.default_bank_account_id) ?? null,
           vat_output_account_id: accountIdByCode.get(DEFAULT_CODES.vat_output_account_id) ?? null,
           vat_input_account_id: accountIdByCode.get(DEFAULT_CODES.vat_input_account_id) ?? null,
@@ -165,6 +171,8 @@ export class KyselyAccountingSettingsRepository implements AccountingSettingsRep
         ...(input.retainedEarningsAccountId !== undefined
           ? { retained_earnings_account_id: input.retainedEarningsAccountId }
           : {}),
+        ...(input.notesReceivableAccountId !== undefined ? { notes_receivable_account_id: input.notesReceivableAccountId } : {}),
+        ...(input.notesPayableAccountId !== undefined ? { notes_payable_account_id: input.notesPayableAccountId } : {}),
         ...(input.landedCostClearingAccountId !== undefined
           ? { landed_cost_clearing_account_id: input.landedCostClearingAccountId }
           : {}),

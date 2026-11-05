@@ -63,11 +63,15 @@ export class KyselySalesReturnRepository implements SalesReturnRepository {
     db: Kysely<TenantDatabase>,
     id: string,
     status: SalesReturnStatus,
+    expectedStatus?: SalesReturnStatus | SalesReturnStatus[],
   ): Promise<SalesReturn | null> {
     const row = await db
       .updateTable('sales_returns')
       .set({ status, updated_at: new Date() })
       .where('id', '=', id)
+      .$if(expectedStatus !== undefined, (q) =>
+        q.where('status', 'in', ([] as SalesReturnStatus[]).concat(expectedStatus ?? [])),
+      )
       .returningAll()
       .executeTakeFirst();
     return row ? toDomain(row) : null;

@@ -136,6 +136,8 @@ export function PosCartPanel({ session }: { session: PosSessionDto }) {
   const [notes, setNotes] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [lastResult, setLastResult] = useState<PosCheckoutResultDto | null>(null);
+  // One id per sale, kept across retries (a timeout + retry must not sell twice); new after each sale.
+  const [checkoutId, setCheckoutId] = useState(() => crypto.randomUUID());
 
   const sellable = useMemo(
     () => (catalogue ?? []).filter((variant) => variant.isActive && variant.productIsActive),
@@ -234,6 +236,7 @@ export function PosCartPanel({ session }: { session: PosSessionDto }) {
     setTenders([createEmptyTender(session.treasuryId)]);
     setNotes('');
     setError(null);
+    setCheckoutId(crypto.randomUUID());
   }
 
   async function onCheckout() {
@@ -277,12 +280,13 @@ export function PosCartPanel({ session }: { session: PosSessionDto }) {
       return;
     }
 
-    if (tenders.length === 0) {
+    const freeSale = cartTotalPreview <= 0;
+    if (tenders.length === 0 && !freeSale) {
       setError(t('pos.tenders.emptyError'));
       return;
     }
     const preparedTenders: PosCheckoutDto['tenders'] = [];
-    for (const tender of tenders) {
+    for (const tender of freeSale ? [] : tenders) {
       let amountMinorUnits: string;
       try {
         amountMinorUnits = decimalToMinorUnits(tender.amount);
@@ -307,6 +311,7 @@ export function PosCartPanel({ session }: { session: PosSessionDto }) {
       lines: preparedLines,
       tenders: preparedTenders,
       notes: notes.trim() === '' ? undefined : notes,
+      checkoutId,
       ...resolvedHeaderDiscount,
     };
 
@@ -341,6 +346,14 @@ export function PosCartPanel({ session }: { session: PosSessionDto }) {
                 )}
               </p>
             </div>
+            {lastResult.changeAmount.amountMinorUnits !== '0' ? (
+              <div>
+                <p className="text-muted-foreground">{t('pos.tenders.changeDue')}</p>
+                <p className="text-lg font-bold text-primary">
+                  {formatMoney(lastResult.changeAmount.amountMinorUnits, lastResult.changeAmount.currency)}
+                </p>
+              </div>
+            ) : null}
             <Button
               onClick={() =>
                 openPrint('sales_invoice', lastResult.salesInvoice.id, { paper: 'thermal80', autoprint: true })

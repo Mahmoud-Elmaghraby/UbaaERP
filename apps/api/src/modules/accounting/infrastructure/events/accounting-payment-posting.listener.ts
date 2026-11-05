@@ -23,7 +23,7 @@ export interface PaymentPostedMetadata {
   /** Outbox rows written before migration 0095. */
   bankAccountId?: string | null;
   amount: { amountMinorUnits: string; currency: string };
-  allocations?: { salesInvoiceId: string; allocatedAmount: { amountMinorUnits: string; currency: string } }[];
+  allocations?: { allocationId?: string; salesInvoiceId: string; allocatedAmount: { amountMinorUnits: string; currency: string } }[];
 }
 
 /** SupplierPaymentsService.post()'s outbox metadata (purchases.supplier_payment.posted). */
@@ -35,8 +35,22 @@ export interface SupplierPaymentPostedMetadata {
   treasuryId?: string | null;
   /** Outbox rows written before migration 0095. */
   bankAccountId?: string | null;
+  /** A customer cheque endorsed over to the supplier (migration 0112) — paid out of أوراق قبض. */
+  endorsedChequeId?: string | null;
   amount: { amountMinorUnits: string; currency: string };
-  allocations?: { purchaseInvoiceId: string; allocatedAmount: { amountMinorUnits: string; currency: string } }[];
+  allocations?: { allocationId?: string; purchaseInvoiceId: string; allocatedAmount: { amountMinorUnits: string; currency: string } }[];
+}
+
+/** Outbox metadata of a cheque status change (sales.cheque.* / purchases.cheque.*). */
+export interface ChequeEventMetadata {
+  paymentNumber: string;
+  chequeNumber: string | null;
+  /** The status date (collection / bounce / clearing). */
+  date: string;
+  /** The receipt's / payment's own date — the rate the cheque entered the ledger at. */
+  paymentDate: string | null;
+  treasuryId: string | null;
+  amount: { amountMinorUnits: string; currency: string };
 }
 
 /**
@@ -74,7 +88,11 @@ export class AccountingPaymentPostingListener {
     const db = this.connections.getClient(payload.schema);
     const settings = await this.accountingSettings.get(db);
     const receivable = required(settings.accountsReceivableAccountId, 'حساب العملاء');
-    const treasury = await this.treasuryAccount(db, settings, metadata);
+    // A cheque isn't money in the bank yet: it waits in أوراق قبض until collected.
+    const treasury =
+      metadata.paymentMethod === 'check'
+        ? required(settings.notesReceivableAccountId, 'حساب أوراق القبض')
+        : await this.treasuryAccount(db, settings, metadata);
 
     const entryDate = metadata.paymentDate ?? localIsoDate(payload.occurredAt);
     const { amountMinorUnits, tenantCurrency, wasConverted } = await this.ledgerAmounts.toLedger(
@@ -94,7 +112,8 @@ export class AccountingPaymentPostingListener {
       ],
       sourceReferenceType: 'payment_received',
       sourceReferenceId: payload.entityId,
-    });    await this.postExchangeDifferences(db, 'customer', payload.entityId, entryDate, metadata.allocations ?? []);
+    });
+    await this.postExchangeDifferences(db, 'customer', payload.entityId, entryDate, metadata.allocations ?? []);
   }
 
   /** A later allocation of a posted customer payment to more invoices. */
@@ -120,7 +139,12 @@ export class AccountingPaymentPostingListener {
     const db = this.connections.getClient(payload.schema);
     const settings = await this.accountingSettings.get(db);
     const payable = required(settings.accountsPayableAccountId, 'حساب الموردين');
-    const treasury = await this.treasuryAccount(db, settings, metadata);
+    // An endorsed customer cheque leaves أوراق قبض; our own cheque waits in أوراق دفع until the bank pays it.
+    const treasury = metadata.endorsedChequeId
+      ? required(settings.notesReceivableAccountId, 'حساب أوراق القبض')
+      : metadata.paymentMethod === 'check'
+        ? required(settings.notesPayableAccountId, 'حساب أوراق الدفع')
+        : await this.treasuryAccount(db, settings, metadata);
 
     const entryDate = metadata.paymentDate ?? localIsoDate(payload.occurredAt);
     const { amountMinorUnits, tenantCurrency, wasConverted } = await this.ledgerAmounts.toLedger(
@@ -140,7 +164,69 @@ export class AccountingPaymentPostingListener {
       ],
       sourceReferenceType: 'supplier_payment',
       sourceReferenceId: payload.entityId,
-    });    await this.postExchangeDifferences(db, 'supplier', payload.entityId, entryDate, metadata.allocations ?? []);
+    });
+    await this.postExchangeDifferences(db, 'supplier', payload.entityId, entryDate, metadata.allocations ?? []);
+  }
+
+  /** A received cheque was collected: أوراق قبض → the bank it was deposited in. */
+  @OnOutboxEvent('sales.cheque.collected', { requiresFeature: FEATURE_KEYS.ACCOUNTING })
+  async handleChequeCollected(payload: DomainEventPayload): Promise<void> {
+    const m = payload.metadata as unknown as ChequeEventMetadata;
+    const db = this.connections.getClient(payload.schema);
+    const settings = await this.accountingSettings.get(db);
+    const bank = await this.treasuryAccount(db, settings, { treasuryId: m.treasuryId, paymentMethod: 'bank_transfer' });
+    await this.postCheque(db, payload, m, bank, required(settings.notesReceivableAccountId, 'حساب أوراق القبض'), 'cheque_collected', `تحصيل شيك ${m.chequeNumber ?? ''} — ${m.paymentNumber}`);
+  }
+
+  /** A received cheque bounced: the customer owes it again (أوراق قبض → العملاء). */
+  @OnOutboxEvent('sales.cheque.bounced', { requiresFeature: FEATURE_KEYS.ACCOUNTING })
+  async handleChequeBounced(payload: DomainEventPayload): Promise<void> {
+    const m = payload.metadata as unknown as ChequeEventMetadata;
+    const db = this.connections.getClient(payload.schema);
+    const settings = await this.accountingSettings.get(db);
+    await this.postCheque(
+      db,
+      payload,
+      m,
+      required(settings.accountsReceivableAccountId, 'حساب العملاء'),
+      required(settings.notesReceivableAccountId, 'حساب أوراق القبض'),
+      'cheque_bounced',
+      `شيك مرتد ${m.chequeNumber ?? ''} — ${m.paymentNumber}`,
+    );
+  }
+
+  /** An issued cheque cleared: أوراق دفع → the bank account it was drawn on. */
+  @OnOutboxEvent('purchases.cheque.cleared', { requiresFeature: FEATURE_KEYS.ACCOUNTING })
+  async handleChequeCleared(payload: DomainEventPayload): Promise<void> {
+    const m = payload.metadata as unknown as ChequeEventMetadata;
+    const db = this.connections.getClient(payload.schema);
+    const settings = await this.accountingSettings.get(db);
+    const bank = await this.treasuryAccount(db, settings, { treasuryId: m.treasuryId, paymentMethod: 'bank_transfer' });
+    await this.postCheque(db, payload, m, required(settings.notesPayableAccountId, 'حساب أوراق الدفع'), bank, 'cheque_cleared', `صرف شيك ${m.chequeNumber ?? ''} — ${m.paymentNumber}`);
+  }
+
+  /** One cheque status entry: debit / credit the cheque amount, at the original payment's rate. */
+  private async postCheque(
+    db: Kysely<TenantDatabase>,
+    payload: DomainEventPayload,
+    m: ChequeEventMetadata,
+    debitAccountId: string,
+    creditAccountId: string,
+    sourceReferenceType: string,
+    description: string,
+  ): Promise<void> {
+    if (!m?.amount || m.amount.amountMinorUnits === '0') return;
+    const { amountMinorUnits } = await this.ledgerAmounts.toLedger(db, m.amount, m.paymentDate ?? m.date);
+    await this.journalEntries.createAuto(db, {
+      entryDate: m.date,
+      description,
+      lines: [
+        { accountId: debitAccountId, debitAmountMinorUnits: amountMinorUnits, creditAmountMinorUnits: '0' },
+        { accountId: creditAccountId, debitAmountMinorUnits: '0', creditAmountMinorUnits: amountMinorUnits },
+      ],
+      sourceReferenceType,
+      sourceReferenceId: payload.entityId,
+    });
   }
 
   /** A later allocation of a posted supplier payment to more invoices. */
@@ -167,7 +253,7 @@ export class AccountingPaymentPostingListener {
     party: 'customer' | 'supplier',
     paymentId: string,
     paymentDate: string,
-    allocations: { salesInvoiceId?: string; purchaseInvoiceId?: string; allocatedAmount: { amountMinorUnits: string; currency: string } }[],
+    allocations: { allocationId?: string; salesInvoiceId?: string; purchaseInvoiceId?: string; allocatedAmount: { amountMinorUnits: string; currency: string } }[],
   ): Promise<void> {
     if (allocations.length === 0) return;
     const settings = await this.accountingSettings.get(db);
@@ -208,7 +294,8 @@ export class AccountingPaymentPostingListener {
               { accountId: fx, debitAmountMinorUnits: abs, creditAmountMinorUnits: '0' },
               { accountId: partyAccount, debitAmountMinorUnits: '0', creditAmountMinorUnits: abs },
             ],
-        sourceReferenceType: `payment_fx:${invoiceId}`,
+        // One difference per allocation: a second allocation to the same invoice is its own entry.
+        sourceReferenceType: `payment_fx:${allocation.allocationId ?? invoiceId}`,
         sourceReferenceId: paymentId,
       });
     }

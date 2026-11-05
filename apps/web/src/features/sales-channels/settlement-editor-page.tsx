@@ -8,6 +8,8 @@ import {
   Button,
   Card,
   CardContent,
+  CardHeader,
+  CardTitle,
   EmptyState,
   Input,
   Label,
@@ -411,6 +413,35 @@ export function SettlementEditorPage() {
       </Card>
 
       {settlement?.status === 'posted' ? <p className="text-sm text-muted-foreground">{t('settlements.postedHint')}</p> : null}
+
+      {settlement && (settlement.salesReturns.length > 0 || settlement.partialRefundInvoiceIds.length > 0) ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>{t('settlements.returnsTitle')}</CardTitle>
+          </CardHeader>
+          <CardContent className="grid gap-2 text-sm">
+            {settlement.salesReturns.length > 0 ? <p className="text-muted-foreground">{t('settlements.returnsHint')}</p> : null}
+            {settlement.salesReturns.map((r) => (
+              <div key={r.id} className="flex items-center justify-between rounded-lg border px-3 py-2">
+                <Link to="/sales/sales-returns" className="font-medium text-primary hover:underline">
+                  {r.returnNumber}
+                </Link>
+                <Badge variant={r.status === 'confirmed' ? 'success' : 'warning'} dot>
+                  {t(r.status === 'confirmed' ? 'settlements.returnReceived' : 'settlements.returnAwaiting')}
+                </Badge>
+              </div>
+            ))}
+            {settlement.partialRefundInvoiceIds.map((invoiceId) => {
+              const number = settlement.lines.find((l) => l.salesInvoiceId === invoiceId)?.salesInvoiceNumber ?? '';
+              return (
+                <p key={invoiceId} className="rounded-lg bg-warning-soft px-3 py-2 text-warning">
+                  {t('settlements.partialRefund', { number })}
+                </p>
+              );
+            })}
+          </CardContent>
+        </Card>
+      ) : null}
 
       <StatementImportDialog open={importOpen} onOpenChange={setImportOpen} channelId={header.channelId} onImport={onImport} />
     </div>

@@ -30,6 +30,10 @@ export interface SupplierPayment {
   treasuryId: string | null;
   notes: string | null;
   customFields: Record<string, unknown>;
+  /** Migration 0112 — our own cheque (payment method 'check', not endorsed). */
+  cheque: { number: string | null; bank: string | null; dueDate: string | null; status: 'issued' | 'cleared' | null; statusDate: string | null } | null;
+  /** Migration 0112 — the customer cheque handed over as this payment (تظهير). */
+  endorsedChequeId: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -56,6 +60,10 @@ export interface CreateSupplierPaymentInput {
   treasuryId?: string | null;
   notes?: string | null;
   customFields?: Record<string, unknown>;
+  /** Our own cheque: number, bank, due date (paymentMethod 'check'). */
+  cheque?: { number: string; bank?: string | null; dueDate: string } | null;
+  /** Pay with a customer cheque in hand instead (its amount and currency must match). */
+  endorsedChequeId?: string | null;
 }
 
 /** A supplier's posted purchase invoice with what has been paid and what is still owed. */

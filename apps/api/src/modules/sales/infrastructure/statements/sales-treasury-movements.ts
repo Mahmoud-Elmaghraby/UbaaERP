@@ -25,7 +25,7 @@ export class SalesTreasuryMovements implements TreasuryMovementSource, OnModuleI
     let receipts = db
       .selectFrom('payments_received as p')
       .innerJoin('customers as c', 'c.id', 'p.customer_id')
-      .select(['p.id', 'p.payment_number', 'p.payment_date', 'p.created_at', 'p.amount_amount', 'p.amount_currency', 'p.treasury_id', 'p.reference_number', 'c.name'])
+      .select(['p.id', 'p.payment_number', 'p.payment_date', 'p.created_at', 'p.amount_amount', 'p.amount_currency', 'p.treasury_id', 'p.reference_number', 'c.name', 'p.payment_method', 'p.cheque_status_date', 'p.cheque_number'])
       .where('p.status', '=', 'posted')
       .where('p.treasury_id', 'is not', null);
     if (treasuryId) receipts = receipts.where('p.treasury_id', '=', treasuryId);
@@ -56,7 +56,11 @@ export class SalesTreasuryMovements implements TreasuryMovementSource, OnModuleI
     return [
       ...receiptRows.map((r) => ({
         treasuryId: r.treasury_id!,
-        date: r.payment_date ?? localIsoDate(r.created_at),
+        // A cheque enters the bank on the day it was collected.
+        date:
+          r.payment_method === 'check' && r.cheque_status_date
+            ? String(r.cheque_status_date).slice(0, 10)
+            : (r.payment_date ?? localIsoDate(r.created_at)),
         amountMinor: BigInt(r.amount_amount),
         currency: r.amount_currency,
         kind: 'payment_received' as const,

@@ -3,6 +3,7 @@ import type {
   AllocatePaymentReceivedDto,
   CreatePaymentReceivedDto,
   PaymentReceivedDto,
+  PaymentReceivedRegisterRowDto,
   PaymentReceivedWithAllocationsDto,
 } from '@erp-platform/contracts';
 
@@ -14,15 +15,33 @@ export function usePaymentsReceived() {
   return useQuery({ queryKey: LIST_KEY, queryFn: () => apiGet<PaymentReceivedDto[]>('/payments-received') });
 }
 
-/** Scoped list (?customerId=) — used by hooks/payments-received/use-customer-invoices.ts'
- * sibling concern is invoices, not payments, so this is currently unused by any form but
- * kept for parity with every other entity's own by-parent list (and for a future
- * customer-statement view). */
+/** Scoped list (?customerId=). */
 export function usePaymentsReceivedByCustomer(customerId: string | null | undefined) {
   return useQuery({
     queryKey: ['payments-received', 'by-customer', customerId],
     queryFn: () => apiGet<PaymentReceivedDto[]>(`/payments-received?customerId=${customerId}`),
     enabled: Boolean(customerId),
+  });
+}
+
+export interface PaymentRegisterFilters {
+  customerId?: string;
+  /** Only the payments allocated to this invoice (with what each applied to it). */
+  salesInvoiceId?: string;
+  status?: string;
+}
+
+/** Payments with customer name and allocated / unallocated amounts — lists and an invoice's payments. */
+export function usePaymentReceivedRegister(filters: PaymentRegisterFilters = {}, enabled = true) {
+  return useQuery({
+    queryKey: ['payments-received', 'register', filters],
+    queryFn: () => {
+      const query = new URLSearchParams();
+      for (const [key, value] of Object.entries(filters)) if (value) query.set(key, String(value));
+      const qs = query.toString();
+      return apiGet<PaymentReceivedRegisterRowDto[]>(`/payments-received/register${qs ? `?${qs}` : ''}`);
+    },
+    enabled,
   });
 }
 
@@ -89,6 +108,7 @@ export function useCancelPaymentReceived() {
       queryClient.invalidateQueries({ queryKey: LIST_KEY });
       queryClient.invalidateQueries({ queryKey: ['payments-received', data.id] });
       queryClient.invalidateQueries({ queryKey: ['payments-received', 'by-customer', data.customerId] });
+      queryClient.invalidateQueries({ queryKey: ['sales-invoices'] });
     },
   });
 }

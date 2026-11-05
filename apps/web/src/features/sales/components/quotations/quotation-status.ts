@@ -12,3 +12,17 @@ export const QUOTATION_STATUS_VARIANT: Record<QuotationStatusDto, NonNullable<Ba
 export function quotationStatusLabelKey(status: QuotationStatusDto): string {
   return `sales.quotations.status.${status}`;
 }
+
+export const QUOTATIONS_PATH = '/sales/quotations';
+
+/** A quotation still open (draft/sent) whose valid-until date has passed. */
+export function isQuotationExpired(
+  quotation: { status: QuotationStatusDto; validUntilDate: string | null },
+  today: string,
+): boolean {
+  return (
+    (quotation.status === 'draft' || quotation.status === 'sent') &&
+    Boolean(quotation.validUntilDate) &&
+    quotation.validUntilDate! < today
+  );
+}

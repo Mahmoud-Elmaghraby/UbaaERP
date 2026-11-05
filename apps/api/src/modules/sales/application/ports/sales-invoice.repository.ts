@@ -8,6 +8,7 @@ export interface CreateSalesInvoiceRow {
   invoiceDate: string | null;
   salesChannelId?: string | null;
   externalReference?: string | null;
+  salesRepId?: string | null;
   dueDate: string | null;
   notes: string | null;
   customFields: Record<string, unknown>;
@@ -23,6 +24,8 @@ export interface SalesInvoiceRepository {
     db: Kysely<TenantDatabase>,
     id: string,
     status: SalesInvoiceStatus,
+    /** Only when the row is still in (one of) this status — a concurrent change makes it return null. */
+    expectedStatus?: SalesInvoiceStatus | SalesInvoiceStatus[],
   ): Promise<SalesInvoice | null>;
   delete(db: Kysely<TenantDatabase>, id: string): Promise<boolean>;
 }

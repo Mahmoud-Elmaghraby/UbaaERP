@@ -37,6 +37,10 @@ export interface Customer {
   isSystemDefault: boolean;
   /** Migration 0102 — default price list; null = the items' normal prices. */
   priceListId: string | null;
+  /** Migration 0110 — default sales rep. */
+  salesRepId: string | null;
+  /** Migration 0109 — credit limit in minor units of defaultCurrency; null = unlimited. */
+  creditLimitMinor: bigint | null;
   customFields: Record<string, unknown>;
   createdAt: Date;
   updatedAt: Date;
@@ -58,6 +62,8 @@ export interface CreateCustomerInput {
   notes?: string | null;
   isActive?: boolean;
   priceListId?: string | null;
+  salesRepId?: string | null;
+  creditLimitMinor?: bigint | null;
   customFields?: Record<string, unknown>;
 }
 
@@ -76,5 +82,7 @@ export interface UpdateCustomerInput {
   notes?: string | null;
   isActive?: boolean;
   priceListId?: string | null;
+  salesRepId?: string | null;
+  creditLimitMinor?: bigint | null;
   customFields?: Record<string, unknown>;
 }

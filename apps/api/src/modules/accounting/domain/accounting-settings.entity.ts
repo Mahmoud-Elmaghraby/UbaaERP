@@ -45,6 +45,9 @@ export interface AccountingSettings {
   landedCostClearingAccountId: string | null;
   /** Migration 0105: year-end closing posts the year's profit or loss here. */
   retainedEarningsAccountId: string | null;
+  /** Migration 0112: received cheques until collected (أوراق قبض), issued ones until cleared (أوراق دفع). */
+  notesReceivableAccountId: string | null;
+  notesPayableAccountId: string | null;
   /** Migration 0106: only 'accounting.approve' may post manual entries. */
   requireEntryApproval: boolean;
   /** Migration 0106: automatic entries wait as drafts until someone with 'accounting.approve' posts them. */
@@ -78,6 +81,8 @@ export interface UpdateAccountingSettingsInput {
   openingBalanceEquityAccountId?: string | null;
   landedCostClearingAccountId?: string | null;
   retainedEarningsAccountId?: string | null;
+  notesReceivableAccountId?: string | null;
+  notesPayableAccountId?: string | null;
   requireEntryApproval?: boolean;
   reviewAutoEntries?: boolean;
   defaultBankAccountId?: string | null;

@@ -72,6 +72,12 @@ const envSchema = z.object({
   STORAGE_DRIVER: z.enum(['minio', 'local']).optional(),
   STORAGE_LOCAL_PATH: z.string().min(1).optional(),
   STORAGE_SIGNING_SECRET: z.string().min(16).optional(),
+
+  // Public document share links (WhatsApp share) — optional. The signing key
+  // falls back to one derived from JWT_ACCESS_SECRET; the web URL falls back
+  // to the request Origin (when CORS allows it).
+  DOCUMENT_SHARE_SECRET: z.string().min(16).optional(),
+  WEB_PUBLIC_URL: z.string().regex(/^https?:\/\//, 'WEB_PUBLIC_URL must start with http:// or https://.').optional(),
 });
 
 export type ValidatedEnv = z.infer<typeof envSchema>;

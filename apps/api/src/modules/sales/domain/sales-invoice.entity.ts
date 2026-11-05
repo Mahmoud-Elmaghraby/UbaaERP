@@ -44,6 +44,8 @@ export interface SalesInvoice {
   /** Migration 0099: sales channel and the platform's order number. */
   salesChannelId: string | null;
   externalReference: string | null;
+  /** Migration 0110 — the rep the invoice counts for; null = none. */
+  salesRepId: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -105,6 +107,8 @@ export interface CreateSalesInvoiceInput {
   warehouseId?: string;
   salesChannelId?: string | null;
   externalReference?: string | null;
+  /** Omitted = the order's rep, else the customer's default (when active); null = none (POS). */
+  salesRepId?: string | null;
   invoiceDate?: string | null;
   dueDate?: string | null;
   pricesIncludeTax?: boolean;

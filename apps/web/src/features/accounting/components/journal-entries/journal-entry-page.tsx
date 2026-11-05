@@ -52,6 +52,9 @@ const SOURCE_ROUTES: Record<string, (id: string) => string> = {
   inventory_stock_adjustment: (id) => `/inventory/adjustments/${id}`,
   inventory_stock_transfer: (id) => `/inventory/transfers/${id}`,
   fixed_asset_disposal: (id) => `/accounting/fixed-assets/${id}`,
+  cheque_collected: (id) => `/sales/payments-received/${id}`,
+  cheque_bounced: (id) => `/sales/payments-received/${id}`,
+  cheque_cleared: (id) => `/purchases/supplier-payments?view=${id}`,
 };
 
 /** /accounting/journal-entries/:id — one entry: header, lines with totals, and what can be done with it. */

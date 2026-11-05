@@ -12,3 +12,5 @@ export * from './pos-sale.contract';
 export * from './pos-session-report.contract';
 export * from './sales-channel.contract';
 export * from './price-list.contract';
+export * from './sales-invoice-installment.contract';
+export * from './sales-rep.contract';

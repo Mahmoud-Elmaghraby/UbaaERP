@@ -65,11 +65,19 @@ export class KyselyQuotationRepository implements QuotationRepository {
     return row ? toDomain(row) : null;
   }
 
-  async updateStatus(db: Kysely<TenantDatabase>, id: string, status: QuotationStatus): Promise<Quotation | null> {
+  async updateStatus(
+    db: Kysely<TenantDatabase>,
+    id: string,
+    status: QuotationStatus,
+    expectedStatus?: QuotationStatus | QuotationStatus[],
+  ): Promise<Quotation | null> {
     const row = await db
       .updateTable('quotations')
       .set({ status, updated_at: new Date() })
       .where('id', '=', id)
+      .$if(expectedStatus !== undefined, (q) =>
+        q.where('status', 'in', ([] as QuotationStatus[]).concat(expectedStatus ?? [])),
+      )
       .returningAll()
       .executeTakeFirst();
     return row ? toDomain(row) : null;

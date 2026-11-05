@@ -18,6 +18,7 @@ function makeSettings(overrides: Partial<TenantSettings> = {}): TenantSettings {
     email: null,
     website: null,
     logoObjectKey: null,
+    creditLimitMode: 'off',
     createdAt: new Date('2026-01-01T00:00:00Z'),
     updatedAt: new Date('2026-01-01T00:00:00Z'),
     ...overrides,

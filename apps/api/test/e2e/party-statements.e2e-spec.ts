@@ -125,7 +125,7 @@ describe('Party statements & opening balances (e2e)', () => {
       await tdb.destroy();
       await dropTestTenant(tenant);
     }
-  });
+  }, 120_000);
 
   it('supplier statement and payables report answer for a new supplier', async () => {
     const server = app.getHttpServer();

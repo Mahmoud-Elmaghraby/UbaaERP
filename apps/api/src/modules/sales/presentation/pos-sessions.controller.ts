@@ -47,6 +47,7 @@ function checkoutResultToDto(result: PosCheckoutResult): PosCheckoutResultDto {
     delivery: deliveryWithLinesToDto(result.delivery),
     salesInvoice: invoiceWithLinesToDto(result.salesInvoice),
     payments: result.payments.map(paymentWithAllocationsToDto),
+    changeAmount: { amountMinorUnits: result.changeAmount.toMinorUnits().toString(), currency: result.changeAmount.currency },
   });
 }
 
@@ -148,6 +149,7 @@ export class PosSessionsController {
       { countedCashAmount: moneyFromDto(body.countedCashAmount), notes: body.notes },
       schema,
       user.sub,
+      { canSupervise: user.permissions.includes('pos.supervise') },
     );
     return toDto(session);
   }
@@ -187,6 +189,7 @@ export class PosSessionsController {
         customerId: body.customerId,
         lines: body.lines.map((line) => ({
           productVariantId: line.productVariantId,
+          unitOfMeasureId: line.unitOfMeasureId ?? null,
           quantity: line.quantity,
           unitPrice: moneyFromDto(line.unitPrice),
           discountType: line.discountType,
@@ -204,9 +207,11 @@ export class PosSessionsController {
           treasuryId: tender.treasuryId ?? null,
         })),
         notes: body.notes,
+        checkoutId: body.checkoutId ?? null,
       },
       schema,
       user.sub,
+      { canSupervise: user.permissions.includes('pos.supervise') },
     );
     return checkoutResultToDto(result);
   }

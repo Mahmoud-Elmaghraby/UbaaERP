@@ -20,6 +20,7 @@ function toDomain(row: Selectable<SalesInvoicesTable>): SalesInvoice {
     pricesIncludeTax: row.prices_include_tax,
     salesChannelId: row.sales_channel_id,
     externalReference: row.external_reference,
+    salesRepId: row.sales_rep_id,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -61,6 +62,7 @@ export class KyselySalesInvoiceRepository implements SalesInvoiceRepository {
         prices_include_tax: input.pricesIncludeTax ?? false,
         sales_channel_id: input.salesChannelId ?? null,
         external_reference: input.externalReference?.trim() || null,
+        sales_rep_id: input.salesRepId ?? null,
       })
       .returningAll()
       .executeTakeFirstOrThrow();
@@ -71,11 +73,15 @@ export class KyselySalesInvoiceRepository implements SalesInvoiceRepository {
     db: Kysely<TenantDatabase>,
     id: string,
     status: SalesInvoiceStatus,
+    expectedStatus?: SalesInvoiceStatus | SalesInvoiceStatus[],
   ): Promise<SalesInvoice | null> {
     const row = await db
       .updateTable('sales_invoices')
       .set({ status, updated_at: new Date() })
       .where('id', '=', id)
+      .$if(expectedStatus !== undefined, (q) =>
+        q.where('status', 'in', ([] as SalesInvoiceStatus[]).concat(expectedStatus ?? [])),
+      )
       .returningAll()
       .executeTakeFirst();
     return row ? toDomain(row) : null;

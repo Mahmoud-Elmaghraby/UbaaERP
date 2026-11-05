@@ -15,3 +15,5 @@ export const SALES_INVOICE_STATUS_VARIANT: Record<
 export function salesInvoiceStatusLabelKey(status: SalesInvoiceStatusDto): string {
   return `sales.salesInvoices.status.${status}`;
 }
+
+export const SALES_INVOICES_PATH = '/sales/sales-invoices';

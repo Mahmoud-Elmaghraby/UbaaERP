@@ -1,6 +1,8 @@
 import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, UseGuards } from '@nestjs/common';
 import {
   salesOrderSchema,
+  salesOrderListItemSchema,
+  type SalesOrderListItemDto,
   salesOrderWithLinesSchema,
   createSalesOrderSchema,
   updateSalesOrderSchema,
@@ -59,10 +61,15 @@ export class SalesOrdersController {
   ) {}
 
   @Get()
-  async list(@CurrentTenantSchema() schema: string): Promise<SalesOrderDto[]> {
+  async list(@CurrentTenantSchema() schema: string): Promise<SalesOrderListItemDto[]> {
     const db = this.connections.getClient(schema);
-    const orders = await this.service.list(db);
-    return orders.map(orderToDto);
+    const orders = await this.service.listWithTotals(db);
+    return orders.map((order) =>
+      salesOrderListItemSchema.parse({
+        ...orderToDto(order),
+        totalAmount: order.totalAmount ? moneyToDto(order.totalAmount) : null,
+      }),
+    );
   }
 
   @Get(':id')
@@ -132,7 +139,9 @@ export class SalesOrdersController {
     @Param('id') id: string,
   ): Promise<SalesOrderDto> {
     const db = this.connections.getClient(schema);
-    const order = await this.service.confirm(db, id);
+    const order = await this.service.confirm(db, id, {
+      canOverride: user.permissions.includes('sales.override_credit_limit'),
+    });
     this.events.publish('sales_order', 'confirmed', { schema, entityId: id, actorUserId: user.sub });
     return orderToDto(order);
   }

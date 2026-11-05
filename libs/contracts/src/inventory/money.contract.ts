@@ -19,3 +19,9 @@ export const nonNegativeMoneySchema = z.object({
   amountMinorUnits: z.string().regex(/^\d+$/, 'amountMinorUnits must be a non-negative integer string'),
   currency: z.string().regex(/^[A-Z]{3}$/, 'currency must be a three-letter ISO 4217 code'),
 });
+
+/** An amount that must be more than zero (a payment, an allocation). */
+export const positiveMoneySchema = z.object({
+  amountMinorUnits: z.string().regex(/^0*[1-9]\d*$/, 'amountMinorUnits must be a positive integer string'),
+  currency: z.string().regex(/^[A-Z]{3}$/, 'currency must be a three-letter ISO 4217 code'),
+});

@@ -14,7 +14,7 @@ describe('Auth flow (e2e, real HTTP against a real Nest app)', () => {
 
   afterAll(async () => {
     await app.close();
-  });
+  }, 60_000);
 
   it('logs in with valid credentials and returns a usable token pair, with the refresh token only as an httpOnly cookie', async () => {
     const response = await request(app.getHttpServer())

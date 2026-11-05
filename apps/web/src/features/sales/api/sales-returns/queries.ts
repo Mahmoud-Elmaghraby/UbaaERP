@@ -70,7 +70,7 @@ function useStatusTransition(action: 'confirm' | 'cancel') {
  * SalesReturnDto — SalesReturnConfirmationDto adds creditNoteId, since confirming a
  * return also auto-generates its Sales Credit Note in the same transaction (migration
  * 0053, SalesReturnsService.confirm()). Typed and handled separately from the generic
- * useStatusTransition('confirm') above so callers (e.g. SalesReturnsTab) can surface
+ * useStatusTransition('confirm') above so callers (e.g. the sales return page) can surface
  * the resulting credit note without a second round-trip, and so the new credit note
  * shows up immediately in its own list/detail queries.
  */

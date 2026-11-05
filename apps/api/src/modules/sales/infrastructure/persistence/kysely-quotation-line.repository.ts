@@ -30,6 +30,17 @@ export class KyselyQuotationLineRepository implements QuotationLineRepository {
     return rows.map(toDomain);
   }
 
+  async listByQuotationIds(db: Kysely<TenantDatabase>, quotationIds: string[]): Promise<QuotationLine[]> {
+    if (quotationIds.length === 0) return [];
+    const rows = await db
+      .selectFrom('quotation_lines')
+      .selectAll()
+      .where('quotation_id', 'in', quotationIds)
+      .orderBy('created_at')
+      .execute();
+    return rows.map(toDomain);
+  }
+
   async create(
     db: Kysely<TenantDatabase>,
     quotationId: string,

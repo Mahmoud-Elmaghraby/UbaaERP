@@ -12,6 +12,7 @@ export interface CreateSalesOrderRow {
   discountType: DiscountType | null;
   discountPercentage: number | null;
   discountFixedAmount: Money | null;
+  salesRepId: string | null;
   notes: string | null;
   customFields: Record<string, unknown>;
 }
@@ -22,6 +23,7 @@ export interface UpdateSalesOrderRow {
   discountType?: DiscountType | null;
   discountPercentage?: number | null;
   discountFixedAmount?: Money | null;
+  salesRepId?: string | null;
 }
 
 export interface SalesOrderRepository {
@@ -29,7 +31,13 @@ export interface SalesOrderRepository {
   findById(db: Kysely<TenantDatabase>, id: string): Promise<SalesOrder | null>;
   create(db: Kysely<TenantDatabase>, input: CreateSalesOrderRow): Promise<SalesOrder>;
   update(db: Kysely<TenantDatabase>, id: string, input: UpdateSalesOrderRow): Promise<SalesOrder | null>;
-  updateStatus(db: Kysely<TenantDatabase>, id: string, status: SalesOrderStatus): Promise<SalesOrder | null>;
+  updateStatus(
+    db: Kysely<TenantDatabase>,
+    id: string,
+    status: SalesOrderStatus,
+    /** Only when the row is still in (one of) this status — a concurrent change makes it return null. */
+    expectedStatus?: SalesOrderStatus | SalesOrderStatus[],
+  ): Promise<SalesOrder | null>;
   delete(db: Kysely<TenantDatabase>, id: string): Promise<boolean>;
 }
 

@@ -40,6 +40,7 @@ export const ENTITY_LABELS = {
   CURRENCY: 'Currency',
   SALES_CHANNEL: 'Sales channel',
   PRICE_LIST: 'Price list',
+  SALES_REP: 'Sales representative',
   CHANNEL_SETTLEMENT: 'Channel settlement',
   TREASURY: 'Treasury',
   TREASURY_CATEGORY: 'Treasury item',
@@ -128,4 +129,15 @@ export function duplicateEntity(
     `A ${ENTITY_LABELS[entity].toLowerCase()} with ${field} "${shown}" already exists.`,
     { code: `${entity}.DUPLICATE_${field.toUpperCase()}`, params: { value: shown } },
   );
+}
+
+/**
+ * A guarded status change found the document no longer in the status it was
+ * read in — someone else posted / cancelled / confirmed it a moment earlier.
+ */
+export function statusChanged(entity: EntityKey, id: string): ConflictError {
+  return new ConflictError(`${ENTITY_LABELS[entity]} "${id}" changed status concurrently.`, {
+    code: 'DOCUMENT.STATUS_CHANGED',
+    params: { id },
+  });
 }

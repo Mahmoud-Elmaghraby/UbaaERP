@@ -1,5 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { CreateQuotationDto, QuotationDto, QuotationWithLinesDto, UpdateQuotationDto } from '@erp-platform/contracts';
+import type {
+  CreateQuotationDto,
+  QuotationDto,
+  QuotationListItemDto,
+  QuotationWithLinesDto,
+  UpdateQuotationDto,
+} from '@erp-platform/contracts';
 
 import { apiDelete, apiGet, apiPatch, apiPost } from '../../../../lib/api-client';
 
@@ -7,9 +13,10 @@ const LIST_KEY = ['quotations'];
 
 /** Unscoped list — GET /quotations has no required filter (a quotation is the first
  * document in the Sales chain, nothing scopes it to a parent), so Quotations gets its
- * own routed page with a plain master list, same as Purchase Orders. */
-export function useQuotations() {
-  return useQuery({ queryKey: LIST_KEY, queryFn: () => apiGet<QuotationDto[]>('/quotations') });
+ * own routed page with a plain master list, same as Purchase Orders. Each row carries its
+ * server-computed total. */
+export function useQuotations(enabled = true) {
+  return useQuery({ queryKey: LIST_KEY, queryFn: () => apiGet<QuotationListItemDto[]>('/quotations'), enabled });
 }
 
 export function useQuotation(id: string | null | undefined) {

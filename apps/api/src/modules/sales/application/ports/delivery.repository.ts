@@ -19,7 +19,13 @@ export interface DeliveryRepository {
   listBySalesOrderId(db: Kysely<TenantDatabase>, salesOrderId: string): Promise<Delivery[]>;
   findById(db: Kysely<TenantDatabase>, id: string): Promise<Delivery | null>;
   create(db: Kysely<TenantDatabase>, input: CreateDeliveryRow): Promise<Delivery>;
-  updateStatus(db: Kysely<TenantDatabase>, id: string, status: DeliveryStatus): Promise<Delivery | null>;
+  updateStatus(
+    db: Kysely<TenantDatabase>,
+    id: string,
+    status: DeliveryStatus,
+    /** Only when the row is still in (one of) this status — a concurrent change makes it return null. */
+    expectedStatus?: DeliveryStatus | DeliveryStatus[],
+  ): Promise<Delivery | null>;
   delete(db: Kysely<TenantDatabase>, id: string): Promise<boolean>;
 }
 

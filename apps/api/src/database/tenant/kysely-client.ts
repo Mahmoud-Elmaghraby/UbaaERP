@@ -37,6 +37,8 @@ export interface TenantSettingsTable {
   logo_object_key: string | null;
   created_at: Generated<Date>;
   updated_at: Generated<Date>;
+  /** Migration 0109 — 'off' | 'warn' | 'block' when a sale goes above a customer's credit limit. */
+  credit_limit_mode: Generated<string>;
 }
 
 /** Migration 0098. */
@@ -504,6 +506,10 @@ export interface CustomersTable {
   opening_balance_amount: Generated<string>;
   opening_balance_currency: string | null;
   opening_balance_date: string | null;
+  /** Migration 0109 — minor units of default_currency; NULL = unlimited. */
+  credit_limit_amount: Generated<string | null>;
+  /** Migration 0110 — default sales rep. */
+  sales_rep_id: Generated<string | null>;
 }
 
 export interface SalesOrdersTable {
@@ -522,6 +528,10 @@ export interface SalesOrdersTable {
   custom_fields: unknown;
   created_at: Generated<Date>;
   updated_at: Generated<Date>;
+  /** POS checkout idempotency key (migration 0107). */
+  pos_checkout_id: Generated<string | null>;
+  /** Migration 0110 — sales rep the order counts for. */
+  sales_rep_id: Generated<string | null>;
 }
 
 export interface SalesOrderLinesTable {
@@ -586,6 +596,22 @@ export interface SalesInvoicesTable {
   /** Migration 0099 — the sales channel (Jumia, Noon…) and the platform's own order number. */
   sales_channel_id: string | null;
   external_reference: string | null;
+  /** Migration 0110 — sales rep the invoice counts for. */
+  sales_rep_id: Generated<string | null>;
+}
+
+/** Migration 0110 — sales representatives. */
+export interface SalesRepsTable {
+  id: string;
+  code: string;
+  name: string;
+  phone: string | null;
+  user_id: string | null;
+  /** NUMERIC(6,3) — string in/out. Stored for a later commission report. */
+  commission_percentage: string | null;
+  is_active: Generated<boolean>;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
 }
 
 /** Migration 0099. */
@@ -692,6 +718,25 @@ export interface PaymentsReceivedTable {
   treasury_id: string | null;
   created_at: Generated<Date>;
   updated_at: Generated<Date>;
+  /** Migration 0112 — a cheque receipt (payment_method 'check'). */
+  cheque_number: Generated<string | null>;
+  cheque_bank: Generated<string | null>;
+  cheque_due_date: Generated<string | null>;
+  cheque_status: Generated<string | null>;
+  cheque_status_date: Generated<string | null>;
+  cheque_endorsed_to_payment_id: Generated<string | null>;
+}
+
+/** Migration 0111 — installment schedule (التقسيط) of a sales invoice. */
+export interface SalesInvoiceInstallmentsTable {
+  id: Generated<string>;
+  sales_invoice_id: string;
+  sequence: number;
+  due_date: string;
+  amount_amount: string;
+  amount_currency: string;
+  notes: string | null;
+  created_at: Generated<Date>;
 }
 
 export interface PaymentAllocationsTable {
@@ -720,6 +765,13 @@ export interface SupplierPaymentsTable {
   custom_fields: unknown;
   created_at: Generated<Date>;
   updated_at: Generated<Date>;
+  /** Migration 0112 — an issued cheque (payment_method 'check'), or a customer cheque endorsed over. */
+  cheque_number: Generated<string | null>;
+  cheque_bank: Generated<string | null>;
+  cheque_due_date: Generated<string | null>;
+  cheque_status: Generated<string | null>;
+  cheque_status_date: Generated<string | null>;
+  endorsed_cheque_id: Generated<string | null>;
 }
 
 export interface SupplierPaymentAllocationsTable {
@@ -741,6 +793,8 @@ export interface SalesReturnsTable {
   custom_fields: unknown;
   created_at: Generated<Date>;
   updated_at: Generated<Date>;
+  /** The marketplace settlement whose refund opened this return (migration 0108). */
+  channel_settlement_id: Generated<string | null>;
 }
 
 export interface SalesReturnLinesTable {
@@ -1314,6 +1368,7 @@ export interface TenantDatabase {
   goods_receipt_lines: GoodsReceiptLinesTable;
   purchase_returns: PurchaseReturnsTable;
   sales_channels: SalesChannelsTable;
+  sales_reps: SalesRepsTable;
   price_lists: PriceListsTable;
   price_list_items: PriceListItemsTable;
   channel_settlements: ChannelSettlementsTable;
@@ -1337,6 +1392,7 @@ export interface TenantDatabase {
   sales_invoice_lines: SalesInvoiceLinesTable;
   payments_received: PaymentsReceivedTable;
   payment_allocations: PaymentAllocationsTable;
+  sales_invoice_installments: SalesInvoiceInstallmentsTable;
   supplier_payments: SupplierPaymentsTable;
   supplier_payment_allocations: SupplierPaymentAllocationsTable;
   sales_returns: SalesReturnsTable;
@@ -1494,6 +1550,9 @@ export interface JournalEntryLinesTable {
 export interface AccountingSettingsTable {
   id: string;
   singleton: boolean;
+  /** Migration 0112 — أوراق قبض / أوراق دفع. */
+  notes_receivable_account_id: Generated<string | null>;
+  notes_payable_account_id: Generated<string | null>;
   accounts_receivable_account_id: string | null;
   inventory_account_id: string | null;
   cogs_account_id: string | null;

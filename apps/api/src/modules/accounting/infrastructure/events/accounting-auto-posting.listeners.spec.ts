@@ -47,6 +47,8 @@ function makeAccountingSettings(overrides: Partial<AccountingSettings> = {}): Ac
     openingBalanceEquityAccountId: 'opening-account',
     landedCostClearingAccountId: null,
     retainedEarningsAccountId: null,
+    notesReceivableAccountId: null,
+    notesPayableAccountId: null,
     requireEntryApproval: false,
     reviewAutoEntries: false,
     defaultBankAccountId: null,

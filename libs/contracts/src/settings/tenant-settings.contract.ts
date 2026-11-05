@@ -5,6 +5,10 @@ import { z } from 'zod';
  * apps/api (request validation) and, later, apps/web (zodResolver). This
  * is the first real content in @erp-platform/contracts.
  */
+/** Sales: what happens when a confirmed order / posted invoice goes above the customer's credit limit. */
+export const creditLimitModeSchema = z.enum(['off', 'warn', 'block']);
+export type CreditLimitMode = z.infer<typeof creditLimitModeSchema>;
+
 export const tenantSettingsSchema = z.object({
   id: z.string().uuid(),
   currencyCode: z.string().length(3),
@@ -17,6 +21,7 @@ export const tenantSettingsSchema = z.object({
   website: z.string().nullable(),
   /** Presigned URL of the company logo (null = none). */
   logoUrl: z.string().nullable(),
+  creditLimitMode: creditLimitModeSchema,
   createdAt: z.coerce.date(),
   updatedAt: z.coerce.date(),
 });
@@ -31,5 +36,6 @@ export const updateTenantSettingsSchema = z.object({
   phone: z.string().max(100).nullable().optional(),
   email: z.string().max(200).nullable().optional(),
   website: z.string().max(200).nullable().optional(),
+  creditLimitMode: creditLimitModeSchema.optional(),
 });
 export type UpdateTenantSettingsDto = z.infer<typeof updateTenantSettingsSchema>;

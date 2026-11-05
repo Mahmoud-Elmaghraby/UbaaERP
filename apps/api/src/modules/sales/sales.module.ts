@@ -2,10 +2,18 @@ import { PriceListsController } from './presentation/price-lists.controller';
 import { PriceListsService } from './application/services/price-lists.service';
 import { SalesChannelsController } from './presentation/sales-channels.controller';
 import { SalesChannelsService } from './application/services/sales-channels.service';
+import { SalesRepsController } from './presentation/sales-reps.controller';
+import { SalesRepsService } from './application/services/sales-reps.service';
+import { SalesAnalysisService } from './application/services/sales-analysis.service';
 import { ChannelSettlementsService } from './application/services/channel-settlements.service';
 import { SalesTreasuryMovements } from './infrastructure/statements/sales-treasury-movements';
 import { CustomerStatementsController } from './presentation/customer-statements.controller';
 import { CustomerLedgerSource } from './infrastructure/statements/customer-ledger.source';
+import { SalesRegisterService } from './application/services/sales-register.service';
+import { ReceivedChequesService } from './application/services/received-cheques.service';
+import { ChequeEndorsementListener } from './infrastructure/events/cheque-endorsement.listener';
+import { ReceivedChequesController } from './presentation/cheques.controller';
+import { CustomerCreditService } from './application/services/customer-credit.service';
 import { SalesInvoicePrintProvider } from './infrastructure/printing/sales-invoice.print-provider';
 import { SalesCreditNotePrintProvider } from './infrastructure/printing/sales-credit-note.print-provider';
 import { PaymentReceivedPrintProvider } from './infrastructure/printing/payment-received.print-provider';
@@ -74,6 +82,8 @@ import { PaymentsReceivedController } from './presentation/payments-received.con
 import { SalesReturnsController } from './presentation/sales-returns.controller';
 import { SalesCreditNotesController } from './presentation/sales-credit-notes.controller';
 import { PosSessionsController } from './presentation/pos-sessions.controller';
+import { SalesInvoiceInstallmentsController } from './presentation/sales-invoice-installments.controller';
+import { SalesInvoiceInstallmentsService } from './application/services/sales-invoice-installments.service';
 
 import { SalesEventPublisher } from './infrastructure/events/sales-event-publisher';
 import { ProductUnitResolver } from '../../shared/catalog/product-unit-resolver';
@@ -202,8 +212,10 @@ import { StockAvailabilityChecker } from '../../shared/catalog/stock-availabilit
 @Module({
   imports: [SettingsModule],
   controllers: [
+    ReceivedChequesController,
     CustomersController,
     SalesChannelsController,
+    SalesRepsController,
     PriceListsController,
     CustomerStatementsController,
     EtaCredentialsController,
@@ -215,13 +227,20 @@ import { StockAvailabilityChecker } from '../../shared/catalog/stock-availabilit
     SalesReturnsController,
     SalesCreditNotesController,
     PosSessionsController,
+    SalesInvoiceInstallmentsController,
   ],
   providers: [
     SalesTreasuryMovements,
     SalesChannelsService,
+    SalesRepsService,
+    SalesAnalysisService,
     PriceListsService,
     ChannelSettlementsService,
     CustomerLedgerSource,
+    SalesRegisterService,
+    ReceivedChequesService,
+    ChequeEndorsementListener,
+    CustomerCreditService,
     SalesInvoicePrintProvider,
     SalesCreditNotePrintProvider,
     SalesReturnPrintProvider,
@@ -260,6 +279,7 @@ import { StockAvailabilityChecker } from '../../shared/catalog/stock-availabilit
     SalesCreditNotesService,
     PosSessionsService,
     PosSalesService,
+    SalesInvoiceInstallmentsService,
     SalesEventPublisher,
   ],
 })

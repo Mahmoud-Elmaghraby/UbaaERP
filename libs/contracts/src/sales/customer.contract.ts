@@ -21,6 +21,10 @@ export const customerSchema = z.object({
   isSystemDefault: z.boolean(),
   /** Default price list (null = the items' normal prices). */
   priceListId: z.string().uuid().nullable(),
+  /** Credit limit in minor units of defaultCurrency (null = unlimited). */
+  creditLimitMinorUnits: z.string().regex(/^\d+$/).nullable(),
+  /** Default sales rep (migration 0110). */
+  salesRepId: z.string().uuid().nullable().default(null),
   customFields: z.record(z.unknown()),
   createdAt: z.coerce.date(),
   updatedAt: z.coerce.date(),
@@ -43,9 +47,27 @@ export const createCustomerSchema = z.object({
   notes: z.string().nullable().optional(),
   isActive: z.boolean().optional(),
   priceListId: z.string().uuid().nullable().optional(),
+  salesRepId: z.string().uuid().nullable().optional(),
+  /** Minor units of defaultCurrency; null = unlimited. */
+  creditLimitMinorUnits: z.string().regex(/^\d+$/).nullable().optional(),
   customFields: z.record(z.unknown()).optional(),
 });
 export type CreateCustomerDto = z.infer<typeof createCustomerSchema>;
 
 export const updateCustomerSchema = createCustomerSchema.partial();
 export type UpdateCustomerDto = z.infer<typeof updateCustomerSchema>;
+
+/** GET /customers/:id/credit-check — what the screen shows before confirming an order / posting an invoice. */
+export const customerCreditCheckSchema = z.object({
+  mode: z.enum(['off', 'warn', 'block']),
+  currency: z.string(),
+  /** null = no limit set. */
+  limitMinorUnits: z.string().nullable(),
+  balanceMinorUnits: z.string(),
+  /** balance + the new document's amount. */
+  exposureMinorUnits: z.string(),
+  exceeded: z.boolean(),
+  /** The user holds 'sales.override_credit_limit'. */
+  canOverride: z.boolean(),
+});
+export type CustomerCreditCheckDto = z.infer<typeof customerCreditCheckSchema>;

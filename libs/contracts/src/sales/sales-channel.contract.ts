@@ -101,10 +101,17 @@ export const channelSettlementSchema = z.object({
   notes: z.string().nullable(),
   createdAt: z.coerce.date(),
   lines: z.array(channelSettlementLineSchema),
+  /**
+   * Returns opened by this settlement's refunds (a draft until the goods are
+   * back; confirming it restocks them and issues the credit note).
+   */
+  salesReturns: z.array(z.object({ id: z.string().uuid(), returnNumber: z.string(), status: z.string(), salesInvoiceId: z.string().uuid().nullable() })),
+  /** Refunded invoices with only part of the money taken back — their return is made by hand (which items came back). */
+  partialRefundInvoiceIds: z.array(z.string().uuid()),
 });
 export type ChannelSettlementDto = z.infer<typeof channelSettlementSchema>;
 
-export const channelSettlementSummarySchema = channelSettlementSchema.omit({ lines: true });
+export const channelSettlementSummarySchema = channelSettlementSchema.omit({ lines: true, salesReturns: true, partialRefundInvoiceIds: true });
 export type ChannelSettlementSummaryDto = z.infer<typeof channelSettlementSummarySchema>;
 
 /** Orders of a channel that were invoiced but not (fully) paid by the platform yet. */

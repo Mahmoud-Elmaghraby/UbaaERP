@@ -21,7 +21,13 @@ export interface QuotationRepository {
   findById(db: Kysely<TenantDatabase>, id: string): Promise<Quotation | null>;
   create(db: Kysely<TenantDatabase>, input: CreateQuotationRow): Promise<Quotation>;
   update(db: Kysely<TenantDatabase>, id: string, input: UpdateQuotationRow): Promise<Quotation | null>;
-  updateStatus(db: Kysely<TenantDatabase>, id: string, status: QuotationStatus): Promise<Quotation | null>;
+  updateStatus(
+    db: Kysely<TenantDatabase>,
+    id: string,
+    status: QuotationStatus,
+    /** Only when the row is still in (one of) this status — a concurrent change makes it return null. */
+    expectedStatus?: QuotationStatus | QuotationStatus[],
+  ): Promise<Quotation | null>;
   delete(db: Kysely<TenantDatabase>, id: string): Promise<boolean>;
 }
 

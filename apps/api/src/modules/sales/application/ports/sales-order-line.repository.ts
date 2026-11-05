@@ -4,6 +4,8 @@ import type { SalesOrderLine, CreateSalesOrderLineInput } from '../../domain/sal
 
 export interface SalesOrderLineRepository {
   listBySalesOrderId(db: Kysely<TenantDatabase>, salesOrderId: string): Promise<SalesOrderLine[]>;
+  /** Every line of the given sales orders in one query (list totals). */
+  listBySalesOrderIds(db: Kysely<TenantDatabase>, salesOrderIds: string[]): Promise<SalesOrderLine[]>;
   create(db: Kysely<TenantDatabase>, salesOrderId: string, input: CreateSalesOrderLineInput): Promise<SalesOrderLine>;
   deleteBySalesOrderId(db: Kysely<TenantDatabase>, salesOrderId: string): Promise<void>;
 }

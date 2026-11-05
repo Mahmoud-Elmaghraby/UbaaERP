@@ -18,6 +18,7 @@ export interface CreatePaymentReceivedRow {
   customFields: Record<string, unknown>;
   posSessionId: string | null;
   treasuryId: string | null;
+  cheque?: { number: string; bank?: string | null; dueDate: string } | null;
 }
 
 export interface PaymentReceivedRepository {
@@ -29,6 +30,8 @@ export interface PaymentReceivedRepository {
     db: Kysely<TenantDatabase>,
     id: string,
     status: PaymentReceivedStatus,
+    /** Only when the row is still in (one of) this status — a concurrent change makes it return null. */
+    expectedStatus?: PaymentReceivedStatus | PaymentReceivedStatus[],
   ): Promise<PaymentReceived | null>;
   delete(db: Kysely<TenantDatabase>, id: string): Promise<boolean>;
 }

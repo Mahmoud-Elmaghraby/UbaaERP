@@ -66,6 +66,8 @@ export interface PosCheckoutInput {
   discountFixedAmount?: Money | null;
   tenders: PosCheckoutTenderInput[];
   notes?: string | null;
+  /** One id per sale from the till: a retried request returns the sale it already made. */
+  checkoutId?: string | null;
 }
 
 /** Every step's own result, for a receipt/confirmation screen to render without a second round-trip. */
@@ -74,4 +76,6 @@ export interface PosCheckoutResult {
   delivery: DeliveryWithLines;
   salesInvoice: SalesInvoiceWithLines;
   payments: PaymentReceivedWithAllocations[];
+  /** Cash handed back when the cash tendered was more than the sale (0 when exact). */
+  changeAmount: Money;
 }

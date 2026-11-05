@@ -35,6 +35,8 @@ import { openPrint } from '../../components/printing/print-button';
 const DOCUMENT_LINKS: Partial<Record<PartyStatementRowDto['kind'], (id: string) => string>> = {
   sales_invoice: (id) => `/sales/sales-invoices/${id}`,
   purchase_invoice: (id) => `/purchases/purchase-invoices/${id}`,
+  payment_received: (id) => `/sales/payments-received/${id}`,
+  cheque_bounced: (id) => `/sales/payments-received/${id}`,
 };
 
 function yearStart(): string {

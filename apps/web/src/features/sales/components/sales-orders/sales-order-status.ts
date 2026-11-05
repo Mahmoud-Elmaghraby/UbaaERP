@@ -12,3 +12,5 @@ export const SALES_ORDER_STATUS_VARIANT: Record<SalesOrderStatusDto, NonNullable
 export function salesOrderStatusLabelKey(status: SalesOrderStatusDto): string {
   return `sales.salesOrders.status.${status}`;
 }
+
+export const SALES_ORDERS_PATH = '/sales/sales-orders';

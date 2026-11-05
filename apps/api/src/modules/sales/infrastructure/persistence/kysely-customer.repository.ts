@@ -22,6 +22,8 @@ function toDomain(row: Selectable<CustomersTable>): Customer {
     isActive: row.is_active,
     isSystemDefault: row.is_system_default,
     priceListId: row.price_list_id,
+    salesRepId: row.sales_rep_id,
+    creditLimitMinor: row.credit_limit_amount === null ? null : BigInt(row.credit_limit_amount),
     customFields: (row.custom_fields ?? {}) as Record<string, unknown>,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -64,6 +66,8 @@ export class KyselyCustomerRepository implements CustomerRepository {
         is_active: input.isActive ?? true,
         is_system_default: false,
         price_list_id: input.priceListId ?? null,
+        sales_rep_id: input.salesRepId ?? null,
+        credit_limit_amount: input.creditLimitMinor == null ? null : input.creditLimitMinor.toString(),
         custom_fields: JSON.stringify(input.customFields ?? {}),
       })
       .returningAll()
@@ -89,6 +93,10 @@ export class KyselyCustomerRepository implements CustomerRepository {
         ...(input.notes !== undefined ? { notes: input.notes } : {}),
         ...(input.isActive !== undefined ? { is_active: input.isActive } : {}),
         ...(input.priceListId !== undefined ? { price_list_id: input.priceListId } : {}),
+        ...(input.salesRepId !== undefined ? { sales_rep_id: input.salesRepId } : {}),
+        ...(input.creditLimitMinor !== undefined
+          ? { credit_limit_amount: input.creditLimitMinor === null ? null : input.creditLimitMinor.toString() }
+          : {}),
         ...(input.customFields !== undefined ? { custom_fields: JSON.stringify(input.customFields) } : {}),
         updated_at: new Date(),
       })

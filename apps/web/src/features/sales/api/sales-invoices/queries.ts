@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { CreateSalesInvoiceDto, SalesInvoiceDto, SalesInvoiceWithLinesDto } from '@erp-platform/contracts';
+import type { CreateSalesInvoiceDto, SalesInvoiceDto, SalesInvoiceRegisterRowDto, SalesInvoiceWithLinesDto } from '@erp-platform/contracts';
 
 import { apiDelete, apiGet, apiPost } from '../../../../lib/api-client';
 
@@ -72,5 +72,28 @@ export function useDeleteSalesInvoice() {
   return useMutation({
     mutationFn: (id: string) => apiDelete<void>(`/sales-invoices/${id}`),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: LIST_KEY }),
+  });
+}
+
+export interface InvoiceRegisterFilters {
+  customerId?: string;
+  status?: string;
+  openOnly?: boolean;
+  fromDate?: string;
+  toDate?: string;
+  salesRepId?: string;
+}
+
+/** Invoices with customer and paid / credited / outstanding / overdue — lists, allocation, customer page. */
+export function useSalesInvoiceRegister(filters: InvoiceRegisterFilters = {}, enabled = true) {
+  return useQuery({
+    queryKey: ['sales-invoices', 'register', filters],
+    queryFn: () => {
+      const query = new URLSearchParams();
+      for (const [key, value] of Object.entries(filters)) if (value !== undefined && value !== '') query.set(key, String(value));
+      const qs = query.toString();
+      return apiGet<SalesInvoiceRegisterRowDto[]>(`/sales-invoices/register${qs ? `?${qs}` : ''}`);
+    },
+    enabled,
   });
 }

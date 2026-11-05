@@ -48,6 +48,8 @@ function settings(overrides: Partial<AccountingSettings> = {}): AccountingSettin
     openingBalanceEquityAccountId: 'opening',
     landedCostClearingAccountId: null,
     retainedEarningsAccountId: null,
+    notesReceivableAccountId: null,
+    notesPayableAccountId: null,
     requireEntryApproval: false,
     reviewAutoEntries: false,
     defaultBankAccountId: null,

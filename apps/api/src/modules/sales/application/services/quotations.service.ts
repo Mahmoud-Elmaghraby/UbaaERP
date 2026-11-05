@@ -1,4 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
+import type { Money } from '@erp-platform/shared-kernel';
 import type { Kysely } from 'kysely';
 import type { TenantDatabase } from '../../../../database/tenant/kysely-client';
 import { QUOTATION_REPOSITORY, type QuotationRepository } from '../ports/quotation.repository';
@@ -53,6 +54,22 @@ export class QuotationsService {
 
   list(db: Kysely<TenantDatabase>): Promise<Quotation[]> {
     return this.quotations.list(db);
+  }
+
+  /** The list plus each quotation's total — all lines read in one query. */
+  async listWithTotals(db: Kysely<TenantDatabase>): Promise<(Quotation & { totalAmount: Money | null })[]> {
+    const quotations = await this.quotations.list(db);
+    const lines = await this.lines.listByQuotationIds(db, quotations.map((q) => q.id));
+    const byQuotation = new Map<string, typeof lines>();
+    for (const line of lines) {
+      const bucket = byQuotation.get(line.quotationId);
+      if (bucket) bucket.push(line);
+      else byQuotation.set(line.quotationId, [line]);
+    }
+    return quotations.map((quotation) => {
+      const own = byQuotation.get(quotation.id);
+      return { ...quotation, totalAmount: own?.length ? calculateQuotationTotal(own) : null };
+    });
   }
 
   async getById(db: Kysely<TenantDatabase>, id: string): Promise<QuotationWithLines> {

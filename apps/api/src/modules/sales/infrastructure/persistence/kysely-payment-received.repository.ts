@@ -10,6 +10,7 @@ import type {
   PaymentReceived,
   PaymentReceivedStatus,
   PaymentMethod,
+  PaymentCheque,
 } from '../../domain/payment-received.entity';
 
 function toDomain(row: Selectable<PaymentsReceivedTable>): PaymentReceived {
@@ -26,6 +27,17 @@ function toDomain(row: Selectable<PaymentsReceivedTable>): PaymentReceived {
     customFields: (row.custom_fields ?? {}) as Record<string, unknown>,
     posSessionId: row.pos_session_id,
     treasuryId: row.treasury_id,
+    cheque:
+      row.payment_method === 'check'
+        ? {
+            number: row.cheque_number ?? null,
+            bank: row.cheque_bank ?? null,
+            dueDate: row.cheque_due_date ? String(row.cheque_due_date).slice(0, 10) : null,
+            status: (row.cheque_status ?? null) as PaymentCheque['status'],
+            statusDate: row.cheque_status_date ? String(row.cheque_status_date).slice(0, 10) : null,
+            endorsedToPaymentId: row.cheque_endorsed_to_payment_id ?? null,
+          }
+        : null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -69,6 +81,9 @@ export class KyselyPaymentReceivedRepository implements PaymentReceivedRepositor
         custom_fields: JSON.stringify(input.customFields ?? {}),
         pos_session_id: input.posSessionId,
         treasury_id: input.treasuryId,
+        cheque_number: input.cheque?.number ?? null,
+        cheque_bank: input.cheque?.bank ?? null,
+        cheque_due_date: input.cheque?.dueDate ?? null,
       })
       .returningAll()
       .executeTakeFirstOrThrow();
@@ -79,11 +94,15 @@ export class KyselyPaymentReceivedRepository implements PaymentReceivedRepositor
     db: Kysely<TenantDatabase>,
     id: string,
     status: PaymentReceivedStatus,
+    expectedStatus?: PaymentReceivedStatus | PaymentReceivedStatus[],
   ): Promise<PaymentReceived | null> {
     const row = await db
       .updateTable('payments_received')
       .set({ status, updated_at: new Date() })
       .where('id', '=', id)
+      .$if(expectedStatus !== undefined, (q) =>
+        q.where('status', 'in', ([] as PaymentReceivedStatus[]).concat(expectedStatus ?? [])),
+      )
       .returningAll()
       .executeTakeFirst();
     return row ? toDomain(row) : null;

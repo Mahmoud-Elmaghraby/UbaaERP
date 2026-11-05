@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import {
@@ -39,7 +39,8 @@ import { CheckCircle2, FileWarning, Info } from 'lucide-react';
 
 import { useCustomFieldDefinitions } from '../../../settings/queries';
 import { useWarehouses } from '../../../inventory/api/warehouses/queries';
-import { useCustomers } from '../../api/customers/queries';
+import { useCustomerCreditCheck, useCustomers } from '../../api/customers/queries';
+import { CreditLimitCallout, confirmCreditLimit, isCreditBlocked } from '../../lib/credit-limit';
 import { useDocumentPriceList } from '../../api/price-lists/use-document-price-list';
 import { PriceListSelect } from '../price-lists/price-list-select';
 import { useVariantLookupMap } from '../../../inventory/api/products/queries';
@@ -51,7 +52,11 @@ import {
 } from '../../hooks/sales-invoices/use-sales-order-invoiceable';
 import { ApiError } from '../../../../lib/api-client';
 import { FEATURE_KEYS } from '../../../../lib/feature-keys';
-import { decimalToMinorUnits, formatAmount } from '../../../../lib/money';
+import { decimalToMinorUnits } from '../../../../lib/money';
+import { todayIso } from '../../../../lib/format-date';
+import { Amount } from '../../../../components/amount';
+import { DocumentPicker, type PickableDocument } from '../../../../components/document/document-picker';
+import { CustomerPicker } from '../../lib/customer-picker';
 import { useLineTaxes } from '../../../../components/taxes/use-line-taxes';
 import { useDocumentTaxPreview } from '../../../../components/taxes/use-document-taxes';
 import { taxTotalsRows } from '../../../../components/taxes/tax-totals';
@@ -74,10 +79,11 @@ import {
   SalesInvoiceLineItemsEditor,
   type SalesInvoiceLineDrafts,
 } from './sales-invoice-line-items-editor';
-import { SALES_INVOICES_PATH } from './sales-invoices-tab';
+import { SALES_INVOICES_PATH } from './sales-invoice-status';
 import { useSalesInvoiceActions } from './use-sales-invoice-actions';
 import { WhenTaxesInUse } from '../../../../components/taxes/when-taxes-in-use';
 import { useSalesChannels } from '../../../sales-channels/api';
+import { SalesRepSelect } from '../sales-reps/sales-rep-select';
 import { confirmDialog } from '../../../../components/feedback/confirm-dialog';
 
 const SALES_INVOICE_ENTITY_TYPE = 'sales_invoice';
@@ -122,12 +128,6 @@ function prepareOrderLines(
   return prepared.length > 0 ? prepared : null;
 }
 
-function todayIso(): string {
-  const now = new Date();
-  const offset = now.getTimezoneOffset() * 60_000;
-  return new Date(now.getTime() - offset).toISOString().slice(0, 10);
-}
-
 function addDays(isoDate: string, days: number): string {
   const date = new Date(`${isoDate}T00:00:00Z`);
   date.setUTCDate(date.getUTCDate() + days);
@@ -149,6 +149,8 @@ type HeaderFormValues = Omit<CreateSalesInvoiceDto, 'lines' | 'directLines'>;
 export function SalesInvoiceCreatePage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const requestedOrderId = searchParams.get('salesOrderId');
   const createInvoice = useCreateSalesInvoice();
   const actions = useSalesInvoiceActions();
   const salesOrdersEnabled = useHasFeature(FEATURE_KEYS.SALES_SALES_ORDERS);
@@ -176,6 +178,18 @@ export function SalesInvoiceCreatePage() {
     [salesOrders],
   );
   const customerById = useMemo(() => new Map((customers ?? []).map((c) => [c.id, c])), [customers]);
+  const orderDocuments = useMemo<PickableDocument[]>(
+    () =>
+      invoiceableOrders.map((so) => ({
+        id: so.id,
+        number: so.soNumber,
+        date: new Date(so.createdAt).toISOString(),
+        party: customerById.get(so.customerId)?.name ?? null,
+        amountMinorUnits: so.totalAmount?.amountMinorUnits ?? null,
+        currency: so.totalAmount?.currency ?? so.currency,
+      })),
+    [invoiceableOrders, customerById],
+  );
 
   const formSchema = useMemo(() => {
     const staticSchema = createSalesInvoiceSchema.omit({
@@ -191,7 +205,7 @@ export function SalesInvoiceCreatePage() {
     resolver: zodResolver(formSchema as z.ZodType<HeaderFormValues>),
     defaultValues: {
       salesOrderId: '',
-      customerId: '',
+      customerId: new URLSearchParams(window.location.search).get('customerId') ?? '',
       warehouseId: '',
       invoiceDate: todayIso(),
       dueDate: '',
@@ -207,10 +221,12 @@ export function SalesInvoiceCreatePage() {
 
   // Sensible defaults once the lists load.
   useEffect(() => {
-    if (!directMode && !form.getValues('salesOrderId') && invoiceableOrders[0]) {
-      form.setValue('salesOrderId', invoiceableOrders[0].id);
-    }
-  }, [directMode, invoiceableOrders, form]);
+    if (directMode || form.getValues('salesOrderId')) return;
+    // ?salesOrderId= (from the sales order page) preselects that order.
+    const requested = requestedOrderId ? invoiceableOrders.find((so) => so.id === requestedOrderId) : undefined;
+    const initial = requested ?? invoiceableOrders[0];
+    if (initial) form.setValue('salesOrderId', initial.id);
+  }, [directMode, invoiceableOrders, requestedOrderId, form]);
   useEffect(() => {
     if (needsWarehouse && !form.getValues('warehouseId') && warehouses?.[0]) {
       form.setValue('warehouseId', warehouses[0].id);
@@ -237,6 +253,14 @@ export function SalesInvoiceCreatePage() {
     variants,
     setLines: setDirectLines,
   });
+
+  // Sales rep: follows the order's rep (else the customer's default) until picked by hand.
+  const [salesRepId, setSalesRepId] = useState<string | null>(null);
+  const [repTouched, setRepTouched] = useState(false);
+  const defaultRep = (directMode ? null : selectedOrder?.salesRepId) ?? customer?.salesRepId ?? null;
+  useEffect(() => {
+    if (!repTouched) setSalesRepId(defaultRep);
+  }, [repTouched, defaultRep]);
 
   // The invoicing worksheet's rows depend entirely on which sales order is selected —
   // reset the drafts whenever that changes, same as the delivering/returnable worksheets.
@@ -265,6 +289,15 @@ export function SalesInvoiceCreatePage() {
   const filledCount = previewLines.filter((line) => line.amountMinor !== null).length;
   const preview = useDocumentTaxPreview(previewLines, pricesIncludeTax);
 
+  // Credit limit (migration 0109): checked against the estimated total, settled 400 ms after typing stops.
+  const [creditAmount, setCreditAmount] = useState('0');
+  useEffect(() => {
+    const timer = window.setTimeout(() => setCreditAmount(preview.total.startsWith('-') ? '0' : preview.total), 400);
+    return () => window.clearTimeout(timer);
+  }, [preview.total]);
+  const { data: creditCheck } = useCustomerCreditCheck(customer?.id, creditAmount, currency || null);
+  const creditBlocked = isCreditBlocked(creditCheck);
+
   async function onSubmit(headerValues: HeaderFormValues) {
     setLinesError(null);
     const common = {
@@ -276,6 +309,8 @@ export function SalesInvoiceCreatePage() {
       warehouseId: needsWarehouse ? headerValues.warehouseId || undefined : undefined,
       salesChannelId: headerValues.salesChannelId || null,
       externalReference: headerValues.externalReference?.trim() || null,
+      // Untouched: the server applies the order's / customer's rep itself.
+      ...(repTouched ? { salesRepId } : {}),
     };
 
     let payload: CreateSalesInvoiceDto;
@@ -312,7 +347,13 @@ export function SalesInvoiceCreatePage() {
       payload = { ...common, salesOrderId: headerValues.salesOrderId, lines: preparedLines };
     }
 
-    if (submitIntent.current === 'post' && !(await confirmDialog(t('sales.salesInvoices.postConfirm')))) return;
+    if (submitIntent.current === 'post') {
+      // Above the credit limit the credit prompt replaces the usual "post?" prompt.
+      const ok = creditCheck?.exceeded
+        ? await confirmCreditLimit(creditCheck, t)
+        : await confirmDialog(t('sales.salesInvoices.postConfirm'));
+      if (!ok) return;
+    }
 
     try {
       const created = await createInvoice.mutateAsync(payload);
@@ -323,6 +364,19 @@ export function SalesInvoiceCreatePage() {
       toast.error(err instanceof ApiError ? err.message : t('sales.salesInvoices.createError'));
     }
   }
+
+  // Ctrl/⌘+S saves as a draft.
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
+        event.preventDefault();
+        submitIntent.current = 'draft';
+        void form.handleSubmit(onSubmit)();
+      }
+    }
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  });
 
   const loading = definitionsLoading || (directMode ? customersLoading : ordersLoading);
   const busy = createInvoice.isPending || actions.isPending;
@@ -347,6 +401,7 @@ export function SalesInvoiceCreatePage() {
             form="sales-invoice-form"
             variant="outline"
             disabled={busy || loading || blocked}
+            title="Ctrl+S"
             onClick={() => {
               submitIntent.current = 'draft';
             }}
@@ -356,7 +411,8 @@ export function SalesInvoiceCreatePage() {
           <Button
             type="submit"
             form="sales-invoice-form"
-            disabled={busy || loading || blocked}
+            disabled={busy || loading || blocked || creditBlocked}
+            title={creditBlocked ? t('sales.creditLimit.blockedHint') : undefined}
             onClick={() => {
               submitIntent.current = 'post';
             }}
@@ -411,6 +467,7 @@ export function SalesInvoiceCreatePage() {
           <DocumentBody
             main={
               <>
+                <CreditLimitCallout check={creditCheck} />
                 <div className="flex items-start gap-2.5 rounded-xl border border-info/20 bg-info-soft px-4 py-3 text-[13px] text-info">
                   <Info className="mt-0.5 h-4 w-4 shrink-0" />
                   <span>
@@ -429,20 +486,7 @@ export function SalesInvoiceCreatePage() {
                         render={({ field }) => (
                           <FormItem className="sm:col-span-2">
                             <FormLabel>{t('sales.salesInvoices.customer')}</FormLabel>
-                            <Select onValueChange={field.onChange} value={field.value ?? ''}>
-                              <FormControl>
-                                <SelectTrigger>
-                                  <SelectValue placeholder={t('documents.selectPlaceholder')} />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                {(customers ?? []).map((c) => (
-                                  <SelectItem key={c.id} value={c.id}>
-                                    {c.name} — {c.code}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
+                            <CustomerPicker value={field.value ?? ''} onChange={(customerId) => field.onChange(customerId)} />
                             <FormMessage />
                           </FormItem>
                         )}
@@ -454,23 +498,11 @@ export function SalesInvoiceCreatePage() {
                         render={({ field }) => (
                           <FormItem className="sm:col-span-2">
                             <FormLabel>{t('sales.salesInvoices.salesOrder')}</FormLabel>
-                            <Select onValueChange={field.onChange} value={field.value ?? ''}>
-                              <FormControl>
-                                <SelectTrigger>
-                                  <SelectValue placeholder={t('documents.selectPlaceholder')} />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                {invoiceableOrders.map((so) => (
-                                  <SelectItem key={so.id} value={so.id}>
-                                    {so.soNumber}
-                                    {customerById.get(so.customerId)
-                                      ? ` — ${customerById.get(so.customerId)!.name}`
-                                      : ''}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
+                            <DocumentPicker
+                              documents={orderDocuments}
+                              value={field.value ?? ''}
+                              onChange={(orderId) => field.onChange(orderId)}
+                            />
                             <FormMessage />
                           </FormItem>
                         )}
@@ -482,6 +514,16 @@ export function SalesInvoiceCreatePage() {
                         <PriceListSelect value={priceListId} onChange={setPriceListId} currency={currency} />
                       </div>
                     ) : null}
+                    <div className="grid content-start gap-2">
+                      <Label>{t('salesReps.field')}</Label>
+                      <SalesRepSelect
+                        value={salesRepId}
+                        onChange={(id) => {
+                          setRepTouched(true);
+                          setSalesRepId(id);
+                        }}
+                      />
+                    </div>
                     {activeChannels.length > 0 ? (
                       <>
                         <FormField
@@ -659,7 +701,7 @@ export function SalesInvoiceCreatePage() {
                   ...taxTotalsRows(t, preview),
                 ]}
                 totalLabel={t('documents.estimatedTotal')}
-                totalValue={formatAmount(preview.total)}
+                totalValue={<Amount value={preview.total} hideCurrency />}
                 currency={currency}
                 footer={
                   <>
@@ -667,7 +709,8 @@ export function SalesInvoiceCreatePage() {
                       type="submit"
                       form="sales-invoice-form"
                       size="lg"
-                      disabled={busy}
+                      disabled={busy || creditBlocked}
+                      title={creditBlocked ? t('sales.creditLimit.blockedHint') : undefined}
                       onClick={() => {
                         submitIntent.current = 'post';
                       }}

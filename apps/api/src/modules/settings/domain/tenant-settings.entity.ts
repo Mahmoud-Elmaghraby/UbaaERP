@@ -16,6 +16,8 @@ export interface TenantSettings {
   website: string | null;
   /** Object storage key of the company logo (null = none). */
   logoObjectKey: string | null;
+  /** Migration 0109 — Sales: above a customer's credit limit, do nothing / warn / block. */
+  creditLimitMode: 'off' | 'warn' | 'block';
   createdAt: Date;
   updatedAt: Date;
 }
@@ -30,4 +32,5 @@ export interface UpdateTenantSettingsInput {
   email?: string | null;
   website?: string | null;
   logoObjectKey?: string | null;
+  creditLimitMode?: 'off' | 'warn' | 'block';
 }

@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { MoreHorizontal } from 'lucide-react';
 import type { ColumnDef, Row } from '@tanstack/react-table';
@@ -57,7 +58,21 @@ export function SupplierPaymentsTab() {
   const { data: payments, isLoading } = useSupplierPayments();
   const { data: suppliers } = useSuppliers();
   const [createOpen, setCreateOpen] = useState(false);
-  const [viewingId, setViewingId] = useState<string | null>(null);
+  const [params, setParams] = useSearchParams();
+  const [viewingId, setViewingId] = useState<string | null>(() => params.get('view'));
+  // ?view=<id> (links from the cheques screen / an endorsed receipt) opens that payment's details.
+  const requestedView = params.get('view');
+  useEffect(() => {
+    if (requestedView) setViewingId(requestedView);
+  }, [requestedView]);
+  function closeView() {
+    setViewingId(null);
+    if (params.has('view')) {
+      const next = new URLSearchParams(params);
+      next.delete('view');
+      setParams(next, { replace: true });
+    }
+  }
   const [allocatingId, setAllocatingId] = useState<string | null>(null);
   const { data: viewingPayment, isLoading: viewingLoading } = useSupplierPayment(viewingId);
   const { data: allocatingPayment, isLoading: allocatingLoading } = useSupplierPayment(allocatingId);
@@ -71,7 +86,7 @@ export function SupplierPaymentsTab() {
 
   async function run(action: ActionKey, id: string): Promise<void> {
     if (action === 'allocate') {
-      setViewingId(null);
+      closeView();
       setAllocatingId(id);
       return;
     }
@@ -84,7 +99,7 @@ export function SupplierPaymentsTab() {
     try {
       await config.mutation.mutateAsync(id);
       toast.success(t(`purchases.supplierPayments.${config.success}`));
-      if (action === 'delete') setViewingId(null);
+      if (action === 'delete') closeView();
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : t(`purchases.supplierPayments.${config.error}`));
     }
@@ -176,7 +191,7 @@ export function SupplierPaymentsTab() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={viewingId !== null} onOpenChange={(open) => !open && setViewingId(null)}>
+      <Dialog open={viewingId !== null} onOpenChange={(open) => !open && closeView()}>
         <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-3xl">
           <DialogHeader>
             <DialogTitle>{t('purchases.supplierPayments.viewDetails')}</DialogTitle>

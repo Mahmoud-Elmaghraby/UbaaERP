@@ -28,15 +28,19 @@ import {
 } from '../../domain/sales-invoice.entity';
 import { distributeOrderTotalAcrossLines, type SalesOrderLine } from '../../domain/sales-order.entity';
 import { BusinessRuleError, isPostgresForeignKeyViolation } from '../errors';
-import { entityNotFound } from '../../../../shared/errors/entity-errors';
+import { entityNotFound, statusChanged } from '../../../../shared/errors/entity-errors';
+import { lockRowsForUpdate } from '../../../../shared/persistence/row-locks';
+import { localIsoDate } from '../../../../shared/time/local-date';
 import { NumberingSequencesService } from '../../../settings/application/services/numbering-sequences.service';
 import { TenantSettingsService } from '../../../settings/application/services/tenant-settings.service';
 import { OutboxWriterService } from '../../../../shared/outbox/application/services/outbox-writer.service';
 import { FeatureAvailabilityService } from '../../../../shared/plans/feature-availability.service';
 import { FEATURE_KEYS } from '../../../../shared/plans/feature-catalog';
 import { assertCurrencyAllowedForTenant } from '../../../../shared/plans/currency-gate';
+import { CustomerCreditService } from './customer-credit.service';
 import { SalesOrdersService } from './sales-orders.service';
 import { DeliveriesService } from './deliveries.service';
+import { resolveSalesRepId } from './sales-reps.service';
 
 /**
  * Sales Invoices (master doc §10, step 4 — Sales, Stage 5). This
@@ -110,6 +114,7 @@ export class SalesInvoicesService {
     private readonly featureAvailability: FeatureAvailabilityService,
     private readonly salesOrdersService: SalesOrdersService,
     private readonly deliveriesService: DeliveriesService,
+    private readonly customerCredit: CustomerCreditService,
   ) {}
 
   list(db: Kysely<TenantDatabase>): Promise<SalesInvoice[]> {
@@ -159,6 +164,7 @@ export class SalesInvoicesService {
         let orderId: string;
         let orderLines: SalesOrderLine[];
         let customerId: string;
+        let orderSalesRepId: string | null;
         let resolvedLines: {
           salesOrderLineId: string;
           quantityInvoiced: number;
@@ -185,6 +191,8 @@ export class SalesInvoicesService {
             trx,
             {
               customerId: input.customerId!,
+              // The internal order carries the invoice's rep (same defaulting).
+              salesRepId: input.salesRepId,
               lines: input.directLines!.map((line) => ({
                 productVariantId: line.productVariantId,
                 quantity: line.quantity,
@@ -200,13 +208,14 @@ export class SalesInvoicesService {
 
           orderId = order.id;
           customerId = order.customerId;
+          orderSalesRepId = order.salesRepId;
           orderLines = order.lines;
           resolvedLines = order.lines.map((line, index) => ({
             salesOrderLineId: line.id,
             quantityInvoiced: line.quantity,
             unitPrice: line.unitPrice,
             taxRuleIds: input.directLines![index]?.taxRuleIds,
-            notes: undefined,
+            notes: input.directLines![index]?.notes ?? undefined,
           }));
         } else {
           const order = await this.salesOrderRepo.findById(trx, input.salesOrderId!);
@@ -220,6 +229,7 @@ export class SalesInvoicesService {
 
           orderId = order.id;
           customerId = order.customerId;
+          orderSalesRepId = order.salesRepId;
           orderLines = await this.salesOrderLines.listBySalesOrderId(trx, order.id);
           const orderLineById = new Map(orderLines.map((line) => [line.id, line]));
           for (const line of input.lines!) {
@@ -270,14 +280,26 @@ export class SalesInvoicesService {
               discountedLineTotals[index]!.divideByQuantity(orderLine.quantity),
             ]),
           );
-          resolvedLines = input.lines!.map((line) => ({
-            salesOrderLineId: line.salesOrderLineId,
-            quantityInvoiced: line.quantityInvoiced,
-            unitPrice: line.unitPrice ?? discountedUnitPrice.get(line.salesOrderLineId)!,
-            lineAmount: line.lineAmount,
-            taxRuleIds: line.taxRuleIds,
-            notes: line.notes,
-          }));
+          const discountedTotalByLine = new Map(orderLines.map((orderLine, index) => [orderLine.id, discountedLineTotals[index]!]));
+          resolvedLines = input.lines!.map((line) => {
+            const orderLine = orderLineById.get(line.salesOrderLineId)!;
+            // At the default price the amount is the agreed line total's share — never a rounded
+            // unit price × quantity, which loses up to quantity × ½ minor unit.
+            const defaultAmount =
+              line.unitPrice || line.lineAmount
+                ? undefined
+                : line.quantityInvoiced === orderLine.quantity
+                  ? discountedTotalByLine.get(line.salesOrderLineId)!
+                  : discountedTotalByLine.get(line.salesOrderLineId)!.multiplyByQuantity(line.quantityInvoiced / orderLine.quantity);
+            return {
+              salesOrderLineId: line.salesOrderLineId,
+              quantityInvoiced: line.quantityInvoiced,
+              unitPrice: line.unitPrice ?? discountedUnitPrice.get(line.salesOrderLineId)!,
+              lineAmount: line.lineAmount ?? defaultAmount,
+              taxRuleIds: line.taxRuleIds,
+              notes: line.notes,
+            };
+          });
         }
 
         try {
@@ -369,7 +391,7 @@ export class SalesInvoicesService {
         const pricesIncludeTax = input.pricesIncludeTax ?? false;
         const customer = await trx
           .selectFrom('customers')
-          .select('withholding_tax_rule_id')
+          .select(['withholding_tax_rule_id', 'sales_rep_id'])
           .where('id', '=', customerId)
           .executeTakeFirst();
         const lineTaxes = await computeDocumentTaxes(trx, {
@@ -394,6 +416,8 @@ export class SalesInvoicesService {
           pricesIncludeTax,
           salesChannelId: input.salesChannelId ?? null,
           externalReference: input.externalReference ?? null,
+          // As given, else the order's rep, else the customer's default (migration 0110).
+          salesRepId: await resolveSalesRepId(trx, input.salesRepId, orderSalesRepId ?? customer?.sales_rep_id ?? null),
         });
 
         const createdLines = [];
@@ -454,6 +478,8 @@ export class SalesInvoicesService {
     id: string,
     schema: string,
     actorUserId: string | null,
+    /** Passed by the controller only (a user posting) — POS sales are paid in full and skip it. */
+    creditCheck?: { canOverride: boolean },
   ): Promise<SalesInvoiceWithLines> {
     const existing = await this.invoices.findById(db, id);
     if (!existing) throw entityNotFound('SALES_INVOICE', id);
@@ -472,6 +498,10 @@ export class SalesInvoicesService {
       });
     }
     const totals = calculateSalesInvoiceTotals(lines);
+    if (creditCheck) {
+      const order = await this.salesOrderRepo.findById(db, existing.salesOrderId);
+      if (order) await this.customerCredit.assertWithinLimit(db, order.customerId, totals.totalAmount, creditCheck.canOverride);
+    }
 
     return withTransaction(db, async (trx) => {
       // Direct invoicing: the goods leave stock now, with the invoice
@@ -479,8 +509,16 @@ export class SalesInvoicesService {
       for (const delivery of await this.deliveriesService.listMadeByInvoice(trx, id)) {
         if (delivery.status === 'draft') await this.deliveriesService.confirm(trx, delivery.id, schema, actorUserId);
       }
-      const updated = await this.invoices.updateStatus(trx, id, 'posted');
-      if (!updated) throw entityNotFound('SALES_INVOICE', id);
+      // Re-checked under a lock: two drafts on the same order line can't both post past the ordered quantity.
+      await this.assertWithinOrderedQuantity(trx, lines);
+      const updated = await this.invoices.updateStatus(trx, id, 'posted', 'draft');
+      if (!updated) throw statusChanged('SALES_INVOICE', id);
+      if (!updated.invoiceDate) {
+        // The ledger, statements and exchange differences all date the invoice by this.
+        const today = localIsoDate();
+        await trx.updateTable('sales_invoices').set({ invoice_date: today }).where('id', '=', id).execute();
+        updated.invoiceDate = today;
+      }
 
       await this.outboxWriter.write(trx, 'sales.sales_invoice.posted', {
         schema,
@@ -520,8 +558,8 @@ export class SalesInvoicesService {
       );
     }
     return withTransaction(db, async (trx) => {
-      const updated = await this.invoices.updateStatus(trx, id, 'cancelled');
-      if (!updated) throw entityNotFound('SALES_INVOICE', id);
+      const updated = await this.invoices.updateStatus(trx, id, 'cancelled', 'draft');
+      if (!updated) throw statusChanged('SALES_INVOICE', id);
       await this.dropOwnDeliveries(trx, id, 'cancel');
       return updated;
     });
@@ -540,6 +578,31 @@ export class SalesInvoicesService {
       await this.dropOwnDeliveries(trx, id, 'delete');
       await this.invoices.delete(trx, id);
     });
+  }
+
+  private async assertWithinOrderedQuantity(
+    trx: Kysely<TenantDatabase>,
+    lines: Array<{ salesOrderLineId: string; quantityInvoiced: number }>,
+  ): Promise<void> {
+    const orderLineIds = lines.map((line) => line.salesOrderLineId);
+    await lockRowsForUpdate(trx, 'sales_order_lines', orderLineIds);
+    const ordered = await trx.selectFrom('sales_order_lines').select(['id', 'quantity']).where('id', 'in', orderLineIds).execute();
+    const posted = await this.lines.sumInvoicedQuantityBySalesOrderLineIds(trx, orderLineIds);
+    const thisInvoice = new Map<string, number>();
+    for (const line of lines) thisInvoice.set(line.salesOrderLineId, (thisInvoice.get(line.salesOrderLineId) ?? 0) + line.quantityInvoiced);
+    for (const row of ordered) {
+      const invoiced = posted[row.id] ?? 0;
+      const quantity = thisInvoice.get(row.id) ?? 0;
+      if (invoiced + quantity > Number(row.quantity)) {
+        throw new BusinessRuleError(
+          `Cannot invoice ${quantity} against sales order line "${row.id}" — only ${Number(row.quantity) - invoiced} remaining.`,
+          {
+            code: 'SALES_INVOICE.QUANTITY_EXCEEDS_REMAINING',
+            params: { lineId: row.id, quantityInvoiced: quantity, remaining: Number(row.quantity) - invoiced, ordered: Number(row.quantity), invoiced },
+          },
+        );
+      }
+    }
   }
 
   /** The draft delivery a direct invoice made for itself goes with it (cancelled, or deleted with a deleted invoice). */

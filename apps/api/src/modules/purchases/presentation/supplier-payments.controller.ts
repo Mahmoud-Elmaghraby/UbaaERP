@@ -22,6 +22,9 @@ import {
   type SupplierOutstandingInvoiceDto,
   type CreateSupplierPaymentDto,
   type AllocateSupplierPaymentDto,
+  chequeDateSchema,
+  type ChequeDateDto,
+  type IssuedChequeDto,
 } from '@erp-platform/contracts';
 import type {
   SupplierOutstandingInvoice,
@@ -98,6 +101,34 @@ export class SupplierPaymentsController {
     return invoices.map(outstandingToDto);
   }
 
+  /** أوراق الدفع: our cheques, outstanding or cleared. */
+  @Get('cheques')
+  async issuedCheques(@CurrentTenantSchema() schema: string, @Query('status') status?: string): Promise<IssuedChequeDto[]> {
+    const db = this.connections.getClient(schema);
+    let query = db
+      .selectFrom('supplier_payments as p')
+      .innerJoin('suppliers as s', 's.id', 'p.supplier_id')
+      .leftJoin('treasuries as t', 't.id', 'p.treasury_id')
+      .select(['p.id', 'p.payment_number', 'p.payment_date', 'p.supplier_id', 's.name as supplier_name', 'p.cheque_number', 'p.cheque_bank', 'p.cheque_due_date', 'p.cheque_status', 'p.cheque_status_date', 'p.amount_amount', 'p.amount_currency', 't.name as treasury_name'])
+      .where('p.cheque_status', 'is not', null);
+    if (status) query = query.where('p.cheque_status', '=', status);
+    const rows = await query.orderBy('p.cheque_due_date').limit(2000).execute();
+    return rows.map((r) => ({
+      id: r.id,
+      paymentNumber: r.payment_number,
+      paymentDate: r.payment_date ? String(r.payment_date).slice(0, 10) : null,
+      supplierId: r.supplier_id,
+      supplierName: r.supplier_name,
+      chequeNumber: r.cheque_number,
+      bank: r.cheque_bank,
+      dueDate: r.cheque_due_date ? String(r.cheque_due_date).slice(0, 10) : null,
+      status: r.cheque_status as IssuedChequeDto['status'],
+      statusDate: r.cheque_status_date ? String(r.cheque_status_date).slice(0, 10) : null,
+      amount: { amountMinorUnits: r.amount_amount, currency: r.amount_currency },
+      treasuryName: r.treasury_name,
+    }));
+  }
+
   @Get(':id')
   async getById(
     @CurrentTenantSchema() schema: string,
@@ -124,6 +155,17 @@ export class SupplierPaymentsController {
   }
 
   /** No events.publish() here: the service writes 'purchases.supplier_payment.posted' to the Outbox atomically (§2.7). */
+  @Post(':id/clear-cheque')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async clearCheque(
+    @CurrentTenantSchema() schema: string,
+    @CurrentUser() user: JwtAccessPayload,
+    @Param('id') id: string,
+    @Body(new ZodValidationPipe(chequeDateSchema)) body: ChequeDateDto,
+  ): Promise<void> {
+    await this.service.clearCheque(this.connections.getClient(schema), id, body.date, { schema, actorUserId: user.sub });
+  }
+
   @Post(':id/post')
   async post(
     @CurrentTenantSchema() schema: string,

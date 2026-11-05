@@ -317,7 +317,12 @@ describe('Supplier payments (integration, real Postgres)', () => {
     await expect(service.cancel(db, posted.id)).rejects.toMatchObject({ code: 'SUPPLIER_PAYMENT.NOT_CANCELLABLE' });
     await expect(service.delete(db, posted.id)).rejects.toMatchObject({ code: 'SUPPLIER_PAYMENT.NOT_DELETABLE' });
 
-    const draft = await service.create(db, { supplierId, amount: egp(5_00n), paymentMethod: 'check' });
+    const draft = await service.create(db, {
+      supplierId,
+      amount: egp(5_00n),
+      paymentMethod: 'check',
+      cheque: { number: '7001', bank: null, dueDate: '2026-12-01' },
+    });
     expect((await service.cancel(db, draft.id)).status).toBe('cancelled');
     await service.delete(db, draft.id);
     await expect(service.getById(db, draft.id)).rejects.toMatchObject({ code: 'SUPPLIER_PAYMENT.NOT_FOUND' });

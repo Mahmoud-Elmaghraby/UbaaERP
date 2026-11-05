@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQueries, useQuery } from '@tanstack/react-query';
 import type { SalesCreditNoteDto, SalesCreditNoteWithLinesDto } from '@erp-platform/contracts';
 
 import { apiGet } from '../../../../lib/api-client';
@@ -21,7 +21,7 @@ export function useSalesCreditNotes() {
 }
 
 /** Scoped list (?salesReturnId=) — the credit note is 1:1 with the sales return that
- * generated it (unique FK on the backend), used by SalesReturnDetailsView to link to
+ * generated it (unique FK on the backend), used by the sales return page to link to
  * the resulting credit note once a return is confirmed. */
 export function useSalesCreditNotesBySalesReturn(salesReturnId: string | null | undefined) {
   return useQuery({
@@ -36,5 +36,19 @@ export function useSalesCreditNote(id: string | null | undefined) {
     queryKey: ['sales-credit-notes', id],
     queryFn: () => apiGet<SalesCreditNoteWithLinesDto>(`/sales-credit-notes/${id}`),
     enabled: Boolean(id),
+  });
+}
+
+/**
+ * Full credit notes (with server-computed totals) for a list of ids — the list
+ * endpoint carries no totals, so the list page reads each one's detail. Shares
+ * the detail query key, so opening a credit note afterwards is instant.
+ */
+export function useSalesCreditNoteDetails(ids: readonly string[]) {
+  return useQueries({
+    queries: ids.map((id) => ({
+      queryKey: ['sales-credit-notes', id],
+      queryFn: () => apiGet<SalesCreditNoteWithLinesDto>(`/sales-credit-notes/${id}`),
+    })),
   });
 }

@@ -17,7 +17,8 @@ import type {
   DeliveryLot,
 } from '../../domain/delivery.entity';
 import { BusinessRuleError, NotFoundError, isPostgresForeignKeyViolation } from '../errors';
-import { entityNotFound } from '../../../../shared/errors/entity-errors';
+import { entityNotFound, statusChanged } from '../../../../shared/errors/entity-errors';
+import { lockRowsForUpdate } from '../../../../shared/persistence/row-locks';
 import { NumberingSequencesService } from '../../../settings/application/services/numbering-sequences.service';
 import { OutboxWriterService } from '../../../../shared/outbox/application/services/outbox-writer.service';
 import { StockAvailabilityChecker } from '../../../../shared/catalog/stock-availability-checker';
@@ -189,8 +190,8 @@ export class DeliveriesService {
         },
       );
     }
-    const updated = await this.deliveries.updateStatus(db, id, to);
-    if (!updated) throw entityNotFound('DELIVERY', id);
+    const updated = await this.deliveries.updateStatus(db, id, to, from);
+    if (!updated) throw statusChanged('DELIVERY', id);
     return updated;
   }
 
@@ -232,6 +233,7 @@ export class DeliveriesService {
 
     return withTransaction(db, async (trx) => {
       const lines = await this.lines.listByDeliveryId(trx, id);
+      await this.assertOrderStillDeliverable(trx, existing.salesOrderId, lines);
       // Refuse now, with the shortages listed, rather than confirm and let
       // the stock movement fail later in the background.
       await this.stockChecker.assertAvailable(
@@ -244,8 +246,8 @@ export class DeliveriesService {
         })),
         { blockExpired: true, errorCode: 'DELIVERY.INSUFFICIENT_STOCK' },
       );
-      const updated = await this.deliveries.updateStatus(trx, id, 'confirmed');
-      if (!updated) throw entityNotFound('DELIVERY', id);
+      const updated = await this.deliveries.updateStatus(trx, id, 'confirmed', 'draft');
+      if (!updated) throw statusChanged('DELIVERY', id);
 
       const order = await this.salesOrders.findById(trx, updated.salesOrderId);
       if (order) {
@@ -282,6 +284,42 @@ export class DeliveriesService {
 
       return { ...updated, lines };
     });
+  }
+
+  /**
+   * Under a lock on the order and its lines: the order must still be open
+   * (not cancelled meanwhile) and confirmed deliveries + this one must stay
+   * within the ordered quantity — two drafts can't both ship the same units.
+   */
+  private async assertOrderStillDeliverable(
+    trx: Kysely<TenantDatabase>,
+    salesOrderId: string,
+    lines: Array<{ salesOrderLineId: string; quantityDelivered: number }>,
+  ): Promise<void> {
+    await lockRowsForUpdate(trx, 'sales_orders', [salesOrderId]);
+    const order = await this.salesOrders.findById(trx, salesOrderId);
+    if (!order || (order.status !== 'confirmed' && order.status !== 'partially_delivered')) {
+      throw new BusinessRuleError(`Sales order "${salesOrderId}" is "${order?.status ?? 'missing'}" — nothing can be delivered against it.`, {
+        code: 'DELIVERY.SALES_ORDER_NOT_DELIVERABLE',
+        params: { id: salesOrderId, status: order?.status ?? '' },
+      });
+    }
+    const orderLineIds = lines.map((line) => line.salesOrderLineId);
+    await lockRowsForUpdate(trx, 'sales_order_lines', orderLineIds);
+    const ordered = new Map((await this.salesOrderLines.listBySalesOrderId(trx, salesOrderId)).map((line) => [line.id, line.quantity]));
+    const delivered = await this.lines.sumDeliveredQuantityBySalesOrderLineIds(trx, orderLineIds);
+    const thisDelivery = new Map<string, number>();
+    for (const line of lines) thisDelivery.set(line.salesOrderLineId, (thisDelivery.get(line.salesOrderLineId) ?? 0) + line.quantityDelivered);
+    for (const [lineId, quantity] of thisDelivery) {
+      const already = delivered[lineId] ?? 0;
+      const orderedQuantity = ordered.get(lineId) ?? 0;
+      if (already + quantity > orderedQuantity) {
+        throw new BusinessRuleError(`Cannot deliver ${quantity} against sales order line "${lineId}" — only ${orderedQuantity - already} remaining.`, {
+          code: 'DELIVERY.QUANTITY_EXCEEDS_REMAINING',
+          params: { lineId, quantityDelivered: quantity, remaining: orderedQuantity - already, ordered: orderedQuantity, delivered: already },
+        });
+      }
+    }
   }
 
   /** Deliveries a sales invoice made for itself (direct invoicing, migration 0104). */

@@ -8,6 +8,7 @@ import {
   type PaymentReceivedWithAllocationsDto,
   type CreatePaymentReceivedDto,
   type AllocatePaymentReceivedDto,
+  type PaymentReceivedRegisterRowDto,
 } from '@erp-platform/contracts';
 import type { PaymentReceived, PaymentReceivedWithAllocations } from '../domain/payment-received.entity';
 import { TenantConnectionManager } from '../../../shared/tenancy/tenant-connection-manager';
@@ -19,6 +20,7 @@ import { PermissionsGuard } from '../../../shared/auth/permissions.guard';
 import { RequirePermissions } from '../../../shared/auth/require-permissions.decorator';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 import { PaymentsReceivedService } from '../application/services/payments-received.service';
+import { SalesRegisterService } from '../application/services/sales-register.service';
 import { SalesEventPublisher } from '../infrastructure/events/sales-event-publisher';
 import { moneyFromDto, moneyToDto } from './money.mapper';
 
@@ -53,7 +55,23 @@ export class PaymentsReceivedController {
     private readonly service: PaymentsReceivedService,
     private readonly connections: TenantConnectionManager,
     private readonly events: SalesEventPublisher,
+    private readonly register: SalesRegisterService,
   ) {}
+
+  /** Payments with customer name and allocated / unallocated amounts, for lists and an invoice's payments. */
+  @Get('register')
+  paymentRegister(
+    @CurrentTenantSchema() schema: string,
+    @Query('customerId') customerId?: string,
+    @Query('salesInvoiceId') salesInvoiceId?: string,
+    @Query('status') status?: string,
+  ): Promise<PaymentReceivedRegisterRowDto[]> {
+    return this.register.payments(this.connections.getClient(schema), {
+      customerId: customerId || undefined,
+      salesInvoiceId: salesInvoiceId || undefined,
+      status: status || undefined,
+    });
+  }
 
   @Get()
   async list(

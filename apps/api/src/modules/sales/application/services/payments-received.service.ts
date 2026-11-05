@@ -27,7 +27,9 @@ import {
   type CreatePaymentReceivedInput,
 } from '../../domain/payment-received.entity';
 import { BusinessRuleError, isPostgresForeignKeyViolation } from '../errors';
-import { entityNotFound } from '../../../../shared/errors/entity-errors';
+import { entityNotFound, statusChanged } from '../../../../shared/errors/entity-errors';
+import { lockRowsForUpdate } from '../../../../shared/persistence/row-locks';
+import { localIsoDate } from '../../../../shared/time/local-date';
 import { NumberingSequencesService } from '../../../settings/application/services/numbering-sequences.service';
 import { OutboxWriterService } from '../../../../shared/outbox/application/services/outbox-writer.service';
 
@@ -221,11 +223,18 @@ export class PaymentsReceivedService {
 
     const allocationInputs = input.allocations ?? [];
     await this.validateAllocations(db, input.customerId, input.amount.currency, input.amount, allocationInputs);
-    const treasuryId = await resolvePaymentTreasury(db, {
-      treasuryId: input.treasuryId,
-      paymentMethod: input.paymentMethod,
-      currency: input.amount.currency,
-    });
+    const isCheque = input.paymentMethod === 'check';
+    if (isCheque && !input.posSessionId && (!input.cheque?.number?.trim() || !input.cheque.dueDate)) {
+      throw new BusinessRuleError('A cheque receipt needs the cheque number and due date.', { code: 'CHEQUE.DETAILS_REQUIRED' });
+    }
+    // A cheque reaches a bank only when it is collected (ChequesService.collect).
+    const treasuryId = isCheque
+      ? null
+      : await resolvePaymentTreasury(db, {
+          treasuryId: input.treasuryId,
+          paymentMethod: input.paymentMethod,
+          currency: input.amount.currency,
+        });
 
     try {
       return await withTransaction(db, async (trx) => {
@@ -242,6 +251,7 @@ export class PaymentsReceivedService {
           customFields: input.customFields ?? {},
           posSessionId: input.posSessionId ?? null,
           treasuryId,
+          cheque: isCheque && input.cheque ? { number: input.cheque.number.trim(), bank: input.cheque.bank ?? null, dueDate: input.cheque.dueDate } : null,
         });
 
         const createdAllocations = [];
@@ -301,18 +311,26 @@ export class PaymentsReceivedService {
       );
     }
 
-    const allocations = await this.allocations.listByPaymentReceivedId(db, id);
-    await this.validateAllocations(
-      db,
-      existing.customerId,
-      existing.amount.currency,
-      existing.amount,
-      allocations.map((a) => ({ salesInvoiceId: a.salesInvoiceId, allocatedAmount: a.allocatedAmount })),
-    );
-
     return withTransaction(db, async (trx) => {
-      const updated = await this.payments.updateStatus(trx, id, 'posted');
-      if (!updated) throw entityNotFound('PAYMENT', id);
+      const allocations = await this.allocations.listByPaymentReceivedId(trx, id);
+      // Under a lock on the invoices: another payment can't take the same outstanding balance meanwhile.
+      await lockRowsForUpdate(trx, 'sales_invoices', allocations.map((a) => a.salesInvoiceId));
+      await this.validateAllocations(
+        trx,
+        existing.customerId,
+        existing.amount.currency,
+        existing.amount,
+        allocations.map((a) => ({ salesInvoiceId: a.salesInvoiceId, allocatedAmount: a.allocatedAmount })),
+      );
+      const updated = await this.payments.updateStatus(trx, id, 'posted', 'draft');
+      if (!updated) throw statusChanged('PAYMENT', id);
+      if (updated.paymentMethod === 'check') {
+        await trx
+          .updateTable('payments_received')
+          .set({ cheque_status: 'in_hand', cheque_status_date: updated.paymentDate ?? localIsoDate() })
+          .where('id', '=', id)
+          .execute();
+      }
 
       await this.outboxWriter.write(trx, 'sales.payment_received.posted', {
         schema,
@@ -328,6 +346,7 @@ export class PaymentsReceivedService {
           treasuryId: updated.treasuryId,
           amount: { amountMinorUnits: updated.amount.toMinorUnits().toString(), currency: updated.amount.currency },
           allocations: allocations.map((a) => ({
+            allocationId: a.id,
             salesInvoiceId: a.salesInvoiceId,
             allocatedAmount: {
               amountMinorUnits: a.allocatedAmount.toMinorUnits().toString(),
@@ -373,12 +392,14 @@ export class PaymentsReceivedService {
       );
     }
 
-    const existingAllocations = await this.allocations.listByPaymentReceivedId(db, id);
-    const unallocated = calculateUnallocatedAmount(existing.amount, existingAllocations);
+    return withTransaction(db, async (trx) => {
+      // Lock the payment (two allocations of the same remainder) and the invoices (two payments on one balance).
+      await lockRowsForUpdate(trx, 'payments_received', [id]);
+      await lockRowsForUpdate(trx, 'sales_invoices', newAllocations.map((a) => a.salesInvoiceId));
+      const existingAllocations = await this.allocations.listByPaymentReceivedId(trx, id);
+      const unallocated = calculateUnallocatedAmount(existing.amount, existingAllocations);
+      await this.validateAllocations(trx, existing.customerId, existing.amount.currency, unallocated, newAllocations);
 
-    await this.validateAllocations(db, existing.customerId, existing.amount.currency, unallocated, newAllocations);
-
-    return db.transaction().execute(async (trx) => {
       const createdAllocations = [];
       for (const allocation of newAllocations) {
         createdAllocations.push(
@@ -398,6 +419,7 @@ export class PaymentsReceivedService {
         metadata: {
           customerId: existing.customerId,
           allocations: createdAllocations.map((a) => ({
+            allocationId: a.id,
             salesInvoiceId: a.salesInvoiceId,
             allocatedAmount: {
               amountMinorUnits: a.allocatedAmount.toMinorUnits().toString(),
@@ -427,8 +449,8 @@ export class PaymentsReceivedService {
         { code: 'PAYMENT.NOT_CANCELLABLE', params: { id, status: existing.status } },
       );
     }
-    const updated = await this.payments.updateStatus(db, id, 'cancelled');
-    if (!updated) throw entityNotFound('PAYMENT', id);
+    const updated = await this.payments.updateStatus(db, id, 'cancelled', 'draft');
+    if (!updated) throw statusChanged('PAYMENT', id);
     return updated;
   }
 

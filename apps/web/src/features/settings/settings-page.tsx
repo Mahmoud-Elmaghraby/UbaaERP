@@ -10,6 +10,7 @@ import { NumberingTab } from './numbering-tab';
 import { TemplatesTab } from './templates-tab';
 import { TaxesTab } from './taxes-tab';
 import { BackgroundOperationsTab } from './background-operations-tab';
+import { SalesSettingsSection } from './sales-settings-section';
 
 export function SettingsPage() {
   const { t } = useTranslation();
@@ -29,6 +30,7 @@ export function SettingsPage() {
           <TabsTrigger value="numbering">{t('settings.tabs.numbering')}</TabsTrigger>
           <TabsTrigger value="templates">{t('settings.tabs.templates')}</TabsTrigger>
           <TabsTrigger value="taxes">{t('settings.tabs.taxes')}</TabsTrigger>
+          <TabsTrigger value="sales">{t('settings.tabs.sales')}</TabsTrigger>
           <TabsTrigger value="modules">{t('settings.tabs.modules')}</TabsTrigger>
           <TabsTrigger value="operations">{t('settings.tabs.operations')}</TabsTrigger>
         </TabsList>
@@ -49,6 +51,9 @@ export function SettingsPage() {
         </TabsContent>
         <TabsContent value="taxes">
           <TaxesTab />
+        </TabsContent>
+        <TabsContent value="sales">
+          <SalesSettingsSection />
         </TabsContent>
         <TabsContent value="modules">
           <ModulesTab />

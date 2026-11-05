@@ -5,7 +5,9 @@ import type { TenantDatabase } from '../../../../database/tenant/kysely-client';
 import { withTransaction } from '../../../../database/tenant/transaction.util';
 import { resolvePaymentTreasury } from '../../../../shared/treasury/treasury-reader';
 import { TreasuryMovementRegistry } from '../../../../shared/treasury/treasury-movements';
-import { entityNotFound } from '../../../../shared/errors/entity-errors';
+import { entityNotFound, statusChanged } from '../../../../shared/errors/entity-errors';
+import { lockRowsForUpdate } from '../../../../shared/persistence/row-locks';
+import { localIsoDate } from '../../../../shared/time/local-date';
 import { NumberingSequencesService } from '../../../settings/application/services/numbering-sequences.service';
 import { OutboxWriterService } from '../../../../shared/outbox/application/services/outbox-writer.service';
 import {
@@ -38,6 +40,7 @@ type AllocationRequest = { purchaseInvoiceId: string; allocatedAmount: Money };
 
 function allocationsMetadata(allocations: SupplierPaymentAllocation[]) {
   return allocations.map((a) => ({
+    allocationId: a.id,
     purchaseInvoiceId: a.purchaseInvoiceId,
     allocatedAmount: {
       amountMinorUnits: a.allocatedAmount.toMinorUnits().toString(),
@@ -218,11 +221,19 @@ export class SupplierPaymentsService {
 
     const allocationInputs = input.allocations ?? [];
     await this.validateAllocations(db, input.supplierId, input.amount.currency, input.amount, allocationInputs);
-    const treasuryId = await resolvePaymentTreasury(db, {
-      treasuryId: input.treasuryId,
-      paymentMethod: input.paymentMethod,
-      currency: input.amount.currency,
-    });
+    if (input.endorsedChequeId) {
+      await this.assertEndorsable(db, input.endorsedChequeId, input.amount);
+    } else if (input.paymentMethod === 'check' && (!input.cheque?.number?.trim() || !input.cheque.dueDate)) {
+      throw new BusinessRuleError('A cheque payment needs the cheque number and due date.', { code: 'CHEQUE.DETAILS_REQUIRED' });
+    }
+    // An endorsed customer cheque never touches our treasuries; our own cheque is drawn on a bank.
+    const treasuryId = input.endorsedChequeId
+      ? null
+      : await resolvePaymentTreasury(db, {
+          treasuryId: input.treasuryId,
+          paymentMethod: input.paymentMethod,
+          currency: input.amount.currency,
+        });
 
     try {
       return await withTransaction(db, async (trx) => {
@@ -231,12 +242,14 @@ export class SupplierPaymentsService {
           paymentNumber: allocated.formatted,
           supplierId: input.supplierId,
           paymentDate: input.paymentDate ?? null,
-          paymentMethod: input.paymentMethod,
+          paymentMethod: input.endorsedChequeId ? 'check' : input.paymentMethod,
           referenceNumber: input.referenceNumber ?? null,
           amount: input.amount,
           treasuryId,
           notes: input.notes ?? null,
           customFields: input.customFields ?? {},
+          cheque: input.paymentMethod === 'check' && !input.endorsedChequeId && input.cheque ? { number: input.cheque.number.trim(), bank: input.cheque.bank ?? null, dueDate: input.cheque.dueDate } : null,
+          endorsedChequeId: input.endorsedChequeId ?? null,
         });
 
         const created: SupplierPaymentAllocation[] = [];
@@ -280,9 +293,23 @@ export class SupplierPaymentsService {
     await this.validateAllocations(db, existing.supplierId, existing.amount.currency, existing.amount, allocations);
 
     return withTransaction(db, async (trx) => {
-      await this.treasuryMovements.assertCanWithdraw(trx, existing.treasuryId, existing.amount.toMinorUnits());
-      const updated = await this.payments.updateStatus(trx, id, 'posted');
-      if (!updated) throw entityNotFound('SUPPLIER_PAYMENT', id);
+      if (existing.endorsedChequeId) {
+        await lockRowsForUpdate(trx, 'payments_received', [existing.endorsedChequeId]);
+        await this.assertEndorsable(trx, existing.endorsedChequeId, existing.amount, id);
+      }
+      // A cheque leaves the bank when it clears — the balance is checked then (clearCheque).
+      if (existing.paymentMethod !== 'check') {
+        await this.treasuryMovements.assertCanWithdraw(trx, existing.treasuryId, existing.amount.toMinorUnits());
+      }
+      const updated = await this.payments.updateStatus(trx, id, 'posted', 'draft');
+      if (!updated) throw statusChanged('SUPPLIER_PAYMENT', id);
+      if (updated.paymentMethod === 'check' && !updated.endorsedChequeId) {
+        await trx
+          .updateTable('supplier_payments')
+          .set({ cheque_status: 'issued', cheque_status_date: updated.paymentDate ?? localIsoDate() })
+          .where('id', '=', id)
+          .execute();
+      }
 
       await this.outboxWriter.write(trx, 'purchases.supplier_payment.posted', {
         schema,
@@ -296,6 +323,7 @@ export class SupplierPaymentsService {
           paymentDate: updated.paymentDate,
           paymentMethod: updated.paymentMethod,
           treasuryId: updated.treasuryId,
+          endorsedChequeId: updated.endorsedChequeId,
           amount: { amountMinorUnits: updated.amount.toMinorUnits().toString(), currency: updated.amount.currency },
           allocations: allocationsMetadata(allocations),
         },
@@ -304,6 +332,70 @@ export class SupplierPaymentsService {
 
       return { ...updated, allocations, unallocatedAmount: calculateSupplierPaymentUnallocated(updated.amount, allocations) };
     });
+  }
+
+  /** Our cheque was paid by the bank: it leaves the treasury it was drawn on from `date`. */
+  async clearCheque(
+    db: Kysely<TenantDatabase>,
+    id: string,
+    date: string | null | undefined,
+    ctx: { schema: string; actorUserId: string | null },
+  ): Promise<void> {
+    await withTransaction(db, async (trx) => {
+      await lockRowsForUpdate(trx, 'supplier_payments', [id]);
+      const row = await trx.selectFrom('supplier_payments').selectAll().where('id', '=', id).executeTakeFirst();
+      if (!row) throw entityNotFound('SUPPLIER_PAYMENT', id);
+      if (row.status !== 'posted' || row.cheque_status !== 'issued') {
+        throw new BusinessRuleError(`Cheque of payment "${row.payment_number}" is not outstanding.`, {
+          code: 'CHEQUE.NOT_OUTSTANDING',
+          params: { number: row.cheque_number ?? row.payment_number },
+        });
+      }
+      await this.treasuryMovements.assertCanWithdraw(trx, row.treasury_id, BigInt(row.amount_amount));
+      const clearedOn = date || localIsoDate();
+      await trx.updateTable('supplier_payments').set({ cheque_status: 'cleared', cheque_status_date: clearedOn, updated_at: new Date() }).where('id', '=', id).execute();
+      await this.outboxWriter.write(trx, 'purchases.cheque.cleared', {
+        schema: ctx.schema,
+        entityType: 'supplier_payment',
+        entityId: id,
+        action: 'cleared',
+        actorUserId: ctx.actorUserId,
+        occurredAt: new Date(),
+        metadata: {
+          paymentNumber: row.payment_number,
+          chequeNumber: row.cheque_number,
+          date: clearedOn,
+          paymentDate: row.payment_date ? String(row.payment_date).slice(0, 10) : null,
+          treasuryId: row.treasury_id,
+          amount: { amountMinorUnits: row.amount_amount, currency: row.amount_currency },
+        },
+      });
+    });
+  }
+
+  /** A customer cheque that is in hand, not promised to another payment, for exactly this amount. */
+  private async assertEndorsable(db: Kysely<TenantDatabase>, chequeId: string, amount: Money, exceptPaymentId?: string): Promise<void> {
+    const cheque = await db
+      .selectFrom('payments_received')
+      .select(['cheque_status', 'cheque_number', 'amount_amount', 'amount_currency', 'status'])
+      .where('id', '=', chequeId)
+      .where('payment_method', '=', 'check')
+      .executeTakeFirst();
+    let taken = db.selectFrom('supplier_payments').select('payment_number').where('endorsed_cheque_id', '=', chequeId).where('status', '!=', 'cancelled');
+    if (exceptPaymentId) taken = taken.where('id', '!=', exceptPaymentId);
+    const other = await taken.executeTakeFirst();
+    if (!cheque || cheque.status !== 'posted' || cheque.cheque_status !== 'in_hand' || other) {
+      throw new BusinessRuleError('That customer cheque is not in hand.', {
+        code: 'CHEQUE.NOT_IN_HAND',
+        params: { number: cheque?.cheque_number ?? '', status: other ? 'endorsed' : (cheque?.cheque_status ?? '') },
+      });
+    }
+    if (BigInt(cheque.amount_amount) !== amount.toMinorUnits() || cheque.amount_currency !== amount.currency) {
+      throw new BusinessRuleError('An endorsed cheque is paid over in full: the payment amount must equal the cheque.', {
+        code: 'CHEQUE.ENDORSE_AMOUNT_MISMATCH',
+        params: { number: cheque.cheque_number ?? '' },
+      });
+    }
   }
 
   /** Applies a posted payment's unallocated remainder to more purchase invoices ('purchases.supplier_payment.allocated'). */

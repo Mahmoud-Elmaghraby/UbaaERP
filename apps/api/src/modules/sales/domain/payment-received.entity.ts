@@ -7,7 +7,7 @@ import { Money } from '@erp-platform/shared-kernel';
  * uses the Outbox Pattern (CLAUDE.md §2.7), not the plain Event Bus.
  * See migration 0046's comment for the full design rationale.
  */
-export type PaymentReceivedStatus = 'draft' | 'posted' | 'cancelled';
+export type PaymentReceivedStatus = 'draft' | 'posted' | 'cancelled' | 'bounced';
 
 export type PaymentMethod = 'cash' | 'bank_transfer' | 'check' | 'card' | 'other';
 
@@ -34,8 +34,23 @@ export interface PaymentReceived {
   posSessionId: string | null;
   /** Migration 0089 — bank account a non-cash receipt was deposited to; null = cash / default bank. */
   treasuryId: string | null;
+  /** Migration 0112 — a cheque receipt (payment method 'check'). */
+  cheque: PaymentCheque | null;
   createdAt: Date;
   updatedAt: Date;
+}
+
+export type ReceivedChequeStatus = 'in_hand' | 'collected' | 'bounced' | 'endorsed';
+
+export interface PaymentCheque {
+  number: string | null;
+  bank: string | null;
+  dueDate: string | null;
+  /** null while the receipt is a draft. */
+  status: ReceivedChequeStatus | null;
+  statusDate: string | null;
+  /** The supplier payment it was endorsed to. */
+  endorsedToPaymentId: string | null;
 }
 
 export interface PaymentReceivedWithAllocations extends PaymentReceived {
@@ -66,6 +81,8 @@ export interface CreatePaymentReceivedInput {
   /** Set by PosSalesService.checkout() (Stage 3) to tag this payment as belonging to a POS cash session; omitted/undefined for every non-POS payment. */
   posSessionId?: string | null;
   treasuryId?: string | null;
+  /** Cheque details when paymentMethod is 'check'. */
+  cheque?: { number: string; bank?: string | null; dueDate: string } | null;
 }
 
 export function calculateUnallocatedAmount(

@@ -26,6 +26,13 @@ export const supplierPaymentSchema = z.object({
   amount: moneySchema,
   /** Bank account the payment was made from (null = cash, or the default bank account). */
   treasuryId: z.string().uuid().nullable(),
+  /** Our own cheque (payment method 'check'); null otherwise. */
+  cheque: z
+    .object({ number: z.string().nullable(), bank: z.string().nullable(), dueDate: z.string().nullable(), status: z.enum(['issued', 'cleared']).nullable(), statusDate: z.string().nullable() })
+    .nullable()
+    .default(null),
+  /** The customer cheque endorsed over as this payment. */
+  endorsedChequeId: z.string().uuid().nullable().default(null),
   notes: z.string().nullable(),
   customFields: z.record(z.unknown()),
   createdAt: z.coerce.date(),
@@ -53,6 +60,13 @@ export const createSupplierPaymentSchema = z.object({
   referenceNumber: z.string().nullable().optional(),
   allocations: z.array(createSupplierPaymentAllocationSchema).optional(),
   treasuryId: z.string().uuid().nullable().optional(),
+  /** Our own cheque — required when paymentMethod is 'check' and no cheque is endorsed. */
+  cheque: z
+    .object({ number: z.string().trim().min(1).max(60), bank: z.string().trim().max(120).nullable().optional(), dueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/) })
+    .nullable()
+    .optional(),
+  /** Pay with a customer cheque in hand (تظهير); the amount must equal the cheque. */
+  endorsedChequeId: z.string().uuid().nullable().optional(),
   notes: z.string().nullable().optional(),
   customFields: z.record(z.unknown()).optional(),
 });
@@ -75,3 +89,20 @@ export const supplierOutstandingInvoiceSchema = z.object({
   outstandingAmount: moneySchema,
 });
 export type SupplierOutstandingInvoiceDto = z.infer<typeof supplierOutstandingInvoiceSchema>;
+
+/** An issued cheque (أوراق دفع) for the cheques screen. */
+export const issuedChequeSchema = z.object({
+  id: z.string().uuid(),
+  paymentNumber: z.string(),
+  paymentDate: z.string().nullable(),
+  supplierId: z.string().uuid(),
+  supplierName: z.string(),
+  chequeNumber: z.string().nullable(),
+  bank: z.string().nullable(),
+  dueDate: z.string().nullable(),
+  status: z.enum(['issued', 'cleared']),
+  statusDate: z.string().nullable(),
+  amount: moneySchema,
+  treasuryName: z.string().nullable(),
+});
+export type IssuedChequeDto = z.infer<typeof issuedChequeSchema>;
