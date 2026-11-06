@@ -68,6 +68,8 @@ export interface PosCheckoutInput {
   notes?: string | null;
   /** One id per sale from the till: a retried request returns the sale it already made. */
   checkoutId?: string | null;
+  /** A supervisor's PIN for a discount above the cashier's limit. */
+  approvalPin?: string | null;
 }
 
 /** Every step's own result, for a receipt/confirmation screen to render without a second round-trip. */

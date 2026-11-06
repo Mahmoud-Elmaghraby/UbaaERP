@@ -104,6 +104,32 @@ describe('AccountingPaymentPostingListener', () => {
     ).rejects.toMatchObject({ code: 'ACCOUNTING_SETTINGS.MAPPING_MISSING' });
   });
 
+  describe('customer refunds', () => {
+    const refund = (metadata: Record<string, unknown> = {}) => ({
+      ...payload({}),
+      entityType: 'customer_refund',
+      metadata: { refundNumber: 'RFD-00001', refundDate: '2026-11-05', paymentMethod: 'cash', treasuryId: null, amount: { amountMinorUnits: '4000', currency: 'EGP' }, ...metadata },
+    });
+
+    it('a cash refund: Dr receivables / Cr cash, on the refund date', async () => {
+      await listener().handleCustomerRefund(refund());
+      const entry = createAuto.mock.calls[0][1];
+      expect(entry.entryDate).toBe('2026-11-05');
+      expect(entry.lines).toEqual([
+        { accountId: 'ar', debitAmountMinorUnits: '4000', creditAmountMinorUnits: '0' },
+        { accountId: 'cash', debitAmountMinorUnits: '0', creditAmountMinorUnits: '4000' },
+      ]);
+      expect(entry.sourceReferenceType).toBe('customer_refund');
+    });
+
+    it('a cancelled refund is the exact reverse', async () => {
+      await listener('bank-cib').handleCustomerRefundCancelled(refund({ paymentMethod: 'bank_transfer', treasuryId: 'b1' }));
+      const entry = createAuto.mock.calls[0][1];
+      expect(entry.lines.map((l: { accountId: string }) => l.accountId)).toEqual(['bank-cib', 'ar']);
+      expect(entry.sourceReferenceType).toBe('customer_refund_cancel');
+    });
+  });
+
   describe('supplier payments (purchases.supplier_payment.posted)', () => {
     const supplierPayload = (metadata: Record<string, unknown>) => ({
       ...payload({ paymentNumber: 'PAY-00001', ...metadata }),

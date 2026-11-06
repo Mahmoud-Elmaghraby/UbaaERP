@@ -60,6 +60,45 @@ export class KyselyPosSessionRepository implements PosSessionRepository {
     return row?.total ?? null;
   }
 
+  async drawerFlowsForSession(
+    db: Kysely<TenantDatabase>,
+    sessionId: string,
+  ): Promise<{ cashRefunds: bigint; cashIn: bigint; cashOut: bigint; returnsCount: number }> {
+    const session = await db.selectFrom('pos_sessions').select('treasury_id').where('id', '=', sessionId).executeTakeFirst();
+    const [refunds, vouchers] = await Promise.all([
+      db
+        .selectFrom('customer_refunds')
+        .select(['payment_method', 'amount'])
+        .where('pos_session_id', '=', sessionId)
+        .where('status', '=', 'posted')
+        .execute(),
+      db
+        .selectFrom('treasury_vouchers')
+        .select(['kind', 'treasury_id', 'to_treasury_id', 'amount'])
+        .where('pos_session_id', '=', sessionId)
+        .where('status', '=', 'posted')
+        .execute(),
+    ]);
+    let cashRefunds = 0n;
+    for (const r of refunds) if (r.payment_method === 'cash') cashRefunds += BigInt(r.amount);
+    let cashIn = 0n;
+    let cashOut = 0n;
+    const drawer = session?.treasury_id ?? null;
+    for (const v of vouchers) {
+      const amount = BigInt(v.amount);
+      if (v.kind === 'income' || (v.kind === 'transfer' && v.to_treasury_id === drawer)) cashIn += amount;
+      else if (v.treasury_id === drawer) cashOut += amount;
+    }
+    // Every till return is approved (and logged) in its own transaction.
+    const returns = await db
+      .selectFrom('pos_approvals')
+      .select((eb) => eb.fn.count<string>('id').as('n'))
+      .where('pos_session_id', '=', sessionId)
+      .where('action', '=', 'return')
+      .executeTakeFirst();
+    return { cashRefunds, cashIn, cashOut, returnsCount: Number(returns?.n ?? 0) };
+  }
+
   async sumTendersByMethodForSession(
     db: Kysely<TenantDatabase>,
     sessionId: string,

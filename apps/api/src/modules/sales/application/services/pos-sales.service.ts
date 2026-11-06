@@ -14,7 +14,8 @@ import type { PosCheckoutInput, PosCheckoutResult } from '../../domain/pos-sale.
 import { isPostgresUniqueViolation, BusinessRuleError } from '../errors';
 import { entityNotFound } from '../../../../shared/errors/entity-errors';
 import { lockRowsForUpdate } from '../../../../shared/persistence/row-locks';
-import { assertSessionUsable, settleTenders } from './pos-rules';
+import { assertSessionUsable, deepestDiscountPercent, settleTenders } from './pos-rules';
+import { SupervisorApprovalService } from '../../../../shared/auth/supervisor-approval';
 import { SalesOrdersService } from './sales-orders.service';
 import { DeliveriesService } from './deliveries.service';
 import { SalesInvoicesService } from './sales-invoices.service';
@@ -70,6 +71,7 @@ export class PosSalesService {
     private readonly deliveries: DeliveriesService,
     private readonly salesInvoices: SalesInvoicesService,
     private readonly paymentsReceived: PaymentsReceivedService,
+    private readonly approvals: SupervisorApprovalService,
   ) {}
 
   async checkout(
@@ -78,7 +80,7 @@ export class PosSalesService {
     input: PosCheckoutInput,
     schema: string,
     actorUserId: string | null,
-    options: { canSupervise?: boolean } = {},
+    options: { canSupervise?: boolean; permissions?: readonly string[] } = {},
   ): Promise<PosCheckoutResult> {
     if (input.lines.length === 0) {
       throw new BusinessRuleError('A checkout must have at least one line.', {
@@ -139,6 +141,23 @@ export class PosSalesService {
         const current = await this.posSessions.findById(trx, session.id);
         assertSessionUsable(current, posSessionId, actorUserId, options.canSupervise ?? false);
 
+        // A discount deeper than the cashier's limit needs a supervisor.
+        const discount = deepestDiscountPercent(input);
+        if (discount > 0) {
+          const settings = await trx.selectFrom('tenant_settings').select('pos_max_discount_percent').executeTakeFirst();
+          const limit = settings?.pos_max_discount_percent == null ? null : Number(settings.pos_max_discount_percent);
+          if (limit !== null && discount > limit + 0.005) {
+            await this.approvals.approve(trx, schema, {
+              action: 'discount',
+              pin: input.approvalPin,
+              actorUserId,
+              actorPermissions: options.permissions ?? [],
+              posSessionId: session.id,
+              details: { discountPercent: Math.round(discount * 100) / 100, limitPercent: limit },
+            });
+          }
+        }
+
         const order = await this.salesOrders.create(
           trx,
           {
@@ -164,9 +183,11 @@ export class PosSalesService {
           schema,
         );
         await this.salesOrders.confirm(trx, order.id);
-        if (input.checkoutId) {
-          await trx.updateTable('sales_orders').set({ pos_checkout_id: input.checkoutId }).where('id', '=', order.id).execute();
-        }
+        await trx
+          .updateTable('sales_orders')
+          .set({ pos_session_id: session.id, ...(input.checkoutId ? { pos_checkout_id: input.checkoutId } : {}) })
+          .where('id', '=', order.id)
+          .execute();
 
         const delivery = await this.deliveries.create(trx, {
           salesOrderId: order.id,

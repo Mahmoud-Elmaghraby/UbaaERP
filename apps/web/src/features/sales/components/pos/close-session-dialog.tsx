@@ -9,36 +9,45 @@ import {
   DialogTitle,
   DialogTrigger,
   Input,
+  Separator,
+  Skeleton,
   Textarea,
   toast,
 } from '@erp-platform/ui';
 
-import { useClosePosSession } from '../../api/pos/queries';
+import { useClosePosSession, useFinishPosSessionClose, usePosSessionReport } from '../../api/pos/queries';
 import { ApiError } from '../../../../lib/api-client';
-import { decimalToMinorUnits, formatMoney } from '../../../../lib/money';
+import { decimalToMinorUnits } from '../../../../lib/money';
+import { PosCashReconciliation } from './pos-cash-reconciliation';
 
 /**
  * POS Stage 4 — the cashier physically counts the drawer and enters that count;
  * PosSessionsService.close() computes expected_cash_amount/variance_amount
- * server-side from opening float + cash tenders recorded during the session (see
- * migration 0059's own comment) and stores both, so this dialog never computes or
- * shows a variance itself before submitting — only after the close call returns.
+ * server-side. Before the count, the dialog shows the shift's cash movements
+ * (sales in cash, refunds, cash in / out, returns) but not the expected total —
+ * a blind count. After closing it shows the Z figures (expected, counted,
+ * variance); dismissing it returns the till to "open a session".
  */
 export function CloseSessionDialog({ session }: { session: PosSessionDto }) {
   const { t } = useTranslation();
   const closeSession = useClosePosSession();
+  const finishClose = useFinishPosSessionClose();
   const [open, setOpen] = useState(false);
   const [countedCashAmount, setCountedCashAmount] = useState('');
   const [notes, setNotes] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<PosSessionDto | null>(null);
+  const [closed, setClosed] = useState(false);
+  const { data: report, isLoading } = usePosSessionReport(open ? session.id : undefined);
 
   function resetAndClose() {
     setOpen(false);
     setCountedCashAmount('');
     setNotes('');
     setError(null);
-    setResult(null);
+    if (closed) {
+      setClosed(false);
+      void finishClose();
+    }
   }
 
   async function onSubmit() {
@@ -51,11 +60,11 @@ export function CloseSessionDialog({ session }: { session: PosSessionDto }) {
       return;
     }
     try {
-      const closed = await closeSession.mutateAsync({
+      await closeSession.mutateAsync({
         id: session.id,
         input: { countedCashAmount: { amountMinorUnits, currency: session.openingCashAmount.currency }, notes: notes || undefined },
       });
-      setResult(closed);
+      setClosed(true);
       toast.success(t('pos.closeSession.success'));
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : t('pos.closeSession.error'));
@@ -67,40 +76,30 @@ export function CloseSessionDialog({ session }: { session: PosSessionDto }) {
       <DialogTrigger asChild>
         <Button variant="outline">{t('pos.closeSession.trigger')}</Button>
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent className="max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{t('pos.closeSession.title')}</DialogTitle>
         </DialogHeader>
-        {result ? (
-          <div className="grid gap-3 text-sm">
-            <div>
-              <p className="text-muted-foreground">{t('pos.closeSession.expectedCashAmount')}</p>
-              <p className="font-medium">
-                {result.expectedCashAmount
-                  ? formatMoney(result.expectedCashAmount.amountMinorUnits, result.expectedCashAmount.currency)
-                  : '—'}
-              </p>
+        {isLoading || !report ? (
+          <Skeleton className="h-40 w-full" />
+        ) : (
+          <div className="grid gap-2 rounded-lg bg-muted/50 p-3 text-sm">
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">{t('pos.report.salesCount')}</span>
+              <span className="tabular-nums">{report.salesCount}</span>
             </div>
-            <div>
-              <p className="text-muted-foreground">{t('pos.closeSession.countedCashAmount')}</p>
-              <p className="font-medium">
-                {result.countedCashAmount
-                  ? formatMoney(result.countedCashAmount.amountMinorUnits, result.countedCashAmount.currency)
-                  : '—'}
-              </p>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">{t('pos.report.returnsCount')}</span>
+              <span className="tabular-nums">{report.returnsCount}</span>
             </div>
-            <div>
-              <p className="text-muted-foreground">{t('pos.closeSession.varianceAmount')}</p>
-              <p className="font-medium">
-                {result.varianceAmount
-                  ? formatMoney(result.varianceAmount.amountMinorUnits, result.varianceAmount.currency)
-                  : '—'}
-              </p>
-            </div>
-            <Button onClick={resetAndClose} className="mt-2">
-              {t('common.close')}
-            </Button>
+            <Separator />
+            <PosCashReconciliation report={report} blind={!closed} />
           </div>
+        )}
+        {closed ? (
+          <Button onClick={resetAndClose} className="mt-2">
+            {t('common.close')}
+          </Button>
         ) : (
           <div className="grid gap-4">
             <div className="grid gap-2">
@@ -110,6 +109,7 @@ export function CloseSessionDialog({ session }: { session: PosSessionDto }) {
               <Input
                 inputMode="decimal"
                 placeholder="0.00"
+                className="h-12 text-xl tabular-nums"
                 value={countedCashAmount}
                 onChange={(e) => setCountedCashAmount(e.target.value)}
               />

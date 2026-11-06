@@ -22,6 +22,13 @@ export const posSessionReportSchema = z.object({
   salesCount: z.number().int().nonnegative(),
   totalSalesAmount: moneySchema,
   tendersByMethod: z.array(posSessionTenderTotalSchema),
+  /** Cash paid back to customers from the drawer (POS returns). */
+  cashRefundsAmount: moneySchema,
+  /** Cash brought into the drawer from another treasury. */
+  cashInAmount: moneySchema,
+  /** Cash taken out: expenses paid from the drawer + cash sent to the safe / bank. */
+  cashOutAmount: moneySchema,
+  returnsCount: z.number().int().nonnegative(),
   expectedCashAmount: moneySchema,
   countedCashAmount: moneySchema.nullable(),
   varianceAmount: moneySchema.nullable(),

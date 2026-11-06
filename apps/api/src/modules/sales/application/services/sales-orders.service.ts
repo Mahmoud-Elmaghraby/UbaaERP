@@ -273,7 +273,7 @@ export class SalesOrdersService {
       input.salesRepId === undefined || input.salesRepId === existing.salesRepId
         ? undefined
         : await resolveSalesRepId(db, input.salesRepId, null);
-    return db.transaction().execute(async (trx) => {
+    return withTransaction(db, async (trx) => {
       const updated = await this.orders.update(trx, id, {
         notes: input.notes,
         customFields: input.customFields,

@@ -14,3 +14,5 @@ export * from './sales-channel.contract';
 export * from './price-list.contract';
 export * from './sales-invoice-installment.contract';
 export * from './sales-rep.contract';
+export * from './customer-refund.contract';
+export * from './pos-operations.contract';

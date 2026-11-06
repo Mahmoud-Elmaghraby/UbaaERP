@@ -23,6 +23,7 @@ export const DEFAULT_DOCUMENT_NUMBERING: Record<string, { prefix: string; paddin
   sales_credit_note: { prefix: 'CN-', paddingLength: 5 },
   payment_received: { prefix: 'RCV-', paddingLength: 5 },
   channel_settlement: { prefix: 'STL-', paddingLength: 5 },
+  customer_refund: { prefix: 'RFD-', paddingLength: 5 },
   // Purchases
   purchase_requisition: { prefix: 'PRQ-', paddingLength: 5 },
   request_for_quotation: { prefix: 'RFQ-', paddingLength: 5 },

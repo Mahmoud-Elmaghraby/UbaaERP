@@ -39,6 +39,8 @@ export interface TenantSettingsTable {
   updated_at: Generated<Date>;
   /** Migration 0109 — 'off' | 'warn' | 'block' when a sale goes above a customer's credit limit. */
   credit_limit_mode: Generated<string>;
+  /** Migration 0113 — the largest discount % a cashier gives without a supervisor (NULL = no limit). */
+  pos_max_discount_percent: Generated<string | null>;
 }
 
 /** Migration 0098. */
@@ -143,6 +145,8 @@ export interface UsersTable {
   // design totp_secret_encrypted/totp_enabled together encode.
   totp_secret_encrypted: string | null;
   totp_enabled: boolean;
+  /** Migration 0113 — a supervisor's POS approval PIN (bcrypt). */
+  pos_pin_hash: Generated<string | null>;
   created_at: Generated<Date>;
   updated_at: Generated<Date>;
 }
@@ -532,6 +536,8 @@ export interface SalesOrdersTable {
   pos_checkout_id: Generated<string | null>;
   /** Migration 0110 — sales rep the order counts for. */
   sales_rep_id: Generated<string | null>;
+  /** Migration 0113 — the POS shift this sale was rung up in. */
+  pos_session_id: Generated<string | null>;
 }
 
 export interface SalesOrderLinesTable {
@@ -1369,6 +1375,9 @@ export interface TenantDatabase {
   purchase_returns: PurchaseReturnsTable;
   sales_channels: SalesChannelsTable;
   sales_reps: SalesRepsTable;
+  customer_refunds: CustomerRefundsTable;
+  pos_held_carts: PosHeldCartsTable;
+  pos_approvals: PosApprovalsTable;
   price_lists: PriceListsTable;
   price_list_items: PriceListItemsTable;
   channel_settlements: ChannelSettlementsTable;
@@ -1687,6 +1696,8 @@ export interface TreasuryVouchersTable {
   created_by_user_id: string | null;
   cancelled_at: Date | null;
   cancel_reason: string | null;
+  /** Migration 0113 — cash put into / taken out of a POS drawer during that shift. */
+  pos_session_id: Generated<string | null>;
   created_at: Generated<Date>;
   updated_at: Generated<Date>;
 }
@@ -1700,4 +1711,55 @@ export interface TenantFeatureTogglesTable {
   feature_key: string;
   enabled: boolean;
   updated_at: Generated<Date>;
+}
+
+/** Migration 0113 — money paid back to a customer (رد مبلغ لعميل). */
+export interface CustomerRefundsTable {
+  id: string;
+  refund_number: string;
+  customer_id: string;
+  status: Generated<string>;
+  refund_date: string;
+  payment_method: string;
+  treasury_id: string | null;
+  amount: string;
+  currency: string;
+  sales_credit_note_id: string | null;
+  pos_session_id: string | null;
+  approved_by_user_id: string | null;
+  created_by_user_id: string | null;
+  reference: string | null;
+  notes: string | null;
+  cancelled_at: Date | null;
+  cancel_reason: string | null;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
+/** Migration 0113 — a sale parked at the till. */
+export interface PosHeldCartsTable {
+  id: string;
+  warehouse_id: string;
+  pos_session_id: string | null;
+  created_by_user_id: string | null;
+  label: string | null;
+  customer_id: string | null;
+  payload: unknown;
+  total_amount: Generated<string>;
+  currency: string;
+  item_count: Generated<number>;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
+/** Migration 0113 — a supervisor's approval on a till. */
+export interface PosApprovalsTable {
+  id: Generated<string>;
+  pos_session_id: string | null;
+  action: string;
+  cashier_user_id: string | null;
+  approver_user_id: string;
+  reference_id: string | null;
+  details: Generated<unknown>;
+  created_at: Generated<Date>;
 }

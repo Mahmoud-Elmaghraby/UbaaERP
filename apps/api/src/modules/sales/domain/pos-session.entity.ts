@@ -90,6 +90,11 @@ export interface PosSessionReport {
   salesCount: number;
   totalSalesAmount: Money;
   tendersByMethod: PosSessionTenderTotal[];
+  /** Migration 0113 — cash refunds, drawer cash in / out and till returns during the shift. */
+  cashRefundsAmount: Money;
+  cashInAmount: Money;
+  cashOutAmount: Money;
+  returnsCount: number;
   /** Live for an open session, stored (immutable) for a closed one — see this file's own comment above. */
   expectedCashAmount: Money;
   /** Only non-null once the session is closed. */

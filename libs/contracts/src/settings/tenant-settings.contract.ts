@@ -22,6 +22,8 @@ export const tenantSettingsSchema = z.object({
   /** Presigned URL of the company logo (null = none). */
   logoUrl: z.string().nullable(),
   creditLimitMode: creditLimitModeSchema,
+  /** Largest discount % a cashier gives without a supervisor's PIN (null = no limit). */
+  posMaxDiscountPercent: z.number().nullable().default(null),
   createdAt: z.coerce.date(),
   updatedAt: z.coerce.date(),
 });
@@ -37,5 +39,6 @@ export const updateTenantSettingsSchema = z.object({
   email: z.string().max(200).nullable().optional(),
   website: z.string().max(200).nullable().optional(),
   creditLimitMode: creditLimitModeSchema.optional(),
+  posMaxDiscountPercent: z.number().min(0).max(100).nullable().optional(),
 });
 export type UpdateTenantSettingsDto = z.infer<typeof updateTenantSettingsSchema>;

@@ -17,6 +17,7 @@ export const partyLedgerKindSchema = z.enum([
   'sales_credit_note',
   'payment_received',
   'cheque_bounced',
+  'customer_refund',
   'purchase_invoice',
   'supplier_payment',
   'purchase_debit_note',

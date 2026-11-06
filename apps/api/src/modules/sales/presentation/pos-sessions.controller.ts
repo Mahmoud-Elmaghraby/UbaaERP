@@ -60,6 +60,10 @@ function reportToDto(report: PosSessionReport): PosSessionReportDto {
       paymentMethod: t.paymentMethod,
       amount: moneyToDto(t.amount),
     })),
+    cashRefundsAmount: moneyToDto(report.cashRefundsAmount),
+    cashInAmount: moneyToDto(report.cashInAmount),
+    cashOutAmount: moneyToDto(report.cashOutAmount),
+    returnsCount: report.returnsCount,
     expectedCashAmount: moneyToDto(report.expectedCashAmount),
     countedCashAmount: report.countedCashAmount ? moneyToDto(report.countedCashAmount) : null,
     varianceAmount: report.varianceAmount ? moneyToDto(report.varianceAmount) : null,
@@ -208,10 +212,11 @@ export class PosSessionsController {
         })),
         notes: body.notes,
         checkoutId: body.checkoutId ?? null,
+        approvalPin: body.approvalPin ?? null,
       },
       schema,
       user.sub,
-      { canSupervise: user.permissions.includes('pos.supervise') },
+      { canSupervise: user.permissions.includes('pos.supervise'), permissions: user.permissions },
     );
     return checkoutResultToDto(result);
   }

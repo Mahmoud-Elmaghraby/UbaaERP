@@ -1,6 +1,12 @@
 import { Body, Controller, Get, HttpCode, HttpStatus, Param, Patch, Post, UseGuards } from '@nestjs/common';
 import {
   changePasswordSchema,
+  posPinStatusSchema,
+  removePosPinSchema,
+  setPosPinSchema,
+  type PosPinStatusDto,
+  type RemovePosPinDto,
+  type SetPosPinDto,
   confirmTotpSchema,
   createUserSchema,
   disableTotpSchema,
@@ -33,6 +39,7 @@ import { UserBranchAccessService } from '../application/services/user-branch-acc
 import { ApprovalChainsService } from '../application/services/approval-chains.service';
 import { AccountAccessService } from '../application/services/account-access.service';
 import { TwoFactorService } from '../application/services/two-factor.service';
+import { PosPinService } from '../application/services/pos-pin.service';
 
 // Every Zod pipe below is bound directly to @Body(), not via a
 // method-level @UsePipes() — see auth.controller.ts's class comment for
@@ -46,6 +53,7 @@ export class UsersController {
     private readonly approvalChains: ApprovalChainsService,
     private readonly accountAccess: AccountAccessService,
     private readonly twoFactor: TwoFactorService,
+    private readonly posPin: PosPinService,
     private readonly connections: TenantConnectionManager,
   ) {}
 
@@ -100,6 +108,33 @@ export class UsersController {
   ): Promise<void> {
     const db = this.connections.getClient(schema);
     await this.service.changeOwnPassword(db, actor.sub, body.currentPassword, body.newPassword);
+  }
+
+  /** The current user's POS approval PIN — any authenticated user (only supervisors' PINs approve anything). */
+  @Get('me/pos-pin')
+  async posPinStatus(@CurrentTenantSchema() schema: string, @CurrentUser() actor: JwtAccessPayload): Promise<PosPinStatusDto> {
+    const db = this.connections.getClient(schema);
+    return posPinStatusSchema.parse(await this.posPin.status(db, actor.sub, actor.permissions));
+  }
+
+  @Post('me/pos-pin')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async setPosPin(
+    @CurrentTenantSchema() schema: string,
+    @CurrentUser() actor: JwtAccessPayload,
+    @Body(new ZodValidationPipe(setPosPinSchema)) body: SetPosPinDto,
+  ): Promise<void> {
+    await this.posPin.set(this.connections.getClient(schema), actor.sub, body.pin, body.currentPassword);
+  }
+
+  @Post('me/pos-pin/remove')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async removePosPin(
+    @CurrentTenantSchema() schema: string,
+    @CurrentUser() actor: JwtAccessPayload,
+    @Body(new ZodValidationPipe(removePosPinSchema)) body: RemovePosPinDto,
+  ): Promise<void> {
+    await this.posPin.remove(this.connections.getClient(schema), actor.sub, body.currentPassword);
   }
 
   @Get(':id/branch-access')

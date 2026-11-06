@@ -79,6 +79,8 @@ export const ENTITY_LABELS = {
   FIXED_ASSET: 'Fixed asset',
   BUDGET: 'Budget',
   BANK_STATEMENT_LINE: 'Bank statement line',
+  CUSTOMER_REFUND: 'Customer refund',
+  POS_HELD_CART: 'Parked sale',
 } as const;
 
 export type EntityKey = keyof typeof ENTITY_LABELS;

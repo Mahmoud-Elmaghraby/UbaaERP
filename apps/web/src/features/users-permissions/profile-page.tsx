@@ -23,6 +23,7 @@ import { useAuthStore } from '../../lib/auth-store';
 import { useChangeOwnPassword, useRevokeOwnSessions } from './queries';
 import { ApiError } from '../../lib/api-client';
 import { TwoFactorCard } from './two-factor-card';
+import { PosPinCard } from './pos-pin-card';
 import { confirmDialog } from '../../components/feedback/confirm-dialog';
 
 export function ProfilePage() {
@@ -55,6 +56,8 @@ export function ProfilePage() {
       </Card>
 
       <TwoFactorCard />
+
+      <PosPinCard />
     </div>
   );
 }

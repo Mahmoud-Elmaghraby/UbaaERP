@@ -1,3 +1,4 @@
+import { PosPinService } from './application/services/pos-pin.service';
 import { Module } from '@nestjs/common';
 import { PERMISSION_REPOSITORY } from './application/ports/permission.repository';
 import { ROLE_REPOSITORY } from './application/ports/role.repository';
@@ -69,6 +70,7 @@ import { InventoryAuditListener } from './infrastructure/listeners/inventory-aud
     AccountAccessService,
     TotpService,
     TwoFactorService,
+    PosPinService,
     InventoryAuditListener,
   ],
 })

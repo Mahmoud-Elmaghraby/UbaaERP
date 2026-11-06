@@ -60,3 +60,20 @@ export const setManagerSchema = z.object({
   managerId: z.string().uuid().nullable(),
 });
 export type SetManagerDto = z.infer<typeof setManagerSchema>;
+
+/** A supervisor's POS approval PIN (4–6 digits), set by the user themself after typing their password. */
+export const setPosPinSchema = z.object({
+  pin: z.string().regex(/^\d{4,6}$/),
+  currentPassword: z.string().min(1),
+});
+export type SetPosPinDto = z.infer<typeof setPosPinSchema>;
+
+export const removePosPinSchema = z.object({ currentPassword: z.string().min(1) });
+export type RemovePosPinDto = z.infer<typeof removePosPinSchema>;
+
+export const posPinStatusSchema = z.object({
+  /** The user may approve on a till (holds 'pos.supervise'). */
+  canSupervise: z.boolean(),
+  hasPin: z.boolean(),
+});
+export type PosPinStatusDto = z.infer<typeof posPinStatusSchema>;

@@ -14,6 +14,7 @@ import {
 
 import { usePosSessionReport } from '../../api/pos/queries';
 import { formatMoney } from '../../../../lib/money';
+import { PosCashReconciliation } from './pos-cash-reconciliation';
 
 /**
  * POS Stage 5 (claude/sales-pos-research.md) — X Report while the session is open,
@@ -45,10 +46,14 @@ export function PosSessionReportDialog({ session }: { session: PosSessionDto }) 
           <Skeleton className="h-64 w-full" />
         ) : (
           <div className="grid gap-4 text-sm">
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-3 gap-3">
               <div>
                 <p className="text-muted-foreground">{t('pos.report.salesCount')}</p>
                 <p className="font-medium">{report.salesCount}</p>
+              </div>
+              <div>
+                <p className="text-muted-foreground">{t('pos.report.returnsCount')}</p>
+                <p className="font-medium">{report.returnsCount}</p>
               </div>
               <div>
                 <p className="text-muted-foreground">{t('pos.report.totalSalesAmount')}</p>
@@ -84,48 +89,7 @@ export function PosSessionReportDialog({ session }: { session: PosSessionDto }) 
 
             <Separator />
             <p className="font-medium text-muted-foreground">{t('pos.report.cashSummaryTitle')}</p>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <p className="text-muted-foreground">{t('pos.openSession.openingCashAmount')}</p>
-                <p className="font-medium">
-                  {formatMoney(
-                    session.openingCashAmount.amountMinorUnits,
-                    session.openingCashAmount.currency,
-                  )}
-                </p>
-              </div>
-              <div>
-                <p className="text-muted-foreground">{t('pos.closeSession.expectedCashAmount')}</p>
-                <p className="font-medium">
-                  {formatMoney(
-                    report.expectedCashAmount.amountMinorUnits,
-                    report.expectedCashAmount.currency,
-                  )}
-                </p>
-              </div>
-              {report.countedCashAmount ? (
-                <div>
-                  <p className="text-muted-foreground">{t('pos.closeSession.countedCashAmount')}</p>
-                  <p className="font-medium">
-                    {formatMoney(
-                      report.countedCashAmount.amountMinorUnits,
-                      report.countedCashAmount.currency,
-                    )}
-                  </p>
-                </div>
-              ) : null}
-              {report.varianceAmount ? (
-                <div>
-                  <p className="text-muted-foreground">{t('pos.closeSession.varianceAmount')}</p>
-                  <p className="font-medium">
-                    {formatMoney(
-                      report.varianceAmount.amountMinorUnits,
-                      report.varianceAmount.currency,
-                    )}
-                  </p>
-                </div>
-              ) : null}
-            </div>
+            <PosCashReconciliation report={report} />
 
             <Separator />
             <div className="flex items-center justify-between">

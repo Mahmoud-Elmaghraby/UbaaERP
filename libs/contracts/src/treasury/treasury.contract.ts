@@ -159,6 +159,7 @@ export const treasuryMovementKindSchema = z.enum([
   'payment_received',
   'supplier_payment',
   'pos_variance',
+  'customer_refund',
   'marketplace_fees',
   'expense',
   'income',

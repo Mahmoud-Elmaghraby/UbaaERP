@@ -41,6 +41,15 @@ export interface SupplierPaymentPostedMetadata {
   allocations?: { allocationId?: string; purchaseInvoiceId: string; allocatedAmount: { amountMinorUnits: string; currency: string } }[];
 }
 
+/** CustomerRefundsService's outbox metadata (sales.customer_refund.posted / .cancelled). */
+export interface CustomerRefundMetadata {
+  refundNumber: string;
+  refundDate: string;
+  paymentMethod?: string;
+  treasuryId: string | null;
+  amount: { amountMinorUnits: string; currency: string };
+}
+
 /** Outbox metadata of a cheque status change (sales.cheque.* / purchases.cheque.*). */
 export interface ChequeEventMetadata {
   paymentNumber: string;
@@ -166,6 +175,38 @@ export class AccountingPaymentPostingListener {
       sourceReferenceId: payload.entityId,
     });
     await this.postExchangeDifferences(db, 'supplier', payload.entityId, entryDate, metadata.allocations ?? []);
+  }
+
+  /** Money paid back to a customer: Dr Receivables / Cr the treasury it left (a cancellation reverses it). */
+  @OnOutboxEvent('sales.customer_refund.posted', { requiresFeature: FEATURE_KEYS.ACCOUNTING })
+  handleCustomerRefund(payload: DomainEventPayload): Promise<void> {
+    return this.postRefund(payload, false);
+  }
+
+  @OnOutboxEvent('sales.customer_refund.cancelled', { requiresFeature: FEATURE_KEYS.ACCOUNTING })
+  handleCustomerRefundCancelled(payload: DomainEventPayload): Promise<void> {
+    return this.postRefund(payload, true);
+  }
+
+  private async postRefund(payload: DomainEventPayload, reverse: boolean): Promise<void> {
+    const m = payload.metadata as unknown as CustomerRefundMetadata | undefined;
+    if (!m?.amount || m.amount.amountMinorUnits === '0') return;
+    const db = this.connections.getClient(payload.schema);
+    const settings = await this.accountingSettings.get(db);
+    const receivable = required(settings.accountsReceivableAccountId, 'حساب العملاء');
+    const treasury = await this.treasuryAccount(db, settings, m);
+    const { amountMinorUnits } = await this.ledgerAmounts.toLedger(db, m.amount, m.refundDate);
+    const [debitAccount, creditAccount] = reverse ? [treasury, receivable] : [receivable, treasury];
+    await this.journalEntries.createAuto(db, {
+      entryDate: m.refundDate,
+      description: reverse ? `إلغاء رد مبلغ لعميل — ${m.refundNumber}` : `رد مبلغ لعميل — ${m.refundNumber}`,
+      lines: [
+        { accountId: debitAccount, debitAmountMinorUnits: amountMinorUnits, creditAmountMinorUnits: '0' },
+        { accountId: creditAccount, debitAmountMinorUnits: '0', creditAmountMinorUnits: amountMinorUnits },
+      ],
+      sourceReferenceType: reverse ? 'customer_refund_cancel' : 'customer_refund',
+      sourceReferenceId: payload.entityId,
+    });
   }
 
   /** A received cheque was collected: أوراق قبض → the bank it was deposited in. */

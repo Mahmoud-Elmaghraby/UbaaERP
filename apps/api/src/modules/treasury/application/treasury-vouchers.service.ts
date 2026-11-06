@@ -15,6 +15,10 @@ import { BusinessRuleError } from '../../../shared/errors/domain-errors';
 import { entityNotFound } from '../../../shared/errors/entity-errors';
 import { TreasuryMovementRegistry } from '../../../shared/treasury/treasury-movements';
 import { NumberingSequencesService } from '../../settings/application/services/numbering-sequences.service';
+import { SupervisorApprovalService } from '../../../shared/auth/supervisor-approval';
+import { lockRowsForUpdate } from '../../../shared/persistence/row-locks';
+import { localIsoDate } from '../../../shared/time/local-date';
+import type { PosCashMovementDto, PosCashMovementRowDto } from '@erp-platform/contracts';
 
 export const TREASURY_VOUCHER_POSTED = 'treasury.voucher.posted';
 export const TREASURY_VOUCHER_CANCELLED = 'treasury.voucher.cancelled';
@@ -54,6 +58,7 @@ export class TreasuryVouchersService {
     private readonly numbering: NumberingSequencesService,
     private readonly outbox: OutboxWriterService,
     private readonly movements: TreasuryMovementRegistry,
+    private readonly approvals: SupervisorApprovalService,
   ) {}
 
   async list(db: Kysely<TenantDatabase>, query: TreasuryVoucherQueryDto): Promise<TreasuryVoucherDto[]> {
@@ -79,6 +84,7 @@ export class TreasuryVouchersService {
     db: Kysely<TenantDatabase>,
     input: CreateTreasuryVoucherDto,
     context: { schema: string; actorUserId: string | null },
+    options: { posSessionId?: string | null } = {},
   ): Promise<TreasuryVoucherDto> {
     const treasury = await this.usableTreasury(db, input.treasuryId);
     let toTreasuryId: string | null = null;
@@ -132,6 +138,7 @@ export class TreasuryVouchersService {
           description: input.description ?? null,
           reference: input.reference ?? null,
           created_by_user_id: context.actorUserId,
+          pos_session_id: options.posSessionId ?? null,
         })
         .execute();
       await this.writeEvent(trx, TREASURY_VOUCHER_POSTED, context, id, {
@@ -162,6 +169,13 @@ export class TreasuryVouchersService {
       if (row.status === 'cancelled') {
         throw new BusinessRuleError('The voucher is already cancelled.', { code: 'TREASURY_VOUCHER.ALREADY_CANCELLED' });
       }
+      if (row.pos_session_id) {
+        const session = await trx.selectFrom('pos_sessions').select('status').where('id', '=', row.pos_session_id).executeTakeFirst();
+        // A closed shift's cash count is final.
+        if (session?.status === 'closed') {
+          throw new BusinessRuleError('This movement belongs to a closed POS shift.', { code: 'TREASURY_VOUCHER.POS_SESSION_CLOSED' });
+        }
+      }
       // Undoing money that came in takes it back out of the treasury that received it.
       const receiver = row.kind === 'income' ? row.treasury_id : row.kind === 'transfer' ? row.to_treasury_id : null;
       await this.movements.assertCanWithdraw(trx, receiver, BigInt(row.amount));
@@ -187,6 +201,101 @@ export class TreasuryVouchersService {
       });
     });
     return this.getById(db, id);
+  }
+
+  /**
+   * Cash in / out of a POS drawer during its shift (migration 0113): an
+   * expense paid from the drawer, cash sent to the safe / bank, or change
+   * brought in. Recorded as ordinary vouchers tagged with the shift, so the
+   * shift's expected cash counts them. Taking cash out needs a supervisor.
+   */
+  async createForPosDrawer(
+    db: Kysely<TenantDatabase>,
+    sessionId: string,
+    input: PosCashMovementDto,
+    context: { schema: string; actorUserId: string | null; permissions: readonly string[] },
+  ): Promise<TreasuryVoucherDto> {
+    return withTransaction(db, async (trx) => {
+      await lockRowsForUpdate(trx, 'pos_sessions', [sessionId]);
+      const session = await trx
+        .selectFrom('pos_sessions')
+        .select(['id', 'status', 'cashier_user_id', 'treasury_id', 'currency'])
+        .where('id', '=', sessionId)
+        .executeTakeFirst();
+      if (!session) throw entityNotFound('POS_SESSION', sessionId);
+      if (session.status !== 'open') {
+        throw new BusinessRuleError('Only an open shift has a drawer to move cash in or out of.', { code: 'POS_SALE.SESSION_NOT_OPEN', params: { id: sessionId, status: session.status } });
+      }
+      if (!SupervisorApprovalService.canSupervise(context.permissions) && session.cashier_user_id !== context.actorUserId) {
+        throw new BusinessRuleError('This shift belongs to another cashier.', { code: 'POS_SALE.NOT_YOUR_SESSION', params: { id: sessionId } });
+      }
+      if (!session.treasury_id) {
+        throw new BusinessRuleError('This shift has no cash box.', { code: 'TREASURY_VOUCHER.POS_NO_DRAWER' });
+      }
+      if (input.amount.currency !== session.currency) {
+        throw new BusinessRuleError('Drawer cash is in the shift currency.', { code: 'POS_SALE.SESSION_CURRENCY_MISMATCH', params: { currency: session.currency } });
+      }
+      if (input.kind !== 'from_treasury') {
+        await this.approvals.approve(trx, context.schema, {
+          action: 'cash_out',
+          pin: input.approvalPin,
+          actorUserId: context.actorUserId,
+          actorPermissions: context.permissions,
+          posSessionId: sessionId,
+          details: { kind: input.kind, amount: input.amount },
+        });
+      }
+      const common = {
+        voucherDate: localIsoDate(new Date()),
+        amountMinorUnits: input.amount.amountMinorUnits,
+        description: input.description ?? null,
+      };
+      const voucher: CreateTreasuryVoucherDto =
+        input.kind === 'expense'
+          ? { ...common, kind: 'expense', treasuryId: session.treasury_id, categoryId: requiredId(input.categoryId, 'categoryId') }
+          : input.kind === 'to_treasury'
+            ? { ...common, kind: 'transfer', treasuryId: session.treasury_id, toTreasuryId: requiredId(input.otherTreasuryId, 'otherTreasuryId') }
+            : { ...common, kind: 'transfer', treasuryId: requiredId(input.otherTreasuryId, 'otherTreasuryId'), toTreasuryId: session.treasury_id };
+      return this.create(trx, voucher, context, { posSessionId: sessionId });
+    });
+  }
+
+  async listForPosDrawer(db: Kysely<TenantDatabase>, sessionId: string): Promise<PosCashMovementRowDto[]> {
+    const session = await db.selectFrom('pos_sessions').select('treasury_id').where('id', '=', sessionId).executeTakeFirst();
+    if (!session) throw entityNotFound('POS_SESSION', sessionId);
+    const rows = await this.baseQuery(db).where('v.pos_session_id', '=', sessionId).orderBy('v.created_at', 'desc').execute();
+    return rows.map((row) => {
+      const kind = row.kind === 'expense' ? 'expense' : row.to_treasury_id === session.treasury_id ? 'from_treasury' : 'to_treasury';
+      return {
+        id: row.id,
+        voucherNumber: row.voucher_number,
+        kind,
+        status: row.status as 'posted' | 'cancelled',
+        amount: { amountMinorUnits: row.amount, currency: row.currency },
+        categoryName: row.category_name,
+        otherTreasuryName: kind === 'from_treasury' ? row.treasury_name : kind === 'to_treasury' ? row.to_treasury_name : null,
+        description: row.description,
+        createdAt: row.created_at,
+      };
+    });
+  }
+
+  /** What the drawer screen offers: active expense items and the other treasuries of the shift's currency. */
+  async posDrawerOptions(db: Kysely<TenantDatabase>, sessionId: string) {
+    const session = await db.selectFrom('pos_sessions').select(['treasury_id', 'currency']).where('id', '=', sessionId).executeTakeFirst();
+    if (!session) throw entityNotFound('POS_SESSION', sessionId);
+    const [categories, treasuries] = await Promise.all([
+      db.selectFrom('treasury_categories').select(['id', 'name']).where('kind', '=', 'expense').where('is_active', '=', true).orderBy('name').execute(),
+      db
+        .selectFrom('treasuries')
+        .select(['id', 'name', 'kind'])
+        .where('is_active', '=', true)
+        .where('currency', '=', session.currency)
+        .where('id', '!=', session.treasury_id ?? '00000000-0000-0000-0000-000000000000')
+        .orderBy('name')
+        .execute(),
+    ]);
+    return { categories, treasuries };
   }
 
   private async usableTreasury(db: Kysely<TenantDatabase>, id: string) {
@@ -270,4 +379,9 @@ function toDto(row: VoucherRow): TreasuryVoucherDto {
     cancelledAt: row.cancelled_at,
     cancelReason: row.cancel_reason,
   };
+}
+
+function requiredId(value: string | null | undefined, field: string): string {
+  if (!value) throw new BusinessRuleError(`${field} is required for this movement.`, { code: 'TREASURY_VOUCHER.POS_FIELD_REQUIRED', params: { field } });
+  return value;
 }

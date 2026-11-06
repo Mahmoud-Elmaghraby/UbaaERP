@@ -43,6 +43,7 @@ import { confirmDialog } from '../../../../components/feedback/confirm-dialog';
 import { ApiError } from '../../../../lib/api-client';
 import { FEATURE_KEYS } from '../../../../lib/feature-keys';
 import { formatDate } from '../../../../lib/format-date';
+import { CustomerRefundAction, CustomerRefundsSection } from './customer-refunds-section';
 
 const CUSTOMERS_PATH = '/sales/customers';
 const RECENT_LIMIT = 10;
@@ -188,6 +189,7 @@ function CustomerView({ customer }: { customer: CustomerDto }) {
                 {t('statements.title')}
               </Link>
             </Button>
+            <CustomerRefundAction customer={customer} />
             <Can permission="sales.manage">
               {!customer.isSystemDefault ? (
                 <Button
@@ -359,6 +361,8 @@ function CustomerView({ customer }: { customer: CustomerDto }) {
                 </TableBody>
               </Table>
             </SectionCard>
+
+            <CustomerRefundsSection customerId={customer.id} />
           </>
         }
         side={

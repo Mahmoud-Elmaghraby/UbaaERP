@@ -13,6 +13,10 @@ import { SalesRegisterService } from './application/services/sales-register.serv
 import { ReceivedChequesService } from './application/services/received-cheques.service';
 import { ChequeEndorsementListener } from './infrastructure/events/cheque-endorsement.listener';
 import { ReceivedChequesController } from './presentation/cheques.controller';
+import { CustomerRefundsService } from './application/services/customer-refunds.service';
+import { PosOperationsService } from './application/services/pos-operations.service';
+import { CustomerRefundsController } from './presentation/customer-refunds.controller';
+import { PosOperationsController } from './presentation/pos-operations.controller';
 import { CustomerCreditService } from './application/services/customer-credit.service';
 import { SalesInvoicePrintProvider } from './infrastructure/printing/sales-invoice.print-provider';
 import { SalesCreditNotePrintProvider } from './infrastructure/printing/sales-credit-note.print-provider';
@@ -213,6 +217,8 @@ import { StockAvailabilityChecker } from '../../shared/catalog/stock-availabilit
   imports: [SettingsModule],
   controllers: [
     ReceivedChequesController,
+    CustomerRefundsController,
+    PosOperationsController,
     CustomersController,
     SalesChannelsController,
     SalesRepsController,
@@ -239,6 +245,8 @@ import { StockAvailabilityChecker } from '../../shared/catalog/stock-availabilit
     CustomerLedgerSource,
     SalesRegisterService,
     ReceivedChequesService,
+    CustomerRefundsService,
+    PosOperationsService,
     ChequeEndorsementListener,
     CustomerCreditService,
     SalesInvoicePrintProvider,

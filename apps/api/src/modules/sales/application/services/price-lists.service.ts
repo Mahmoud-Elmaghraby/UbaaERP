@@ -1,3 +1,4 @@
+import { withTransaction } from '../../../../database/tenant/transaction.util';
 import { randomUUID } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
 import { sql, type Kysely } from 'kysely';
@@ -66,7 +67,7 @@ export class PriceListsService {
       notes: input.notes ?? null,
     };
     try {
-      await db.transaction().execute(async (trx) => {
+      await withTransaction(db, async (trx) => {
         if (id) {
           const updated = await trx
             .updateTable('price_lists')

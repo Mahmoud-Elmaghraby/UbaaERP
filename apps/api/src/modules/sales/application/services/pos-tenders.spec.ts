@@ -1,5 +1,5 @@
 import { Money } from '@erp-platform/shared-kernel';
-import { assertSessionUsable, settleTenders } from './pos-rules';
+import { assertSessionUsable, deepestDiscountPercent, settleTenders } from './pos-rules';
 
 const egp = (minor: number) => Money.fromMinorUnits(minor, 'EGP');
 const tender = (paymentMethod: string, minor: number) => ({ paymentMethod, amount: egp(minor) });
@@ -34,5 +34,30 @@ describe('POS tenders', () => {
     expect(() => assertSessionUsable(session, 's', 'u2', false)).toThrow();
     expect(() => assertSessionUsable(session, 's', 'u2', true)).not.toThrow();
     expect(() => assertSessionUsable({ ...session, status: 'closed' }, 's', 'u1', false)).toThrow();
+  });
+});
+
+describe('deepestDiscountPercent', () => {
+  const egp = (minor: number) => Money.fromMinorUnits(BigInt(minor), 'EGP');
+  const line = (price: number, qty: number, extra: object = {}) => ({ unitPrice: egp(price), quantity: qty, ...extra });
+
+  it('no discount → 0', () => {
+    expect(deepestDiscountPercent({ lines: [line(1000, 2)] })).toBe(0);
+  });
+
+  it('the deepest line discount wins', () => {
+    const pct = deepestDiscountPercent({
+      lines: [line(1000, 1, { discountType: 'percentage', discountPercentage: 5 }), line(1000, 2, { discountType: 'fixed', discountFixedAmount: egp(500) })],
+    });
+    expect(pct).toBe(25);
+  });
+
+  it('a sale discount is measured against the total after line discounts', () => {
+    const pct = deepestDiscountPercent({
+      lines: [line(1000, 1, { discountType: 'percentage', discountPercentage: 50 }), line(500, 1)],
+      discountType: 'fixed',
+      discountFixedAmount: egp(600),
+    });
+    expect(pct).toBe(60);
   });
 });

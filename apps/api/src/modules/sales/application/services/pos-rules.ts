@@ -69,3 +69,37 @@ export function settleTenders<T extends { paymentMethod: string; amount: Money }
   }
   return { tenders: result, change: tendered.subtract(total) };
 }
+
+interface Discountable {
+  discountType?: 'percentage' | 'fixed' | null;
+  discountPercentage?: number | null;
+  discountFixedAmount?: Money | null;
+}
+
+/**
+ * The deepest discount in a sale, as a percentage: the largest line discount
+ * (of that line's gross) or the sale discount (of the total after line
+ * discounts). Compared with the cashier's limit (tenant_settings.pos_max_discount_percent).
+ */
+export function deepestDiscountPercent(
+  sale: Discountable & { lines: readonly (Discountable & { unitPrice: Money; quantity: number })[] },
+): number {
+  let deepest = 0;
+  let netTotal = 0;
+  for (const line of sale.lines) {
+    const gross = Number(line.unitPrice.toMinorUnits()) * line.quantity;
+    const pct = percentOf(line, gross);
+    deepest = Math.max(deepest, pct);
+    netTotal += gross * (1 - Math.min(pct, 100) / 100);
+  }
+  return Math.max(deepest, percentOf(sale, netTotal));
+}
+
+function percentOf(d: Discountable, base: number): number {
+  if (d.discountType === 'percentage') return d.discountPercentage ?? 0;
+  if (d.discountType === 'fixed' && d.discountFixedAmount) {
+    if (base <= 0) return d.discountFixedAmount.isPositive() ? 100 : 0;
+    return (Number(d.discountFixedAmount.toMinorUnits()) / base) * 100;
+  }
+  return 0;
+}

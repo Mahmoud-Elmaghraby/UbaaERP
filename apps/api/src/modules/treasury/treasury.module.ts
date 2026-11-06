@@ -3,6 +3,7 @@ import { SettingsModule } from '../settings/settings.module';
 import { TreasuriesController } from './presentation/treasuries.controller';
 import { TreasuryCategoriesController } from './presentation/treasury-categories.controller';
 import { TreasuryVouchersController } from './presentation/treasury-vouchers.controller';
+import { PosDrawerController } from './presentation/pos-drawer.controller';
 import { TreasuriesService } from './application/treasuries.service';
 import { TreasuryCategoriesService } from './application/treasury-categories.service';
 import { TreasuryVouchersService } from './application/treasury-vouchers.service';
@@ -23,7 +24,7 @@ import { TreasuryPrintRegistration } from './infrastructure/treasury-print.regis
  */
 @Module({
   imports: [SettingsModule],
-  controllers: [TreasuriesController, TreasuryCategoriesController, TreasuryVouchersController],
+  controllers: [TreasuriesController, TreasuryCategoriesController, TreasuryVouchersController, PosDrawerController],
   providers: [
     TreasuriesService,
     TreasuryCategoriesService,

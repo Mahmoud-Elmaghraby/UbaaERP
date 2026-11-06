@@ -144,12 +144,7 @@ export class PosSessionsService {
       await lockRowsForUpdate(trx, 'pos_sessions', [id]);
       const current = await this.repository.findById(trx, id);
       if (!current || current.status !== 'open') throw statusChanged('POS_SESSION', id);
-      const currency = existing.openingCashAmount.currency;
-      const cashTendersMinorUnits = await this.repository.sumCashTendersForSession(trx, id);
-      const cashTendersMoney = cashTendersMinorUnits
-        ? Money.fromMinorUnits(BigInt(cashTendersMinorUnits), currency)
-        : Money.zero(currency);
-      const expectedCashAmount = existing.openingCashAmount.add(cashTendersMoney);
+      const expectedCashAmount = await this.expectedCash(trx, existing);
       const varianceAmount = input.countedCashAmount.subtract(expectedCashAmount);
 
       const closed = await this.repository.close(trx, id, {
@@ -193,9 +188,10 @@ export class PosSessionsService {
     const session = await this.getById(db, id);
     const currency = session.openingCashAmount.currency;
 
-    const [tenderTotals, salesTotals] = await Promise.all([
+    const [tenderTotals, salesTotals, drawer] = await Promise.all([
       this.repository.sumTendersByMethodForSession(db, id),
       this.repository.countAndSumSalesForSession(db, id),
+      this.repository.drawerFlowsForSession(db, id),
     ]);
 
     const tendersByMethod = tenderTotals.map((row) => ({
@@ -216,11 +212,7 @@ export class PosSessionsService {
       countedCashAmount = session.countedCashAmount;
       varianceAmount = session.varianceAmount;
     } else {
-      const cashTendersMinorUnits = await this.repository.sumCashTendersForSession(db, id);
-      const cashTendersMoney = cashTendersMinorUnits
-        ? Money.fromMinorUnits(BigInt(cashTendersMinorUnits), currency)
-        : Money.zero(currency);
-      expectedCashAmount = session.openingCashAmount.add(cashTendersMoney);
+      expectedCashAmount = await this.expectedCash(db, session);
       countedCashAmount = null;
       varianceAmount = null;
     }
@@ -230,10 +222,25 @@ export class PosSessionsService {
       salesCount: salesTotals.salesCount,
       totalSalesAmount,
       tendersByMethod,
+      cashRefundsAmount: Money.fromMinorUnits(drawer.cashRefunds, currency),
+      cashInAmount: Money.fromMinorUnits(drawer.cashIn, currency),
+      cashOutAmount: Money.fromMinorUnits(drawer.cashOut, currency),
+      returnsCount: drawer.returnsCount,
       expectedCashAmount,
       countedCashAmount,
       varianceAmount,
       generatedAt: new Date(),
     };
+  }
+
+  /** Opening float + cash sales − cash refunds + cash brought in − cash taken out (expenses, to the safe). */
+  private async expectedCash(db: Kysely<TenantDatabase>, session: PosSession): Promise<Money> {
+    const currency = session.openingCashAmount.currency;
+    const [cashTenders, drawer] = await Promise.all([
+      this.repository.sumCashTendersForSession(db, session.id),
+      this.repository.drawerFlowsForSession(db, session.id),
+    ]);
+    const net = BigInt(cashTenders ?? 0) - drawer.cashRefunds + drawer.cashIn - drawer.cashOut;
+    return session.openingCashAmount.add(Money.fromMinorUnits(net, currency));
   }
 }

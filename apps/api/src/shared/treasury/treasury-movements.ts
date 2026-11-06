@@ -14,6 +14,7 @@ import { BusinessRuleError } from '../errors/domain-errors';
  */
 export type TreasuryMovementKind =
   | 'payment_received'
+  | 'customer_refund'
   | 'supplier_payment'
   | 'pos_variance'
   | 'marketplace_fees'

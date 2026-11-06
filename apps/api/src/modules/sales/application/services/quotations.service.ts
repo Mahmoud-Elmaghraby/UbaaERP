@@ -1,3 +1,4 @@
+import { withTransaction } from '../../../../database/tenant/transaction.util';
 import { Inject, Injectable } from '@nestjs/common';
 import type { Money } from '@erp-platform/shared-kernel';
 import type { Kysely } from 'kysely';
@@ -117,7 +118,7 @@ export class QuotationsService {
     }
 
     const linesWithUnits = await this.unitResolver.resolve(db, input.lines);
-    return db.transaction().execute(async (trx) => {
+    return withTransaction(db, async (trx) => {
       const quotation = await this.quotations.create(trx, {
         quotationNumber: allocated.formatted,
         customerId: input.customerId,
@@ -170,7 +171,7 @@ export class QuotationsService {
     }
 
     const newLines = input.lines !== undefined ? await this.unitResolver.resolve(db, input.lines) : undefined;
-    return db.transaction().execute(async (trx) => {
+    return withTransaction(db, async (trx) => {
       const updated = await this.quotations.update(trx, id, {
         validUntilDate: input.validUntilDate,
         notes: input.notes,

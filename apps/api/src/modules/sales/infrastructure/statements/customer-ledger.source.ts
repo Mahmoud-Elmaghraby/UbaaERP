@@ -185,6 +185,27 @@ export class CustomerLedgerSource implements PartyLedgerSource {
       }
     }
 
+    // Money paid back to the customer (migration 0113) — raises what they owe back toward zero.
+    let refunds = db
+      .selectFrom('customer_refunds')
+      .select(['id', 'refund_number', 'customer_id', 'refund_date', 'reference', 'amount', 'currency', 'created_at'])
+      .where('status', '=', 'posted');
+    if (customerId) refunds = refunds.where('customer_id', '=', customerId);
+    for (const refund of await refunds.execute()) {
+      entries.push({
+        partyId: refund.customer_id,
+        currency: refund.currency,
+        date: typeof refund.refund_date === 'string' ? refund.refund_date.slice(0, 10) : localIsoDate(refund.refund_date),
+        kind: 'customer_refund',
+        documentId: refund.id,
+        number: refund.refund_number,
+        reference: refund.reference,
+        amountMinor: BigInt(refund.amount),
+        dueDate: null,
+        sequence: refund.created_at.toISOString(),
+      });
+    }
+
     return entries;
   }
 }

@@ -25,6 +25,15 @@ export interface PosSessionRepository {
    */
   sumCashTendersForSession(db: Kysely<TenantDatabase>, sessionId: string): Promise<string | null>;
   /**
+   * Migration 0113 — the drawer's other cash during the shift (minor units):
+   * cash refunds paid out, cash brought in from another treasury, cash taken
+   * out (expenses + transfers to the safe / bank), and the number of returns.
+   */
+  drawerFlowsForSession(
+    db: Kysely<TenantDatabase>,
+    sessionId: string,
+  ): Promise<{ cashRefunds: bigint; cashIn: bigint; cashOut: bigint; returnsCount: number }>;
+  /**
    * POS Stage 5 — one row per distinct `payment_method` value among this session's
    * posted `payments_received` rows, with the SUM of `amount_amount` for that method.
    * Methods with no tenders in this session simply don't appear (no zero-filled rows).

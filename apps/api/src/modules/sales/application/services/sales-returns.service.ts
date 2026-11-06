@@ -143,7 +143,7 @@ export class SalesReturnsService {
     }
 
     try {
-      return await db.transaction().execute(async (trx) => {
+      return await withTransaction(db, async (trx) => {
         const allocated = await this.numberingSequences.allocateNext(trx, 'sales_return', null);
 
         const salesReturn = await this.returns.create(trx, {

@@ -10,7 +10,7 @@ import {
 
 /**
  * Sales' money movements for the Treasury module: posted customer receipts
- * (money in) and POS cash-count differences (over = in, short = out) of the
+ * (money in), refunds paid back to customers (money out) and POS cash-count differences (over = in, short = out) of the
  * session's cash box.
  */
 @Injectable()
@@ -52,7 +52,20 @@ export class SalesTreasuryMovements implements TreasuryMovementSource, OnModuleI
       .groupBy(['s.id', 'ch.treasury_id', 'ch.name']);
     if (treasuryId) fees = fees.where('ch.treasury_id', '=', treasuryId);
 
-    const [receiptRows, sessionRows, feeRows] = await Promise.all([receipts.execute(), sessions.execute(), fees.execute()]);
+    let refunds = db
+      .selectFrom('customer_refunds as r')
+      .innerJoin('customers as c', 'c.id', 'r.customer_id')
+      .select(['r.id', 'r.refund_number', 'r.refund_date', 'r.amount', 'r.currency', 'r.treasury_id', 'r.reference', 'r.created_at', 'c.name'])
+      .where('r.status', '=', 'posted')
+      .where('r.treasury_id', 'is not', null);
+    if (treasuryId) refunds = refunds.where('r.treasury_id', '=', treasuryId);
+
+    const [receiptRows, sessionRows, feeRows, refundRows] = await Promise.all([
+      receipts.execute(),
+      sessions.execute(),
+      fees.execute(),
+      refunds.execute(),
+    ]);
     return [
       ...receiptRows.map((r) => ({
         treasuryId: r.treasury_id!,
@@ -93,6 +106,18 @@ export class SalesTreasuryMovements implements TreasuryMovementSource, OnModuleI
         counterparty: f.name,
         description: null,
         sequence: f.created_at.toISOString(),
+      })),
+      ...refundRows.map((r) => ({
+        treasuryId: r.treasury_id!,
+        date: typeof r.refund_date === 'string' ? r.refund_date.slice(0, 10) : localIsoDate(r.refund_date),
+        amountMinor: -BigInt(r.amount),
+        currency: r.currency,
+        kind: 'customer_refund' as const,
+        documentId: r.id,
+        number: r.refund_number,
+        counterparty: r.name,
+        description: r.reference,
+        sequence: r.created_at.toISOString(),
       })),
     ];
   }

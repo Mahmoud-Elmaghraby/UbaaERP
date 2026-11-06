@@ -18,6 +18,7 @@ import {
 
 import { useTenantSettings, useUpdateTenantSettings } from './queries';
 import { ApiError } from '../../lib/api-client';
+import { PosDiscountLimitField } from './pos-discount-limit-field';
 
 const MODES: CreditLimitMode[] = ['off', 'warn', 'block'];
 
@@ -74,6 +75,9 @@ export function SalesSettingsSection() {
             <p className="text-xs text-muted-foreground">{t(`settings.sales.creditLimitModeHints.${settings.creditLimitMode}`)}</p>
           </div>
         )}
+        <div className="mt-6">
+          <PosDiscountLimitField />
+        </div>
       </CardContent>
     </Card>
   );
