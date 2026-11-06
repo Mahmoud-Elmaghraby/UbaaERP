@@ -42,11 +42,15 @@ describe('AccountingPaymentPostingListener', () => {
   let createAuto: jest.Mock;
   let toLedger: jest.Mock;
 
-  function listener(bankChartAccount: string | null = null, settings: Partial<AccountingSettings> = {}) {
+  function listener(
+    bankChartAccount: string | null = null,
+    settings: Partial<AccountingSettings> = {},
+    db: Kysely<TenantDatabase> = fakeDb(bankChartAccount),
+  ) {
     createAuto = jest.fn().mockResolvedValue({});
     toLedger = jest.fn(async (_db, amount) => ({ amountMinorUnits: amount.amountMinorUnits, tenantCurrency: 'EGP', wasConverted: false }));
     return new AccountingPaymentPostingListener(
-      { getClient: () => fakeDb(bankChartAccount) } as unknown as TenantConnectionManager,
+      { getClient: () => db } as unknown as TenantConnectionManager,
       { createAuto } as unknown as JournalEntriesService,
       { get: jest.fn().mockResolvedValue({ ...SETTINGS, ...settings }) } as unknown as AccountingSettingsService,
       { toLedger } as unknown as LedgerAmountService,
@@ -181,6 +185,53 @@ describe('AccountingPaymentPostingListener', () => {
       const entry = createAuto.mock.calls[0][1];
       expect(entry.lines[0].debitAmountMinorUnits).toBe('75000');
       expect(entry.description).toBe('سداد لمورد — PAY-00001 (USD → EGP)');
+    });
+
+    describe('an endorsed foreign-currency cheque', () => {
+      /** USD 100 at 48 on the cheque's receipt date, 50 on the payment date. */
+      function fxListener(chequeDate: string | null, settings: Partial<AccountingSettings> = {}) {
+        const chain = { select: () => chain, where: () => chain, executeTakeFirst: async () => ({ payment_date: chequeDate }) };
+        const db = { selectFrom: () => chain } as unknown as Kysely<TenantDatabase>;
+        const l = listener(null, { exchangeGainLossAccountId: 'fx', ...settings }, db);
+        toLedger.mockImplementation(async (_db, amount, date: string) => ({
+          amountMinorUnits: (BigInt(amount.amountMinorUnits) * (date === '2026-09-01' ? 48n : 50n)).toString(),
+          tenantCurrency: 'EGP',
+          wasConverted: true,
+        }));
+        return l;
+      }
+      const usdCheque = (paymentDate = '2026-10-02') =>
+        supplierPayload({ paymentMethod: 'check', endorsedChequeId: 'chq-1', paymentDate, amount: { amountMinorUnits: '10000', currency: 'USD' } });
+
+      it('credits notes receivable at the receipt rate, debits payables at the payment rate, gain to FX', async () => {
+        await fxListener('2026-09-01').handleSupplierPayment(usdCheque());
+        const entry = createAuto.mock.calls[0][1];
+        expect(entry.entryDate).toBe('2026-10-02');
+        expect(entry.lines).toEqual([
+          { accountId: 'ap', debitAmountMinorUnits: '500000', creditAmountMinorUnits: '0' },
+          { accountId: 'notes-receivable', debitAmountMinorUnits: '0', creditAmountMinorUnits: '480000' },
+          { accountId: 'fx', debitAmountMinorUnits: '0', creditAmountMinorUnits: '20000' },
+        ]);
+      });
+
+      it('a weaker rate on the payment date is a loss (debit FX) and the entry still balances', async () => {
+        await fxListener('2026-10-02').handleSupplierPayment(usdCheque('2026-09-01'));
+        const lines = createAuto.mock.calls[0][1].lines as { debitAmountMinorUnits: string; creditAmountMinorUnits: string; accountId: string }[];
+        expect(lines[2]).toEqual({ accountId: 'fx', debitAmountMinorUnits: '20000', creditAmountMinorUnits: '0' });
+        const sum = (k: 'debitAmountMinorUnits' | 'creditAmountMinorUnits') => lines.reduce((a, l) => a + BigInt(l[k]), 0n);
+        expect(sum('debitAmountMinorUnits')).toBe(sum('creditAmountMinorUnits'));
+      });
+
+      it('same rate (same date) posts no FX line and needs no FX mapping', async () => {
+        await fxListener('2026-10-02', { exchangeGainLossAccountId: null }).handleSupplierPayment(usdCheque());
+        expect(createAuto.mock.calls[0][1].lines).toHaveLength(2);
+      });
+
+      it('fails loudly when a difference exists but the FX account is not mapped', async () => {
+        await expect(
+          fxListener('2026-09-01', { exchangeGainLossAccountId: null }).handleSupplierPayment(usdCheque()),
+        ).rejects.toMatchObject({ code: 'ACCOUNTING_SETTINGS.MAPPING_MISSING' });
+      });
     });
 
     it('fails loudly (outbox retries) when payables are not mapped', async () => {

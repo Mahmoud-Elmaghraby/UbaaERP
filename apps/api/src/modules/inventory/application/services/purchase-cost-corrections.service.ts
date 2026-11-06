@@ -23,6 +23,11 @@ import { moneyShare } from '../../domain/money-share';
  *    share already sold goes to cost of goods sold. Both clear GRNI.
  *  - Debit note ≠ the returned goods' cost: the difference goes to cost of
  *    goods sold and clears GRNI.
+ *  - Goods received after they were invoiced: the invoice's price part,
+ *    applied when the receipt arrives (applyReceiptDifferences).
+ *
+ * Only the PRICE part of a difference is cost; the exchange part (receipt
+ * rate vs invoice rate) is a gain / loss Accounting books (IAS 21).
  *
  * Valuation only — quantities never change. Same on-hand / sold split as
  * LandedCostsService. The journal entry reaches Accounting through the
@@ -84,6 +89,39 @@ export class PurchaseCostCorrectionsService {
         { kind: 'price_difference_cogs', amount: toCogs },
       ],
     });
+  }
+
+  /**
+   * Invoice before receipt: the price part of goods a posted invoice billed
+   * before they arrived, applied to the stock this receipt just brought in
+   * (its movements must already be recorded in `trx`). Writes no event —
+   * the receipt's own valuation entry carries the returned amounts
+   * (Dr Inventory / COGS, Cr GRNI). Runs inside the caller's transaction,
+   * after it locked the variants.
+   */
+  async applyReceiptDifferences(
+    trx: Kysely<TenantDatabase>,
+    differences: readonly PurchasePriceDifference[],
+  ): Promise<{ toInventory: Money; toCogs: Money } | null> {
+    const priced = differences.filter((d) => d.amount.amountMinorUnits !== '0');
+    if (priced.length === 0) return null;
+    const stockItems = await this.stockMovements.stockItemVariantIds(
+      trx,
+      priced.map((d) => d.productVariantId),
+    );
+    const applicable = priced.filter((d) => stockItems.has(d.productVariantId));
+    if (applicable.length === 0) return null;
+
+    const currency = applicable[0].amount.currency;
+    let toInventory = Money.zero(currency);
+    let toCogs = Money.zero(currency);
+    for (const difference of applicable) {
+      const amount = Money.fromMinorUnits(BigInt(difference.amount.amountMinorUnits), difference.amount.currency);
+      const result = await this.revalue(trx, difference, amount);
+      toInventory = toInventory.add(result.toInventory);
+      toCogs = toCogs.add(result.toCogs);
+    }
+    return { toInventory, toCogs };
   }
 
   /**

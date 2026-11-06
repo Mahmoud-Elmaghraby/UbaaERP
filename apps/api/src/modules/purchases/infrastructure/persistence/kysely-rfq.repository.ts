@@ -58,11 +58,19 @@ export class KyselyRfqRepository implements RfqRepository {
     return row ? toDomain(row) : null;
   }
 
-  async updateStatus(db: Kysely<TenantDatabase>, id: string, status: RfqStatus): Promise<Rfq | null> {
+  async updateStatus(
+    db: Kysely<TenantDatabase>,
+    id: string,
+    status: RfqStatus,
+    expectedStatus?: RfqStatus | RfqStatus[],
+  ): Promise<Rfq | null> {
     const row = await db
       .updateTable('request_for_quotations')
       .set({ status, updated_at: new Date() })
       .where('id', '=', id)
+      .$if(expectedStatus !== undefined, (q) =>
+        q.where('status', 'in', ([] as RfqStatus[]).concat(expectedStatus ?? [])),
+      )
       .returningAll()
       .executeTakeFirst();
     return row ? toDomain(row) : null;

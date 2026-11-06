@@ -29,11 +29,11 @@ export type InventoryValuationKind =
   | 'opening'
   | 'landed_cost_inventory'
   | 'landed_cost_cogs'
-  /** Purchase invoice price ≠ receipt cost, goods still on hand: Dr Inventory / Cr GRNI (signed). */
+  /** Purchase invoice price ≠ receipt cost (price part only — never the exchange part), goods still on hand: Dr Inventory / Cr GRNI (signed). Also on a receipt of goods invoiced before they arrived. */
   | 'price_difference_inventory'
   /** Same, for goods already sold: Dr COGS / Cr GRNI (signed). */
   | 'price_difference_cogs'
-  /** Debit note value ≠ the returned goods' cost: Dr GRNI / Cr COGS (signed). */
+  /** Debit note value ≠ the returned goods' cost, or (on a purchase return) the receipt's frozen value of never-invoiced returned goods ≠ the average cost removed: Dr GRNI / Cr COGS (signed). */
   | 'return_price_difference';
 
 export type InventoryValuationSource =

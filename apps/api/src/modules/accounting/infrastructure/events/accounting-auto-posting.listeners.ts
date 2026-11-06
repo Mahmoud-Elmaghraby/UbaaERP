@@ -16,6 +16,10 @@ import { LedgerAmountService, type LedgerAmount } from '../../application/servic
 import { BusinessRuleError } from '../../application/errors';
 import { stockItemVariantIds } from '../../../../shared/catalog/stock-item-reader';
 import type { CreateJournalEntryLineInput } from '../../domain/journal-entry.entity';
+import type {
+  PurchasePriceDifference,
+  ReceiptInvoiceDifference,
+} from '../../../../shared/events/purchase-price-difference';
 
 interface StockCostLine {
   productVariantId: string;
@@ -71,10 +75,27 @@ interface PurchaseInvoicePostedMetadata extends InvoicePostedMetadata {
   lines?: {
     productVariantId: string;
     quantity: number;
-    unitPrice: { amountMinorUnits: string; currency: string };
+    /** Absent on debit-note lines. */
+    unitPrice?: { amountMinorUnits: string; currency: string };
     /** Since migration 0092: the line's amount before taxes. */
     netAmount?: { amountMinorUnits: string; currency: string };
+    /** Invoice: the net at the invoice rate, converted per line by Purchases (absent on older events). */
+    ledgerNetAmount?: { amountMinorUnits: string; currency: string };
+    /** Debit note: date of the posted invoice this line reverses. */
+    sourceInvoiceDate?: string;
   }[];
+  /** Invoice: per matched line, the price / exchange split (see PurchasePriceDifference). */
+  priceDifferences?: PurchasePriceDifference[];
+  /** Debit note: date of the (latest) posted invoice it reverses — the payable's rate. */
+  sourceInvoiceDate?: string;
+}
+
+/** GoodsReceiptsService.confirm()'s outbox metadata — only what the exchange-difference entry needs. */
+interface GoodsReceiptConfirmedMetadata {
+  receiptNumber?: string;
+  receivedDate?: string | null;
+  /** Goods billed by a posted invoice before they arrived (absent on older events). */
+  invoicedDifferences?: ReceiptInvoiceDifference[];
 }
 
 /** PosSessionsService.close()'s outbox metadata (sales.pos_session.closed) — see that method's own comment. */
@@ -464,15 +485,12 @@ export class AccountingAutoPostingListeners {
     let stockPartMinorUnits = 0n;
     for (const line of metadata.lines ?? []) {
       if (!stockItems.has(line.productVariantId)) continue;
-      stockPartMinorUnits += line.netAmount
-        ? BigInt(line.netAmount.amountMinorUnits)
-        : Money.fromMinorUnits(BigInt(line.unitPrice.amountMinorUnits), line.unitPrice.currency)
-            .multiplyByQuantity(line.quantity)
-            .toMinorUnits();
+      stockPartMinorUnits += lineNet(line);
     }
     // Net of taxes: invoices from before migration 0092 have no netAmount and their whole total is net.
     const netMinorUnits = BigInt((metadata.netAmount ?? metadata.totalAmount).amountMinorUnits);
-    if (stockPartMinorUnits > netMinorUnits) stockPartMinorUnits = netMinorUnits;
+    const stockCapped = stockPartMinorUnits > netMinorUnits;
+    if (stockCapped) stockPartMinorUnits = netMinorUnits;
     const expensePartMinorUnits = netMinorUnits - stockPartMinorUnits;
 
     if (!settings.accountsPayableAccountId) {
@@ -496,8 +514,11 @@ export class AccountingAutoPostingListeners {
     }
 
     const entryDate = metadata.invoiceDate ?? localIsoDate(payload.occurredAt);
+    // A debit note reverses its invoice at the rate the invoice was booked at (the payable and
+    // GRNI then clear exactly); the entry itself stays on the note's own date.
+    const rateDate = isDebitNote ? (metadata.sourceInvoiceDate ?? entryDate) : entryDate;
     const currency = metadata.totalAmount.currency;
-    const converted = await this.convertToTenantCurrency(db, metadata.totalAmount, entryDate);
+    const converted = await this.convertToTenantCurrency(db, metadata.totalAmount, rateDate);
     // Convert the stock part on its own; the expense part takes the rest so the entry balances exactly.
     const convertedStock =
       stockPartMinorUnits === 0n
@@ -509,18 +530,33 @@ export class AccountingAutoPostingListeners {
                 await this.convertToTenantCurrency(
                   db,
                   { amountMinorUnits: stockPartMinorUnits.toString(), currency },
-                  entryDate,
+                  rateDate,
                 )
               ).amountMinorUnits,
             );
-    // Dr GRNI (stock) + purchase expense (the rest) + input VAT + table tax /
+    // Within the stock part: GRNI gets exactly what receipts credited it with (+ the price
+    // differences Inventory moves out of it); the rest is an exchange difference (IAS 21) —
+    // the receipt-to-invoice rate movement plus any per-line rounding.
+    const grni =
+      convertedStock === 0n || stockCapped
+        ? convertedStock
+        : await this.grniPart(db, metadata, stockItems, convertedStock, rateDate, isDebitNote, converted.wasConverted);
+    const exchangeDifference = convertedStock - grni;
+    const documentNumber = metadata.invoiceNumber ?? payload.entityId;
+
+    // Dr GRNI (stock) + exchange difference + purchase expense (the rest) + input VAT + table tax /
     // Cr payables (what we owe) + withholding we keep for the tax authority.
     // The expense line takes whatever balances the entry after conversion.
-    const taxes = await this.convertTaxes(db, metadata, entryDate);
+    const taxes = await this.convertTaxes(db, metadata, rateDate);
     const payable = BigInt(converted.amountMinorUnits);
     const convertedExpense = payable + taxes.withholding - taxes.vat - taxes.table - convertedStock;
     const invoiceLines = compactLines([
-      { accountId: convertedStock ? settings.grniAccountId! : '', debit: convertedStock },
+      { accountId: grni ? settings.grniAccountId! : '', debit: grni },
+      {
+        accountId: exchangeDifference ? this.mapped(settings.exchangeGainLossAccountId, 'exchangeGainLoss') : '',
+        debit: exchangeDifference,
+        description: `فرق عملة — ${isDebitNote ? 'إشعار خصم مورد' : 'فاتورة شراء'} ${documentNumber}`,
+      },
       {
         accountId: convertedExpense ? this.mapped(settings.purchaseExpenseAccountId, 'purchaseExpense') : '',
         debit: convertedExpense,
@@ -550,11 +586,99 @@ export class AccountingAutoPostingListeners {
     await this.journalEntries.createAuto(db, {
       entryDate,
       description:
-        `${isDebitNote ? 'إشعار خصم مورد' : 'فاتورة شراء'} ${metadata.invoiceNumber ?? payload.entityId}` +
+        `${isDebitNote ? 'إشعار خصم مورد' : 'فاتورة شراء'} ${documentNumber}` +
         (metadata.supplierInvoiceNumber ? ` (فاتورة المورد ${metadata.supplierInvoiceNumber})` : '') +
         conversionNote(converted.wasConverted, currency, converted.tenantCurrency),
       lines,
       sourceReferenceType: isDebitNote ? 'purchase_debit_note' : 'purchase_invoice',
+      sourceReferenceId: payload.entityId,
+    });
+  }
+
+  /**
+   * The GRNI side of a purchase document's stock lines (tenant currency).
+   *
+   * Invoice: Σ per-line ledger nets (Purchases converted each line at the
+   * invoice rate) − the exchange differences of the matched quantity. With
+   * Inventory's price-difference entry (Cr GRNI by the price part) GRNI is
+   * then debited with exactly what the receipts credited for the matched
+   * quantity, plus the full invoice-rate value of quantity not received
+   * yet (which the receipt later clears — see handleGoodsReceiptConfirmed).
+   *
+   * Debit note (foreign currency): each line converted at its source
+   * invoice's rate — the same value Inventory compares to the returned
+   * goods' cost, so GRNI nets out.
+   *
+   * Events from before these fields existed: the whole converted stock part.
+   */
+  private async grniPart(
+    db: Kysely<TenantDatabase>,
+    metadata: PurchaseInvoicePostedMetadata,
+    stockItems: ReadonlySet<string>,
+    convertedStock: bigint,
+    rateDate: string,
+    isDebitNote: boolean,
+    wasConverted: boolean,
+  ): Promise<bigint> {
+    const stockLines = (metadata.lines ?? []).filter((line) => stockItems.has(line.productVariantId));
+    if (isDebitNote) {
+      if (!wasConverted || stockLines.some((line) => !line.netAmount)) return convertedStock;
+      let total = 0n;
+      for (const line of stockLines) {
+        const ledger = await this.convertToTenantCurrency(db, line.netAmount!, line.sourceInvoiceDate ?? rateDate);
+        total += BigInt(ledger.amountMinorUnits);
+      }
+      return total;
+    }
+    if (stockLines.some((line) => !line.ledgerNetAmount)) return convertedStock;
+    let total = 0n;
+    for (const line of stockLines) total += BigInt(line.ledgerNetAmount!.amountMinorUnits);
+    for (const difference of metadata.priceDifferences ?? []) {
+      if (!stockItems.has(difference.productVariantId) || !difference.exchangeDifference) continue;
+      total -= BigInt(difference.exchangeDifference.amountMinorUnits);
+    }
+    return total;
+  }
+
+  /**
+   * Invoice before receipt: the invoice debited GRNI at its own value for
+   * goods not received yet; the receipt credits it at the order price × its
+   * own rate, and Inventory credits the price part (receipt valuation
+   * entry). What is left is the exchange part — booked here:
+   * Dr exchange gain/loss / Cr GRNI (a negative difference the other way).
+   */
+  @OnOutboxEvent('purchases.goods_receipt.confirmed', { requiresFeature: FEATURE_KEYS.ACCOUNTING })
+  async handleGoodsReceiptConfirmed(payload: DomainEventPayload): Promise<void> {
+    const metadata = payload.metadata as unknown as GoodsReceiptConfirmedMetadata | undefined;
+    const differences = (metadata?.invoicedDifferences ?? []).filter(
+      (difference) => difference.exchangeDifference && difference.exchangeDifference.amountMinorUnits !== '0',
+    );
+    if (differences.length === 0) return;
+
+    const db = this.connections.getClient(payload.schema);
+    // Service lines never went through GRNI (the invoice expensed them).
+    const stockItems = await stockItemVariantIds(
+      db,
+      differences.map((difference) => difference.productVariantId),
+    );
+    const stockDifferences = differences.filter((difference) => stockItems.has(difference.productVariantId));
+    const amount = stockDifferences.reduce((sum, d) => sum + BigInt(d.exchangeDifference!.amountMinorUnits), 0n);
+    if (amount === 0n) return;
+
+    const settings = await this.accountingSettings.get(db);
+    const grni = this.mapped(settings.grniAccountId, 'grni');
+    const fx = this.mapped(settings.exchangeGainLossAccountId, 'exchangeGainLoss');
+    const invoiceNumbers = [...new Set(stockDifferences.map((d) => d.invoiceNumber ?? d.purchaseInvoiceId))].join('، ');
+    const receipt = metadata!.receiptNumber ?? payload.entityId;
+
+    await this.journalEntries.createAuto(db, {
+      entryDate: metadata!.receivedDate ?? localIsoDate(payload.occurredAt),
+      description: `فرق عملة — إذن استلام ${receipt} (فاتورة شراء ${invoiceNumbers})`,
+      lines: compactLines([
+        { accountId: fx, debit: amount },
+        { accountId: grni, credit: amount },
+      ]),
+      sourceReferenceType: 'goods_receipt_exchange_difference',
       sourceReferenceId: payload.entityId,
     });
   }
@@ -645,19 +769,33 @@ const TAX_ACCOUNT_LABELS: Record<string, string> = {
   withholdingPayable: 'خصم من المنبع مستحق',
   withholdingReceivable: 'خصم من المنبع لدى العملاء',
   purchaseExpense: 'حساب مصروفات المشتريات',
+  exchangeGainLoss: 'حساب أرباح وخسائر فروق العملة',
+  grni: 'حساب بضاعة مستلمة لم تصل فواتيرها',
 };
 
+/** A purchase document line's net (document currency); lines before migration 0092: unit price × quantity. */
+function lineNet(line: NonNullable<PurchaseInvoicePostedMetadata['lines']>[number]): bigint {
+  if (line.netAmount) return BigInt(line.netAmount.amountMinorUnits);
+  if (!line.unitPrice) return 0n;
+  return Money.fromMinorUnits(BigInt(line.unitPrice.amountMinorUnits), line.unitPrice.currency)
+    .multiplyByQuantity(line.quantity)
+    .toMinorUnits();
+}
+
 /** Builds journal lines from signed parts, dropping zero amounts; a negative debit becomes a credit and vice versa. */
-function compactLines(parts: { accountId: string; debit?: bigint; credit?: bigint }[]): CreateJournalEntryLineInput[] {
+function compactLines(
+  parts: { accountId: string; debit?: bigint; credit?: bigint; description?: string }[],
+): CreateJournalEntryLineInput[] {
   const lines: CreateJournalEntryLineInput[] = [];
   for (const part of parts) {
     const net = (part.debit ?? 0n) - (part.credit ?? 0n);
     if (net === 0n) continue;
-    lines.push(
+    const line: CreateJournalEntryLineInput =
       net > 0n
         ? { accountId: part.accountId, debitAmountMinorUnits: net.toString(), creditAmountMinorUnits: '0' }
-        : { accountId: part.accountId, debitAmountMinorUnits: '0', creditAmountMinorUnits: (-net).toString() },
-    );
+        : { accountId: part.accountId, debitAmountMinorUnits: '0', creditAmountMinorUnits: (-net).toString() };
+    if (part.description) line.description = part.description;
+    lines.push(line);
   }
   return lines;
 }

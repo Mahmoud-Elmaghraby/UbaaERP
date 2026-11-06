@@ -8,12 +8,12 @@ import { KyselySupplierPaymentAllocationRepository } from '../../src/modules/pur
 import { KyselySupplierRepository } from '../../src/modules/purchases/infrastructure/persistence/kysely-supplier.repository';
 import { KyselyPurchaseOrderRepository } from '../../src/modules/purchases/infrastructure/persistence/kysely-purchase-order.repository';
 import { KyselyPurchaseInvoiceRepository } from '../../src/modules/purchases/infrastructure/persistence/kysely-purchase-invoice.repository';
-import { KyselyPurchaseInvoiceLineRepository } from '../../src/modules/purchases/infrastructure/persistence/kysely-purchase-invoice-line.repository';
 import { NumberingSequencesService } from '../../src/modules/settings/application/services/numbering-sequences.service';
 import { KyselyNumberingSequenceRepository } from '../../src/modules/settings/infrastructure/persistence/kysely-numbering-sequence.repository';
 import { OutboxWriterService } from '../../src/shared/outbox/application/services/outbox-writer.service';
 import { KyselyOutboxEventRepository } from '../../src/shared/outbox/infrastructure/persistence/kysely-outbox-event.repository';
 import { TreasuryMovementRegistry } from '../../src/shared/treasury/treasury-movements';
+import { localIsoDate } from '../../src/shared/time/local-date';
 import { openIntegrationDb, uniqueSuffix } from './tenant-db';
 
 /** Supplier payments (migration 0090): allocation rules against posted purchase invoices + the posting outbox row. */
@@ -143,6 +143,62 @@ describe('Supplier payments (integration, real Postgres)', () => {
     return invoiceId;
   }
 
+  /** A bank treasury in EGP (our own cheques are drawn on one). */
+  async function createBankTreasury(): Promise<string> {
+    const suffix = uniqueSuffix();
+    const id = randomUUID();
+    await db
+      .insertInto('treasuries')
+      .values({ id, code: `BK-${suffix}`, name: `Bank ${suffix}`, kind: 'bank', bank_name: null, account_number: null, iban: null, currency: 'EGP', chart_of_account_id: null, opening_balance_date: null, notes: null })
+      .execute();
+    return id;
+  }
+
+  /**
+   * A confirmed return of the invoice's goods with its debit note of `netMinor` (no taxes) —
+   * inserted directly: goods receipt → return → debit note, linked through the invoice's order line.
+   */
+  async function addDebitNote(supplierId: string, invoiceId: string, netMinor: bigint): Promise<void> {
+    const suffix = uniqueSuffix();
+    const invoice = await db.selectFrom('purchase_invoices').select('purchase_order_id').where('id', '=', invoiceId).executeTakeFirstOrThrow();
+    const line = await db
+      .selectFrom('purchase_invoice_lines')
+      .select(['purchase_order_line_id', 'product_variant_id'])
+      .where('purchase_invoice_id', '=', invoiceId)
+      .executeTakeFirstOrThrow();
+    const warehouseId = randomUUID();
+    await db.insertInto('warehouses').values({ id: warehouseId, name: `DN WH ${suffix}`, code: `DW-${suffix}`, address: null, branch_id: null, is_active: true, custom_fields: '{}' }).execute();
+    const receiptId = randomUUID();
+    await db
+      .insertInto('goods_receipts')
+      .values({ id: receiptId, receipt_number: `GRN-T-${suffix}`, purchase_order_id: invoice.purchase_order_id, warehouse_id: warehouseId, status: 'confirmed', received_date: '2026-10-01', notes: null, custom_fields: '{}', exchange_rate: null })
+      .execute();
+    const receiptLineId = randomUUID();
+    await db
+      .insertInto('goods_receipt_lines')
+      .values({ id: receiptLineId, goods_receipt_id: receiptId, purchase_order_line_id: line.purchase_order_line_id, product_variant_id: line.product_variant_id, quantity_received: '1', unit_cost_amount: netMinor.toString(), unit_cost_currency: 'EGP', notes: null, unit_of_measure_id: null })
+      .execute();
+    const returnId = randomUUID();
+    await db
+      .insertInto('purchase_returns')
+      .values({ id: returnId, return_number: `PRT-T-${suffix}`, goods_receipt_id: receiptId, status: 'confirmed', return_date: '2026-10-03', notes: null, custom_fields: '{}' })
+      .execute();
+    const returnLineId = randomUUID();
+    await db
+      .insertInto('purchase_return_lines')
+      .values({ id: returnLineId, purchase_return_id: returnId, goods_receipt_line_id: receiptLineId, product_variant_id: line.product_variant_id, quantity_returned: '1', reason: null, notes: null, unit_of_measure_id: null })
+      .execute();
+    const noteId = randomUUID();
+    await db
+      .insertInto('purchase_debit_notes')
+      .values({ id: noteId, debit_note_number: `DN-T-${suffix}`, purchase_return_id: returnId, supplier_id: supplierId, debit_note_date: '2026-10-03', currency: 'EGP' })
+      .execute();
+    await db
+      .insertInto('purchase_debit_note_lines')
+      .values({ id: randomUUID(), purchase_debit_note_id: noteId, purchase_return_line_id: returnLineId, purchase_order_line_id: line.purchase_order_line_id, product_variant_id: line.product_variant_id, base_quantity: '1', net_amount: netMinor.toString(), taxes: '[]' })
+      .execute();
+  }
+
   async function outboxPayloads(eventType: string, paymentId: string): Promise<{ metadata: Record<string, unknown> }[]> {
     const rows = await db
       .selectFrom('outbox_events')
@@ -174,7 +230,6 @@ describe('Supplier payments (integration, real Postgres)', () => {
       new KyselySupplierRepository(),
       new KyselyPurchaseOrderRepository(),
       new KyselyPurchaseInvoiceRepository(),
-      new KyselyPurchaseInvoiceLineRepository(),
       new NumberingSequencesService(new KyselyNumberingSequenceRepository()),
       new OutboxWriterService(new KyselyOutboxEventRepository()),
       treasuryMovements,
@@ -317,10 +372,14 @@ describe('Supplier payments (integration, real Postgres)', () => {
     await expect(service.cancel(db, posted.id)).rejects.toMatchObject({ code: 'SUPPLIER_PAYMENT.NOT_CANCELLABLE' });
     await expect(service.delete(db, posted.id)).rejects.toMatchObject({ code: 'SUPPLIER_PAYMENT.NOT_DELETABLE' });
 
+    await expect(
+      service.create(db, { supplierId, amount: egp(5_00n), paymentMethod: 'check', cheque: { number: '7000', bank: null, dueDate: '2026-12-01' } }),
+    ).rejects.toMatchObject({ code: 'SUPPLIER_PAYMENT.CHEQUE_NEEDS_BANK' });
     const draft = await service.create(db, {
       supplierId,
       amount: egp(5_00n),
       paymentMethod: 'check',
+      treasuryId: await createBankTreasury(),
       cheque: { number: '7001', bank: null, dueDate: '2026-12-01' },
     });
     expect((await service.cancel(db, draft.id)).status).toBe('cancelled');
@@ -345,5 +404,86 @@ describe('Supplier payments (integration, real Postgres)', () => {
     } finally {
       setFunded(true);
     }
+  });
+  it('two concurrent allocations of the same remainder: one fails, the payment is never over-allocated', async () => {
+    const supplierId = await createSupplier();
+    const invoiceA = await createInvoice(supplierId, 1, 100_00n);
+    const invoiceB = await createInvoice(supplierId, 1, 100_00n);
+    const payment = await service.create(db, { supplierId, amount: egp(100_00n), paymentMethod: 'cash' });
+    await service.post(db, payment.id, 'test', null);
+
+    const results = await Promise.allSettled([
+      service.allocate(db, payment.id, 'test', null, [{ purchaseInvoiceId: invoiceA, allocatedAmount: egp(70_00n) }]),
+      service.allocate(db, payment.id, 'test', null, [{ purchaseInvoiceId: invoiceB, allocatedAmount: egp(70_00n) }]),
+    ]);
+    expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
+    const rejected = results.find((r): r is PromiseRejectedResult => r.status === 'rejected');
+    expect(rejected?.reason).toMatchObject({ code: 'SUPPLIER_PAYMENT.ALLOCATION_EXCEEDS_AVAILABLE' });
+    expect((await service.getById(db, payment.id)).unallocatedAmount.toMinorUnits()).toBe(30_00n);
+  });
+
+  it('two drafts on the same invoice posted concurrently: one fails, the invoice is never overpaid', async () => {
+    const supplierId = await createSupplier();
+    const invoiceId = await createInvoice(supplierId, 1, 100_00n);
+    const first = await service.create(db, {
+      supplierId,
+      amount: egp(70_00n),
+      paymentMethod: 'cash',
+      allocations: [{ purchaseInvoiceId: invoiceId, allocatedAmount: egp(70_00n) }],
+    });
+    const second = await service.create(db, {
+      supplierId,
+      amount: egp(70_00n),
+      paymentMethod: 'cash',
+      allocations: [{ purchaseInvoiceId: invoiceId, allocatedAmount: egp(70_00n) }],
+    });
+
+    const results = await Promise.allSettled([
+      service.post(db, first.id, 'test', null),
+      service.post(db, second.id, 'test', null),
+    ]);
+    expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
+    const rejected = results.find((r): r is PromiseRejectedResult => r.status === 'rejected');
+    expect(rejected?.reason).toMatchObject({ code: 'SUPPLIER_PAYMENT.ALLOCATION_EXCEEDS_OUTSTANDING' });
+    const [outstanding] = await service.listOutstandingInvoices(db, supplierId);
+    expect(outstanding.paidAmount.toMinorUnits()).toBe(70_00n);
+  });
+
+  it('a debit note on the invoice\'s order lowers its outstanding and caps allocations', async () => {
+    const supplierId = await createSupplier();
+    const invoiceId = await createInvoice(supplierId, 2, 50_00n); // 100.00 EGP
+    await addDebitNote(supplierId, invoiceId, 30_00n);
+
+    const [outstanding] = await service.listOutstandingInvoices(db, supplierId);
+    expect(outstanding.totalAmount.toMinorUnits()).toBe(100_00n);
+    expect(outstanding.paidAmount.toMinorUnits()).toBe(0n);
+    expect(outstanding.outstandingAmount.toMinorUnits()).toBe(70_00n);
+
+    await expect(
+      service.create(db, {
+        supplierId,
+        amount: egp(80_00n),
+        paymentMethod: 'cash',
+        allocations: [{ purchaseInvoiceId: invoiceId, allocatedAmount: egp(80_00n) }],
+      }),
+    ).rejects.toMatchObject({ code: 'SUPPLIER_PAYMENT.ALLOCATION_EXCEEDS_OUTSTANDING' });
+    const exact = await service.create(db, {
+      supplierId,
+      amount: egp(70_00n),
+      paymentMethod: 'cash',
+      allocations: [{ purchaseInvoiceId: invoiceId, allocatedAmount: egp(70_00n) }],
+    });
+    await service.post(db, exact.id, 'test', null);
+    expect((await service.listOutstandingInvoices(db, supplierId))[0]!.outstandingAmount.isZero()).toBe(true);
+  });
+
+  it('stamps today as the payment date when a draft without one is posted', async () => {
+    const supplierId = await createSupplier();
+    const draft = await service.create(db, { supplierId, amount: egp(1_00n), paymentMethod: 'cash' });
+    expect(draft.paymentDate).toBeNull();
+    const posted = await service.post(db, draft.id, 'test', null);
+    expect(posted.paymentDate).toBe(localIsoDate());
+    const [event] = await outboxPayloads('purchases.supplier_payment.posted', draft.id);
+    expect(event.metadata.paymentDate).toBe(localIsoDate());
   });
 });

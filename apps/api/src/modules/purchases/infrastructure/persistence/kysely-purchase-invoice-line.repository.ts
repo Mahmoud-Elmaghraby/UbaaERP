@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import type { Kysely, Selectable } from 'kysely';
+import { sql, type Kysely, type Selectable } from 'kysely';
 import { Money } from '@erp-platform/shared-kernel';
 import type { PurchaseInvoiceLinesTable, TenantDatabase } from '../../../../database/tenant/kysely-client';
 import type {
@@ -71,7 +71,7 @@ export class KyselyPurchaseInvoiceLineRepository implements PurchaseInvoiceLineR
     return toDomain(row);
   }
 
-  async sumInvoicedQuantityByPurchaseOrderLineIds(
+  async sumInvoicedBaseQuantityByPurchaseOrderLineIds(
     db: Kysely<TenantDatabase>,
     purchaseOrderLineIds: string[],
   ): Promise<Record<string, number>> {
@@ -82,7 +82,7 @@ export class KyselyPurchaseInvoiceLineRepository implements PurchaseInvoiceLineR
       .innerJoin('purchase_invoices', 'purchase_invoices.id', 'purchase_invoice_lines.purchase_invoice_id')
       .select((eb) => [
         'purchase_invoice_lines.purchase_order_line_id as purchase_order_line_id',
-        eb.fn.sum<string>('purchase_invoice_lines.quantity_invoiced').as('total'),
+        eb.fn.sum<string>(sql`${sql.ref('purchase_invoice_lines.quantity_invoiced')} * ${sql.ref('purchase_invoice_lines.unit_factor')}`).as('total'),
       ])
       .where('purchase_invoices.status', '=', 'posted')
       .where('purchase_invoice_lines.purchase_order_line_id', 'in', purchaseOrderLineIds)

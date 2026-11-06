@@ -325,10 +325,18 @@ export const AR_MESSAGES: Record<string, string> = {
   'PURCHASE_INVOICE.NO_NUMBERING_SEQUENCE':
     'لا يوجد تسلسل ترقيم مُعد لفواتير الشراء بعد. يرجى إنشاء تسلسل لنوع المستند "purchase_invoice" من الإعدادات ← تسلسلات الترقيم أولاً.',
   'PURCHASE_INVOICE.NOT_POSTABLE': 'لا يمكن ترحيل فاتورة الشراء "{id}" من حالتها الحالية "{status}" (متوقع "مسودة").',
+  'PURCHASE_INVOICE.EXCHANGE_RATE_MISSING':
+    'فاتورة الشراء بعملة {currency} ولا يوجد سعر صرف لها مقابل {tenantCurrency} بتاريخ {date} أو قبله — أضف سعر الصرف من أسعار الصرف ثم رحّل الفاتورة.',
   'PURCHASE_INVOICE.NO_LINES': 'فاتورة الشراء "{id}" لا تحتوي على أي سطور ولا يمكن ترحيلها.',
   'PURCHASE_INVOICE.NOT_CANCELLABLE':
     'لا يمكن إلغاء فاتورة الشراء "{id}" من حالتها الحالية "{status}" (متوقع "مسودة") — الفاتورة المرحّلة مستند محاسبي نهائي؛ عكسها يتطلب قيدًا عكسيًا محاسبيًا حقيقيًا، لا إلغاءً بسيطًا.',
   'PURCHASE_INVOICE.NOT_DELETABLE': 'فاتورة الشراء "{id}" في حالة "{status}" ولا يمكن حذفها.',
+  'PURCHASE_INVOICE.DUPLICATE_SUPPLIER_NUMBER':
+    'رقم فاتورة المورّد "{value}" متسجّل قبل كده على فاتورة الشراء "{invoiceNumber}" لنفس المورّد — اتأكد إنها مش نفس الفاتورة.',
+  'PURCHASE_ORDER.HAS_DOCUMENTS': 'أمر الشراء عليه مستند "{documentNumber}" — ألغيه الأول وبعدين ألغي الأمر.',
+  'SUPPLIER_QUOTATION.ALREADY_ORDERED': 'عرض سعر المورّد ده اتحوّل قبل كده لأمر الشراء "{poNumber}" — ألغي الأمر ده لو عايز تعمل أمر جديد.',
+  'SUPPLIER_QUOTATION.RFQ_NOT_OPEN': 'طلب عرض السعر في حالة "{status}" — مينفعش تختار عرض سعر إلا على طلب متبعت ولسه مفتوح.',
+  'PURCHASE.CURRENCY_MISMATCH': 'المبلغ بعملة "{currency}" وأمر الشراء بعملة "{orderCurrency}" — استخدم عملة الأمر.',
 
   // ---- Sales module ----
   'CUSTOMER.DUPLICATE_CODE': 'يوجد عميل آخر بنفس الرمز "{value}" بالفعل.',
@@ -434,7 +442,7 @@ export const AR_MESSAGES: Record<string, string> = {
   'SUPPLIER_PAYMENT.INVOICE_CURRENCY_MISMATCH':
     'عملة التخصيص "{requestedCurrency}" لا تطابق عملة فاتورة الشراء "{invoiceCurrency}".',
   'SUPPLIER_PAYMENT.ALLOCATION_EXCEEDS_OUTSTANDING':
-    'لا يمكن تخصيص {requested} لفاتورة الشراء — المتبقي المستحق {outstanding} فقط (الإجمالي {total}، تم سداد {alreadyPaid} سابقًا).',
+    'لا يمكن تخصيص {requested} لفاتورة الشراء — المتبقي المستحق {outstanding} فقط (الإجمالي {total}، تم سداد {alreadyPaid} سابقًا، وإشعارات خصم {debited}).',
   'SUPPLIER_PAYMENT.SUPPLIER_OR_INVOICE_NOT_FOUND': 'المورد أو فاتورة الشراء المحددة غير موجودة.',
   'SUPPLIER_PAYMENT.NO_NUMBERING_SEQUENCE':
     'لا يوجد تسلسل ترقيم مُعد لمدفوعات الموردين بعد. يرجى إنشاء تسلسل لنوع المستند "supplier_payment" من الإعدادات ← تسلسلات الترقيم أولاً.',
@@ -445,6 +453,7 @@ export const AR_MESSAGES: Record<string, string> = {
   'SUPPLIER_PAYMENT.NOT_CANCELLABLE':
     'لا يمكن إلغاء الدفعة "{id}" من حالتها الحالية "{status}" (متوقع "مسودة") — الدفعة المرحّلة مستند محاسبي نهائي؛ عكسها يتطلب قيدًا عكسيًا، لا إلغاءً بسيطًا.',
   'SUPPLIER_PAYMENT.NOT_DELETABLE': 'الدفعة "{id}" في حالة "{status}" ولا يمكن حذفها.',
+  'SUPPLIER_PAYMENT.CHEQUE_NEEDS_BANK': 'الشيك اللي بنصرفه لازم يتسحب على حساب بنكي — اختار خزنة من نوع بنك.',
   'POS_SESSION.CASHIER_ALREADY_HAS_OPEN_SESSION':
     'هذا الكاشير لديه بالفعل جلسة نقطة بيع مفتوحة ("{sessionId}"، فُتحت في {openedAt}). يجب إغلاقها قبل فتح جلسة جديدة.',
   'POS_SESSION.OPENING_CASH_NEGATIVE': 'لا يمكن أن يكون مبلغ النقدية الافتتاحي سالبًا.',

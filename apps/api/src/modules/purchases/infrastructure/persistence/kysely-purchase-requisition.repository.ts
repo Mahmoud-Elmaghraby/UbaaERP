@@ -84,11 +84,15 @@ export class KyselyPurchaseRequisitionRepository implements PurchaseRequisitionR
     db: Kysely<TenantDatabase>,
     id: string,
     status: PurchaseRequisitionStatus,
+    expectedStatus?: PurchaseRequisitionStatus | PurchaseRequisitionStatus[],
   ): Promise<PurchaseRequisition | null> {
     const row = await db
       .updateTable('purchase_requisitions')
       .set({ status, updated_at: new Date() })
       .where('id', '=', id)
+      .$if(expectedStatus !== undefined, (q) =>
+        q.where('status', 'in', ([] as PurchaseRequisitionStatus[]).concat(expectedStatus ?? [])),
+      )
       .returningAll()
       .executeTakeFirst();
     return row ? toDomain(row) : null;

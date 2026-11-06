@@ -89,11 +89,15 @@ export class KyselySupplierQuotationRepository implements SupplierQuotationRepos
     db: Kysely<TenantDatabase>,
     id: string,
     status: SupplierQuotationStatus,
+    expectedStatus?: SupplierQuotationStatus | SupplierQuotationStatus[],
   ): Promise<SupplierQuotation | null> {
     const row = await db
       .updateTable('supplier_quotations')
       .set({ status, updated_at: new Date() })
       .where('id', '=', id)
+      .$if(expectedStatus !== undefined, (q) =>
+        q.where('status', 'in', ([] as SupplierQuotationStatus[]).concat(expectedStatus ?? [])),
+      )
       .returningAll()
       .executeTakeFirst();
     return row ? toDomain(row) : null;

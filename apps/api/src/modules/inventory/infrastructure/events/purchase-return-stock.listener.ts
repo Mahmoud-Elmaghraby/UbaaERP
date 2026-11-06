@@ -1,5 +1,6 @@
 import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
-import type { Money } from '@erp-platform/shared-kernel';
+import { Money } from '@erp-platform/shared-kernel';
+import { moneyShare } from '../../domain/money-share';
 import { OnOutboxEvent } from '../../../../shared/events/on-outbox-event.decorator';
 import { TenantConnectionManager } from '../../../../shared/tenancy/tenant-connection-manager';
 import { StockMovementsService } from '../../application/services/stock-movements.service';
@@ -15,6 +16,10 @@ import { InventoryValuationEventsService } from '../../application/services/inve
 interface PurchaseReturnConfirmedLine {
   productVariantId: string;
   quantity: number;
+  /** Base units of this line no purchase invoice covered (absent: all invoiced, or an older event). */
+  uninvoicedBaseQuantity?: number;
+  /** What the receipt credited GRNI with for those units (tenant currency, the receipt's frozen rate). */
+  uninvoicedReceiptValue?: { amountMinorUnits: string; currency: string };
 }
 
 interface PurchaseReturnConfirmedMetadata {
@@ -111,8 +116,11 @@ export class PurchaseReturnStockListener {
 
         const stockLines = metadata.lines.filter((line) => stockItems.has(line.productVariantId));
         let returnedValue: Money | null = null;
+        // Uninvoiced part: receipt's frozen value − average cost actually removed (→ COGS).
+        let uninvoicedDifference: Money | null = null;
 
         for (const line of stockLines) {
+          let lineCost: Money | null = null;
           // Tracked items go back lot by lot, taking the lots this goods
           // receipt brought in first (expired ones included — returning
           // them to the supplier is the point), then FEFO for the rest.
@@ -143,11 +151,21 @@ export class PurchaseReturnStockListener {
             });
             if (movement.totalCost) {
               returnedValue = returnedValue ? returnedValue.add(movement.totalCost) : movement.totalCost;
+              lineCost = lineCost ? lineCost.add(movement.totalCost) : movement.totalCost;
             }
+          }
+          const frozen = line.uninvoicedReceiptValue;
+          if (lineCost && frozen && (line.uninvoicedBaseQuantity ?? 0) > 0 && frozen.currency === lineCost.currency) {
+            const removed = moneyShare(lineCost, Math.min(line.uninvoicedBaseQuantity!, line.quantity), line.quantity);
+            const difference = Money.fromMinorUnits(BigInt(frozen.amountMinorUnits), frozen.currency).subtract(removed);
+            uninvoicedDifference = uninvoicedDifference ? uninvoicedDifference.add(difference) : difference;
           }
         }
 
-        // Dr Goods received not invoiced / Cr Inventory (the reverse of the receipt).
+        // Dr Goods received not invoiced / Cr Inventory (the reverse of the receipt), at the cost
+        // that left stock. For quantity never invoiced, GRNI must go back by what the receipt
+        // credited it with: the difference is Dr GRNI / Cr COGS (signed) — the same treatment as
+        // a debit note's difference for the invoiced part (PurchaseCostCorrectionsService).
         if (returnedValue) {
           await this.valuationEvents?.write(trx, {
             schema: payload.schema,
@@ -157,7 +175,10 @@ export class PurchaseReturnStockListener {
             documentNumber: metadata.returnNumber ?? null,
             entryDate: metadata.returnDate ?? null,
             description: `مرتجع مشتريات ${metadata.returnNumber ?? ''}`.trim(),
-            entries: [{ kind: 'purchase_return', amount: returnedValue }],
+            entries: [
+              { kind: 'purchase_return', amount: returnedValue },
+              ...(uninvoicedDifference ? [{ kind: 'return_price_difference' as const, amount: uninvoicedDifference }] : []),
+            ],
           });
         }
       });

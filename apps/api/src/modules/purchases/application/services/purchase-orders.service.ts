@@ -26,8 +26,9 @@ import {
   type CreatePurchaseOrderLineInput,
   type UpdatePurchaseOrderInput,
 } from '../../domain/purchase-order.entity';
-import { BusinessRuleError } from '../errors';
-import { entityNotFound } from '../../../../shared/errors/entity-errors';
+import { BusinessRuleError, ConflictError, isPostgresUniqueViolation } from '../errors';
+import { entityNotFound, statusChanged } from '../../../../shared/errors/entity-errors';
+import { lockRowsForUpdate } from '../../../../shared/persistence/row-locks';
 import { NumberingSequencesService } from '../../../settings/application/services/numbering-sequences.service';
 import { TenantSettingsService } from '../../../settings/application/services/tenant-settings.service';
 import { FeatureAvailabilityService } from '../../../../shared/plans/feature-availability.service';
@@ -154,36 +155,85 @@ export class PurchaseOrdersService {
       'PURCHASE_ORDER.MULTI_CURRENCY_DISABLED',
     );
 
-    let allocated;
-    try {
-      allocated = await this.numberingSequences.allocateNext(db, 'purchase_order', null);
-    } catch {
-      throw new BusinessRuleError(
-        'No numbering sequence configured for purchase orders yet. ' +
-          'Create one for document type "purchase_order" via Settings → Numbering Sequences first.',
-        { code: 'PURCHASE_ORDER.NO_NUMBERING_SEQUENCE' },
-      );
-    }
-
     // withTransaction: PurchaseInvoicesService's direct-invoicing path calls
     // this with its own open trx (Kysely throws on Transaction.transaction()).
-    return withTransaction(db, async (trx) => {
-      const order = await this.orders.create(trx, {
-        poNumber: allocated.formatted,
-        supplierId,
-        sourceQuotationId: input.sourceQuotationId ?? null,
-        expectedDeliveryDate: input.expectedDeliveryDate ?? null,
-        notes: input.notes ?? null,
-        customFields: input.customFields ?? {},
+    try {
+      return await withTransaction(db, async (trx) => {
+        if (input.sourceQuotationId) await this.assertQuotationStillOrderable(trx, input.sourceQuotationId);
+        // Inside the transaction: a failure below doesn't burn a number.
+        const allocated = await this.numberingSequences.allocateNext(trx, 'purchase_order', null);
+        const order = await this.orders.create(trx, {
+          poNumber: allocated.formatted,
+          supplierId,
+          sourceQuotationId: input.sourceQuotationId ?? null,
+          expectedDeliveryDate: input.expectedDeliveryDate ?? null,
+          notes: input.notes ?? null,
+          customFields: input.customFields ?? {},
+        });
+
+        const createdLines = [];
+        for (const line of lines) {
+          createdLines.push(await this.lines.create(trx, order.id, line));
+        }
+
+        return { ...order, lines: createdLines, totalAmount: calculatePurchaseOrderTotal(createdLines) };
       });
-
-      const createdLines = [];
-      for (const line of lines) {
-        createdLines.push(await this.lines.create(trx, order.id, line));
+    } catch (err) {
+      if (err instanceof Error && err.message.includes('No numbering sequence configured')) {
+        throw new BusinessRuleError(
+          'No numbering sequence configured for purchase orders yet. ' +
+            'Create one for document type "purchase_order" via Settings → Numbering Sequences first.',
+          { code: 'PURCHASE_ORDER.NO_NUMBERING_SEQUENCE' },
+        );
       }
+      // purchase_orders_source_quotation_live_unique (migration 0114): a concurrent create won the race.
+      if (input.sourceQuotationId && isPostgresUniqueViolation(err)) {
+        // A plain db is usable again after its own transaction rolled back; an outer trx is not.
+        const winner = db.isTransaction
+          ? undefined
+          : await db
+              .selectFrom('purchase_orders')
+              .select('po_number')
+              .where('source_quotation_id', '=', input.sourceQuotationId)
+              .where('status', '!=', 'cancelled')
+              .executeTakeFirst();
+        throw new ConflictError(`Supplier quotation "${input.sourceQuotationId}" already has a purchase order.`, {
+          code: 'SUPPLIER_QUOTATION.ALREADY_ORDERED',
+          params: { id: input.sourceQuotationId, poNumber: winner?.po_number ?? '' },
+        });
+      }
+      throw err;
+    }
+  }
 
-      return { ...order, lines: createdLines, totalAmount: calculatePurchaseOrderTotal(createdLines) };
-    });
+  /**
+   * Under a lock on the quotation: still 'selected', and no live
+   * (non-cancelled) purchase order raised from it yet — one quotation, one
+   * order (cancel that order to raise a new one).
+   */
+  private async assertQuotationStillOrderable(trx: Kysely<TenantDatabase>, quotationId: string): Promise<void> {
+    await lockRowsForUpdate(trx, 'supplier_quotations', [quotationId]);
+    const quotation = await this.quotations.findById(trx, quotationId);
+    if (!quotation) throw entityNotFound('SUPPLIER_QUOTATION', quotationId);
+    if (quotation.status !== 'selected') {
+      throw new BusinessRuleError(
+        `Supplier quotation "${quotationId}" is "${quotation.status}", not "selected" — ` +
+          'a purchase order can only be raised from a selected quotation.',
+        { code: 'PURCHASE_ORDER.SOURCE_QUOTATION_NOT_SELECTED', params: { id: quotationId, status: quotation.status } },
+      );
+    }
+    const existingOrder = await trx
+      .selectFrom('purchase_orders')
+      .select('po_number')
+      .where('source_quotation_id', '=', quotationId)
+      .where('status', '!=', 'cancelled')
+      .executeTakeFirst();
+    if (existingOrder) {
+      throw new ConflictError(
+        `Supplier quotation "${quotationId}" was already turned into purchase order "${existingOrder.po_number}".`,
+        { code: 'SUPPLIER_QUOTATION.ALREADY_ORDERED', params: { id: quotationId, poNumber: existingOrder.po_number } },
+      );
+    }
   }
 
   async update(
@@ -224,7 +274,11 @@ export class PurchaseOrdersService {
     }
 
     const newLines = input.lines !== undefined ? await this.unitResolver.resolve(db, input.lines) : undefined;
-    return db.transaction().execute(async (trx) => {
+    return withTransaction(db, async (trx) => {
+      // Re-checked under a lock: it may have been confirmed/cancelled since it was read above.
+      await lockRowsForUpdate(trx, 'purchase_orders', [id]);
+      const current = await this.orders.findById(trx, id);
+      if (!current || current.status !== 'draft') throw statusChanged('PURCHASE_ORDER', id);
       const updated = await this.orders.update(trx, id, {
         expectedDeliveryDate: input.expectedDeliveryDate,
         notes: input.notes,
@@ -261,8 +315,8 @@ export class PurchaseOrdersService {
         },
       );
     }
-    const updated = await this.orders.updateStatus(db, id, to);
-    if (!updated) throw entityNotFound('PURCHASE_ORDER', id);
+    const updated = await this.orders.updateStatus(db, id, to, from);
+    if (!updated) throw statusChanged('PURCHASE_ORDER', id);
     return updated;
   }
 
@@ -270,8 +324,44 @@ export class PurchaseOrdersService {
     return this.transitionStatus(db, id, ['draft'], 'confirmed');
   }
 
+  /**
+   * Only an order nothing was received or invoiced against — not even a
+   * draft (cancel those first): a receipt or invoice confirmed later would
+   * otherwise bring goods / a bill in for a cancelled order.
+   */
   cancel(db: Kysely<TenantDatabase>, id: string): Promise<PurchaseOrder> {
-    return this.transitionStatus(db, id, ['draft', 'confirmed'], 'cancelled');
+    return withTransaction(db, async (trx) => {
+      await lockRowsForUpdate(trx, 'purchase_orders', [id]);
+      const blocker = await this.firstLiveDocument(trx, id);
+      if (blocker) {
+        throw new BusinessRuleError(`Purchase order "${id}" has document "${blocker}" — cancel it first.`, {
+          code: 'PURCHASE_ORDER.HAS_DOCUMENTS',
+          params: { id, documentNumber: blocker },
+        });
+      }
+      return this.transitionStatus(trx, id, ['draft', 'confirmed'], 'cancelled');
+    });
+  }
+
+  /** Number of a non-cancelled goods receipt or purchase invoice on this order (posted/confirmed first), or null. */
+  async firstLiveDocument(db: Kysely<TenantDatabase>, id: string): Promise<string | null> {
+    const [receipt, invoice] = await Promise.all([
+      db
+        .selectFrom('goods_receipts')
+        .select('receipt_number as number')
+        .where('purchase_order_id', '=', id)
+        .where('status', '!=', 'cancelled')
+        .orderBy('status')
+        .executeTakeFirst(),
+      db
+        .selectFrom('purchase_invoices')
+        .select('invoice_number as number')
+        .where('purchase_order_id', '=', id)
+        .where('status', '!=', 'cancelled')
+        .orderBy('status', 'desc')
+        .executeTakeFirst(),
+    ]);
+    return receipt?.number ?? invoice?.number ?? null;
   }
 
   async delete(db: Kysely<TenantDatabase>, id: string): Promise<void> {

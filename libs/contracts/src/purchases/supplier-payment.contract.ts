@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { moneySchema } from '../inventory/money.contract';
+import { moneySchema, positiveMoneySchema } from '../inventory/money.contract';
 import { paymentMethodSchema } from '../sales/payment-received.contract';
 
 /** Supplier Payments — the Purchases mirror of Sales' Payments Received (migration 0090). */
@@ -48,13 +48,13 @@ export type SupplierPaymentWithAllocationsDto = z.infer<typeof supplierPaymentWi
 
 export const createSupplierPaymentAllocationSchema = z.object({
   purchaseInvoiceId: z.string().uuid(),
-  allocatedAmount: moneySchema,
+  allocatedAmount: positiveMoneySchema,
 });
 export type CreateSupplierPaymentAllocationDto = z.infer<typeof createSupplierPaymentAllocationSchema>;
 
 export const createSupplierPaymentSchema = z.object({
   supplierId: z.string().uuid(),
-  amount: moneySchema,
+  amount: positiveMoneySchema,
   paymentMethod: paymentMethodSchema,
   paymentDate: z.string().nullable().optional(),
   referenceNumber: z.string().nullable().optional(),

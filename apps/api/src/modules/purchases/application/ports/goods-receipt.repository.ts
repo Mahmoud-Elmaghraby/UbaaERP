@@ -24,6 +24,8 @@ export interface GoodsReceiptRepository {
     db: Kysely<TenantDatabase>,
     id: string,
     status: GoodsReceiptStatus,
+    /** Only when the row is still in (one of) this status — a concurrent change makes it return null. */
+    expectedStatus?: GoodsReceiptStatus | GoodsReceiptStatus[],
   ): Promise<GoodsReceipt | null>;
   setExchangeRate(db: Kysely<TenantDatabase>, id: string, rate: string): Promise<void>;
   delete(db: Kysely<TenantDatabase>, id: string): Promise<boolean>;

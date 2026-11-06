@@ -80,11 +80,15 @@ export class KyselyGoodsReceiptRepository implements GoodsReceiptRepository {
     db: Kysely<TenantDatabase>,
     id: string,
     status: GoodsReceiptStatus,
+    expectedStatus?: GoodsReceiptStatus | GoodsReceiptStatus[],
   ): Promise<GoodsReceipt | null> {
     const row = await db
       .updateTable('goods_receipts')
       .set({ status, updated_at: new Date() })
       .where('id', '=', id)
+      .$if(expectedStatus !== undefined, (q) =>
+        q.where('status', 'in', ([] as GoodsReceiptStatus[]).concat(expectedStatus ?? [])),
+      )
       .returningAll()
       .executeTakeFirst();
     return row ? toDomain(row) : null;

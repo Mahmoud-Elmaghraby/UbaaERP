@@ -11,6 +11,8 @@ import type { AccountingSettings } from '../../domain/accounting-settings.entity
 import { BusinessRuleError } from '../../application/errors';
 import { AccountingAutoPostingListeners } from './accounting-auto-posting.listeners';
 import { stockItemVariantIds } from '../../../../shared/catalog/stock-item-reader';
+import { applyRate } from '../../../../shared/catalog/currency-rate-reader';
+import { Money as MoneyVO } from '@erp-platform/shared-kernel';
 
 jest.mock('../../../../shared/catalog/stock-item-reader', () => ({ stockItemVariantIds: jest.fn() }));
 
@@ -427,6 +429,234 @@ describe('AccountingAutoPostingListeners — multi-currency Phase 3 (invoice/cre
           description: 'إشعار دائن — مرتجع مبيعات return-1 (USD → EGP)',
         }),
       );
+    });
+  });
+
+  describe('purchase documents — exchange differences (IAS 21) and GRNI', () => {
+    const egp = (amount: bigint | number) => ({ amountMinorUnits: String(amount), currency: 'EGP' });
+    const usd = (amount: bigint | number) => ({ amountMinorUnits: String(amount), currency: 'USD' });
+    /** USD→EGP at `rates[date]` (exact BigInt, as CurrencyConversionService does). */
+    const convertAt = (rates: Record<string, string>) =>
+      currencyConversion.convert.mockImplementation(async (_db, amount: Money, _to: string, date: string) => ({
+        convertedAmount:
+          amount.currency === 'EGP' ? amount : MoneyVO.fromMinorUnits(applyRate(amount.toMinorUnits(), rates[date]!), 'EGP'),
+        rateUsed: amount.currency === 'EGP' ? '1' : rates[date]!,
+        rateDate: date,
+        rateSource: 'manual',
+      }));
+
+    beforeEach(() => {
+      (stockItemVariantIds as jest.Mock).mockResolvedValue(new Set(['stock-variant']));
+      accountingSettings.get.mockResolvedValue(makeAccountingSettings({ exchangeGainLossAccountId: 'fx-account' }));
+    });
+
+    it('foreign invoice with a price difference and a rate movement: GRNI at receipt value + price part, FX on its own line', async () => {
+      // Received 10 × 10 USD at 48 → GRNI Cr 4,800. Invoiced 10 × 11 USD = 110 USD at 50 → AP 5,500.
+      // Price part 10 USD × 50 = 500 (Inventory: Dr stock / Cr GRNI); FX part 100 USD × 2 = 200.
+      convertAt({ '2026-11-01': '50' });
+      await listeners.handlePurchaseInvoicePosted(
+        makePayload(
+          {
+            invoiceNumber: 'PI-7',
+            invoiceDate: '2026-11-01',
+            totalAmount: usd(11_000),
+            netAmount: usd(11_000),
+            lines: [
+              { productVariantId: 'stock-variant', quantity: 10, unitPrice: usd(1_100), netAmount: usd(11_000), ledgerNetAmount: egp(550_000) },
+            ],
+            priceDifferences: [
+              {
+                purchaseOrderLineId: 'pol1',
+                productVariantId: 'stock-variant',
+                matchedBaseQuantity: 10,
+                goodsReceiptIds: ['gr1'],
+                receivedValue: egp(480_000),
+                invoicedValue: egp(550_000),
+                amount: egp(50_000),
+                exchangeDifference: egp(20_000),
+              },
+            ],
+          },
+          { entityType: 'purchase_invoice', entityId: 'invoice-7' },
+        ),
+      );
+      const entry = journalEntries.createAuto.mock.calls[0]![1];
+      expect(entry.lines).toEqual([
+        { accountId: 'grni-account', debitAmountMinorUnits: '530000', creditAmountMinorUnits: '0' },
+        {
+          accountId: 'fx-account',
+          debitAmountMinorUnits: '20000',
+          creditAmountMinorUnits: '0',
+          description: 'فرق عملة — فاتورة شراء PI-7',
+        },
+        { accountId: 'ap-account', debitAmountMinorUnits: '0', creditAmountMinorUnits: '550000' },
+      ]);
+      // GRNI: −4,800 (receipt) + 5,300 (invoice) − 500 (price difference) = 0.
+      expect(-480_000 + 530_000 - 50_000).toBe(0);
+    });
+
+    it('a tenant-currency invoice is unchanged: GRNI at the full net, no exchange line', async () => {
+      convertAt({});
+      await listeners.handlePurchaseInvoicePosted(
+        makePayload(
+          {
+            invoiceDate: '2026-11-01',
+            totalAmount: egp(110_000),
+            netAmount: egp(110_000),
+            lines: [{ productVariantId: 'stock-variant', quantity: 10, unitPrice: egp(11_000), netAmount: egp(110_000), ledgerNetAmount: egp(110_000) }],
+            priceDifferences: [
+              {
+                purchaseOrderLineId: 'pol1',
+                productVariantId: 'stock-variant',
+                matchedBaseQuantity: 10,
+                goodsReceiptIds: ['gr1'],
+                receivedValue: egp(100_000),
+                invoicedValue: egp(110_000),
+                amount: egp(10_000),
+                exchangeDifference: egp(0),
+              },
+            ],
+          },
+          { entityType: 'purchase_invoice', entityId: 'invoice-8' },
+        ),
+      );
+      expect(journalEntries.createAuto.mock.calls[0]![1].lines).toEqual([
+        { accountId: 'grni-account', debitAmountMinorUnits: '110000', creditAmountMinorUnits: '0' },
+        { accountId: 'ap-account', debitAmountMinorUnits: '0', creditAmountMinorUnits: '110000' },
+      ]);
+    });
+
+    it('awkward rates: GRNI is the per-line ledger values exactly; the one-total rounding remainder goes to FX', async () => {
+      // Three stock lines of 33.33 USD at 47.3359: per line 1,577.71 (×3 = 4,733.13), as one total 4,733.12.
+      const rate = '47.3359';
+      convertAt({ '2026-11-01': rate });
+      const perLine = applyRate(3_333n, rate);
+      expect(perLine * 3n).not.toBe(applyRate(9_999n, rate));
+      await listeners.handlePurchaseInvoicePosted(
+        makePayload(
+          {
+            invoiceDate: '2026-11-01',
+            totalAmount: usd(9_999),
+            netAmount: usd(9_999),
+            lines: [1, 2, 3].map(() => ({
+              productVariantId: 'stock-variant',
+              quantity: 1,
+              unitPrice: usd(3_333),
+              netAmount: usd(3_333),
+              ledgerNetAmount: egp(perLine),
+            })),
+            priceDifferences: [],
+          },
+          { entityType: 'purchase_invoice', entityId: 'invoice-9' },
+        ),
+      );
+      const lines = journalEntries.createAuto.mock.calls[0]![1].lines;
+      expect(lines[0]).toEqual({ accountId: 'grni-account', debitAmountMinorUnits: String(perLine * 3n), creditAmountMinorUnits: '0' });
+      // The 0.01 remainder (one total − per-line sum = −1) is a credit on the exchange line.
+      expect(lines[1]).toMatchObject({ accountId: 'fx-account', debitAmountMinorUnits: '0', creditAmountMinorUnits: '1' });
+      const debit = lines.reduce((sum, l) => sum + BigInt(l.debitAmountMinorUnits), 0n);
+      const credit = lines.reduce((sum, l) => sum + BigInt(l.creditAmountMinorUnits), 0n);
+      expect(debit).toBe(credit);
+    });
+
+    it('fails loudly (outbox retries) when an exchange difference has no gain/loss account', async () => {
+      accountingSettings.get.mockResolvedValue(makeAccountingSettings({ exchangeGainLossAccountId: null }));
+      convertAt({ '2026-11-01': '50' });
+      await expect(
+        listeners.handlePurchaseInvoicePosted(
+          makePayload(
+            {
+              invoiceDate: '2026-11-01',
+              totalAmount: usd(10_000),
+              netAmount: usd(10_000),
+              lines: [{ productVariantId: 'stock-variant', quantity: 1, unitPrice: usd(10_000), netAmount: usd(10_000), ledgerNetAmount: egp(500_000) }],
+              priceDifferences: [
+                {
+                  purchaseOrderLineId: 'pol1',
+                  productVariantId: 'stock-variant',
+                  matchedBaseQuantity: 1,
+                  goodsReceiptIds: ['gr1'],
+                  receivedValue: egp(480_000),
+                  invoicedValue: egp(500_000),
+                  amount: egp(0),
+                  exchangeDifference: egp(20_000),
+                },
+              ],
+            },
+            { entityType: 'purchase_invoice', entityId: 'invoice-10' },
+          ),
+        ),
+      ).rejects.toMatchObject({ code: 'ACCOUNTING_SETTINGS.MAPPING_MISSING' });
+      expect(journalEntries.createAuto).not.toHaveBeenCalled();
+    });
+
+    it('a foreign debit note is converted at its source invoice rate, dated on the note', async () => {
+      // Invoice 2026-11-01 at 50; the note is dated 2026-11-05 when the rate is 52.
+      convertAt({ '2026-11-01': '50', '2026-11-05': '52' });
+      await listeners.handlePurchaseDebitNoteIssued(
+        makePayload(
+          {
+            invoiceNumber: 'DN-1',
+            invoiceDate: '2026-11-05',
+            sourceInvoiceDate: '2026-11-01',
+            totalAmount: usd(2_200),
+            netAmount: usd(2_200),
+            lines: [{ productVariantId: 'stock-variant', quantity: 2, netAmount: usd(2_200), sourceInvoiceDate: '2026-11-01' }],
+          },
+          { entityType: 'purchase_debit_note', entityId: 'debit-note-2' },
+        ),
+      );
+      const entry = journalEntries.createAuto.mock.calls[0]![1];
+      expect(entry.entryDate).toBe('2026-11-05');
+      expect(entry.lines).toEqual([
+        { accountId: 'grni-account', debitAmountMinorUnits: '0', creditAmountMinorUnits: '110000' },
+        { accountId: 'ap-account', debitAmountMinorUnits: '110000', creditAmountMinorUnits: '0' },
+      ]);
+    });
+
+    it('receipt after invoice: books the exchange part Dr gain/loss / Cr GRNI (stock lines only)', async () => {
+      (stockItemVariantIds as jest.Mock).mockResolvedValue(new Set(['stock-variant']));
+      const difference = (variant: string, fx: number) => ({
+        purchaseOrderLineId: 'pol1',
+        productVariantId: variant,
+        matchedBaseQuantity: 10,
+        goodsReceiptIds: ['gr1'],
+        purchaseInvoiceId: 'inv1',
+        invoiceNumber: 'PI-1',
+        invoiceDate: '2026-11-01',
+        invoiceUnitPrice: usd(1_100),
+        receivedValue: egp(480_000),
+        invoicedValue: egp(550_000),
+        amount: egp(50_000),
+        exchangeDifference: egp(fx),
+      });
+      await listeners.handleGoodsReceiptConfirmed(
+        makePayload(
+          {
+            receiptNumber: 'GR-3',
+            receivedDate: '2026-11-04',
+            invoicedDifferences: [difference('stock-variant', 20_000), difference('service-variant', 999)],
+          },
+          { entityType: 'goods_receipt', entityId: 'receipt-3', action: 'confirmed' },
+        ),
+      );
+      expect(journalEntries.createAuto).toHaveBeenCalledWith(FAKE_DB, {
+        entryDate: '2026-11-04',
+        description: 'فرق عملة — إذن استلام GR-3 (فاتورة شراء PI-1)',
+        lines: [
+          { accountId: 'fx-account', debitAmountMinorUnits: '20000', creditAmountMinorUnits: '0' },
+          { accountId: 'grni-account', debitAmountMinorUnits: '0', creditAmountMinorUnits: '20000' },
+        ],
+        sourceReferenceType: 'goods_receipt_exchange_difference',
+        sourceReferenceId: 'receipt-3',
+      });
+    });
+
+    it('an ordinary receipt (nothing invoiced ahead of it) posts nothing here', async () => {
+      await listeners.handleGoodsReceiptConfirmed(
+        makePayload({ receiptNumber: 'GR-4', lines: [] }, { entityType: 'goods_receipt', entityId: 'receipt-4' }),
+      );
+      expect(journalEntries.createAuto).not.toHaveBeenCalled();
     });
   });
 });

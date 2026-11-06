@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
-import type { Kysely } from 'kysely';
+import { sql, type Kysely } from 'kysely';
 import { computeLineTaxes, Money, type TaxRateInput } from '@erp-platform/shared-kernel';
 import type { TenantDatabase } from '../../../../database/tenant/kysely-client';
 import { OutboxWriterService } from '../../../../shared/outbox/application/services/outbox-writer.service';
@@ -12,6 +12,7 @@ import {
   type LineTaxSnapshot,
 } from '../../../../shared/taxes/line-tax-snapshot';
 import { localIsoDate } from '../../../../shared/time/local-date';
+import { lockRowsForUpdate } from '../../../../shared/persistence/row-locks';
 import { NumberingSequencesService } from '../../../settings/application/services/numbering-sequences.service';
 
 export const PURCHASE_DEBIT_NOTE_ISSUED = 'purchases.purchase_debit_note.issued';
@@ -24,10 +25,20 @@ interface ReturnLineInput {
   unitFactor: number;
 }
 
+export interface IssuedDebitNote {
+  id: string;
+  debitNoteNumber: string;
+  /** Base units of each return line the note covers (its invoiced part); the rest was never invoiced. */
+  coveredBaseQuantity: ReadonlyMap<string, number>;
+}
+
 interface InvoicedLine {
   net: Money;
   baseQuantity: number;
+  /** Tax rates of the latest posted invoice line for this order line (the one being reversed first). */
   rates: TaxRateInput[];
+  /** Date of that latest posted invoice — the rate the payable entered the ledger at. */
+  invoiceDate: string;
 }
 
 /**
@@ -57,7 +68,7 @@ export class PurchaseDebitNotesService {
     purchaseReturn: { id: string; returnNumber: string; returnDate: string | null },
     returnLines: readonly ReturnLineInput[],
     context: { schema: string; actorUserId: string | null },
-  ): Promise<{ id: string; debitNoteNumber: string } | null> {
+  ): Promise<IssuedDebitNote | null> {
     if (returnLines.length === 0) return null;
     const receiptLines = await trx
       .selectFrom('goods_receipt_lines as grl')
@@ -71,6 +82,9 @@ export class PurchaseDebitNotesService {
     if (!supplierId) return null;
 
     const poLineIds = [...new Set(receiptLines.map((row) => row.purchase_order_line_id))];
+    // Two returns of the same order line confirmed at once: the second waits here and then sees the
+    // first one's debit note lines, so the invoiced quantity can't be debited twice.
+    await lockRowsForUpdate(trx, 'purchase_order_lines', poLineIds);
     const invoiced = await this.invoicedByOrderLine(trx, poLineIds);
     const debited = await this.debitedByOrderLine(trx, poLineIds);
 
@@ -81,6 +95,7 @@ export class PurchaseDebitNotesService {
       baseQuantity: number;
       net: Money;
       taxes: LineTaxSnapshot[];
+      sourceInvoiceDate: string;
     }[] = [];
     for (const returnLine of returnLines) {
       const poLineId = receiptLineById.get(returnLine.goodsReceiptLineId)?.purchase_order_line_id;
@@ -98,6 +113,7 @@ export class PurchaseDebitNotesService {
         baseQuantity,
         net,
         taxes: toSnapshot(computeLineTaxes(net.toMinorUnits(), source.rates).taxes),
+        sourceInvoiceDate: source.invoiceDate,
       });
     }
     if (lines.length === 0) return null;
@@ -134,6 +150,7 @@ export class PurchaseDebitNotesService {
       .execute();
 
     const totals = documentTotals(lines.map((line) => ({ netAmount: line.net, taxes: line.taxes })));
+    const sourceInvoiceDate = lines.map((line) => line.sourceInvoiceDate).sort().at(-1)!;
     await this.outbox.write(trx, PURCHASE_DEBIT_NOTE_ISSUED, {
       schema: context.schema,
       entityType: 'purchase_debit_note',
@@ -148,6 +165,13 @@ export class PurchaseDebitNotesService {
         // Same shape as purchases.purchase_invoice.posted (Accounting reverses it).
         invoiceNumber: number.formatted,
         invoiceDate: date,
+        /**
+         * Date of the (latest) posted purchase invoice this note reverses. The payable was booked
+         * at that date's exchange rate, so Accounting converts a foreign-currency note at it (and
+         * each stock line at its own line's sourceInvoiceDate, as Inventory does) — the entry is
+         * still dated invoiceDate (the note's own date).
+         */
+        sourceInvoiceDate,
         supplierInvoiceNumber: null,
         ...totalsToDto(totals),
         lines: lines.map((line) => ({
@@ -155,22 +179,33 @@ export class PurchaseDebitNotesService {
           quantity: line.baseQuantity,
           netAmount: { amountMinorUnits: line.net.toMinorUnits().toString(), currency: line.net.currency },
           taxes: line.taxes,
+          sourceInvoiceDate: line.sourceInvoiceDate,
         })),
       },
     });
-    return { id, debitNoteNumber: number.formatted };
+    const coveredBaseQuantity = new Map<string, number>();
+    for (const line of lines) {
+      coveredBaseQuantity.set(line.returnLineId, round4((coveredBaseQuantity.get(line.returnLineId) ?? 0) + line.baseQuantity));
+    }
+    return { id, debitNoteNumber: number.formatted, coveredBaseQuantity };
   }
 
-  /** Posted invoices' net, base quantity and tax rates per purchase order line. */
+  /**
+   * Posted invoices' net and base quantity per purchase order line, with the tax rates and date of
+   * the LATEST posted invoice line for it (a later invoice may carry a different tax rule).
+   */
   private async invoicedByOrderLine(trx: Kysely<TenantDatabase>, poLineIds: string[]): Promise<Map<string, InvoicedLine>> {
     const result = new Map<string, InvoicedLine>();
     if (poLineIds.length === 0) return result;
     const rows = await trx
       .selectFrom('purchase_invoice_lines as l')
       .innerJoin('purchase_invoices as i', 'i.id', 'l.purchase_invoice_id')
-      .select(['l.purchase_order_line_id', 'l.quantity_invoiced', 'l.unit_factor', 'l.unit_price_amount', 'l.unit_price_currency', 'l.net_amount', 'l.taxes'])
+      .select(['l.purchase_order_line_id', 'l.quantity_invoiced', 'l.unit_factor', 'l.unit_price_amount', 'l.unit_price_currency', 'l.net_amount', 'l.taxes', 'i.invoice_date', 'i.created_at'])
       .where('i.status', '=', 'posted')
       .where('l.purchase_order_line_id', 'in', poLineIds)
+      .orderBy(sql`COALESCE(i.invoice_date, i.created_at::date)`)
+      .orderBy('i.created_at')
+      .orderBy('l.created_at')
       .execute();
     for (const row of rows) {
       const quantity = Number(row.quantity_invoiced);
@@ -180,23 +215,24 @@ export class PurchaseDebitNotesService {
           ? Money.fromMinorUnits(BigInt(row.net_amount), row.unit_price_currency)
           : Money.fromMinorUnits(BigInt(row.unit_price_amount), row.unit_price_currency).multiplyByQuantity(quantity);
       const baseQuantity = quantity * Number(row.unit_factor);
+      // Rows come oldest invoice first: the last one seen sets the rates and the date.
+      const rates = parseSnapshot(row.taxes).map((tax) => ({
+        taxRuleId: tax.taxRuleId,
+        name: tax.name,
+        kind: tax.kind,
+        rate: tax.rate,
+        etaType: tax.etaType,
+        etaSubtype: tax.etaSubtype,
+      }));
+      const invoiceDate = row.invoice_date ? calendarDate(row.invoice_date) : localIsoDate(row.created_at);
       const entry = result.get(row.purchase_order_line_id);
       if (entry) {
         entry.net = entry.net.add(net);
         entry.baseQuantity += baseQuantity;
+        entry.rates = rates;
+        entry.invoiceDate = invoiceDate;
       } else {
-        result.set(row.purchase_order_line_id, {
-          net,
-          baseQuantity,
-          rates: parseSnapshot(row.taxes).map((tax) => ({
-            taxRuleId: tax.taxRuleId,
-            name: tax.name,
-            kind: tax.kind,
-            rate: tax.rate,
-            etaType: tax.etaType,
-            etaSubtype: tax.etaSubtype,
-          })),
-        });
+        result.set(row.purchase_order_line_id, { net, baseQuantity, rates, invoiceDate });
       }
     }
     return result;
@@ -212,6 +248,11 @@ export class PurchaseDebitNotesService {
       .execute();
     return new Map(rows.map((row) => [row.purchase_order_line_id, Number(row.quantity)]));
   }
+}
+
+/** YYYY-MM-DD of a DATE column (pg may hand it back as a local-midnight Date). */
+function calendarDate(value: string | Date): string {
+  return typeof value === 'string' ? value.slice(0, 10) : localIsoDate(value);
 }
 
 function round4(value: number): number {

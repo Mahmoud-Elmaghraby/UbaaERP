@@ -20,11 +20,16 @@ import type {
 } from '../../domain/purchase-return.entity';
 import { PurchaseDebitNotesService } from './purchase-debit-notes.service';
 import { BusinessRuleError, NotFoundError, isPostgresForeignKeyViolation } from '../errors';
-import { entityNotFound } from '../../../../shared/errors/entity-errors';
+import { entityNotFound, statusChanged } from '../../../../shared/errors/entity-errors';
+import { lockRowsForUpdate } from '../../../../shared/persistence/row-locks';
+import type { GoodsReceiptLine } from '../../domain/goods-receipt.entity';
+import { findQuantityExcess, inLineUnit, toBaseQuantity } from './quantity-limits';
 import { NumberingSequencesService } from '../../../settings/application/services/numbering-sequences.service';
 import { OutboxWriterService } from '../../../../shared/outbox/application/services/outbox-writer.service';
 import { withTransaction } from '../../../../database/tenant/transaction.util';
 import { StockAvailabilityChecker } from '../../../../shared/catalog/stock-availability-checker';
+import { CurrencyRateReader } from '../../../../shared/catalog/currency-rate-reader';
+import { valueInTenantCurrency } from './goods-receipts.service';
 
 /**
  * Records goods physically sent back to a supplier after a confirmed
@@ -59,6 +64,9 @@ export class PurchaseReturnsService {
     private readonly stockChecker: StockAvailabilityChecker,
     private readonly debitNotes: PurchaseDebitNotesService,
   ) {}
+
+  /** Plain read helper (no dependencies) — not injected, so the wiring is unchanged. */
+  private readonly currencyRates = new CurrencyRateReader();
 
   list(db: Kysely<TenantDatabase>): Promise<PurchaseReturn[]> {
     return this.returns.list(db);
@@ -109,34 +117,18 @@ export class PurchaseReturnsService {
       }
     }
 
-    const alreadyReturned = await this.lines.sumReturnedQuantityByGoodsReceiptLineIds(
+    await this.assertWithinReceived(
       db,
-      input.lines.map((line) => line.goodsReceiptLineId),
+      receiptLines,
+      input.lines.map((line) => ({
+        goodsReceiptLineId: line.goodsReceiptLineId,
+        quantityReturned: line.quantityReturned,
+        unitFactor: receiptLineById.get(line.goodsReceiptLineId)!.unitFactor,
+      })),
     );
-    for (const line of input.lines) {
-      const receiptLine = receiptLineById.get(line.goodsReceiptLineId)!;
-      const returned = alreadyReturned[line.goodsReceiptLineId] ?? 0;
-      const remaining = receiptLine.quantityReceived - returned;
-      if (line.quantityReturned > remaining) {
-        throw new BusinessRuleError(
-          `Cannot return ${line.quantityReturned} against goods receipt line "${line.goodsReceiptLineId}" — ` +
-            `only ${remaining} remaining returnable (received ${receiptLine.quantityReceived}, already returned ${returned}).`,
-          {
-            code: 'PURCHASE_RETURN.QUANTITY_EXCEEDS_REMAINING',
-            params: {
-              lineId: line.goodsReceiptLineId,
-              quantityReturned: line.quantityReturned,
-              remaining,
-              quantityReceived: receiptLine.quantityReceived,
-              returned,
-            },
-          },
-        );
-      }
-    }
 
     try {
-      return await db.transaction().execute(async (trx) => {
+      return await withTransaction(db, async (trx) => {
         const allocated = await this.numberingSequences.allocateNext(trx, 'purchase_return', null);
 
         const purchaseReturn = await this.returns.create(trx, {
@@ -209,11 +201,31 @@ export class PurchaseReturnsService {
     }
 
     return withTransaction(db, async (trx) => {
+      await lockRowsForUpdate(trx, 'purchase_returns', [id]);
+      const current = await this.returns.findById(trx, id);
+      if (!current || current.status !== 'draft') throw statusChanged('PURCHASE_RETURN', id);
       const lines = await this.lines.listByPurchaseReturnId(trx, id);
       const goodsReceipt = await this.goodsReceipts.findById(trx, existing.goodsReceiptId);
       if (!goodsReceipt) {
         throw entityNotFound('GOODS_RECEIPT', existing.goodsReceiptId);
       }
+      // Under a lock on the receipt lines: confirmed returns + this one must
+      // stay within what was received — two drafts can't both return the same units.
+      const receiptLines = await this.goodsReceiptLines.listByGoodsReceiptId(trx, goodsReceipt.id);
+      await lockRowsForUpdate(
+        trx,
+        'goods_receipt_lines',
+        receiptLines.map((line) => line.id),
+      );
+      await this.assertWithinReceived(
+        trx,
+        receiptLines,
+        lines.map((line) => ({
+          goodsReceiptLineId: line.goodsReceiptLineId,
+          quantityReturned: line.quantityReturned,
+          unitFactor: line.unitFactor,
+        })),
+      );
       // Expired stock may go back to the supplier, so expiry is not checked here.
       await this.stockChecker.assertAvailable(
         trx,
@@ -224,8 +236,14 @@ export class PurchaseReturnsService {
         })),
         { blockExpired: false, errorCode: 'PURCHASE_RETURN.INSUFFICIENT_STOCK' },
       );
-      const updated = await this.returns.updateStatus(trx, id, 'confirmed');
-      if (!updated) throw entityNotFound('PURCHASE_RETURN', id);
+      const updated = await this.returns.updateStatus(trx, id, 'confirmed', 'draft');
+      if (!updated) throw statusChanged('PURCHASE_RETURN', id);
+
+      // What the supplier now owes back for the invoiced part of the return. Issued first: the
+      // rest of each line was never invoiced, and Inventory needs to know how much that is.
+      const debitNote = await this.debitNotes.issueForReturn(trx, updated, lines, { schema, actorUserId });
+      const tenantCurrency = await this.currencyRates.tenantCurrency(trx);
+      const receiptLineById = new Map(receiptLines.map((line) => [line.id, line]));
 
       await this.outboxWriter.write(trx, 'purchases.purchase_return.confirmed', {
         schema,
@@ -238,16 +256,24 @@ export class PurchaseReturnsService {
           warehouseId: goodsReceipt.warehouseId,
           returnNumber: updated.returnNumber,
           returnDate: updated.returnDate,
-          lines: lines.map((line) => ({
-            productVariantId: line.productVariantId,
+          lines: lines.map((line) => {
             // Base units for Inventory (line quantity is in the line's own unit).
-            quantity: Math.round(line.quantityReturned * line.unitFactor * 10_000) / 10_000,
-          })),
+            const quantity = Math.round(line.quantityReturned * line.unitFactor * 10_000) / 10_000;
+            return {
+              productVariantId: line.productVariantId,
+              quantity,
+              ...uninvoicedPart(
+                quantity,
+                debitNote?.coveredBaseQuantity.get(line.id) ?? 0,
+                receiptLineById.get(line.goodsReceiptLineId),
+                goodsReceipt.exchangeRate,
+                tenantCurrency,
+              ),
+            };
+          }),
         },
         occurredAt: new Date(),
       });
-      // What the supplier now owes back for the invoiced part of the return.
-      await this.debitNotes.issueForReturn(trx, updated, lines, { schema, actorUserId });
 
       return { ...updated, lines, warehouseId: goodsReceipt.warehouseId };
     });
@@ -271,9 +297,43 @@ export class PurchaseReturnsService {
         },
       );
     }
-    const updated = await this.returns.updateStatus(db, id, to);
-    if (!updated) throw entityNotFound('PURCHASE_RETURN', id);
+    const updated = await this.returns.updateStatus(db, id, to, from);
+    if (!updated) throw statusChanged('PURCHASE_RETURN', id);
     return updated;
+  }
+
+  /** Confirmed returns + these lines must stay within each receipt line's received quantity (base units). */
+  private async assertWithinReceived(
+    db: Kysely<TenantDatabase>,
+    receiptLines: GoodsReceiptLine[],
+    requested: Array<{ goodsReceiptLineId: string; quantityReturned: number; unitFactor: number }>,
+  ): Promise<void> {
+    const returned = await this.lines.sumReturnedBaseQuantityByGoodsReceiptLineIds(db, [
+      ...new Set(requested.map((line) => line.goodsReceiptLineId)),
+    ]);
+    const excess = findQuantityExcess(
+      requested.map((line) => ({
+        sourceLineId: line.goodsReceiptLineId,
+        quantity: line.quantityReturned,
+        unitFactor: line.unitFactor,
+      })),
+      new Map(receiptLines.map((line) => [line.id, toBaseQuantity(line.quantityReceived, line.unitFactor)])),
+      returned,
+    );
+    if (!excess) return;
+    const factor = receiptLines.find((line) => line.id === excess.sourceLineId)?.unitFactor ?? 1;
+    const params = {
+      lineId: excess.sourceLineId,
+      quantityReturned: inLineUnit(excess.requestedBase, factor),
+      remaining: inLineUnit(excess.remainingBase, factor),
+      quantityReceived: inLineUnit(excess.limitBase, factor),
+      returned: inLineUnit(excess.usedBase, factor),
+    };
+    throw new BusinessRuleError(
+      `Cannot return ${params.quantityReturned} against goods receipt line "${params.lineId}" — ` +
+        `only ${params.remaining} remaining returnable (received ${params.quantityReceived}, already returned ${params.returned}).`,
+      { code: 'PURCHASE_RETURN.QUANTITY_EXCEEDS_REMAINING', params },
+    );
   }
 
   cancel(db: Kysely<TenantDatabase>, id: string): Promise<PurchaseReturn> {
@@ -291,4 +351,40 @@ export class PurchaseReturnsService {
     }
     await this.returns.delete(db, id);
   }
+}
+
+/**
+ * Return before invoicing: the part of a returned line no invoice covers
+ * left GRNI at the receipt line's frozen value (receipt unit cost × the
+ * receipt's rate), not at today's average cost — so the return must take it
+ * out of GRNI at that same value (Inventory books the difference against
+ * cost of goods sold). Omitted when everything returned was invoiced, or the
+ * receipt's value can't be stated in the tenant currency.
+ */
+export function uninvoicedPart(
+  returnedBase: number,
+  coveredBase: number,
+  receiptLine: GoodsReceiptLine | undefined,
+  receiptRate: string | null,
+  tenantCurrency: string,
+): { uninvoicedBaseQuantity?: number; uninvoicedReceiptValue?: { amountMinorUnits: string; currency: string } } {
+  const uninvoiced = Math.round(Math.max(0, returnedBase - coveredBase) * 10_000) / 10_000;
+  if (!receiptLine || uninvoiced <= 0) return {};
+  const { totalCost } = valueInTenantCurrency(receiptLine, receiptRate, tenantCurrency);
+  if (totalCost.currency !== tenantCurrency) return {};
+  const receivedBase = Math.round(receiptLine.quantityReceived * receiptLine.unitFactor * 10_000) / 10_000;
+  const value = moneyShare(BigInt(totalCost.amountMinorUnits), uninvoiced, receivedBase);
+  return { uninvoicedBaseQuantity: uninvoiced, uninvoicedReceiptValue: { amountMinorUnits: value.toString(), currency: tenantCurrency } };
+}
+
+/** minorUnits × part / whole, rounded half away from zero (exact BigInt; quantities to 4 places). */
+function moneyShare(minorUnits: bigint, part: number, whole: number): bigint {
+  const partScaled = BigInt(Math.round(part * 10_000));
+  const wholeScaled = BigInt(Math.round(whole * 10_000));
+  if (wholeScaled === 0n) return 0n;
+  if (partScaled >= wholeScaled) return minorUnits;
+  const negative = minorUnits < 0n;
+  const abs = negative ? -minorUnits : minorUnits;
+  const rounded = (abs * partScaled * 2n + wholeScaled) / (wholeScaled * 2n);
+  return negative ? -rounded : rounded;
 }

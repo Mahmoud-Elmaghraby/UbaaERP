@@ -30,7 +30,13 @@ export interface PurchaseOrderRepository {
     db: Kysely<TenantDatabase>,
     id: string,
     status: PurchaseOrderStatus,
+    /** Only when the row is still in (one of) this status — a concurrent change makes it return null. */
+    expectedStatus?: PurchaseOrderStatus | PurchaseOrderStatus[],
   ): Promise<PurchaseOrder | null>;
+  /** Marks an order as made by a direct purchase invoice for itself (migration 0114). */
+  setSourcePurchaseInvoiceId(db: Kysely<TenantDatabase>, id: string, purchaseInvoiceId: string): Promise<void>;
+  /** The order a direct purchase invoice made for itself, if any. */
+  findBySourcePurchaseInvoiceId(db: Kysely<TenantDatabase>, purchaseInvoiceId: string): Promise<PurchaseOrder | null>;
   delete(db: Kysely<TenantDatabase>, id: string): Promise<boolean>;
 }
 

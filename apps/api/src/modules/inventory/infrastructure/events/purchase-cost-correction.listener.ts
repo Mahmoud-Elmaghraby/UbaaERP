@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { Money } from '@erp-platform/shared-kernel';
 import { OnOutboxEvent } from '../../../../shared/events/on-outbox-event.decorator';
 import type { DomainEventPayload } from '../../../../shared/events/domain-event';
@@ -8,6 +8,7 @@ import { CurrencyRateReader, applyRate } from '../../../../shared/catalog/curren
 import { withTransaction } from '../../../../database/tenant/transaction.util';
 import { localIsoDate } from '../../../../shared/time/local-date';
 import { PurchaseCostCorrectionsService } from '../../application/services/purchase-cost-corrections.service';
+import { BusinessRuleError } from '../../application/errors';
 
 interface InvoicePostedMetadata {
   invoiceNumber?: string;
@@ -20,13 +21,19 @@ interface DebitNoteIssuedMetadata {
   purchaseReturnId: string;
   invoiceNumber?: string;
   invoiceDate?: string | null;
-  lines?: { productVariantId: string; quantity: number; netAmount?: { amountMinorUnits: string; currency: string } }[];
+  /** The (latest) posted invoice the note reverses; absent on older events. */
+  sourceInvoiceDate?: string;
+  lines?: {
+    productVariantId: string;
+    quantity: number;
+    netAmount?: { amountMinorUnits: string; currency: string };
+    sourceInvoiceDate?: string;
+  }[];
 }
 
 /** Purchases' supplier documents → the goods' real cost (see PurchaseCostCorrectionsService). */
 @Injectable()
 export class PurchaseCostCorrectionListener {
-  private readonly logger = new Logger(PurchaseCostCorrectionListener.name);
   private readonly currencyRates = new CurrencyRateReader();
 
   constructor(
@@ -37,7 +44,9 @@ export class PurchaseCostCorrectionListener {
   @OnOutboxEvent('purchases.purchase_invoice.posted')
   async handleInvoice(payload: DomainEventPayload): Promise<void> {
     const metadata = payload.metadata as unknown as InvoicePostedMetadata | undefined;
-    if (!metadata?.priceDifferences?.length) return;
+    // Only the price part is the goods' cost; the exchange part is Accounting's (gain / loss).
+    const differences = (metadata?.priceDifferences ?? []).filter((d) => d.amount.amountMinorUnits !== '0');
+    if (!metadata || differences.length === 0) return;
     const db = this.connections.getClient(payload.schema);
     await withTransaction(db, (trx) =>
       this.corrections.applyInvoiceDifferences(trx, {
@@ -46,7 +55,7 @@ export class PurchaseCostCorrectionListener {
         invoiceId: payload.entityId,
         invoiceNumber: metadata.invoiceNumber ?? null,
         entryDate: metadata.invoiceDate ?? localIsoDate(payload.occurredAt),
-        differences: metadata.priceDifferences!,
+        differences,
       }),
     );
   }
@@ -59,22 +68,34 @@ export class PurchaseCostCorrectionListener {
     const db = this.connections.getClient(payload.schema);
     const date = metadata.invoiceDate ?? localIsoDate(payload.occurredAt);
 
-    // The debit note's value in the tenant currency, at its own date.
+    // The debit note's value in the tenant currency, at the rate its source invoice was booked at
+    // (the same per-line conversion Accounting credits GRNI with), so GRNI nets out exactly.
     const tenantCurrency = await this.currencyRates.tenantCurrency(db);
-    const currency = sourceLines[0].netAmount!.currency;
-    const rate = currency === tenantCurrency ? null : await this.currencyRates.effectiveRate(db, currency, tenantCurrency, date);
-    if (currency !== tenantCurrency && !rate) {
-      this.logger.warn(`Debit note "${payload.entityId}": no ${currency}→${tenantCurrency} rate on ${date} — no cost difference posted.`);
-      return;
-    }
-    const lines = sourceLines.map((line) => {
-      const minor = BigInt(line.netAmount!.amountMinorUnits);
-      return {
+    const rates = new Map<string, string | null>();
+    const lines: { productVariantId: string; baseQuantity: number; value: Money }[] = [];
+    for (const line of sourceLines) {
+      const net = line.netAmount!;
+      let minor = BigInt(net.amountMinorUnits);
+      if (net.currency !== tenantCurrency) {
+        const rateDate = line.sourceInvoiceDate ?? metadata.sourceInvoiceDate ?? date;
+        const key = `${net.currency}|${rateDate}`;
+        if (!rates.has(key)) rates.set(key, await this.currencyRates.effectiveRate(db, net.currency, tenantCurrency, rateDate));
+        const rate = rates.get(key);
+        if (!rate) {
+          // Throw, don't skip: a skipped difference leaves GRNI unbalanced for good. The outbox retries.
+          throw new BusinessRuleError(
+            `Debit note "${payload.entityId}": no ${net.currency}→${tenantCurrency} rate on or before ${rateDate}.`,
+            { code: 'EXCHANGE_RATE.NOT_AVAILABLE', params: { from: net.currency, to: tenantCurrency, date: rateDate } },
+          );
+        }
+        minor = applyRate(minor, rate);
+      }
+      lines.push({
         productVariantId: line.productVariantId,
         baseQuantity: line.quantity,
-        value: Money.fromMinorUnits(rate ? applyRate(minor, rate) : minor, tenantCurrency),
-      };
-    });
+        value: Money.fromMinorUnits(minor, tenantCurrency),
+      });
+    }
 
     await withTransaction(db, (trx) =>
       this.corrections.applyReturnDifference(trx, {

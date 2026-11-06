@@ -967,6 +967,8 @@ export interface PurchaseOrdersTable {
   custom_fields: unknown;
   created_at: Generated<Date>;
   updated_at: Generated<Date>;
+  /** Migration 0114 — the direct purchase invoice that made this order for itself; NULL = made by hand. */
+  source_purchase_invoice_id: Generated<string | null>;
 }
 
 export interface PurchaseOrderLinesTable {

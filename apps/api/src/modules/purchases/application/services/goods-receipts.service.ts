@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import type { Kysely } from 'kysely';
+import { sql, type Kysely } from 'kysely';
 import { Money } from '@erp-platform/shared-kernel';
 import type { TenantDatabase } from '../../../../database/tenant/kysely-client';
 import { withTransaction } from '../../../../database/tenant/transaction.util';
@@ -13,6 +13,7 @@ import {
   PURCHASE_ORDER_LINE_REPOSITORY,
   type PurchaseOrderLineRepository,
 } from '../ports/purchase-order-line.repository';
+import type { PurchaseOrderLine, PurchaseOrderStatus } from '../../domain/purchase-order.entity';
 import type {
   GoodsReceipt,
   GoodsReceiptWithLines,
@@ -23,10 +24,14 @@ import type {
 } from '../../domain/goods-receipt.entity';
 import { PRODUCT_TRACKING_READER, type ProductTrackingReader } from '../ports/product-tracking.reader';
 import { BusinessRuleError, NotFoundError, isPostgresForeignKeyViolation } from '../errors';
-import { entityNotFound } from '../../../../shared/errors/entity-errors';
+import { entityNotFound, statusChanged } from '../../../../shared/errors/entity-errors';
+import { lockRowsForUpdate } from '../../../../shared/persistence/row-locks';
+import { findQuantityExcess, inLineUnit, toBaseQuantity } from './quantity-limits';
 import { NumberingSequencesService } from '../../../settings/application/services/numbering-sequences.service';
 import { OutboxWriterService } from '../../../../shared/outbox/application/services/outbox-writer.service';
 import { CurrencyRateReader, applyRate } from '../../../../shared/catalog/currency-rate-reader';
+import type { ReceiptInvoiceDifference } from '../../../../shared/events/purchase-price-difference';
+import { computeReceiptInvoiceDifferences, type PostedInvoiceLineForReceipt } from './purchase-price-differences';
 
 /**
  * Records physical receipt of goods against a purchase order (master doc
@@ -124,31 +129,19 @@ export class GoodsReceiptsService {
       }
     }
 
-    const alreadyReceived = await this.lines.sumReceivedQuantityByPurchaseOrderLineIds(
-      db,
-      input.lines.map((line) => line.purchaseOrderLineId),
-    );
     for (const line of input.lines) {
       const poLine = poLineById.get(line.purchaseOrderLineId)!;
-      const received = alreadyReceived[line.purchaseOrderLineId] ?? 0;
-      const remaining = poLine.quantity - received;
-      if (line.quantityReceived > remaining) {
-        throw new BusinessRuleError(
-          `Cannot receive ${line.quantityReceived} against purchase order line "${line.purchaseOrderLineId}" — ` +
-            `only ${remaining} remaining (ordered ${poLine.quantity}, already received ${received}).`,
-          {
-            code: 'GOODS_RECEIPT.QUANTITY_EXCEEDS_REMAINING',
-            params: {
-              lineId: line.purchaseOrderLineId,
-              quantityReceived: line.quantityReceived,
-              remaining,
-              ordered: poLine.quantity,
-              received,
-            },
-          },
-        );
-      }
+      assertSameCurrencyAsOrder(line.unitCost?.currency, poLine.unitPrice.currency);
     }
+    await this.assertWithinOrdered(
+      db,
+      poLines,
+      input.lines.map((line) => ({
+        purchaseOrderLineId: line.purchaseOrderLineId,
+        quantityReceived: line.quantityReceived,
+        unitFactor: poLineById.get(line.purchaseOrderLineId)!.unitFactor,
+      })),
+    );
 
     const trackingByVariant = await this.tracking.trackingTypes(
       db,
@@ -235,8 +228,8 @@ export class GoodsReceiptsService {
         },
       );
     }
-    const updated = await this.receipts.updateStatus(db, id, to);
-    if (!updated) throw entityNotFound('GOODS_RECEIPT', id);
+    const updated = await this.receipts.updateStatus(db, id, to, from);
+    if (!updated) throw statusChanged('GOODS_RECEIPT', id);
     return updated;
   }
 
@@ -268,27 +261,48 @@ export class GoodsReceiptsService {
     }
 
     return withTransaction(db, async (trx) => {
+      // Re-read under a lock: a concurrent confirm/cancel of this same receipt waits here.
+      await lockRowsForUpdate(trx, 'goods_receipts', [id]);
+      const current = await this.receipts.findById(trx, id);
+      if (!current || current.status !== 'draft') throw statusChanged('GOODS_RECEIPT', id);
       const lines = await this.lines.listByGoodsReceiptId(trx, id);
+      // Under a lock on the PO and its lines: the PO must still be receivable
+      // (not cancelled meanwhile) and confirmed receipts + this one must stay
+      // within the ordered quantity — two drafts can't both receive the same units.
+      const poLines = await this.lockReceivableOrder(trx, existing.purchaseOrderId);
+      await this.assertWithinOrdered(
+        trx,
+        poLines,
+        lines.map((line) => ({
+          purchaseOrderLineId: line.purchaseOrderLineId,
+          quantityReceived: line.quantityReceived,
+          unitFactor: line.unitFactor,
+        })),
+      );
       // Stock is valued in the tenant's currency: a foreign-currency
       // receipt is converted at its own (typed or effective) rate, frozen here.
       const tenantCurrency = await this.currencyRates.tenantCurrency(trx);
       const rate = await this.resolveExchangeRate(trx, existing, lines, tenantCurrency);
       if (rate && rate !== existing.exchangeRate) await this.receipts.setExchangeRate(trx, id, rate);
+      // Before the status flip (this receipt must not count as "previously received").
+      const invoicedDifferences = await this.invoicedDifferencesFor(trx, id, lines, rate, tenantCurrency);
 
-      const updated = await this.receipts.updateStatus(trx, id, 'confirmed');
-      if (!updated) throw entityNotFound('GOODS_RECEIPT', id);
+      const updated = await this.receipts.updateStatus(trx, id, 'confirmed', 'draft');
+      if (!updated) throw statusChanged('GOODS_RECEIPT', id);
 
       const po = await this.purchaseOrders.findById(trx, updated.purchaseOrderId);
       if (po) {
-        const poLines = await this.purchaseOrderLines.listByPurchaseOrderId(trx, po.id);
-        const receivedByLine = await this.lines.sumReceivedQuantityByPurchaseOrderLineIds(
+        const receivedByLine = await this.lines.sumReceivedBaseQuantityByPurchaseOrderLineIds(
           trx,
           poLines.map((line) => line.id),
         );
-        const fullyReceived = poLines.every((line) => (receivedByLine[line.id] ?? 0) >= line.quantity);
+        const fullyReceived = poLines.every(
+          (line) => (receivedByLine[line.id] ?? 0) >= toBaseQuantity(line.quantity, line.unitFactor) - 1e-6,
+        );
         const newPoStatus = fullyReceived ? 'fully_received' : 'partially_received';
         if (po.status !== newPoStatus) {
-          await this.purchaseOrders.updateStatus(trx, po.id, newPoStatus);
+          const moved = await this.purchaseOrders.updateStatus(trx, po.id, newPoStatus, po.status);
+          if (!moved) throw statusChanged('PURCHASE_ORDER', po.id);
         }
       }
 
@@ -310,12 +324,75 @@ export class GoodsReceiptsService {
             ...valueInTenantCurrency(line, rate, tenantCurrency),
             lots: line.lots.map((lot) => ({ ...lot, quantity: toBase(lot.quantity, line.unitFactor) })),
           })),
+          // Goods a posted invoice billed before they arrived: Inventory moves the price part into
+          // their cost, Accounting books the exchange part (see computeReceiptInvoiceDifferences).
+          invoicedDifferences,
         },
         occurredAt: new Date(),
       });
 
       return { ...updated, lines };
     });
+  }
+
+  /**
+   * Locks the purchase order row, refuses unless it can still receive
+   * goods, then locks its lines (same order everywhere: document → PO →
+   * PO lines) and returns them.
+   */
+  private async lockReceivableOrder(trx: Kysely<TenantDatabase>, purchaseOrderId: string): Promise<PurchaseOrderLine[]> {
+    await lockRowsForUpdate(trx, 'purchase_orders', [purchaseOrderId]);
+    const po = await this.purchaseOrders.findById(trx, purchaseOrderId);
+    if (!po || !RECEIVABLE_ORDER_STATUSES.includes(po.status)) {
+      throw new BusinessRuleError(
+        `Purchase order "${purchaseOrderId}" is "${po?.status ?? 'missing'}" — nothing can be received against it.`,
+        {
+          code: 'GOODS_RECEIPT.PURCHASE_ORDER_NOT_RECEIVABLE',
+          params: { id: purchaseOrderId, status: po?.status ?? '' },
+        },
+      );
+    }
+    const poLines = await this.purchaseOrderLines.listByPurchaseOrderId(trx, purchaseOrderId);
+    await lockRowsForUpdate(
+      trx,
+      'purchase_order_lines',
+      poLines.map((line) => line.id),
+    );
+    return poLines;
+  }
+
+  /** Confirmed receipts + these lines must stay within each PO line's ordered quantity (base units). */
+  private async assertWithinOrdered(
+    db: Kysely<TenantDatabase>,
+    poLines: PurchaseOrderLine[],
+    requested: Array<{ purchaseOrderLineId: string; quantityReceived: number; unitFactor: number }>,
+  ): Promise<void> {
+    const received = await this.lines.sumReceivedBaseQuantityByPurchaseOrderLineIds(db, [
+      ...new Set(requested.map((line) => line.purchaseOrderLineId)),
+    ]);
+    const excess = findQuantityExcess(
+      requested.map((line) => ({
+        sourceLineId: line.purchaseOrderLineId,
+        quantity: line.quantityReceived,
+        unitFactor: line.unitFactor,
+      })),
+      new Map(poLines.map((line) => [line.id, toBaseQuantity(line.quantity, line.unitFactor)])),
+      received,
+    );
+    if (!excess) return;
+    const factor = poLines.find((line) => line.id === excess.sourceLineId)?.unitFactor ?? 1;
+    const params = {
+      lineId: excess.sourceLineId,
+      quantityReceived: inLineUnit(excess.requestedBase, factor),
+      remaining: inLineUnit(excess.remainingBase, factor),
+      ordered: inLineUnit(excess.limitBase, factor),
+      received: inLineUnit(excess.usedBase, factor),
+    };
+    throw new BusinessRuleError(
+      `Cannot receive ${params.quantityReceived} against purchase order line "${params.lineId}" — ` +
+        `only ${params.remaining} remaining (ordered ${params.ordered}, already received ${params.received}).`,
+      { code: 'GOODS_RECEIPT.QUANTITY_EXCEEDS_REMAINING', params },
+    );
   }
 
   /**
@@ -339,9 +416,11 @@ export class GoodsReceiptsService {
         const entry = result.get(line.purchaseOrderLineId) ?? {
           baseQuantity: 0,
           value: Money.zero(tenantCurrency),
+          documentValue: Money.zero(line.unitCost.currency),
           goodsReceiptIds: [],
           complete: true,
         };
+        entry.documentValue = entry.documentValue.add(line.unitCost.multiplyByQuantity(line.quantityReceived));
         const { totalCost } = valueInTenantCurrency(line, receipt.exchangeRate, tenantCurrency);
         if (totalCost.currency === tenantCurrency) {
           entry.value = entry.value.add(Money.fromMinorUnits(BigInt(totalCost.amountMinorUnits), tenantCurrency));
@@ -354,6 +433,109 @@ export class GoodsReceiptsService {
       }
     }
     return result;
+  }
+
+  /**
+   * Invoice before receipt: for the quantity of these lines that posted
+   * invoices already billed (and no earlier receipt covered), the price and
+   * exchange parts between the invoice and this receipt. Runs under the PO /
+   * PO-line locks confirm() holds, which also serialize invoice posting.
+   */
+  private async invoicedDifferencesFor(
+    trx: Kysely<TenantDatabase>,
+    receiptId: string,
+    lines: GoodsReceiptLine[],
+    rate: string | null,
+    tenantCurrency: string,
+  ): Promise<ReceiptInvoiceDifference[]> {
+    const poLineIds = [...new Set(lines.map((line) => line.purchaseOrderLineId))];
+    if (poLineIds.length === 0) return [];
+    const rows = await trx
+      .selectFrom('purchase_invoice_lines as l')
+      .innerJoin('purchase_invoices as i', 'i.id', 'l.purchase_invoice_id')
+      .select([
+        'l.purchase_order_line_id',
+        'l.quantity_invoiced',
+        'l.unit_factor',
+        'l.unit_price_amount',
+        'l.unit_price_currency',
+        'l.net_amount',
+        'i.id as invoice_id',
+        'i.invoice_number',
+        'i.invoice_date',
+        'i.created_at',
+      ])
+      .where('i.status', '=', 'posted')
+      .where('l.purchase_order_line_id', 'in', poLineIds)
+      .orderBy(sql`COALESCE(i.invoice_date, i.created_at::date)`)
+      .orderBy('i.created_at')
+      .orderBy('l.created_at')
+      .execute();
+    if (rows.length === 0) return [];
+
+    const previouslyReceived = new Map(
+      Object.entries(await this.lines.sumReceivedBaseQuantityByPurchaseOrderLineIds(trx, poLineIds)),
+    );
+    const invoicedBase = new Map<string, number>();
+    for (const row of rows) {
+      const base = toBase(Number(row.quantity_invoiced), Number(row.unit_factor));
+      invoicedBase.set(row.purchase_order_line_id, (invoicedBase.get(row.purchase_order_line_id) ?? 0) + base);
+    }
+    // Nothing billed beyond what earlier receipts brought in: an ordinary receipt.
+    if (![...invoicedBase].some(([poLineId, base]) => base > (previouslyReceived.get(poLineId) ?? 0) + QUANTITY_EPSILON)) {
+      return [];
+    }
+
+    const rates = new Map<string, string | null>();
+    const invoicedLines: PostedInvoiceLineForReceipt[] = [];
+    for (const row of rows) {
+      const quantity = Number(row.quantity_invoiced);
+      const currency = row.unit_price_currency;
+      const netAmount =
+        row.net_amount !== null
+          ? Money.fromMinorUnits(BigInt(row.net_amount), currency)
+          : Money.fromMinorUnits(BigInt(row.unit_price_amount), currency).multiplyByQuantity(quantity);
+      const invoiceDate = calendarDate(row.invoice_date ?? row.created_at);
+      let invoiceRate: string | null = null;
+      if (currency !== tenantCurrency) {
+        const key = `${currency}|${invoiceDate}`;
+        if (!rates.has(key)) rates.set(key, await this.currencyRates.effectiveRate(trx, currency, tenantCurrency, invoiceDate));
+        invoiceRate = rates.get(key) ?? null;
+        if (!invoiceRate) {
+          throw new BusinessRuleError(
+            `No ${currency}→${tenantCurrency} exchange rate on or before ${invoiceDate} (the date of purchase invoice ` +
+              `"${row.invoice_number}", which billed these goods before goods receipt "${receiptId}").`,
+            { code: 'GOODS_RECEIPT.EXCHANGE_RATE_REQUIRED', params: { currency, date: invoiceDate } },
+          );
+        }
+      }
+      invoicedLines.push({
+        purchaseOrderLineId: row.purchase_order_line_id,
+        purchaseInvoiceId: row.invoice_id,
+        invoiceNumber: row.invoice_number,
+        invoiceDate,
+        baseQuantity: toBase(quantity, Number(row.unit_factor)),
+        netAmount,
+        rate: invoiceRate,
+      });
+    }
+
+    return computeReceiptInvoiceDifferences({
+      receiptLines: lines.map((line) => {
+        const { totalCost } = valueInTenantCurrency(line, rate, tenantCurrency);
+        return {
+          goodsReceiptId: receiptId,
+          purchaseOrderLineId: line.purchaseOrderLineId,
+          productVariantId: line.productVariantId,
+          baseQuantity: toBase(line.quantityReceived, line.unitFactor),
+          documentValue: line.unitCost.multiplyByQuantity(line.quantityReceived),
+          ledgerValue: Money.fromMinorUnits(BigInt(totalCost.amountMinorUnits), totalCost.currency),
+        };
+      }),
+      invoicedLines,
+      previouslyReceived,
+      tenantCurrency,
+    });
   }
 
   /**
@@ -412,6 +594,22 @@ export class GoodsReceiptsService {
 }
 
 const QUANTITY_EPSILON = 1e-6;
+
+/** A purchase order goods can still be received against. */
+export const RECEIVABLE_ORDER_STATUSES: readonly PurchaseOrderStatus[] = ['confirmed', 'partially_received'];
+
+/**
+ * A receipt cost / invoice price must be in the purchase order's own
+ * currency (one PO, one currency): a USD cost on an EGP order would be
+ * valued as if it were EGP.
+ */
+export function assertSameCurrencyAsOrder(currency: string | undefined, orderCurrency: string): void {
+  if (currency === undefined || currency === orderCurrency) return;
+  throw new BusinessRuleError(
+    `The amount is in ${currency}, but the purchase order is in ${orderCurrency} — use the order's currency.`,
+    { code: 'PURCHASE.CURRENCY_MISMATCH', params: { currency, orderCurrency } },
+  );
+}
 
 /**
  * Validates and normalizes the lot split of one receipt line:
@@ -501,8 +699,10 @@ type MoneyJson = { amountMinorUnits: string; currency: string };
 /** See GoodsReceiptsService.receivedValueByOrderLine(). */
 export interface ReceivedOrderLineValue {
   baseQuantity: number;
-  /** Tenant currency. */
+  /** Tenant currency, at each receipt's frozen rate. */
   value: Money;
+  /** The same goods in the document (order) currency: quantity × unit cost. */
+  documentValue: Money;
   goodsReceiptIds: string[];
   complete: boolean;
 }
@@ -513,7 +713,7 @@ export interface ReceivedOrderLineValue {
  * exact line value (quantity × unit cost, converted once) that the stock
  * value grows by, so no rounding is lost per unit.
  */
-function valueInTenantCurrency(
+export function valueInTenantCurrency(
   line: GoodsReceiptLine,
   rate: string | null,
   tenantCurrency: string,

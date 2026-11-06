@@ -35,6 +35,8 @@ export interface SupplierQuotationRepository {
     db: Kysely<TenantDatabase>,
     id: string,
     status: SupplierQuotationStatus,
+    /** Only when the row is still in (one of) this status — a concurrent change makes it return null. */
+    expectedStatus?: SupplierQuotationStatus | SupplierQuotationStatus[],
   ): Promise<SupplierQuotation | null>;
   delete(db: Kysely<TenantDatabase>, id: string): Promise<boolean>;
 }

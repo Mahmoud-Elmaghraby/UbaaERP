@@ -17,7 +17,9 @@ import type {
   UpdatePurchaseRequisitionInput,
 } from '../../domain/purchase-requisition.entity';
 import { BusinessRuleError } from '../errors';
-import { entityNotFound } from '../../../../shared/errors/entity-errors';
+import { entityNotFound, statusChanged } from '../../../../shared/errors/entity-errors';
+import { withTransaction } from '../../../../database/tenant/transaction.util';
+import { lockRowsForUpdate } from '../../../../shared/persistence/row-locks';
 import { NumberingSequencesService } from '../../../settings/application/services/numbering-sequences.service';
 
 /**
@@ -60,7 +62,7 @@ export class PurchaseRequisitionsService {
       });
     }
 
-    return db.transaction().execute(async (trx) => {
+    return withTransaction(db, async (trx) => {
       let allocated;
       try {
         allocated = await this.numberingSequences.allocateNext(
@@ -68,7 +70,8 @@ export class PurchaseRequisitionsService {
           'purchase_requisition',
           input.branchId ?? null,
         );
-      } catch {
+      } catch (err) {
+        if (!(err instanceof Error && err.message.includes('No numbering sequence configured'))) throw err;
         throw new BusinessRuleError(
           'No numbering sequence configured for purchase requisitions yet. ' +
             'Create one for document type "purchase_requisition" via Settings → Numbering Sequences first.',
@@ -118,7 +121,11 @@ export class PurchaseRequisitionsService {
       });
     }
 
-    return db.transaction().execute(async (trx) => {
+    return withTransaction(db, async (trx) => {
+      // Re-checked under a lock: it may have been submitted/cancelled since it was read above.
+      await lockRowsForUpdate(trx, 'purchase_requisitions', [id]);
+      const current = await this.requisitions.findById(trx, id);
+      if (!current || current.status !== 'draft') throw statusChanged('PURCHASE_REQUISITION', id);
       const updated = await this.requisitions.update(trx, id, {
         branchId: input.branchId,
         neededByDate: input.neededByDate,
@@ -158,8 +165,8 @@ export class PurchaseRequisitionsService {
         },
       );
     }
-    const updated = await this.requisitions.updateStatus(db, id, to);
-    if (!updated) throw entityNotFound('PURCHASE_REQUISITION', id);
+    const updated = await this.requisitions.updateStatus(db, id, to, from);
+    if (!updated) throw statusChanged('PURCHASE_REQUISITION', id);
     return updated;
   }
 

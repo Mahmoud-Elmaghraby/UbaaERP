@@ -75,12 +75,36 @@ export class KyselyPurchaseOrderRepository implements PurchaseOrderRepository {
     db: Kysely<TenantDatabase>,
     id: string,
     status: PurchaseOrderStatus,
+    expectedStatus?: PurchaseOrderStatus | PurchaseOrderStatus[],
   ): Promise<PurchaseOrder | null> {
     const row = await db
       .updateTable('purchase_orders')
       .set({ status, updated_at: new Date() })
       .where('id', '=', id)
+      .$if(expectedStatus !== undefined, (q) =>
+        q.where('status', 'in', ([] as PurchaseOrderStatus[]).concat(expectedStatus ?? [])),
+      )
       .returningAll()
+      .executeTakeFirst();
+    return row ? toDomain(row) : null;
+  }
+
+  async setSourcePurchaseInvoiceId(db: Kysely<TenantDatabase>, id: string, purchaseInvoiceId: string): Promise<void> {
+    await db
+      .updateTable('purchase_orders')
+      .set({ source_purchase_invoice_id: purchaseInvoiceId })
+      .where('id', '=', id)
+      .execute();
+  }
+
+  async findBySourcePurchaseInvoiceId(
+    db: Kysely<TenantDatabase>,
+    purchaseInvoiceId: string,
+  ): Promise<PurchaseOrder | null> {
+    const row = await db
+      .selectFrom('purchase_orders')
+      .selectAll()
+      .where('source_purchase_invoice_id', '=', purchaseInvoiceId)
       .executeTakeFirst();
     return row ? toDomain(row) : null;
   }

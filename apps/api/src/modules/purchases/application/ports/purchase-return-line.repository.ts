@@ -21,12 +21,12 @@ export interface PurchaseReturnLineRepository {
     input: CreatePurchaseReturnLineRow,
   ): Promise<PurchaseReturnLine>;
   /**
-   * Sums quantity_returned across every *confirmed* purchase return line
+   * Sums quantity_returned × unit_factor (BASE units) across every *confirmed* purchase return line
    * for each given goods_receipt_line_id — draft/cancelled returns never
    * count. Missing keys mean "0 returned so far". Same shape as
-   * GoodsReceiptLineRepository.sumReceivedQuantityByPurchaseOrderLineIds.
+   * GoodsReceiptLineRepository.sumReceivedBaseQuantityByPurchaseOrderLineIds.
    */
-  sumReturnedQuantityByGoodsReceiptLineIds(
+  sumReturnedBaseQuantityByGoodsReceiptLineIds(
     db: Kysely<TenantDatabase>,
     goodsReceiptLineIds: string[],
   ): Promise<Record<string, number>>;

@@ -161,6 +161,26 @@ export class AccountingPaymentPostingListener {
       metadata.amount,
       entryDate,
     );
+    // An endorsed cheque sits in أوراق قبض at its receipt date's rate: it leaves at that rate, and
+    // the payable is settled at today's — the difference is a realized exchange gain / loss.
+    let creditMinorUnits = amountMinorUnits;
+    if (metadata.endorsedChequeId && wasConverted) {
+      const chequeDate = await this.chequeReceiptDate(db, metadata.endorsedChequeId);
+      if (chequeDate && chequeDate !== entryDate) {
+        creditMinorUnits = (await this.ledgerAmounts.toLedger(db, metadata.amount, chequeDate)).amountMinorUnits;
+      }
+    }
+    // > 0: the payable was settled for more local currency than the cheque carried in → gain.
+    const fxDiff = BigInt(amountMinorUnits) - BigInt(creditMinorUnits);
+    const fxLines = [];
+    if (fxDiff !== 0n) {
+      const fx = required(settings.exchangeGainLossAccountId, 'حساب أرباح وخسائر فروق العملة');
+      fxLines.push(
+        fxDiff > 0n
+          ? { accountId: fx, debitAmountMinorUnits: '0', creditAmountMinorUnits: fxDiff.toString() }
+          : { accountId: fx, debitAmountMinorUnits: (-fxDiff).toString(), creditAmountMinorUnits: '0' },
+      );
+    }
     const number = metadata.paymentNumber ?? payload.entityId;
     await this.journalEntries.createAuto(db, {
       entryDate,
@@ -169,7 +189,8 @@ export class AccountingPaymentPostingListener {
         : `سداد لمورد — ${number}`,
       lines: [
         { accountId: payable, debitAmountMinorUnits: amountMinorUnits, creditAmountMinorUnits: '0' },
-        { accountId: treasury, debitAmountMinorUnits: '0', creditAmountMinorUnits: amountMinorUnits },
+        { accountId: treasury, debitAmountMinorUnits: '0', creditAmountMinorUnits: creditMinorUnits },
+        ...fxLines,
       ],
       sourceReferenceType: 'supplier_payment',
       sourceReferenceId: payload.entityId,
@@ -340,6 +361,12 @@ export class AccountingPaymentPostingListener {
         sourceReferenceId: paymentId,
       });
     }
+  }
+
+  /** The receipt date of a customer cheque — the rate it entered أوراق قبض at (null when unknown). */
+  private async chequeReceiptDate(db: Kysely<TenantDatabase>, chequeId: string): Promise<string | null> {
+    const row = await db.selectFrom('payments_received').select('payment_date').where('id', '=', chequeId).executeTakeFirst();
+    return row?.payment_date ? calendarDate(row.payment_date) : null;
   }
 
   /** Where the money sits — see resolveTreasuryAccount. Old outbox rows carry `bankAccountId` (same ids). */

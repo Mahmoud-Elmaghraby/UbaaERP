@@ -81,11 +81,15 @@ export class KyselyPurchaseInvoiceRepository implements PurchaseInvoiceRepositor
     db: Kysely<TenantDatabase>,
     id: string,
     status: PurchaseInvoiceStatus,
+    expectedStatus?: PurchaseInvoiceStatus | PurchaseInvoiceStatus[],
   ): Promise<PurchaseInvoice | null> {
     const row = await db
       .updateTable('purchase_invoices')
       .set({ status, updated_at: new Date() })
       .where('id', '=', id)
+      .$if(expectedStatus !== undefined, (q) =>
+        q.where('status', 'in', ([] as PurchaseInvoiceStatus[]).concat(expectedStatus ?? [])),
+      )
       .returningAll()
       .executeTakeFirst();
     return row ? toDomain(row) : null;

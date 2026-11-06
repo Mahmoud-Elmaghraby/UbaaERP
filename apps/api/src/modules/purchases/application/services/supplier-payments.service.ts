@@ -3,7 +3,7 @@ import type { Kysely } from 'kysely';
 import { Money } from '@erp-platform/shared-kernel';
 import type { TenantDatabase } from '../../../../database/tenant/kysely-client';
 import { withTransaction } from '../../../../database/tenant/transaction.util';
-import { resolvePaymentTreasury } from '../../../../shared/treasury/treasury-reader';
+import { findTreasury, resolvePaymentTreasury } from '../../../../shared/treasury/treasury-reader';
 import { TreasuryMovementRegistry } from '../../../../shared/treasury/treasury-movements';
 import { entityNotFound, statusChanged } from '../../../../shared/errors/entity-errors';
 import { lockRowsForUpdate } from '../../../../shared/persistence/row-locks';
@@ -21,11 +21,7 @@ import {
 import { SUPPLIER_REPOSITORY, type SupplierRepository } from '../ports/supplier.repository';
 import { PURCHASE_ORDER_REPOSITORY, type PurchaseOrderRepository } from '../ports/purchase-order.repository';
 import { PURCHASE_INVOICE_REPOSITORY, type PurchaseInvoiceRepository } from '../ports/purchase-invoice.repository';
-import {
-  PURCHASE_INVOICE_LINE_REPOSITORY,
-  type PurchaseInvoiceLineRepository,
-} from '../ports/purchase-invoice-line.repository';
-import { calculatePurchaseInvoiceTotal } from '../../domain/purchase-invoice.entity';
+import { readPurchaseInvoiceBalances } from './purchase-invoice-balances';
 import {
   calculateSupplierPaymentUnallocated,
   type CreateSupplierPaymentInput,
@@ -64,7 +60,8 @@ function allocationsMetadata(allocations: SupplierPaymentAllocation[]) {
  * posted against the same invoice meanwhile): the purchase invoice must
  * exist, be 'posted' and belong to the payment's supplier (via its
  * purchase order); currencies must match; an invoice can't be paid beyond
- * its total minus other posted payments' allocations; and the allocations
+ * its total minus other posted payments' allocations and the debit notes
+ * credited to it (readPurchaseInvoiceBalances); and the allocations
  * can't exceed the amount available on this payment.
  */
 @Injectable()
@@ -75,7 +72,6 @@ export class SupplierPaymentsService {
     @Inject(SUPPLIER_REPOSITORY) private readonly suppliers: SupplierRepository,
     @Inject(PURCHASE_ORDER_REPOSITORY) private readonly purchaseOrders: PurchaseOrderRepository,
     @Inject(PURCHASE_INVOICE_REPOSITORY) private readonly purchaseInvoices: PurchaseInvoiceRepository,
-    @Inject(PURCHASE_INVOICE_LINE_REPOSITORY) private readonly purchaseInvoiceLines: PurchaseInvoiceLineRepository,
     private readonly numberingSequences: NumberingSequencesService,
     private readonly outboxWriter: OutboxWriterService,
     private readonly treasuryMovements: TreasuryMovementRegistry,
@@ -96,33 +92,37 @@ export class SupplierPaymentsService {
     return { ...payment, allocations, unallocatedAmount: calculateSupplierPaymentUnallocated(payment.amount, allocations) };
   }
 
-  /** The supplier's posted purchase invoices with total / paid (posted payments only) / outstanding. */
+  /** The supplier's posted purchase invoices with total / paid (posted payments only) / outstanding (net of debit notes). */
   async listOutstandingInvoices(db: Kysely<TenantDatabase>, supplierId: string): Promise<SupplierOutstandingInvoice[]> {
     const invoices = await this.purchaseInvoices.listPostedBySupplierId(db, supplierId);
-    const paid = await this.allocations.sumAllocatedAmountByPurchaseInvoiceIds(
+    const balances = await readPurchaseInvoiceBalances(
       db,
-      invoices.map((i) => i.id),
+      invoices.map((i) => i.purchaseOrderId),
     );
     const result: SupplierOutstandingInvoice[] = [];
     for (const invoice of invoices) {
-      const lines = await this.purchaseInvoiceLines.listByPurchaseInvoiceId(db, invoice.id);
-      if (lines.length === 0) continue;
-      const totalAmount = calculatePurchaseInvoiceTotal(lines);
-      const paidAmount = paid[invoice.id] ?? Money.zero(totalAmount.currency);
+      const balance = balances.get(invoice.id);
+      if (!balance) continue;
       result.push({
         purchaseInvoiceId: invoice.id,
         invoiceNumber: invoice.invoiceNumber,
         supplierInvoiceNumber: invoice.supplierInvoiceNumber,
         invoiceDate: invoice.invoiceDate,
         dueDate: invoice.dueDate,
-        totalAmount,
-        paidAmount,
-        outstandingAmount: totalAmount.subtract(paidAmount),
+        totalAmount: balance.total,
+        paidAmount: balance.paid,
+        outstandingAmount: balance.outstanding,
       });
     }
     return result;
   }
 
+  /**
+   * Re-checks requested allocations against each invoice's outstanding
+   * balance (total − posted payments − debit notes). When it guards a write,
+   * call it with the transaction after locking the payment and the invoices
+   * (lockRowsForUpdate) so two payments can't take the same balance.
+   */
   private async validateAllocations(
     db: Kysely<TenantDatabase>,
     supplierId: string,
@@ -133,7 +133,6 @@ export class SupplierPaymentsService {
     if (allocationInputs.length === 0) return;
 
     const invoiceIds = [...new Set(allocationInputs.map((a) => a.purchaseInvoiceId))];
-    const alreadyAllocated = await this.allocations.sumAllocatedAmountByPurchaseInvoiceIds(db, invoiceIds);
 
     const requestedByInvoice = new Map<string, Money>();
     let totalRequested = Money.zero(currency);
@@ -164,6 +163,7 @@ export class SupplierPaymentsService {
       );
     }
 
+    const orderIds: string[] = [];
     for (const invoiceId of invoiceIds) {
       const invoice = await this.purchaseInvoices.findById(db, invoiceId);
       if (!invoice) throw entityNotFound('PURCHASE_INVOICE', invoiceId);
@@ -181,9 +181,14 @@ export class SupplierPaymentsService {
           params: { invoiceId, supplierId },
         });
       }
+      orderIds.push(invoice.purchaseOrderId);
+    }
 
-      const lines = await this.purchaseInvoiceLines.listByPurchaseInvoiceId(db, invoiceId);
-      const invoiceTotal = calculatePurchaseInvoiceTotal(lines);
+    const balances = await readPurchaseInvoiceBalances(db, orderIds);
+    for (const invoiceId of invoiceIds) {
+      const balance = balances.get(invoiceId);
+      if (!balance) throw entityNotFound('PURCHASE_INVOICE', invoiceId);
+      const invoiceTotal = balance.total;
       const requested = requestedByInvoice.get(invoiceId)!;
       if (requested.currency !== invoiceTotal.currency) {
         throw new BusinessRuleError(
@@ -195,8 +200,8 @@ export class SupplierPaymentsService {
         );
       }
 
-      const alreadyPaid = alreadyAllocated[invoiceId] ?? Money.zero(invoiceTotal.currency);
-      const outstanding = invoiceTotal.subtract(alreadyPaid);
+      const alreadyPaid = balance.paid;
+      const outstanding = balance.outstanding;
       if (requested.greaterThan(outstanding)) {
         throw new BusinessRuleError(
           `Cannot allocate ${requested.toDecimalString()} to purchase invoice "${invoiceId}" — only ` +
@@ -208,6 +213,7 @@ export class SupplierPaymentsService {
               outstanding: outstanding.toDecimalString(),
               total: invoiceTotal.toDecimalString(),
               alreadyPaid: alreadyPaid.toDecimalString(),
+              debited: balance.debited.toDecimalString(),
             },
           },
         );
@@ -234,6 +240,7 @@ export class SupplierPaymentsService {
           paymentMethod: input.paymentMethod,
           currency: input.amount.currency,
         });
+    if (!input.endorsedChequeId && input.paymentMethod === 'check') await this.assertChequeBank(db, treasuryId);
 
     try {
       return await withTransaction(db, async (trx) => {
@@ -273,33 +280,45 @@ export class SupplierPaymentsService {
     }
   }
 
-  /** The one-way door: status → posted + 'purchases.supplier_payment.posted' outbox row, atomically (§2.7). */
+  /**
+   * The one-way door: status → posted + 'purchases.supplier_payment.posted' outbox row, atomically (§2.7).
+   * Everything is re-checked inside the transaction under row locks (the payment, then its invoices),
+   * so two drafts on the same invoice posted at once can't both take its outstanding balance.
+   */
   async post(
     db: Kysely<TenantDatabase>,
     id: string,
     schema: string,
     actorUserId: string | null,
   ): Promise<SupplierPaymentWithAllocations> {
-    const existing = await this.payments.findById(db, id);
-    if (!existing) throw entityNotFound('SUPPLIER_PAYMENT', id);
-    if (existing.status !== 'draft') {
-      throw new BusinessRuleError(
-        `Cannot post supplier payment "${id}" from status "${existing.status}" (expected "draft").`,
-        { code: 'SUPPLIER_PAYMENT.NOT_POSTABLE', params: { id, status: existing.status } },
-      );
-    }
-
-    const allocations = await this.allocations.listBySupplierPaymentId(db, id);
-    await this.validateAllocations(db, existing.supplierId, existing.amount.currency, existing.amount, allocations);
-
     return withTransaction(db, async (trx) => {
+      await lockRowsForUpdate(trx, 'supplier_payments', [id]);
+      const existing = await this.payments.findById(trx, id);
+      if (!existing) throw entityNotFound('SUPPLIER_PAYMENT', id);
+      if (existing.status !== 'draft') {
+        throw new BusinessRuleError(
+          `Cannot post supplier payment "${id}" from status "${existing.status}" (expected "draft").`,
+          { code: 'SUPPLIER_PAYMENT.NOT_POSTABLE', params: { id, status: existing.status } },
+        );
+      }
+
+      const allocations = await this.allocations.listBySupplierPaymentId(trx, id);
+      await lockRowsForUpdate(trx, 'purchase_invoices', allocations.map((a) => a.purchaseInvoiceId));
+      await this.validateAllocations(trx, existing.supplierId, existing.amount.currency, existing.amount, allocations);
+
       if (existing.endorsedChequeId) {
         await lockRowsForUpdate(trx, 'payments_received', [existing.endorsedChequeId]);
         await this.assertEndorsable(trx, existing.endorsedChequeId, existing.amount, id);
+      } else if (existing.paymentMethod === 'check') {
+        await this.assertChequeBank(trx, existing.treasuryId);
       }
       // A cheque leaves the bank when it clears — the balance is checked then (clearCheque).
       if (existing.paymentMethod !== 'check') {
         await this.treasuryMovements.assertCanWithdraw(trx, existing.treasuryId, existing.amount.toMinorUnits());
+      }
+      // The ledger needs a date: a payment posted without one is dated today (the outbox carries it).
+      if (!existing.paymentDate) {
+        await trx.updateTable('supplier_payments').set({ payment_date: localIsoDate() }).where('id', '=', id).execute();
       }
       const updated = await this.payments.updateStatus(trx, id, 'posted', 'draft');
       if (!updated) throw statusChanged('SUPPLIER_PAYMENT', id);
@@ -398,6 +417,17 @@ export class SupplierPaymentsService {
     }
   }
 
+  /** Our own cheque is drawn on a bank account: it needs a bank treasury to clear from. */
+  private async assertChequeBank(db: Kysely<TenantDatabase>, treasuryId: string | null): Promise<void> {
+    const treasury = treasuryId ? await findTreasury(db, treasuryId) : null;
+    if (!treasury || treasury.kind !== 'bank') {
+      throw new BusinessRuleError('A cheque we issue must be drawn on a bank account (treasury of kind "bank").', {
+        code: 'SUPPLIER_PAYMENT.CHEQUE_NEEDS_BANK',
+        params: { treasury: treasury?.name ?? '' },
+      });
+    }
+  }
+
   /** Applies a posted payment's unallocated remainder to more purchase invoices ('purchases.supplier_payment.allocated'). */
   async allocate(
     db: Kysely<TenantDatabase>,
@@ -412,20 +442,22 @@ export class SupplierPaymentsService {
       });
     }
 
-    const existing = await this.payments.findById(db, id);
-    if (!existing) throw entityNotFound('SUPPLIER_PAYMENT', id);
-    if (existing.status !== 'posted') {
-      throw new BusinessRuleError(
-        `Cannot allocate supplier payment "${id}" — only a posted payment can be allocated (status "${existing.status}").`,
-        { code: 'SUPPLIER_PAYMENT.NOT_ALLOCATABLE', params: { id, status: existing.status } },
-      );
-    }
-
-    const existingAllocations = await this.allocations.listBySupplierPaymentId(db, id);
-    const unallocated = calculateSupplierPaymentUnallocated(existing.amount, existingAllocations);
-    await this.validateAllocations(db, existing.supplierId, existing.amount.currency, unallocated, newAllocations);
-
     return withTransaction(db, async (trx) => {
+      // Lock the payment (two allocations of the same remainder) and the invoices (two payments on one balance).
+      await lockRowsForUpdate(trx, 'supplier_payments', [id]);
+      await lockRowsForUpdate(trx, 'purchase_invoices', newAllocations.map((a) => a.purchaseInvoiceId));
+      const existing = await this.payments.findById(trx, id);
+      if (!existing) throw entityNotFound('SUPPLIER_PAYMENT', id);
+      if (existing.status !== 'posted') {
+        throw new BusinessRuleError(
+          `Cannot allocate supplier payment "${id}" — only a posted payment can be allocated (status "${existing.status}").`,
+          { code: 'SUPPLIER_PAYMENT.NOT_ALLOCATABLE', params: { id, status: existing.status } },
+        );
+      }
+      const existingAllocations = await this.allocations.listBySupplierPaymentId(trx, id);
+      const unallocated = calculateSupplierPaymentUnallocated(existing.amount, existingAllocations);
+      await this.validateAllocations(trx, existing.supplierId, existing.amount.currency, unallocated, newAllocations);
+
       const created: SupplierPaymentAllocation[] = [];
       for (const allocation of newAllocations) {
         created.push(await this.allocations.create(trx, id, allocation));
@@ -447,29 +479,35 @@ export class SupplierPaymentsService {
   }
 
   async cancel(db: Kysely<TenantDatabase>, id: string): Promise<SupplierPayment> {
-    const existing = await this.payments.findById(db, id);
-    if (!existing) throw entityNotFound('SUPPLIER_PAYMENT', id);
-    if (existing.status !== 'draft') {
-      throw new BusinessRuleError(
-        `Cannot cancel supplier payment "${id}" from status "${existing.status}" (expected "draft").`,
-        { code: 'SUPPLIER_PAYMENT.NOT_CANCELLABLE', params: { id, status: existing.status } },
-      );
-    }
-    const updated = await this.payments.updateStatus(db, id, 'cancelled');
-    if (!updated) throw entityNotFound('SUPPLIER_PAYMENT', id);
-    return updated;
+    return withTransaction(db, async (trx) => {
+      await lockRowsForUpdate(trx, 'supplier_payments', [id]);
+      const existing = await this.payments.findById(trx, id);
+      if (!existing) throw entityNotFound('SUPPLIER_PAYMENT', id);
+      if (existing.status !== 'draft') {
+        throw new BusinessRuleError(
+          `Cannot cancel supplier payment "${id}" from status "${existing.status}" (expected "draft").`,
+          { code: 'SUPPLIER_PAYMENT.NOT_CANCELLABLE', params: { id, status: existing.status } },
+        );
+      }
+      const updated = await this.payments.updateStatus(trx, id, 'cancelled', 'draft');
+      if (!updated) throw statusChanged('SUPPLIER_PAYMENT', id);
+      return updated;
+    });
   }
 
   /** Draft (or already-cancelled draft) only — a posted payment is a ledger fact. */
   async delete(db: Kysely<TenantDatabase>, id: string): Promise<void> {
-    const existing = await this.payments.findById(db, id);
-    if (!existing) throw entityNotFound('SUPPLIER_PAYMENT', id);
-    if (existing.status !== 'draft' && existing.status !== 'cancelled') {
-      throw new BusinessRuleError(`Supplier payment "${id}" is "${existing.status}" and cannot be deleted.`, {
-        code: 'SUPPLIER_PAYMENT.NOT_DELETABLE',
-        params: { id, status: existing.status },
-      });
-    }
-    await this.payments.delete(db, id);
+    await withTransaction(db, async (trx) => {
+      await lockRowsForUpdate(trx, 'supplier_payments', [id]);
+      const existing = await this.payments.findById(trx, id);
+      if (!existing) throw entityNotFound('SUPPLIER_PAYMENT', id);
+      if (existing.status !== 'draft' && existing.status !== 'cancelled') {
+        throw new BusinessRuleError(`Supplier payment "${id}" is "${existing.status}" and cannot be deleted.`, {
+          code: 'SUPPLIER_PAYMENT.NOT_DELETABLE',
+          params: { id, status: existing.status },
+        });
+      }
+      if (!(await this.payments.delete(trx, id))) throw statusChanged('SUPPLIER_PAYMENT', id);
+    });
   }
 }

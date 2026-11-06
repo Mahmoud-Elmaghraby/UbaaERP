@@ -19,6 +19,8 @@ export interface PurchaseReturnRepository {
     db: Kysely<TenantDatabase>,
     id: string,
     status: PurchaseReturnStatus,
+    /** Only when the row is still in (one of) this status — a concurrent change makes it return null. */
+    expectedStatus?: PurchaseReturnStatus | PurchaseReturnStatus[],
   ): Promise<PurchaseReturn | null>;
   delete(db: Kysely<TenantDatabase>, id: string): Promise<boolean>;
 }

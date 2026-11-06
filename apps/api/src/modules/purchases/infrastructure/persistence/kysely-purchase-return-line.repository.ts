@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import type { Kysely, Selectable } from 'kysely';
+import { sql, type Kysely, type Selectable } from 'kysely';
 import type { PurchaseReturnLinesTable, TenantDatabase } from '../../../../database/tenant/kysely-client';
 import type {
   PurchaseReturnLineRepository,
@@ -56,7 +56,7 @@ export class KyselyPurchaseReturnLineRepository implements PurchaseReturnLineRep
     return toDomain(row);
   }
 
-  async sumReturnedQuantityByGoodsReceiptLineIds(
+  async sumReturnedBaseQuantityByGoodsReceiptLineIds(
     db: Kysely<TenantDatabase>,
     goodsReceiptLineIds: string[],
   ): Promise<Record<string, number>> {
@@ -67,7 +67,7 @@ export class KyselyPurchaseReturnLineRepository implements PurchaseReturnLineRep
       .innerJoin('purchase_returns', 'purchase_returns.id', 'purchase_return_lines.purchase_return_id')
       .select((eb) => [
         'purchase_return_lines.goods_receipt_line_id as goods_receipt_line_id',
-        eb.fn.sum<string>('purchase_return_lines.quantity_returned').as('total'),
+        eb.fn.sum<string>(sql`${sql.ref('purchase_return_lines.quantity_returned')} * ${sql.ref('purchase_return_lines.unit_factor')}`).as('total'),
       ])
       .where('purchase_returns.status', '=', 'confirmed')
       .where('purchase_return_lines.goods_receipt_line_id', 'in', goodsReceiptLineIds)

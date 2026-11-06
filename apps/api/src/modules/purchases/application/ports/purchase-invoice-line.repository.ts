@@ -25,12 +25,12 @@ export interface PurchaseInvoiceLineRepository {
     input: CreatePurchaseInvoiceLineRow,
   ): Promise<PurchaseInvoiceLine>;
   /**
-   * Sums quantity_invoiced across every *posted* purchase invoice line
+   * Sums quantity_invoiced × unit_factor (BASE units) across every *posted* purchase invoice line
    * for each given purchase_order_line_id — draft/cancelled invoices
    * never count. Same shape as GoodsReceiptLineRepository's
-   * sumReceivedQuantityByPurchaseOrderLineIds.
+   * sumReceivedBaseQuantityByPurchaseOrderLineIds.
    */
-  sumInvoicedQuantityByPurchaseOrderLineIds(
+  sumInvoicedBaseQuantityByPurchaseOrderLineIds(
     db: Kysely<TenantDatabase>,
     purchaseOrderLineIds: string[],
   ): Promise<Record<string, number>>;

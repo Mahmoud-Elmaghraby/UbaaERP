@@ -23,13 +23,13 @@ export interface GoodsReceiptLineRepository {
     input: CreateGoodsReceiptLineRow,
   ): Promise<GoodsReceiptLine>;
   /**
-   * Sums quantity_received across every *confirmed* goods receipt line
+   * Sums quantity_received × unit_factor (BASE units) across every *confirmed* goods receipt line
    * for each given purchase_order_line_id — draft/cancelled receipts
    * never count. Used to validate remaining quantity at creation time
    * and to recompute a purchase order's partially_received/
    * fully_received status on confirm(). Missing keys mean "0 received".
    */
-  sumReceivedQuantityByPurchaseOrderLineIds(
+  sumReceivedBaseQuantityByPurchaseOrderLineIds(
     db: Kysely<TenantDatabase>,
     purchaseOrderLineIds: string[],
   ): Promise<Record<string, number>>;

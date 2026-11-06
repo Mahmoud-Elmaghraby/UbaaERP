@@ -19,7 +19,13 @@ export interface RfqRepository {
   findById(db: Kysely<TenantDatabase>, id: string): Promise<Rfq | null>;
   create(db: Kysely<TenantDatabase>, input: CreateRfqRow): Promise<Rfq>;
   update(db: Kysely<TenantDatabase>, id: string, input: UpdateRfqRow): Promise<Rfq | null>;
-  updateStatus(db: Kysely<TenantDatabase>, id: string, status: RfqStatus): Promise<Rfq | null>;
+  updateStatus(
+    db: Kysely<TenantDatabase>,
+    id: string,
+    status: RfqStatus,
+    /** Only when the row is still in (one of) this status — a concurrent change makes it return null. */
+    expectedStatus?: RfqStatus | RfqStatus[],
+  ): Promise<Rfq | null>;
   delete(db: Kysely<TenantDatabase>, id: string): Promise<boolean>;
 }
 

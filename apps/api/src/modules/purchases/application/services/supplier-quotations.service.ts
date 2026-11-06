@@ -18,7 +18,9 @@ import type {
   UpdateSupplierQuotationInput,
 } from '../../domain/supplier-quotation.entity';
 import { BusinessRuleError, ConflictError, isPostgresUniqueViolation } from '../errors';
-import { entityNotFound } from '../../../../shared/errors/entity-errors';
+import { entityNotFound, statusChanged } from '../../../../shared/errors/entity-errors';
+import { withTransaction } from '../../../../database/tenant/transaction.util';
+import { lockRowsForUpdate } from '../../../../shared/persistence/row-locks';
 import { RfqsService } from './rfqs.service';
 import { ProductUnitResolver } from '../../../../shared/catalog/product-unit-resolver';
 
@@ -74,7 +76,7 @@ export class SupplierQuotationsService {
 
     const linesWithUnits = await this.unitResolver.resolve(db, input.lines);
     try {
-      return await db.transaction().execute(async (trx) => {
+      return await withTransaction(db, async (trx) => {
         const quotation = await this.quotations.create(trx, {
           rfqId: input.rfqId,
           supplierId: input.supplierId,
@@ -124,7 +126,11 @@ export class SupplierQuotationsService {
     }
 
     const newLines = input.lines !== undefined ? await this.unitResolver.resolve(db, input.lines) : undefined;
-    return db.transaction().execute(async (trx) => {
+    return withTransaction(db, async (trx) => {
+      // Re-checked under a lock: it may have been selected/rejected since it was read above.
+      await lockRowsForUpdate(trx, 'supplier_quotations', [id]);
+      const current = await this.quotations.findById(trx, id);
+      if (!current || current.status !== 'received') throw statusChanged('SUPPLIER_QUOTATION', id);
       const updated = await this.quotations.update(trx, id, {
         validUntil: input.validUntil,
         notes: input.notes,
@@ -160,14 +166,23 @@ export class SupplierQuotationsService {
       );
     }
 
-    return db.transaction().execute(async (trx) => {
-      const selected = await this.quotations.updateStatus(trx, id, 'selected');
-      if (!selected) throw entityNotFound('SUPPLIER_QUOTATION', id);
+    return withTransaction(db, async (trx) => {
+      // The RFQ first (it is closed below): a cancelled or already-closed RFQ's quotations can't win.
+      await lockRowsForUpdate(trx, 'request_for_quotations', [existing.rfqId]);
+      const rfq = await this.rfqs.findById(trx, existing.rfqId);
+      if (!rfq || rfq.status !== 'sent') {
+        throw new BusinessRuleError(
+          `RFQ "${existing.rfqId}" is "${rfq?.status ?? 'missing'}" — a quotation can only be selected on a sent RFQ.`,
+          { code: 'SUPPLIER_QUOTATION.RFQ_NOT_OPEN', params: { rfqId: existing.rfqId, status: rfq?.status ?? '' } },
+        );
+      }
+      const selected = await this.quotations.updateStatus(trx, id, 'selected', 'received');
+      if (!selected) throw statusChanged('SUPPLIER_QUOTATION', id);
 
       const siblings = await this.quotations.listByRfqIdExcluding(trx, existing.rfqId, id);
       for (const sibling of siblings) {
         if (sibling.status === 'received') {
-          await this.quotations.updateStatus(trx, sibling.id, 'rejected');
+          await this.quotations.updateStatus(trx, sibling.id, 'rejected', 'received');
         }
       }
 
@@ -185,8 +200,8 @@ export class SupplierQuotationsService {
         { code: 'SUPPLIER_QUOTATION.NOT_REJECTABLE', params: { id, status: existing.status } },
       );
     }
-    const updated = await this.quotations.updateStatus(db, id, 'rejected');
-    if (!updated) throw entityNotFound('SUPPLIER_QUOTATION', id);
+    const updated = await this.quotations.updateStatus(db, id, 'rejected', 'received');
+    if (!updated) throw statusChanged('SUPPLIER_QUOTATION', id);
     return updated;
   }
 

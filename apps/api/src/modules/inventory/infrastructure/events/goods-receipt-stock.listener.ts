@@ -11,6 +11,8 @@ import { DEFAULT_LOCATION_CODE } from '../../domain/warehouse-location.entity';
 import type { DomainEventPayload } from '../../../../shared/events/domain-event';
 import { withTransaction } from '../../../../database/tenant/transaction.util';
 import { InventoryValuationEventsService } from '../../application/services/inventory-valuation-events.service';
+import { PurchaseCostCorrectionsService } from '../../application/services/purchase-cost-corrections.service';
+import type { PurchasePriceDifference } from '../../../../shared/events/purchase-price-difference';
 
 interface GoodsReceiptConfirmedLine {
   productVariantId: string;
@@ -28,6 +30,8 @@ interface GoodsReceiptConfirmedMetadata {
   receiptNumber?: string;
   receivedDate?: string | null;
   lines: GoodsReceiptConfirmedLine[];
+  /** Goods a posted invoice billed before they arrived (absent on older events). */
+  invoicedDifferences?: PurchasePriceDifference[];
 }
 
 /**
@@ -67,6 +71,7 @@ export class GoodsReceiptStockListener {
     @Inject(WAREHOUSE_LOCATION_REPOSITORY) private readonly locations: WarehouseLocationRepository,
     private readonly connections: TenantConnectionManager,
     @Optional() private readonly valuationEvents?: InventoryValuationEventsService,
+    @Optional() private readonly costCorrections?: PurchaseCostCorrectionsService,
   ) {}
 
   @OnOutboxEvent('purchases.goods_receipt.confirmed')
@@ -143,6 +148,12 @@ export class GoodsReceiptStockListener {
           }
         }
 
+        // Invoiced before received: the invoice's price part goes into these goods' cost now
+        // (Dr Inventory / COGS, Cr GRNI); Accounting books the exchange part from the same event.
+        const corrected = metadata.invoicedDifferences?.length
+          ? await this.costCorrections?.applyReceiptDifferences(trx, metadata.invoicedDifferences)
+          : null;
+
         // Dr Inventory / Cr Goods received not invoiced — the purchase invoice clears it.
         if (receivedValue) {
           await this.valuationEvents?.write(trx, {
@@ -153,7 +164,15 @@ export class GoodsReceiptStockListener {
             documentNumber: metadata.receiptNumber ?? null,
             entryDate: metadata.receivedDate ?? null,
             description: `استلام بضاعة ${metadata.receiptNumber ?? ''}`.trim(),
-            entries: [{ kind: 'receipt', amount: receivedValue }],
+            entries: [
+              { kind: 'receipt', amount: receivedValue },
+              ...(corrected
+                ? [
+                    { kind: 'price_difference_inventory' as const, amount: corrected.toInventory },
+                    { kind: 'price_difference_cogs' as const, amount: corrected.toCogs },
+                  ]
+                : []),
+            ],
           });
         }
       });

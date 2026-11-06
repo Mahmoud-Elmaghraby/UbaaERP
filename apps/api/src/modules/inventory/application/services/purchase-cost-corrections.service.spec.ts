@@ -129,3 +129,20 @@ describe('PurchaseCostCorrectionsService.applyReturnDifference', () => {
     await expect(service.applyReturnDifference(trx, input)).rejects.toThrow(/no stock movements yet/);
   });
 });
+
+describe('PurchaseCostCorrectionsService.applyReceiptDifferences (invoiced before received)', () => {
+  it('puts the price part into the stock this receipt brought in and writes no event of its own', async () => {
+    const { service, upserts, written } = setup(10, 100_000);
+    const result = await service.applyReceiptDifferences(trx, [difference(10_000)]);
+    expect(result?.toInventory.toMinorUnits()).toBe(10_000n);
+    expect(result?.toCogs.toMinorUnits()).toBe(0n);
+    expect(upserts[0].inventoryValue.toMinorUnits()).toBe(110_000n);
+    expect(written).toEqual([]);
+  });
+
+  it('nothing to do when the difference is FX only (price part zero)', async () => {
+    const { service, upserts } = setup(10, 100_000);
+    expect(await service.applyReceiptDifferences(trx, [difference(0)])).toBeNull();
+    expect(upserts).toEqual([]);
+  });
+});

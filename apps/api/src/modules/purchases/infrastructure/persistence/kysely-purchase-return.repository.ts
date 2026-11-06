@@ -63,11 +63,15 @@ export class KyselyPurchaseReturnRepository implements PurchaseReturnRepository 
     db: Kysely<TenantDatabase>,
     id: string,
     status: PurchaseReturnStatus,
+    expectedStatus?: PurchaseReturnStatus | PurchaseReturnStatus[],
   ): Promise<PurchaseReturn | null> {
     const row = await db
       .updateTable('purchase_returns')
       .set({ status, updated_at: new Date() })
       .where('id', '=', id)
+      .$if(expectedStatus !== undefined, (q) =>
+        q.where('status', 'in', ([] as PurchaseReturnStatus[]).concat(expectedStatus ?? [])),
+      )
       .returningAll()
       .executeTakeFirst();
     return row ? toDomain(row) : null;

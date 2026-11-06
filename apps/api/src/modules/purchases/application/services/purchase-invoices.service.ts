@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import type { Kysely } from 'kysely';
+import { sql, type Kysely } from 'kysely';
 import type { TenantDatabase } from '../../../../database/tenant/kysely-client';
 import { computeDocumentTaxes, toSnapshot, totalsToDto } from '../../../../shared/taxes/document-taxes';
 import { withTransaction } from '../../../../database/tenant/transaction.util';
@@ -27,9 +27,10 @@ import {
   type PurchaseInvoiceWithLines,
   type CreatePurchaseInvoiceInput,
 } from '../../domain/purchase-invoice.entity';
-import type { PurchaseOrderLine } from '../../domain/purchase-order.entity';
-import { BusinessRuleError, NotFoundError, isPostgresForeignKeyViolation } from '../errors';
-import { entityNotFound } from '../../../../shared/errors/entity-errors';
+import type { PurchaseOrderLine, PurchaseOrderStatus } from '../../domain/purchase-order.entity';
+import { BusinessRuleError, ConflictError, NotFoundError, isPostgresForeignKeyViolation } from '../errors';
+import { entityNotFound, statusChanged } from '../../../../shared/errors/entity-errors';
+import { lockRowsForUpdate } from '../../../../shared/persistence/row-locks';
 import { NumberingSequencesService } from '../../../settings/application/services/numbering-sequences.service';
 import { TenantSettingsService } from '../../../settings/application/services/tenant-settings.service';
 import { OutboxWriterService } from '../../../../shared/outbox/application/services/outbox-writer.service';
@@ -37,9 +38,10 @@ import { FeatureAvailabilityService } from '../../../../shared/plans/feature-ava
 import { FEATURE_KEYS } from '../../../../shared/plans/feature-catalog';
 import { assertCurrencyAllowedForTenant } from '../../../../shared/plans/currency-gate';
 import { PurchaseOrdersService } from './purchase-orders.service';
-import { GoodsReceiptsService } from './goods-receipts.service';
+import { GoodsReceiptsService, assertSameCurrencyAsOrder } from './goods-receipts.service';
+import { findQuantityExcess, inLineUnit, toBaseQuantity } from './quantity-limits';
 import { computePurchasePriceDifferences } from './purchase-price-differences';
-import { CurrencyRateReader } from '../../../../shared/catalog/currency-rate-reader';
+import { CurrencyRateReader, applyRate } from '../../../../shared/catalog/currency-rate-reader';
 import type { PurchasePriceDifference } from '../../../../shared/events/purchase-price-difference';
 import { localIsoDate } from '../../../../shared/time/local-date';
 
@@ -246,7 +248,7 @@ export class PurchaseInvoicesService {
         } else {
           const po = await this.purchaseOrderRepo.findById(trx, input.purchaseOrderId!);
           if (!po) throw entityNotFound('PURCHASE_ORDER', input.purchaseOrderId);
-          if (po.status === 'draft' || po.status === 'cancelled') {
+          if (!INVOICEABLE_ORDER_STATUSES.includes(po.status)) {
             throw new BusinessRuleError(
               `Purchase order "${input.purchaseOrderId}" is "${po.status}" — only a confirmed purchase order can be invoiced.`,
               {
@@ -272,31 +274,18 @@ export class PurchaseInvoicesService {
             }
           }
 
-          const alreadyInvoiced = await this.lines.sumInvoicedQuantityByPurchaseOrderLineIds(
-            trx,
-            input.lines!.map((line) => line.purchaseOrderLineId),
-          );
           for (const line of input.lines!) {
-            const poLine = poLineById.get(line.purchaseOrderLineId)!;
-            const invoiced = alreadyInvoiced[line.purchaseOrderLineId] ?? 0;
-            const remaining = poLine.quantity - invoiced;
-            if (line.quantityInvoiced > remaining) {
-              throw new BusinessRuleError(
-                `Cannot invoice ${line.quantityInvoiced} against purchase order line "${line.purchaseOrderLineId}" — ` +
-                  `only ${remaining} remaining to invoice (ordered ${poLine.quantity}, already invoiced ${invoiced}).`,
-                {
-                  code: 'PURCHASE_INVOICE.QUANTITY_EXCEEDS_REMAINING',
-                  params: {
-                    lineId: line.purchaseOrderLineId,
-                    quantityInvoiced: line.quantityInvoiced,
-                    remaining,
-                    ordered: poLine.quantity,
-                    invoiced,
-                  },
-                },
-              );
-            }
+            assertSameCurrencyAsOrder(line.unitPrice?.currency, poLineById.get(line.purchaseOrderLineId)!.unitPrice.currency);
           }
+          await this.assertWithinOrdered(
+            trx,
+            poLines,
+            input.lines!.map((line) => ({
+              purchaseOrderLineId: line.purchaseOrderLineId,
+              quantityInvoiced: line.quantityInvoiced,
+              unitFactor: poLineById.get(line.purchaseOrderLineId)!.unitFactor,
+            })),
+          );
 
           for (const line of input.lines!) {
             if (line.lots?.length) lotsByPoLineId.set(line.purchaseOrderLineId, line.lots);
@@ -373,16 +362,19 @@ export class PurchaseInvoicesService {
           // (or partially) received by something else not gated by this
           // toggle. Only the portion of each line not yet covered by an
           // existing confirmed receipt gets auto-received here.
-          const alreadyReceived = await this.goodsReceiptLines.sumReceivedQuantityByPurchaseOrderLineIds(
+          const alreadyReceived = await this.goodsReceiptLines.sumReceivedBaseQuantityByPurchaseOrderLineIds(
             trx,
             resolvedLines.map((line) => line.purchaseOrderLineId),
           );
-          const poLineQuantityById = new Map(poLines.map((line) => [line.id, line.quantity]));
           const linesToReceive = resolvedLines
             .map((line) => {
-              const orderedQuantity = poLineQuantityById.get(line.purchaseOrderLineId) ?? line.quantityInvoiced;
-              const received = alreadyReceived[line.purchaseOrderLineId] ?? 0;
-              const remaining = Math.max(0, orderedQuantity - received);
+              const poLine = poLineById.get(line.purchaseOrderLineId)!;
+              // Received sums are in base units; the receipt line is in the order line's unit.
+              const receivedBase = alreadyReceived[line.purchaseOrderLineId] ?? 0;
+              const remaining = Math.max(
+                0,
+                inLineUnit(toBaseQuantity(poLine.quantity, poLine.unitFactor) - receivedBase, poLine.unitFactor),
+              );
               return {
                 purchaseOrderLineId: line.purchaseOrderLineId,
                 quantityReceived: Math.min(line.quantityInvoiced, remaining),
@@ -423,6 +415,8 @@ export class PurchaseInvoicesService {
           }
         }
 
+        await this.assertSupplierNumberUnused(trx, supplierId, input.supplierInvoiceNumber);
+
         const allocated = await this.numberingSequences.allocateNext(trx, 'purchase_invoice', null);
 
         const invoice = await this.invoices.create(trx, {
@@ -435,6 +429,9 @@ export class PurchaseInvoicesService {
           customFields: input.customFields ?? {},
           pricesIncludeTax,
         });
+
+        // Direct invoicing: the order exists only for this invoice — it goes with it (cancel()/delete()).
+        if (usingDirectPath) await this.purchaseOrderRepo.setSourcePurchaseInvoiceId(trx, poId, invoice.id);
 
         const createdLines = [];
         for (const [index, line] of resolvedLines.entries()) {
@@ -518,13 +515,39 @@ export class PurchaseInvoicesService {
     const totals = calculatePurchaseInvoiceTotals(lines);
 
     return withTransaction(db, async (trx) => {
-      const updated = await this.invoices.updateStatus(trx, id, 'posted');
-      if (!updated) throw entityNotFound('PURCHASE_INVOICE', id);
-      // Direct invoicing: the goods enter stock now, with the invoice.
+      // Re-read under a lock: a concurrent post/cancel of this same invoice waits here.
+      await lockRowsForUpdate(trx, 'purchase_invoices', [id]);
+      const current = await this.invoices.findById(trx, id);
+      if (!current || current.status !== 'draft') throw statusChanged('PURCHASE_INVOICE', id);
+      // Direct invoicing: the goods enter stock now, with the invoice. First,
+      // so the lock order stays document → PO → PO lines (as in a plain receipt confirm).
       for (const receipt of await this.goodsReceiptsService.listMadeByInvoice(trx, id)) {
         if (receipt.status === 'draft') await this.goodsReceiptsService.confirm(trx, receipt.id, schema, actorUserId);
       }
-      const priceDifferences = await this.priceDifferencesFor(trx, updated, lines);
+      // Under a lock on the PO and its lines: the PO must still be invoiceable
+      // (not cancelled meanwhile) and posted invoices + this one must stay
+      // within the ordered quantity — two drafts can't both bill the same units.
+      const poLines = await this.lockInvoiceableOrder(trx, current.purchaseOrderId);
+      await this.assertWithinOrdered(
+        trx,
+        poLines,
+        lines.map((line) => ({
+          purchaseOrderLineId: line.purchaseOrderLineId,
+          quantityInvoiced: line.quantityInvoiced,
+          unitFactor: line.unitFactor,
+        })),
+      );
+      const updated = await this.invoices.updateStatus(trx, id, 'posted', 'draft');
+      if (!updated) throw statusChanged('PURCHASE_INVOICE', id);
+      if (!updated.invoiceDate) {
+        // The ledger, statements and exchange differences all date the invoice by this.
+        const today = localIsoDate();
+        await trx.updateTable('purchase_invoices').set({ invoice_date: today }).where('id', '=', id).execute();
+        updated.invoiceDate = today;
+      }
+      const { tenantCurrency, rate } = await this.invoiceRate(trx, updated, lines);
+      const priceDifferences = await this.priceDifferencesFor(trx, updated, lines, tenantCurrency, rate);
+      const toLedger = (minor: bigint) => (rate ? applyRate(minor, rate) : minor);
 
       await this.outboxWriter.write(trx, 'purchases.purchase_invoice.posted', {
         schema,
@@ -544,9 +567,13 @@ export class PurchaseInvoicesService {
             quantity: line.quantityInvoiced,
             unitPrice: { amountMinorUnits: line.unitPrice.toMinorUnits().toString(), currency: line.unitPrice.currency },
             netAmount: { amountMinorUnits: line.netAmount.toMinorUnits().toString(), currency: line.netAmount.currency },
+            // The line's net at the invoice rate, converted per line: Accounting debits GRNI with the
+            // sum of these (less exchange differences), so receipts and invoices clear it exactly.
+            ledgerNetAmount: { amountMinorUnits: toLedger(line.netAmount.toMinorUnits()).toString(), currency: tenantCurrency },
             taxes: line.taxes,
           })),
-          // Inventory corrects the goods' cost by these (and so clears GRNI).
+          exchangeRate: rate,
+          // Inventory corrects the goods' cost by the price parts (`amount`); Accounting books the exchange parts.
           priceDifferences,
         },
         occurredAt: new Date(),
@@ -556,11 +583,38 @@ export class PurchaseInvoicesService {
     });
   }
 
-  /** See computePurchasePriceDifferences(): received goods whose invoice price differs from the receipt cost. */
+  /**
+   * The invoice-date rate (null for a tenant-currency invoice). A foreign
+   * invoice can't be posted without one: its payable, GRNI clearing and
+   * price / exchange differences all need it — skipping them would leave a
+   * permanent GRNI balance.
+   */
+  private async invoiceRate(
+    trx: Kysely<TenantDatabase>,
+    invoice: PurchaseInvoice,
+    lines: PurchaseInvoiceLine[],
+  ): Promise<{ tenantCurrency: string; rate: string | null }> {
+    const tenantCurrency = await this.currencyRates.tenantCurrency(trx);
+    const currency = lines[0].netAmount.currency;
+    if (currency === tenantCurrency) return { tenantCurrency, rate: null };
+    const date = invoice.invoiceDate ?? localIsoDate();
+    const rate = await this.currencyRates.effectiveRate(trx, currency, tenantCurrency, date);
+    if (!rate) {
+      throw new BusinessRuleError(
+        `No ${currency}→${tenantCurrency} exchange rate on or before ${date} — purchase invoice "${invoice.id}" cannot be posted.`,
+        { code: 'PURCHASE_INVOICE.EXCHANGE_RATE_MISSING', params: { currency, tenantCurrency, date } },
+      );
+    }
+    return { tenantCurrency, rate };
+  }
+
+  /** See computePurchasePriceDifferences(): received goods whose invoice price / rate differs from the receipt's. */
   private async priceDifferencesFor(
     trx: Kysely<TenantDatabase>,
     invoice: PurchaseInvoice,
     lines: PurchaseInvoiceLine[],
+    tenantCurrency: string,
+    rate: string | null,
   ): Promise<PurchasePriceDifference[]> {
     const received = await this.goodsReceiptsService.receivedValueByOrderLine(trx, invoice.purchaseOrderId);
     if (received.size === 0) return [];
@@ -579,13 +633,6 @@ export class PurchaseInvoicesService {
       const base = Number(row.quantity_invoiced) * Number(row.unit_factor);
       previouslyInvoiced.set(row.purchase_order_line_id, (previouslyInvoiced.get(row.purchase_order_line_id) ?? 0) + base);
     }
-
-    const tenantCurrency = await this.currencyRates.tenantCurrency(trx);
-    const currency = lines[0].netAmount.currency;
-    const rate =
-      currency === tenantCurrency
-        ? null
-        : await this.currencyRates.effectiveRate(trx, currency, tenantCurrency, invoice.invoiceDate ?? localIsoDate());
 
     return computePurchasePriceDifferences({
       lines: lines.map((line) => ({
@@ -612,9 +659,11 @@ export class PurchaseInvoicesService {
       );
     }
     return withTransaction(db, async (trx) => {
-      const updated = await this.invoices.updateStatus(trx, id, 'cancelled');
-      if (!updated) throw entityNotFound('PURCHASE_INVOICE', id);
+      const updated = await this.invoices.updateStatus(trx, id, 'cancelled', 'draft');
+      if (!updated) throw statusChanged('PURCHASE_INVOICE', id);
       await this.dropOwnReceipts(trx, id, 'cancel');
+      const ownOrder = await this.purchaseOrderRepo.findBySourcePurchaseInvoiceId(trx, id);
+      if (ownOrder) await this.dropOwnOrder(trx, ownOrder.id, 'cancel');
       return updated;
     });
   }
@@ -629,9 +678,130 @@ export class PurchaseInvoicesService {
       });
     }
     await withTransaction(db, async (trx) => {
+      // Read before the delete: the link is ON DELETE SET NULL.
+      const ownOrder = await this.purchaseOrderRepo.findBySourcePurchaseInvoiceId(trx, id);
       await this.dropOwnReceipts(trx, id, 'delete');
       await this.invoices.delete(trx, id);
+      if (ownOrder) await this.dropOwnOrder(trx, ownOrder.id, 'delete');
     });
+  }
+
+  /**
+   * The order a direct invoice made for itself goes with it — but only when
+   * nothing else (a receipt or invoice made by hand meanwhile) uses it:
+   * cancelled with a cancelled invoice, deleted with a deleted one.
+   */
+  private async dropOwnOrder(trx: Kysely<TenantDatabase>, purchaseOrderId: string, mode: 'cancel' | 'delete'): Promise<void> {
+    await lockRowsForUpdate(trx, 'purchase_orders', [purchaseOrderId]);
+    const order = await this.purchaseOrderRepo.findById(trx, purchaseOrderId);
+    if (!order) return;
+    if (mode === 'delete') {
+      const [receipt, invoice] = await Promise.all([
+        trx.selectFrom('goods_receipts').select('id').where('purchase_order_id', '=', purchaseOrderId).executeTakeFirst(),
+        trx.selectFrom('purchase_invoices').select('id').where('purchase_order_id', '=', purchaseOrderId).executeTakeFirst(),
+      ]);
+      if (!receipt && !invoice) {
+        await this.purchaseOrderRepo.delete(trx, purchaseOrderId);
+        return;
+      }
+    }
+    if ((order.status === 'draft' || order.status === 'confirmed') && !(await this.purchaseOrdersService.firstLiveDocument(trx, purchaseOrderId))) {
+      await this.purchaseOrdersService.cancel(trx, purchaseOrderId);
+    }
+  }
+
+  /**
+   * Locks the purchase order row, refuses unless it can still be invoiced,
+   * then locks its lines (document → PO → PO lines) and returns them.
+   */
+  private async lockInvoiceableOrder(trx: Kysely<TenantDatabase>, purchaseOrderId: string): Promise<PurchaseOrderLine[]> {
+    await lockRowsForUpdate(trx, 'purchase_orders', [purchaseOrderId]);
+    const po = await this.purchaseOrderRepo.findById(trx, purchaseOrderId);
+    if (!po || !INVOICEABLE_ORDER_STATUSES.includes(po.status)) {
+      throw new BusinessRuleError(
+        `Purchase order "${purchaseOrderId}" is "${po?.status ?? 'missing'}" — only a confirmed purchase order can be invoiced.`,
+        {
+          code: 'PURCHASE_INVOICE.PURCHASE_ORDER_NOT_INVOICEABLE',
+          params: { id: purchaseOrderId, status: po?.status ?? '' },
+        },
+      );
+    }
+    const poLines = await this.purchaseOrderLines.listByPurchaseOrderId(trx, purchaseOrderId);
+    await lockRowsForUpdate(
+      trx,
+      'purchase_order_lines',
+      poLines.map((line) => line.id),
+    );
+    return poLines;
+  }
+
+  /** Posted invoices + these lines must stay within each PO line's ordered quantity (base units). */
+  private async assertWithinOrdered(
+    db: Kysely<TenantDatabase>,
+    poLines: PurchaseOrderLine[],
+    requested: Array<{ purchaseOrderLineId: string; quantityInvoiced: number; unitFactor: number }>,
+  ): Promise<void> {
+    const invoiced = await this.lines.sumInvoicedBaseQuantityByPurchaseOrderLineIds(db, [
+      ...new Set(requested.map((line) => line.purchaseOrderLineId)),
+    ]);
+    const excess = findQuantityExcess(
+      requested.map((line) => ({
+        sourceLineId: line.purchaseOrderLineId,
+        quantity: line.quantityInvoiced,
+        unitFactor: line.unitFactor,
+      })),
+      new Map(poLines.map((line) => [line.id, toBaseQuantity(line.quantity, line.unitFactor)])),
+      invoiced,
+    );
+    if (!excess) return;
+    const factor = poLines.find((line) => line.id === excess.sourceLineId)?.unitFactor ?? 1;
+    const params = {
+      lineId: excess.sourceLineId,
+      quantityInvoiced: inLineUnit(excess.requestedBase, factor),
+      remaining: inLineUnit(excess.remainingBase, factor),
+      ordered: inLineUnit(excess.limitBase, factor),
+      invoiced: inLineUnit(excess.usedBase, factor),
+    };
+    throw new BusinessRuleError(
+      `Cannot invoice ${params.quantityInvoiced} against purchase order line "${params.lineId}" — ` +
+        `only ${params.remaining} remaining to invoice (ordered ${params.ordered}, already invoiced ${params.invoiced}).`,
+      { code: 'PURCHASE_INVOICE.QUANTITY_EXCEEDS_REMAINING', params },
+    );
+  }
+
+  /**
+   * One supplier bill, one purchase invoice: the supplier's own number
+   * can't be on two live (non-cancelled) invoices of the same supplier
+   * (case and surrounding spaces ignored). The supplier row lock serializes
+   * two concurrent creates for the same supplier. Enforced here, not by a
+   * unique index: purchase_invoices has no supplier_id of its own (the
+   * supplier is the order's).
+   */
+  private async assertSupplierNumberUnused(
+    trx: Kysely<TenantDatabase>,
+    supplierId: string,
+    supplierInvoiceNumber: string | null | undefined,
+  ): Promise<void> {
+    const number = supplierInvoiceNumber?.trim();
+    if (!number) return;
+    await lockRowsForUpdate(trx, 'suppliers', [supplierId]);
+    const existing = await trx
+      .selectFrom('purchase_invoices as i')
+      .innerJoin('purchase_orders as o', 'o.id', 'i.purchase_order_id')
+      .select('i.invoice_number')
+      .where('o.supplier_id', '=', supplierId)
+      .where('i.status', '!=', 'cancelled')
+      .where(sql<string>`lower(btrim(i.supplier_invoice_number))`, '=', number.toLowerCase())
+      .executeTakeFirst();
+    if (existing) {
+      throw new ConflictError(
+        `This supplier's invoice number "${number}" is already recorded on purchase invoice "${existing.invoice_number}".`,
+        {
+          code: 'PURCHASE_INVOICE.DUPLICATE_SUPPLIER_NUMBER',
+          params: { value: number, invoiceNumber: existing.invoice_number },
+        },
+      );
+    }
   }
 
   /** The draft receipt a direct invoice made for itself goes with it (cancelled, or deleted with a deleted invoice). */
@@ -642,3 +812,6 @@ export class PurchaseInvoicesService {
     }
   }
 }
+
+/** A purchase order an invoice can still be raised / posted against. */
+const INVOICEABLE_ORDER_STATUSES: readonly PurchaseOrderStatus[] = ['confirmed', 'partially_received', 'fully_received'];

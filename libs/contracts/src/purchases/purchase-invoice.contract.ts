@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { moneySchema } from '../inventory/money.contract';
+import { moneySchema, nonNegativeMoneySchema } from '../inventory/money.contract';
 import { receiptLotSchema } from './goods-receipt.contract';
 import { documentTotalsSchema, lineTaxRuleIdsSchema, lineTaxSchema } from '../settings/tax-rule.contract';
 
@@ -48,7 +48,8 @@ export type PurchaseInvoiceWithLinesDto = z.infer<typeof purchaseInvoiceWithLine
 export const createPurchaseInvoiceLineSchema = z.object({
   purchaseOrderLineId: z.string().uuid(),
   quantityInvoiced: z.number().positive(),
-  unitPrice: moneySchema.optional(),
+  /** Defaults to the order line's price; must be in the order's currency. */
+  unitPrice: nonNegativeMoneySchema.optional(),
   taxRuleIds: lineTaxRuleIdsSchema,
   notes: z.string().nullable().optional(),
   /** Lots/serials — used only when the invoice also receives the goods (Goods Receipts disabled). */
@@ -61,7 +62,7 @@ export const createPurchaseInvoiceDirectLineSchema = z.object({
   /** Line unit (carton, sack…); omitted/null = the product's base unit. */
   unitOfMeasureId: z.string().uuid().nullable().optional(),
   quantityInvoiced: z.number().positive(),
-  unitPrice: moneySchema,
+  unitPrice: nonNegativeMoneySchema,
   taxRuleIds: lineTaxRuleIdsSchema,
   notes: z.string().nullable().optional(),
   lots: z.array(receiptLotSchema).max(1000).optional(),

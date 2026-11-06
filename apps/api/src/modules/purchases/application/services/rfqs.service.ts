@@ -10,7 +10,9 @@ import {
 } from '../ports/purchase-requisition.repository';
 import type { Rfq, RfqWithDetails, RfqStatus, CreateRfqInput, UpdateRfqInput } from '../../domain/rfq.entity';
 import { BusinessRuleError, NotFoundError, isPostgresForeignKeyViolation } from '../errors';
-import { entityNotFound } from '../../../../shared/errors/entity-errors';
+import { entityNotFound, statusChanged } from '../../../../shared/errors/entity-errors';
+import { withTransaction } from '../../../../database/tenant/transaction.util';
+import { lockRowsForUpdate } from '../../../../shared/persistence/row-locks';
 import { NumberingSequencesService } from '../../../settings/application/services/numbering-sequences.service';
 
 @Injectable()
@@ -67,7 +69,7 @@ export class RfqsService {
     }
 
     try {
-      return await db.transaction().execute(async (trx) => {
+      return await withTransaction(db, async (trx) => {
         const allocated = await this.numberingSequences.allocateNext(trx, 'request_for_quotation', null);
 
         const rfq = await this.rfqs.create(trx, {
@@ -124,7 +126,11 @@ export class RfqsService {
       });
     }
 
-    return db.transaction().execute(async (trx) => {
+    return withTransaction(db, async (trx) => {
+      // Re-checked under a lock: it may have been sent/cancelled since it was read above.
+      await lockRowsForUpdate(trx, 'request_for_quotations', [id]);
+      const current = await this.rfqs.findById(trx, id);
+      if (!current || current.status !== 'draft') throw statusChanged('RFQ', id);
       const updated = await this.rfqs.update(trx, id, { notes: input.notes, customFields: input.customFields });
       if (!updated) throw entityNotFound('RFQ', id);
 
@@ -164,8 +170,8 @@ export class RfqsService {
         },
       );
     }
-    const updated = await this.rfqs.updateStatus(db, id, to);
-    if (!updated) throw entityNotFound('RFQ', id);
+    const updated = await this.rfqs.updateStatus(db, id, to, from);
+    if (!updated) throw statusChanged('RFQ', id);
     return updated;
   }
 
@@ -177,9 +183,12 @@ export class RfqsService {
     return this.transitionStatus(db, id, ['draft', 'sent'], 'cancelled');
   }
 
-  /** Called by SupplierQuotationsService.select() — not exposed as its own HTTP action. */
-  close(db: Kysely<TenantDatabase>, id: string): Promise<Rfq | null> {
-    return this.rfqs.updateStatus(db, id, 'closed');
+  /**
+   * Called by SupplierQuotationsService.select() — not exposed as its own
+   * HTTP action. Only a sent RFQ closes: a cancelled one stays cancelled.
+   */
+  close(db: Kysely<TenantDatabase>, id: string): Promise<Rfq> {
+    return this.transitionStatus(db, id, ['sent'], 'closed');
   }
 
   async delete(db: Kysely<TenantDatabase>, id: string): Promise<void> {

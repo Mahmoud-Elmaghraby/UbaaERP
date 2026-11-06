@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { moneySchema } from '../inventory/money.contract';
+import { moneySchema, nonNegativeMoneySchema } from '../inventory/money.contract';
 
 export const goodsReceiptStatusSchema = z.enum(['draft', 'confirmed', 'cancelled']);
 export type GoodsReceiptStatusDto = z.infer<typeof goodsReceiptStatusSchema>;
@@ -57,7 +57,8 @@ export type GoodsReceiptWithLinesDto = z.infer<typeof goodsReceiptWithLinesSchem
 export const createGoodsReceiptLineSchema = z.object({
   purchaseOrderLineId: z.string().uuid(),
   quantityReceived: z.number().positive(),
-  unitCost: moneySchema.optional(),
+  /** Defaults to the order line's price; must be in the order's currency. */
+  unitCost: nonNegativeMoneySchema.optional(),
   notes: z.string().nullable().optional(),
   lots: z.array(receiptLotSchema).max(1000).optional(),
 });
