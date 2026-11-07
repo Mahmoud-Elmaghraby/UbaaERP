@@ -70,7 +70,29 @@ export interface LotTraceRow {
   movements: LotTraceMovementRow[];
 }
 
+export interface MovementAnalysisRow {
+  productVariantId: string;
+  productId: string;
+  productName: string;
+  productCode: string;
+  sku: string;
+  attributeValues: Record<string, unknown>;
+  categoryName: string | null;
+  onHand: number;
+  stockValueMinor: string;
+  soldQuantity: number;
+  soldCostMinor: string;
+  receivedQuantity: number;
+  lastSaleDate: string | null;
+  lastMovementDate: string | null;
+}
+
 export interface InventoryReportsRepository {
+  /** Per item: stock now, sold / received in [from, to), last sale. Stock items with stock or sales only. */
+  movementAnalysis(
+    db: Kysely<TenantDatabase>,
+    filter: { from: Date; to: Date; warehouseId: string | null; categoryId: string | null },
+  ): Promise<MovementAnalysisRow[]>;
   /** Signed quantity of every movement before `from` (the card's opening balance). */
   quantityBefore(
     db: Kysely<TenantDatabase>,

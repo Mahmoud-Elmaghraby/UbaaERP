@@ -2,7 +2,7 @@ import { withTransaction } from '../../../../database/tenant/transaction.util';
 import { randomUUID } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
 import { sql, type Kysely } from 'kysely';
-import type { PriceListDto, PriceListSummaryDto, SavePriceListDto } from '@erp-platform/contracts';
+import type { PriceListDto, PriceListKindDto, PriceListSummaryDto, SavePriceListDto } from '@erp-platform/contracts';
 import type { TenantDatabase } from '../../../../database/tenant/kysely-client';
 import {
   BusinessRuleError,
@@ -17,16 +17,24 @@ import { duplicateEntity, entityNotFound } from '../../../../shared/errors/entit
  * whole item set, which replaces the old items in one transaction. Which
  * price a document line gets is decided in one place on the client
  * (apps/web/src/components/product/sale-pricing.ts).
+ *
+ * Every method is scoped to one kind (migration 0115): 'sale' lists belong to customers and
+ * sales documents, 'purchase' lists to suppliers and purchase documents. A list of the other
+ * kind is "not found" here, so neither screen can read or change the other's lists.
  */
 @Injectable()
 export class PriceListsService {
-  async list(db: Kysely<TenantDatabase>): Promise<PriceListSummaryDto[]> {
-    const rows = await this.summaries(db).orderBy('pl.is_active', 'desc').orderBy('pl.name').execute();
+  async list(db: Kysely<TenantDatabase>, kind: PriceListKindDto = 'sale'): Promise<PriceListSummaryDto[]> {
+    const rows = await this.summaries(db)
+      .where('pl.kind', '=', kind)
+      .orderBy('pl.is_active', 'desc')
+      .orderBy('pl.name')
+      .execute();
     return rows.map(toSummary);
   }
 
-  async getById(db: Kysely<TenantDatabase>, id: string): Promise<PriceListDto> {
-    const row = await this.summaries(db).where('pl.id', '=', id).executeTakeFirst();
+  async getById(db: Kysely<TenantDatabase>, id: string, kind: PriceListKindDto = 'sale'): Promise<PriceListDto> {
+    const row = await this.summaries(db).where('pl.id', '=', id).where('pl.kind', '=', kind).executeTakeFirst();
     if (!row) throw entityNotFound('PRICE_LIST', id);
     const items = await db
       .selectFrom('price_list_items')
@@ -48,7 +56,12 @@ export class PriceListsService {
     };
   }
 
-  async save(db: Kysely<TenantDatabase>, id: string | null, input: SavePriceListDto): Promise<PriceListDto> {
+  async save(
+    db: Kysely<TenantDatabase>,
+    id: string | null,
+    input: SavePriceListDto,
+    kind: PriceListKindDto = 'sale',
+  ): Promise<PriceListDto> {
     const items = input.items.map((item) => ({
       productId: item.productId,
       productVariantId: item.productVariantId ?? null,
@@ -73,11 +86,12 @@ export class PriceListsService {
             .updateTable('price_lists')
             .set({ ...header, updated_at: new Date() })
             .where('id', '=', id)
+            .where('kind', '=', kind)
             .executeTakeFirst();
           if (!updated.numUpdatedRows) throw entityNotFound('PRICE_LIST', id);
           await trx.deleteFrom('price_list_items').where('price_list_id', '=', id).execute();
         } else {
-          await trx.insertInto('price_lists').values({ id: listId, ...header }).execute();
+          await trx.insertInto('price_lists').values({ id: listId, kind, ...header }).execute();
         }
         // Chunked: a big catalogue can have thousands of rows.
         for (let start = 0; start < items.length; start += 1000) {
@@ -100,17 +114,17 @@ export class PriceListsService {
       if (isPostgresUniqueViolation(err)) throw duplicateEntity('PRICE_LIST', 'name', input.name);
       throw err;
     }
-    return this.getById(db, listId);
+    return this.getById(db, listId, kind);
   }
 
-  /** A list still set on customers can't go — deactivate it instead. */
-  async delete(db: Kysely<TenantDatabase>, id: string): Promise<void> {
+  /** A list still set on customers or suppliers can't go — deactivate it instead. */
+  async delete(db: Kysely<TenantDatabase>, id: string, kind: PriceListKindDto = 'sale'): Promise<void> {
     try {
-      const result = await db.deleteFrom('price_lists').where('id', '=', id).executeTakeFirst();
+      const result = await db.deleteFrom('price_lists').where('id', '=', id).where('kind', '=', kind).executeTakeFirst();
       if (!result.numDeletedRows) throw entityNotFound('PRICE_LIST', id);
     } catch (err) {
       if (isPostgresForeignKeyViolation(err)) {
-        throw new BusinessRuleError('This price list is still set on customers; deactivate it instead.', {
+        throw new BusinessRuleError('This price list is still set on customers or suppliers; deactivate it instead.', {
           code: 'PRICE_LIST.IN_USE',
         });
       }
@@ -155,6 +169,7 @@ export class PriceListsService {
       .select([
         sql<number>`(SELECT count(*)::int FROM price_list_items i WHERE i.price_list_id = pl.id)`.as('item_count'),
         sql<number>`(SELECT count(*)::int FROM customers c WHERE c.price_list_id = pl.id)`.as('customer_count'),
+        sql<number>`(SELECT count(*)::int FROM suppliers s WHERE s.price_list_id = pl.id)`.as('supplier_count'),
       ]);
   }
 }
@@ -166,6 +181,7 @@ function trimDecimal(value: string | number): string {
 
 function toSummary(row: {
   id: string;
+  kind: PriceListKindDto;
   name: string;
   currency: string;
   discount_percent: string;
@@ -173,9 +189,11 @@ function toSummary(row: {
   notes: string | null;
   item_count: number;
   customer_count: number;
+  supplier_count: number;
 }): PriceListSummaryDto {
   return {
     id: row.id,
+    kind: row.kind,
     name: row.name,
     currency: row.currency,
     discountPercent: trimDecimal(row.discount_percent),
@@ -183,5 +201,6 @@ function toSummary(row: {
     notes: row.notes,
     itemCount: Number(row.item_count),
     customerCount: Number(row.customer_count),
+    supplierCount: Number(row.supplier_count),
   };
 }

@@ -461,6 +461,8 @@ export interface LandedCostAllocationsTable {
 
 export interface SuppliersTable {
   id: string;
+  /** Migration 0115 — default supplier price list (kind 'purchase'); null = normal purchase prices. */
+  price_list_id: Generated<string | null>;
   name: string;
   code: string;
   contact_person: string | null;
@@ -646,6 +648,8 @@ export interface PriceListsTable {
   notes: string | null;
   created_at: Generated<Date>;
   updated_at: Generated<Date>;
+  /** Migration 0115 — 'sale' (customers, sales documents) or 'purchase' (suppliers, purchase documents). */
+  kind: Generated<'sale' | 'purchase'>;
 }
 
 export interface PriceListItemsTable {

@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { Input, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@erp-platform/ui';
 
-import { useVariantIndex } from '../../hooks/purchase-invoices/use-variant-index';
+import { useVariantIndex } from '../../../../components/product/use-variant-index';
 import type { InvoiceablePoLine } from '../../hooks/purchase-invoices/use-purchase-order-invoiceable';
 import { decimalToMinorUnits, formatAmount, multiplyMinorUnits } from '../../../../lib/money';
 import { QuantityWithUnit } from '../../../../components/product/unit-select';

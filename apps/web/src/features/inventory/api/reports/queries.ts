@@ -3,6 +3,7 @@ import type {
   ItemCardDto,
   LotTraceDto,
   LowStockRowDto,
+  MovementAnalysisRowDto,
   StockValuationRowDto,
   StockValuationSummaryDto,
 } from '@erp-platform/contracts';
@@ -36,6 +37,13 @@ export function useValuationSummary(asOf?: string) {
   return useQuery({
     queryKey: ['inventory-reports', 'valuation-summary', asOf ?? null],
     queryFn: () => apiGet<StockValuationSummaryDto>(`/inventory-reports/valuation-summary${query({ asOf })}`),
+  });
+}
+
+export function useMovementAnalysis(filter: { from?: string; to?: string; warehouseId?: string; categoryId?: string }) {
+  return useQuery({
+    queryKey: ['inventory-reports', 'movement-analysis', filter],
+    queryFn: () => apiGet<MovementAnalysisRowDto[]>(`/inventory-reports/movement-analysis${query(filter)}`),
   });
 }
 

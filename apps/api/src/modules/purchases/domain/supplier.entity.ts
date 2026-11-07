@@ -14,6 +14,8 @@ export interface Supplier {
   taxNumber: string | null;
   /** Migration 0091 — withholding (خصم من المنبع) rule applied by default on this party's invoices. */
   withholdingTaxRuleId: string | null;
+  /** Migration 0115 — default supplier price list (kind 'purchase'); null = normal purchase prices. */
+  priceListId: string | null;
   /** ISO 4217 currency this supplier is normally billed in (master doc §10's "multi-currency per supplier"). */
   defaultCurrency: string;
   /** Net-terms convention (e.g. 30 = "net 30"). Null = no standing terms recorded. */
@@ -35,6 +37,7 @@ export interface CreateSupplierInput {
   address?: string | null;
   taxNumber?: string | null;
   withholdingTaxRuleId?: string | null;
+  priceListId?: string | null;
   defaultCurrency: string;
   paymentTermsDays?: number | null;
   notes?: string | null;
@@ -51,6 +54,7 @@ export interface UpdateSupplierInput {
   address?: string | null;
   taxNumber?: string | null;
   withholdingTaxRuleId?: string | null;
+  priceListId?: string | null;
   defaultCurrency?: string;
   paymentTermsDays?: number | null;
   notes?: string | null;

@@ -118,9 +118,10 @@ export class StockController {
     @Query('warehouseId') warehouseId?: string,
     @Query('locationId') locationId?: string,
     @Query('productVariantId') productVariantId?: string,
+    @Query('productId') productId?: string,
   ): Promise<StockLevelDto[]> {
     const db = this.connections.getClient(schema);
-    const levels = await this.service.listStockLevels(db, { warehouseId, locationId, productVariantId });
+    const levels = await this.service.listStockLevels(db, { warehouseId, locationId, productVariantId, productId });
     const showCost = canViewCosts(user.permissions);
     return levels.map((level) => stockLevelToDto(level, showCost));
   }

@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import type { PriceListKindDto } from '@erp-platform/contracts';
 import {
   Badge,
   Button,
@@ -14,21 +15,24 @@ import {
 } from '@erp-platform/ui';
 
 import { usePriceLists } from '../../api/price-lists/queries';
+import { PRICE_LIST_KINDS } from '../../api/price-lists/price-list-kind';
 
-/** Sales › Price lists: wholesale, retail, distributors… each with its own prices. */
-export function PriceListsPage() {
+/** Price lists: sales (wholesale, retail, distributors…) or, with kind 'purchase', supplier price lists. */
+export function PriceListsPage({ kind = 'sale' }: { kind?: PriceListKindDto }) {
   const { t } = useTranslation();
-  const { data: lists, isLoading } = usePriceLists();
+  const { data: lists, isLoading } = usePriceLists(kind);
+  const config = PRICE_LIST_KINDS[kind];
+  const purchase = kind === 'purchase';
 
   return (
     <div className="grid gap-6">
       <PageHeader
-        title={t('priceLists.title')}
-        description={t('priceLists.subtitle')}
+        title={t(purchase ? 'priceLists.purchaseTitle' : 'priceLists.title')}
+        description={t(purchase ? 'priceLists.purchaseSubtitle' : 'priceLists.subtitle')}
         actions={
-          <Can permission="sales.manage">
+          <Can permission={config.permission}>
             <Button asChild>
-              <Link to="/sales/price-lists/new">{t('priceLists.add')}</Link>
+              <Link to={`${config.path}/new`}>{t('priceLists.add')}</Link>
             </Button>
           </Can>
         }
@@ -41,7 +45,7 @@ export function PriceListsPage() {
               <TableHead>{t('priceLists.currency')}</TableHead>
               <TableHead>{t('priceLists.discountPercent')}</TableHead>
               <TableHead>{t('priceLists.itemCount')}</TableHead>
-              <TableHead>{t('priceLists.customerCount')}</TableHead>
+              <TableHead>{t(purchase ? 'priceLists.supplierCount' : 'priceLists.customerCount')}</TableHead>
               <TableHead className="w-24" />
             </TableRow>
           </TableHeader>
@@ -56,10 +60,10 @@ export function PriceListsPage() {
                 </TableCell>
                 <TableCell className="tabular">{Number(list.discountPercent) > 0 ? `${list.discountPercent}%` : '—'}</TableCell>
                 <TableCell className="tabular">{list.itemCount}</TableCell>
-                <TableCell className="tabular">{list.customerCount}</TableCell>
+                <TableCell className="tabular">{purchase ? list.supplierCount : list.customerCount}</TableCell>
                 <TableCell className="text-end">
                   <Button variant="ghost" size="sm" asChild>
-                    <Link to={`/sales/price-lists/${list.id}`}>{t('common.edit')}</Link>
+                    <Link to={`${config.path}/${list.id}`}>{t('common.edit')}</Link>
                   </Button>
                 </TableCell>
               </TableRow>

@@ -26,9 +26,10 @@ import { useStockMovements } from '../../api/stock/queries';
 import { useApplyLandedCost } from '../../api/landed-costs/queries';
 import { useTenantSettings } from '../../../settings/queries';
 import { ApiError } from '../../../../lib/api-client';
+import { DocumentReference } from '../document-reference';
 import { decimalToMinorUnits, formatMoney } from '../../../../lib/money';
-import { useVariantIndex } from '../../hooks/landed-costs/use-variant-index';
-import { useLocationLookups } from '../../hooks/landed-costs/use-location-lookups';
+import { useVariantIndex } from '../../../../components/product/use-variant-index';
+import { useLocationLookups } from '../../api/warehouses/queries';
 
 /**
  * Plain controlled state, not react-hook-form + zodResolver: the movement-selection checklist
@@ -41,7 +42,7 @@ import { useLocationLookups } from '../../hooks/landed-costs/use-location-lookup
  * LandedCostsService.fetchEligibleMovement) — filtered client-side here so the picker only shows
  * choices that will actually be accepted.
  */
-export function ApplyLandedCostForm({ onDone }: { onDone: () => void }) {
+export function ApplyLandedCostForm({ onDone }: { onDone: (landedCostId: string) => void }) {
   const { t } = useTranslation();
   const applyLandedCost = useApplyLandedCost();
   const { data: tenantSettings } = useTenantSettings();
@@ -73,6 +74,18 @@ export function ApplyLandedCostForm({ onDone }: { onDone: () => void }) {
     [movements],
   );
 
+  const allSelected = eligibleMovements.length > 0 && eligibleMovements.every((m) => selectedIds.has(m.id));
+  function toggleAll() {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      for (const m of eligibleMovements) {
+        if (allSelected) next.delete(m.id);
+        else next.add(m.id);
+      }
+      return next;
+    });
+  }
+
   function toggleMovement(id: string) {
     setSelectedIds((prev) => {
       const next = new Set(prev);
@@ -90,7 +103,7 @@ export function ApplyLandedCostForm({ onDone }: { onDone: () => void }) {
       return;
     }
     try {
-      await applyLandedCost.mutateAsync({
+      const applied = await applyLandedCost.mutateAsync({
         totalCost: { amountMinorUnits: decimalToMinorUnits(totalCost), currency: tenantSettings?.currencyCode ?? 'EGP' },
         allocationMethod,
         stockMovementIds: Array.from(selectedIds),
@@ -99,7 +112,7 @@ export function ApplyLandedCostForm({ onDone }: { onDone: () => void }) {
         notes: notes || undefined,
       });
       toast.success(t('inventory.landedCosts.applySuccess'));
-      onDone();
+      onDone(applied.id);
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : t('inventory.landedCosts.applyError'));
     }
@@ -176,12 +189,20 @@ export function ApplyLandedCostForm({ onDone }: { onDone: () => void }) {
           </div>
         </div>
 
-        <div className="max-h-64 overflow-y-auto rounded-md border">
+        <div className="max-h-96 overflow-y-auto rounded-md border">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-10" />
+                <TableHead className="w-10">
+                  <Checkbox
+                    checked={allSelected}
+                    onCheckedChange={toggleAll}
+                    disabled={eligibleMovements.length === 0}
+                    aria-label={t('common.selectAll')}
+                  />
+                </TableHead>
                 <TableHead>{t('inventory.stock.date')}</TableHead>
+                <TableHead>{t('inventory.stock.reference')}</TableHead>
                 <TableHead>{t('inventory.stock.product')}</TableHead>
                 <TableHead>{t('inventory.stock.location')}</TableHead>
                 <TableHead>{t('inventory.stock.quantity')}</TableHead>
@@ -195,6 +216,9 @@ export function ApplyLandedCostForm({ onDone }: { onDone: () => void }) {
                     <Checkbox checked={selectedIds.has(m.id)} onCheckedChange={() => toggleMovement(m.id)} />
                   </TableCell>
                   <TableCell>{new Date(m.createdAt).toLocaleDateString('ar-EG')}</TableCell>
+                  <TableCell onClick={(e) => e.stopPropagation()}>
+                    {m.referenceType ? <DocumentReference {...m} /> : '—'}
+                  </TableCell>
                   <TableCell>
                     {variantIndex.get(m.productVariantId)?.productName ?? '—'} ({variantIndex.get(m.productVariantId)?.sku ?? '—'})
                   </TableCell>
@@ -207,7 +231,7 @@ export function ApplyLandedCostForm({ onDone }: { onDone: () => void }) {
               ))}
               {eligibleMovements.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="py-6 text-center text-muted-foreground">
+                  <TableCell colSpan={7} className="py-6 text-center text-muted-foreground">
                     {t('common.noResults')}
                   </TableCell>
                 </TableRow>
@@ -235,9 +259,11 @@ export function ApplyLandedCostForm({ onDone }: { onDone: () => void }) {
         <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} />
       </div>
 
-      <Button type="submit" disabled={applyLandedCost.isPending} className="mt-2">
-        {t('common.save')}
-      </Button>
+      <div className="flex justify-end">
+        <Button type="submit" disabled={applyLandedCost.isPending}>
+          {t('inventory.landedCosts.apply')}
+        </Button>
+      </div>
     </form>
   );
 }

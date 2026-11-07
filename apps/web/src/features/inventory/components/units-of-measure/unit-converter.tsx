@@ -24,7 +24,7 @@ export function UnitConverter({ units }: { units: UnitOfMeasureDto[] }) {
   }
 
   return (
-    <div className="rounded-md border p-4">
+    <div className="rounded-xl border bg-card p-5 shadow-card">
       <p className="mb-3 text-sm font-medium">{t('inventory.unitsOfMeasure.converterTitle')}</p>
       <div className="grid gap-3 sm:grid-cols-[1fr_1fr_auto_auto] sm:items-end">
         <div className="grid gap-1.5">

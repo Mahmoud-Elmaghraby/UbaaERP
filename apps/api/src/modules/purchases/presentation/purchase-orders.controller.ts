@@ -1,4 +1,20 @@
-import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Headers,
+  HttpCode,
+  HttpStatus,
+  Param,
+  ParseUUIDPipe,
+  Patch,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
+import type { DocumentShareLinkDto } from '@erp-platform/contracts';
+import { DocumentShareService } from '../../../shared/printing/document-share.service';
+import { BusinessRuleError } from '../../../shared/errors/domain-errors';
 import {
   purchaseOrderSchema,
   purchaseOrderWithLinesSchema,
@@ -47,6 +63,7 @@ export class PurchaseOrdersController {
     private readonly service: PurchaseOrdersService,
     private readonly connections: TenantConnectionManager,
     private readonly events: PurchasesEventPublisher,
+    private readonly shares: DocumentShareService,
   ) {}
 
   @Get()
@@ -64,6 +81,20 @@ export class PurchaseOrdersController {
     const db = this.connections.getClient(schema);
     const order = await this.service.getById(db, id);
     return orderWithLinesToDto(order);
+  }
+
+  /** A public, signed link to the printed order (WhatsApp share to the supplier). */
+  @Post(':id/share-link')
+  async shareLink(
+    @CurrentTenantSchema() schema: string,
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Headers('origin') origin?: string,
+  ): Promise<DocumentShareLinkDto> {
+    const order = await this.service.getById(this.connections.getClient(schema), id);
+    if (order.status === 'cancelled') {
+      throw new BusinessRuleError('A cancelled document cannot be shared.', { code: 'DOCUMENT_SHARE.CANCELLED' });
+    }
+    return this.shares.createLink(schema, 'purchase_order', id, origin);
   }
 
   @Post()

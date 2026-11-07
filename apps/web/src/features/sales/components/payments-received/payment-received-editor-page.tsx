@@ -53,7 +53,8 @@ import {
   OpenInvoicesAllocation,
   prepareAllocations,
   type AllocationDrafts,
-} from './open-invoices-allocation';
+} from '../../../../components/document/open-invoices-allocation';
+import { toOpenInvoiceRows } from './open-invoices-allocation';
 import { PAYMENTS_RECEIVED_PATH } from './payment-received-status';
 import { usePaymentReceivedActions } from './use-payment-received-actions';
 
@@ -151,7 +152,7 @@ function PaymentReceivedEditor() {
     Boolean(customerId),
   );
   const invoices = useMemo(
-    () => (openInvoices ?? []).filter((invoice) => invoice.currency === currency),
+    () => toOpenInvoiceRows((openInvoices ?? []).filter((invoice) => invoice.currency === currency)),
     [openInvoices, currency],
   );
 
@@ -205,7 +206,10 @@ function PaymentReceivedEditor() {
         cheque: chequePayload,
         notes: values.notes?.trim() || undefined,
         customFields: values.customFields,
-        allocations: allocations.length > 0 ? allocations : undefined,
+        allocations:
+          allocations.length > 0
+            ? allocations.map((a) => ({ salesInvoiceId: a.invoiceId, allocatedAmount: a.allocatedAmount }))
+            : undefined,
       });
       toast.success(t('sales.paymentsReceived.createSuccess'));
       if (post) await actions.post(created.id, { confirm: false });
@@ -394,6 +398,7 @@ function PaymentReceivedEditor() {
                     drafts={drafts}
                     onChange={setDrafts}
                     available={amountMinor}
+                    emptyText={t('sales.paymentsReceived.noOpenInvoices')}
                   />
                 ) : (
                   <p className="px-5 pb-5 text-sm text-muted-foreground">{t('sales.paymentsReceived.pickCustomerFirst')}</p>

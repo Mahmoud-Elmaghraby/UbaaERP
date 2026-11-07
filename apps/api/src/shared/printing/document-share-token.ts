@@ -12,7 +12,7 @@ import { createHmac, timingSafeEqual } from 'node:crypto';
  * the document id, nothing else.
  */
 
-export const SHAREABLE_DOCUMENT_TYPES = ['sales_invoice', 'payment_received'] as const;
+export const SHAREABLE_DOCUMENT_TYPES = ['sales_invoice', 'payment_received', 'purchase_order'] as const;
 export type ShareableDocumentType = (typeof SHAREABLE_DOCUMENT_TYPES)[number];
 
 export const DEFAULT_SHARE_TTL_SECONDS = 30 * 24 * 60 * 60;

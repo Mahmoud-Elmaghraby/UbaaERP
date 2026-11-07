@@ -44,7 +44,7 @@ import { useCustomers } from '../../api/customers/queries';
 import { useSalesOrders } from '../../api/sales-orders/queries';
 import { useCreateDelivery } from '../../api/deliveries/queries';
 import { useSalesOrderRemaining, type RemainingSoLine } from '../../hooks/deliveries/use-sales-order-remaining';
-import { useVariantIndex } from '../../hooks/deliveries/use-variant-index';
+import { useVariantIndex } from '../../../../components/product/use-variant-index';
 import { ApiError } from '../../../../lib/api-client';
 import { todayIso } from '../../../../lib/format-date';
 import { DocumentBody, DocumentHeaderBar, SectionCard } from '../../../../components/document/document-layout';

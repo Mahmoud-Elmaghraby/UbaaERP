@@ -4,8 +4,9 @@ import { decimalToMinorUnits, minorUnitsToDecimalString, multiplyMinorUnits } fr
 import { findUnit, unitPriceText } from './variant-search';
 
 /**
- * The ONE place that decides a sales line's default price (quotations,
- * sales orders, invoices, POS). Without a price list it is the item's
+ * The ONE place that decides a document line's default price — sales (quotations,
+ * sales orders, invoices, POS) and purchases (orders, direct invoices, with supplier
+ * price lists). Without a price list it is the item's
  * normal price (unitPriceText). With one, in this order:
  *   1. the list's fixed price for this variant, at the highest quantity
  *      break the line reaches;
@@ -54,9 +55,14 @@ function toNumber(text: string): number {
   return Number.isFinite(value) && value > 0 ? value : 0;
 }
 
-export function buildSalePricer(list: PriceListDto | null | undefined, currency: string): SalePricer {
+/** `priceKind` picks the normal price lists fall back to: sale price (sales lists) or purchase price (supplier lists). */
+export function buildSalePricer(
+  list: PriceListDto | null | undefined,
+  currency: string,
+  priceKind: 'sale' | 'purchase' = 'sale',
+): SalePricer {
   const active = list && list.isActive && (!currency || list.currency === currency) ? list : null;
-  if (!active) return (variant, unitId) => unitPriceText(variant, unitId, 'sale', currency);
+  if (!active) return (variant, unitId) => unitPriceText(variant, unitId, priceKind, currency);
 
   const index = indexItems(active);
   const factor = keepFactor(active.discountPercent);
@@ -70,7 +76,7 @@ export function buildSalePricer(list: PriceListDto | null | undefined, currency:
       const hit = index.get(key)?.find((entry) => baseQuantity + 1e-9 >= entry.minQuantity);
       if (hit) return minorUnitsToDecimalString(multiplyMinorUnits(hit.priceMinor, String(unitFactor)));
     }
-    const normal = unitPriceText(variant, unitId, 'sale', currency);
+    const normal = unitPriceText(variant, unitId, priceKind, currency);
     if (normal === null || factor === null) return normal;
     return minorUnitsToDecimalString(multiplyMinorUnits(decimalToMinorUnits(normal), factor));
   };

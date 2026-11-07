@@ -2,7 +2,7 @@ import { Fragment } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Input, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@erp-platform/ui';
 
-import { useVariantIndex } from '../../hooks/goods-receipts/use-variant-index';
+import { useVariantIndex } from '../../../../components/product/use-variant-index';
 import type { RemainingPoLine } from '../../hooks/goods-receipts/use-purchase-order-remaining';
 import { formatMoney } from '../../../../lib/money';
 import {

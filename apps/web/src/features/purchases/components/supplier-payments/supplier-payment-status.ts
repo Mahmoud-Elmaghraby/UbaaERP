@@ -10,3 +10,5 @@ export const SUPPLIER_PAYMENT_STATUS_VARIANT: Record<SupplierPaymentStatusDto, N
 export function supplierPaymentStatusLabelKey(status: SupplierPaymentStatusDto): string {
   return `purchases.supplierPayments.status.${status}`;
 }
+
+export const SUPPLIER_PAYMENTS_PATH = '/purchases/supplier-payments';

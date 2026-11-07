@@ -15,3 +15,5 @@ export const PURCHASE_ORDER_STATUS_VARIANT: Record<
 export function purchaseOrderStatusLabelKey(status: PurchaseOrderStatusDto): string {
   return `purchases.purchaseOrders.status.${status}`;
 }
+
+export const PURCHASE_ORDERS_PATH = '/purchases/purchase-orders';

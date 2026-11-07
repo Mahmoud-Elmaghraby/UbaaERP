@@ -38,7 +38,8 @@ import {
   OpenInvoicesAllocation,
   prepareAllocations,
   type AllocationDrafts,
-} from './open-invoices-allocation';
+} from '../../../../components/document/open-invoices-allocation';
+import { toOpenInvoiceRows } from './open-invoices-allocation';
 import {
   PAYMENT_RECEIVED_STATUS_VARIANT,
   PAYMENTS_RECEIVED_PATH,
@@ -47,7 +48,7 @@ import {
 import { usePaymentReceivedActions } from './use-payment-received-actions';
 import { useTenantSettings } from '../../../settings/queries';
 import { formatMoney } from '../../../../lib/money';
-import { WhatsAppShareButton } from '../../lib/whatsapp-share';
+import { WhatsAppShareButton } from '../../../../components/document/whatsapp-share';
 import { ChequeDueDate, ChequeStatusBadge } from '../../../../components/document/cheque-fields';
 import { useChequeActions } from '../cheques/use-cheque-actions';
 
@@ -100,8 +101,10 @@ export function PaymentReceivedPage() {
   const isPosted = payment.status === 'posted';
   const unallocated = BigInt(payment.unallocatedAmount.amountMinorUnits);
   const allocatedMinor = BigInt(payment.amount.amountMinorUnits) - unallocated;
-  const openInvoices = (customerInvoices ?? []).filter(
-    (row) => row.status === 'posted' && row.currency === currency && BigInt(row.outstandingMinorUnits) > 0n,
+  const openInvoices = toOpenInvoiceRows(
+    (customerInvoices ?? []).filter(
+      (row) => row.status === 'posted' && row.currency === currency && BigInt(row.outstandingMinorUnits) > 0n,
+    ),
   );
   const treasuryName = treasuries?.find((treasury) => treasury.id === payment.treasuryId)?.name;
   const cheque = payment.paymentMethod === 'check' ? payment.cheque : null;
@@ -117,7 +120,10 @@ export function PaymentReceivedPage() {
       return;
     }
     try {
-      await allocate.mutateAsync({ id: payment.id, input: { allocations } });
+      await allocate.mutateAsync({
+        id: payment.id,
+        input: { allocations: allocations.map((a) => ({ salesInvoiceId: a.invoiceId, allocatedAmount: a.allocatedAmount })) },
+      });
       toast.success(t('sales.paymentsReceived.allocateSuccess'));
       setDrafts({});
     } catch (err) {
@@ -268,7 +274,7 @@ export function PaymentReceivedPage() {
                             label: t('cheques.endorsedTo'),
                             value: (
                               <Link
-                                to={`/purchases/supplier-payments?view=${cheque.endorsedToPaymentId}`}
+                                to={`/purchases/supplier-payments/${cheque.endorsedToPaymentId}`}
                                 className="text-primary hover:underline"
                               >
                                 {t('cheques.viewSupplierPayment')}
@@ -349,6 +355,7 @@ export function PaymentReceivedPage() {
                     drafts={drafts}
                     onChange={setDrafts}
                     available={unallocated}
+                    emptyText={t('sales.paymentsReceived.noOpenInvoices')}
                   />
                   {allocateError ? <p className="px-5 pb-4 text-sm text-destructive">{allocateError}</p> : null}
                 </SectionCard>

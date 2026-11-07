@@ -20,16 +20,22 @@ export const priceListItemSchema = z.object({
 });
 export type PriceListItemDto = z.infer<typeof priceListItemSchema>;
 
+/** 'sale': customers and sales documents; 'purchase': suppliers and purchase documents (migration 0115). */
+export const priceListKindSchema = z.enum(['sale', 'purchase']);
+export type PriceListKindDto = z.infer<typeof priceListKindSchema>;
+
 export const priceListSummarySchema = z.object({
   id: z.string().uuid(),
+  kind: priceListKindSchema.default('sale'),
   name: z.string(),
   currency: z.string(),
-  /** General discount off the normal sale price, for items without a fixed price ("0" = none). */
+  /** General discount off the normal sale (or purchase) price, for items without a fixed price ("0" = none). */
   discountPercent: z.string(),
   isActive: z.boolean(),
   notes: z.string().nullable(),
   itemCount: z.number().int(),
   customerCount: z.number().int(),
+  supplierCount: z.number().int().default(0),
 });
 export type PriceListSummaryDto = z.infer<typeof priceListSummarySchema>;
 

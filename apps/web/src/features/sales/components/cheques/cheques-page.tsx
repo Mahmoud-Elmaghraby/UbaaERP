@@ -260,7 +260,7 @@ export function ChequesPage() {
         header: t('cheques.supplierPayment'),
         cell: ({ row }) => (
           <Link
-            to={`${SUPPLIER_PAYMENTS_PATH}?view=${row.original.id}`}
+            to={`${SUPPLIER_PAYMENTS_PATH}/${row.original.id}`}
             className="tabular-nums text-primary hover:underline"
             onClick={(event) => event.stopPropagation()}
           >
@@ -413,7 +413,7 @@ export function ChequesPage() {
               isLoading={issuedLoading}
               searchable
               searchPlaceholder={t('cheques.search')}
-              onRowClick={(cheque) => navigate(`${SUPPLIER_PAYMENTS_PATH}?view=${cheque.id}`)}
+              onRowClick={(cheque) => navigate(`${SUPPLIER_PAYMENTS_PATH}/${cheque.id}`)}
               emptyState={
                 issuedFilter === 'all' ? <EmptyState icon={<Banknote />} title={t('cheques.emptyIssued')} /> : undefined
               }

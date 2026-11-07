@@ -4,7 +4,7 @@ import type { Kysely } from 'kysely';
 import type { TenantDatabase } from '../../../../database/tenant/kysely-client';
 import { SUPPLIER_REPOSITORY, type SupplierRepository } from '../ports/supplier.repository';
 import type { Supplier, CreateSupplierInput, UpdateSupplierInput } from '../../domain/supplier.entity';
-import { isPostgresUniqueViolation } from '../errors';
+import { BusinessRuleError, isPostgresUniqueViolation } from '../errors';
 import { duplicateEntity, entityNotFound } from '../../../../shared/errors/entity-errors';
 
 @Injectable()
@@ -25,6 +25,7 @@ export class SuppliersService {
   }
 
   async create(db: Kysely<TenantDatabase>, input: CreateSupplierInput): Promise<Supplier> {
+    await assertPurchasePriceList(db, input.priceListId);
     // An empty code takes the next 'supplier' number (Settings › Numbering).
     const code =
       input.code?.trim() ||
@@ -42,6 +43,7 @@ export class SuppliersService {
   }
 
   async update(db: Kysely<TenantDatabase>, id: string, input: UpdateSupplierInput): Promise<Supplier> {
+    await assertPurchasePriceList(db, input.priceListId);
     try {
       const updated = await this.repository.update(db, id, input);
       if (!updated) throw entityNotFound('SUPPLIER', id);
@@ -57,5 +59,17 @@ export class SuppliersService {
   async delete(db: Kysely<TenantDatabase>, id: string): Promise<void> {
     const deleted = await this.repository.delete(db, id);
     if (!deleted) throw entityNotFound('SUPPLIER', id);
+  }
+}
+
+/** A supplier's default list must be an existing supplier (purchase) price list. Read-only reference check. */
+async function assertPurchasePriceList(db: Kysely<TenantDatabase>, priceListId: string | null | undefined): Promise<void> {
+  if (!priceListId) return;
+  const list = await db.selectFrom('price_lists').select('kind').where('id', '=', priceListId).executeTakeFirst();
+  if (!list) throw entityNotFound('PRICE_LIST', priceListId);
+  if (list.kind !== 'purchase') {
+    throw new BusinessRuleError('A supplier can only use a supplier (purchase) price list.', {
+      code: 'SUPPLIER.PRICE_LIST_KIND',
+    });
   }
 }

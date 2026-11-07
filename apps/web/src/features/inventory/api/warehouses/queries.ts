@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import type {
   CreateWarehouseDto,
@@ -90,4 +91,13 @@ export function useAllWarehouseLocations() {
   const isLoading = warehouses === undefined || results.some((r) => r.isLoading);
   const data = results.flatMap((r) => r.data ?? []);
   return { data, isLoading };
+}
+
+/** id → warehouse and id → location maps, for screens that show names next to ids. */
+export function useLocationLookups() {
+  const { data: warehouses } = useWarehouses();
+  const { data: locations } = useAllWarehouseLocations();
+  const warehouseById = useMemo(() => new Map((warehouses ?? []).map((w) => [w.id, w])), [warehouses]);
+  const locationById = useMemo(() => new Map(locations.map((l) => [l.id, l])), [locations]);
+  return { warehouseById, locationById };
 }

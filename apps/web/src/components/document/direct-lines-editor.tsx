@@ -1,4 +1,4 @@
-import { Fragment } from 'react';
+import { Fragment, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Button,
@@ -158,6 +158,7 @@ export function DirectLinesEditor({
   taxes,
   pricer: salePricer,
   discounts = false,
+  priceHint,
 }: {
   lines: DirectLineDraft[];
   onChange: (lines: DirectLineDraft[]) => void;
@@ -172,6 +173,8 @@ export function DirectLinesEditor({
   pricer?: SalePricer;
   /** Show a per-line discount cell ("10%" or a fixed amount). */
   discounts?: boolean;
+  /** Extra info under a line's price (purchases: last purchase price); `setPrice` fills the price in. */
+  priceHint?: (line: DirectLineDraft, setPrice: (price: string) => void) => ReactNode;
 }) {
   const { t } = useTranslation();
   const variants = useVariantLookupMap();
@@ -265,6 +268,9 @@ export function DirectLinesEditor({
                       value={line.unitPrice}
                       onChange={(e) => update(line.key, { unitPrice: e.target.value })}
                     />
+                    {priceHint && line.productVariantId
+                      ? priceHint(line, (unitPrice) => update(line.key, { unitPrice }))
+                      : null}
                   </TableCell>
                   {discounts ? (
                     <TableCell>

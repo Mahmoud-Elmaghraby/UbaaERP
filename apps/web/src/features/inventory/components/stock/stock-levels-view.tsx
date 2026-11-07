@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useTranslation } from 'react-i18next';
+import { Link } from 'react-router-dom';
 import type { ColumnDef, Row } from '@tanstack/react-table';
 import {
   setReorderPointSchema,
@@ -28,9 +29,11 @@ import {
 } from '@erp-platform/ui';
 
 import { useSetReorderPoint, useStockLevels, type StockLevelFilters } from '../../api/stock/queries';
-import { useVariantIndex } from '../../hooks/stock/use-variant-index';
-import { useLocationLookups } from '../../hooks/stock/use-location-lookups';
-import { formatMoney } from '../../../../lib/money';
+import { useVariantIndex } from '../../../../components/product/use-variant-index';
+import { useLocationLookups } from '../../api/warehouses/queries';
+import { formatMoney, multiplyMinorUnits } from '../../../../lib/money';
+import { Amount, AMOUNT_CELL } from '../../../../components/amount';
+import { formatQuantity } from '../../../../components/report/report-format';
 import { ApiError } from '../../../../lib/api-client';
 import { INV } from '../../../../lib/permissions';
 
@@ -47,6 +50,16 @@ export function StockLevelsView({ filters }: { filters: StockLevelFilters }) {
         id: 'product',
         header: t('inventory.stock.product'),
         accessorFn: (row: StockLevelDto) => variantIndex.get(row.productVariantId)?.productName ?? '—',
+        cell: ({ row }: { row: Row<StockLevelDto> }) => {
+          const entry = variantIndex.get(row.original.productVariantId);
+          return entry ? (
+            <Link to={`/inventory/products/${entry.productId}`} className="font-medium hover:text-primary hover:underline">
+              {entry.productName}
+            </Link>
+          ) : (
+            '—'
+          );
+        },
       },
       {
         id: 'sku',
@@ -63,7 +76,15 @@ export function StockLevelsView({ filters }: { filters: StockLevelFilters }) {
         header: t('inventory.stock.location'),
         accessorFn: (row: StockLevelDto) => locationById.get(row.locationId)?.name ?? '—',
       },
-      { accessorKey: 'quantityOnHand', header: t('inventory.stock.quantityOnHand') },
+      {
+        accessorKey: 'quantityOnHand',
+        header: () => <div className="text-end">{t('inventory.stock.quantityOnHand')}</div>,
+        cell: ({ row }: { row: Row<StockLevelDto> }) => {
+          const { quantityOnHand, reorderPoint } = row.original;
+          const tone = quantityOnHand < 0 ? 'text-danger' : reorderPoint !== null && quantityOnHand <= reorderPoint ? 'text-warning' : '';
+          return <div className={`${AMOUNT_CELL} font-medium ${tone}`}>{formatQuantity(quantityOnHand)}</div>;
+        },
+      },
       {
         id: 'reorderPoint',
         header: t('inventory.stock.reorderPoint'),
@@ -76,6 +97,23 @@ export function StockLevelsView({ filters }: { filters: StockLevelFilters }) {
           row.original.averageCost
             ? formatMoney(row.original.averageCost.amountMinorUnits, row.original.averageCost.currency)
             : '—',
+      },
+      {
+        id: 'stockValue',
+        header: () => <div className="text-end">{t('inventory.products.stockValue')}</div>,
+        accessorFn: (row: StockLevelDto) =>
+          row.averageCost ? Number(multiplyMinorUnits(row.averageCost.amountMinorUnits, String(row.quantityOnHand))) : 0,
+        cell: ({ row }: { row: Row<StockLevelDto> }) =>
+          row.original.averageCost ? (
+            <div className={AMOUNT_CELL}>
+              <Amount
+                value={multiplyMinorUnits(row.original.averageCost.amountMinorUnits, String(row.original.quantityOnHand))}
+                hideCurrency
+              />
+            </div>
+          ) : (
+            '—'
+          ),
       },
       {
         id: 'actions',
@@ -94,7 +132,7 @@ export function StockLevelsView({ filters }: { filters: StockLevelFilters }) {
   // Users without inventory.costs.view get no cost columns at all (the API already sends null).
   const showCost = useHasAnyPermission([INV.costsView]);
   const visibleColumns = useMemo(
-    () => (showCost ? columns : columns.filter((column) => !['averageCost'].includes(column.id ?? ''))),
+    () => (showCost ? columns : columns.filter((column) => !['averageCost', 'stockValue'].includes(column.id ?? ''))),
     [columns, showCost],
   );
 

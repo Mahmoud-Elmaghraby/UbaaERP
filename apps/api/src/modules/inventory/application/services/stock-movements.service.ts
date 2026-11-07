@@ -123,7 +123,7 @@ export class StockMovementsService {
 
   listStockLevels(
     db: Kysely<TenantDatabase>,
-    filter?: { warehouseId?: string; locationId?: string; productVariantId?: string },
+    filter?: { warehouseId?: string; locationId?: string; productVariantId?: string; productId?: string },
   ): Promise<StockLevel[]> {
     return this.stockLevels.list(db, filter);
   }

@@ -17,7 +17,7 @@ import { FileQuestion, Info } from 'lucide-react';
 import { useCustomer } from '../../api/customers/queries';
 import { useSalesReturn } from '../../api/sales-returns/queries';
 import { useSalesCreditNote } from '../../api/sales-credit-notes/queries';
-import { useVariantIndex } from '../../hooks/sales-credit-notes/use-variant-index';
+import { useVariantIndex } from '../../../../components/product/use-variant-index';
 import { formatDate } from '../../../../lib/format-date';
 import { Amount, AMOUNT_CELL } from '../../../../components/amount';
 import {

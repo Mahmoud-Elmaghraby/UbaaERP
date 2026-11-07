@@ -10,6 +10,8 @@ export const supplierSchema = z.object({
   address: z.string().nullable(),
   taxNumber: z.string().nullable(),
   withholdingTaxRuleId: z.string().uuid().nullable(),
+  /** Default supplier price list (null = normal purchase prices). */
+  priceListId: z.string().uuid().nullable().default(null),
   defaultCurrency: z.string().regex(/^[A-Z]{3}$/, 'defaultCurrency must be a three-letter ISO 4217 code'),
   paymentTermsDays: z.number().int().nonnegative().nullable(),
   notes: z.string().nullable(),
@@ -30,6 +32,7 @@ export const createSupplierSchema = z.object({
   address: z.string().nullable().optional(),
   taxNumber: z.string().nullable().optional(),
   withholdingTaxRuleId: z.string().uuid().nullable().optional(),
+  priceListId: z.string().uuid().nullable().optional(),
   defaultCurrency: z.string().regex(/^[A-Z]{3}$/, 'defaultCurrency must be a three-letter ISO 4217 code'),
   paymentTermsDays: z.number().int().nonnegative().nullable().optional(),
   notes: z.string().nullable().optional(),

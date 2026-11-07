@@ -28,7 +28,7 @@ import {
   useSendQuotation,
 } from '../../api/quotations/queries';
 import { useCreateSalesOrder, useSalesOrders } from '../../api/sales-orders/queries';
-import { useVariantIndex } from '../../hooks/quotations/use-variant-index';
+import { useVariantIndex } from '../../../../components/product/use-variant-index';
 import { ApiError } from '../../../../lib/api-client';
 import { FEATURE_KEYS } from '../../../../lib/feature-keys';
 import { formatDate, todayIso } from '../../../../lib/format-date';

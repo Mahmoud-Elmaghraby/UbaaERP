@@ -11,3 +11,5 @@ export const RFQ_STATUS_VARIANT: Record<RfqStatusDto, NonNullable<BadgeProps['va
 export function rfqStatusLabelKey(status: RfqStatusDto): string {
   return `purchases.rfqs.status.${status}`;
 }
+
+export const RFQS_PATH = '/purchases/rfqs';

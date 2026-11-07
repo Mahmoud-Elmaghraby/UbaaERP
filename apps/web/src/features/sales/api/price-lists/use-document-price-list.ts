@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import type { ProductVariantLookupDto } from '@erp-platform/contracts';
+import type { PriceListKindDto, ProductVariantLookupDto } from '@erp-platform/contracts';
 
 import { repriceLines, type SalePricer } from '../../../../components/product/sale-pricing';
 import { useSalePricer } from './queries';
@@ -12,29 +12,32 @@ interface PricedLine {
 }
 
 /**
- * A sales document's price list: starts at the customer's default list,
- * follows the customer when it changes, and can be switched by hand. When
+ * A document's price list: starts at the party's default list (the customer's on
+ * sales documents, the supplier's on purchase documents — `kind`), follows the party
+ * when it changes, and can be switched by hand. When
  * the list changes, lines still carrying an automatic price are re-priced
  * (typed prices are kept). Opening an existing document never re-prices it.
  */
 export function useDocumentPriceList<T extends PricedLine>(options: {
-  customerPriceListId: string | null | undefined;
-  /** Changes when another customer is picked (null/undefined while none). */
-  customerId: string | null | undefined;
+  partyPriceListId: string | null | undefined;
+  /** Changes when another customer/supplier is picked (null/undefined while none). */
+  partyId: string | null | undefined;
+  /** 'sale' (default) or 'purchase' (supplier price lists). */
+  kind?: PriceListKindDto;
   currency: string;
   variants: ReadonlyMap<string, ProductVariantLookupDto>;
   setLines: (update: (lines: T[]) => T[]) => void;
 }): { priceListId: string | null; setPriceListId: (id: string | null) => void; pricer: SalePricer } {
-  const { customerPriceListId, customerId, currency, variants, setLines } = options;
-  const [priceListId, setPriceListIdState] = useState<string | null>(customerPriceListId ?? null);
-  const { pricer, ready } = useSalePricer(priceListId, currency);
+  const { partyPriceListId, partyId, currency, variants, setLines, kind = 'sale' } = options;
+  const [priceListId, setPriceListIdState] = useState<string | null>(partyPriceListId ?? null);
+  const { pricer, ready } = useSalePricer(priceListId, currency, kind);
   // The pricer in force before the last list change, until the new list has loaded.
   const pendingFrom = useRef<SalePricer | null>(null);
   const pricerRef = useRef(pricer);
   pricerRef.current = pricer;
 
-  // True once the user (or a customer change) picked the list — until then
-  // it quietly follows the customer's default as the customer list loads.
+  // True once the user (or a party change) picked the list — until then
+  // it quietly follows the party's default as the party list loads.
   const touched = useRef(false);
 
   function changeList(id: string | null) {
@@ -44,15 +47,15 @@ export function useDocumentPriceList<T extends PricedLine>(options: {
     setPriceListIdState(id);
   }
 
-  const lastCustomer = useRef(customerId);
+  const lastParty = useRef(partyId);
   useEffect(() => {
-    if (lastCustomer.current !== customerId) {
-      lastCustomer.current = customerId;
-      changeList(customerPriceListId ?? null);
+    if (lastParty.current !== partyId) {
+      lastParty.current = partyId;
+      changeList(partyPriceListId ?? null);
     } else if (!touched.current) {
-      setPriceListIdState(customerPriceListId ?? null);
+      setPriceListIdState(partyPriceListId ?? null);
     }
-  }, [customerId, customerPriceListId]);
+  }, [partyId, partyPriceListId]);
 
   useEffect(() => {
     if (!ready || !pendingFrom.current) return;

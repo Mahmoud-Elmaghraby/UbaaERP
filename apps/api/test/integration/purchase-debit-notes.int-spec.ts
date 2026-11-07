@@ -7,6 +7,8 @@ import { NumberingSequencesService } from '../../src/modules/settings/applicatio
 import { KyselyNumberingSequenceRepository } from '../../src/modules/settings/infrastructure/persistence/kysely-numbering-sequence.repository';
 import { OutboxWriterService } from '../../src/shared/outbox/application/services/outbox-writer.service';
 import { KyselyOutboxEventRepository } from '../../src/shared/outbox/infrastructure/persistence/kysely-outbox-event.repository';
+import { PurchaseAnalysisService } from '../../src/modules/purchases/application/services/purchase-analysis.service';
+import type { TenantSettingsService } from '../../src/modules/settings/application/services/tenant-settings.service';
 import { openIntegrationDb, uniqueSuffix } from './tenant-db';
 
 /** Purchase debit notes (migration 0096): only the invoiced part of a return, at the invoice's price and taxes. */
@@ -134,5 +136,39 @@ describe('Purchase debit notes (integration, real Postgres)', () => {
     const s = await setup(0);
     expect(await returnOf(s, 2)).toBeNull();
     expect(await supplierBalance(s.supplierId)).toBe(0n);
+  });
+
+  it('lists and reads issued notes with their totals', async () => {
+    const s = await setup(10);
+    const issued = await returnOf(s, 2);
+    const [listed] = await service.list(db, { supplierId: s.supplierId });
+    expect(listed!.id).toBe(issued!.id);
+    expect(listed!.totals.totalAmount.toMinorUnits()).toBe(22_800n);
+    const note = await service.getById(db, issued!.id);
+    expect(note.lines).toHaveLength(1);
+    expect(note.lines[0]!.baseQuantity).toBe(2);
+    expect(note.totals.vatAmount.toMinorUnits()).toBe(2_800n);
+    await expect(service.getById(db, randomUUID())).rejects.toThrow();
+  });
+
+  it('feeds the purchase analysis (invoices − debit notes) and the price history', async () => {
+    const s = await setup(10);
+    await returnOf(s, 3);
+    const analysis = new PurchaseAnalysisService({ get: async () => ({ currencyCode: 'EGP' }) } as unknown as TenantSettingsService);
+    const report = await analysis.report(db, { groupBy: 'supplier', supplierId: s.supplierId });
+    expect(report.rows).toHaveLength(1);
+    expect(report.rows[0]).toMatchObject({
+      grossPurchasesMinorUnits: '100000',
+      returnsMinorUnits: '30000',
+      netPurchasesMinorUnits: '70000',
+      invoiceCount: 1,
+    });
+    const byItem = await analysis.report(db, { groupBy: 'item', supplierId: s.supplierId });
+    expect(byItem.rows[0]).toMatchObject({ quantity: 7, averageUnitCostMinorUnits: '10000' });
+
+    const history = await analysis.priceHistory(db, { productVariantId: s.variantId, supplierId: s.supplierId, limit: 10 });
+    expect(history.entries).toHaveLength(1);
+    expect(history.entries[0]).toMatchObject({ unitPriceMinorUnits: '10000', currency: 'EGP', quantity: 10 });
+    expect(history.lastFromSupplier?.supplierId).toBe(s.supplierId);
   });
 });

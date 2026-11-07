@@ -47,6 +47,10 @@ import { JOURNAL_ENTRY_STATUS_VARIANT, journalEntryStatusLabelKey, sourceRefKey 
 const SOURCE_ROUTES: Record<string, (id: string) => string> = {
   sales_invoice: (id) => `/sales/sales-invoices/${id}`,
   purchase_invoice: (id) => `/purchases/purchase-invoices/${id}`,
+  purchase_debit_note: (id) => `/purchases/debit-notes/${id}`,
+  supplier_payment: (id) => `/purchases/supplier-payments/${id}`,
+  inventory_goods_receipt: (id) => `/purchases/goods-receipts/${id}`,
+  goods_receipt_exchange_difference: (id) => `/purchases/goods-receipts/${id}`,
   channel_settlement: (id) => `/sales/settlements/${id}`,
   inventory_stock_count: (id) => `/inventory/counts/${id}`,
   inventory_stock_adjustment: (id) => `/inventory/adjustments/${id}`,
@@ -54,7 +58,7 @@ const SOURCE_ROUTES: Record<string, (id: string) => string> = {
   fixed_asset_disposal: (id) => `/accounting/fixed-assets/${id}`,
   cheque_collected: (id) => `/sales/payments-received/${id}`,
   cheque_bounced: (id) => `/sales/payments-received/${id}`,
-  cheque_cleared: (id) => `/purchases/supplier-payments?view=${id}`,
+  cheque_cleared: (id) => `/purchases/supplier-payments/${id}`,
 };
 
 /** /accounting/journal-entries/:id — one entry: header, lines with totals, and what can be done with it. */

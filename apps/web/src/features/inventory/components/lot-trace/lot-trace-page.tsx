@@ -22,7 +22,7 @@ import {
 } from '@erp-platform/ui';
 
 import { useLotTrace } from '../../api/reports/queries';
-import { useLocationLookups } from '../../hooks/stock/use-location-lookups';
+import { useLocationLookups } from '../../api/warehouses/queries';
 import { DocumentReference } from '../document-reference';
 
 /**

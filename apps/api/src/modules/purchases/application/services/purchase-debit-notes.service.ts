@@ -9,11 +9,13 @@ import {
   parseSnapshot,
   toSnapshot,
   totalsToDto,
+  type DocumentTotals,
   type LineTaxSnapshot,
 } from '../../../../shared/taxes/line-tax-snapshot';
 import { localIsoDate } from '../../../../shared/time/local-date';
 import { lockRowsForUpdate } from '../../../../shared/persistence/row-locks';
 import { NumberingSequencesService } from '../../../settings/application/services/numbering-sequences.service';
+import { NotFoundError } from '../errors';
 
 export const PURCHASE_DEBIT_NOTE_ISSUED = 'purchases.purchase_debit_note.issued';
 
@@ -238,6 +240,46 @@ export class PurchaseDebitNotesService {
     return result;
   }
 
+  /** Notes with their totals, newest first (optionally one supplier's or one return's). */
+  async list(
+    db: Kysely<TenantDatabase>,
+    filter: { supplierId?: string; purchaseReturnId?: string } = {},
+  ): Promise<DebitNoteRecord[]> {
+    let query = db
+      .selectFrom('purchase_debit_notes as dn')
+      .innerJoin('purchase_returns as pr', 'pr.id', 'dn.purchase_return_id')
+      .select(['dn.id', 'dn.debit_note_number', 'dn.purchase_return_id', 'dn.supplier_id', 'dn.debit_note_date', 'dn.currency', 'dn.created_at', 'pr.return_number'])
+      .orderBy('dn.created_at', 'desc');
+    if (filter.supplierId) query = query.where('dn.supplier_id', '=', filter.supplierId);
+    if (filter.purchaseReturnId) query = query.where('dn.purchase_return_id', '=', filter.purchaseReturnId);
+    const notes = await query.execute();
+    if (notes.length === 0) return [];
+    const lines = await this.noteLines(db, notes.map((n) => n.id));
+    return notes.map((note) => toRecord(note, lines.filter((line) => line.purchase_debit_note_id === note.id)));
+  }
+
+  async getById(db: Kysely<TenantDatabase>, id: string): Promise<DebitNoteRecord> {
+    const note = await db
+      .selectFrom('purchase_debit_notes as dn')
+      .innerJoin('purchase_returns as pr', 'pr.id', 'dn.purchase_return_id')
+      .select(['dn.id', 'dn.debit_note_number', 'dn.purchase_return_id', 'dn.supplier_id', 'dn.debit_note_date', 'dn.currency', 'dn.created_at', 'pr.return_number'])
+      .where('dn.id', '=', id)
+      .executeTakeFirst();
+    if (!note) {
+      throw new NotFoundError(`Purchase debit note "${id}" was not found.`, { code: 'PURCHASE_DEBIT_NOTE.NOT_FOUND' });
+    }
+    return toRecord(note, await this.noteLines(db, [note.id]));
+  }
+
+  private noteLines(db: Kysely<TenantDatabase>, noteIds: string[]) {
+    return db
+      .selectFrom('purchase_debit_note_lines')
+      .select(['id', 'purchase_debit_note_id', 'purchase_return_line_id', 'purchase_order_line_id', 'product_variant_id', 'base_quantity', 'net_amount', 'taxes'])
+      .where('purchase_debit_note_id', 'in', noteIds)
+      .orderBy('id')
+      .execute();
+  }
+
   private async debitedByOrderLine(trx: Kysely<TenantDatabase>, poLineIds: string[]): Promise<Map<string, number>> {
     if (poLineIds.length === 0) return new Map();
     const rows = await trx
@@ -248,6 +290,77 @@ export class PurchaseDebitNotesService {
       .execute();
     return new Map(rows.map((row) => [row.purchase_order_line_id, Number(row.quantity)]));
   }
+}
+
+export interface DebitNoteLineRecord {
+  id: string;
+  purchaseReturnLineId: string;
+  purchaseOrderLineId: string;
+  productVariantId: string;
+  baseQuantity: number;
+  netAmount: Money;
+  taxes: LineTaxSnapshot[];
+}
+
+export interface DebitNoteRecord {
+  id: string;
+  debitNoteNumber: string;
+  purchaseReturnId: string;
+  returnNumber: string;
+  supplierId: string;
+  debitNoteDate: string;
+  currency: string;
+  createdAt: Date;
+  lines: DebitNoteLineRecord[];
+  totals: DocumentTotals;
+}
+
+function toRecord(
+  note: {
+    id: string;
+    debit_note_number: string;
+    purchase_return_id: string;
+    supplier_id: string;
+    debit_note_date: string | Date;
+    currency: string;
+    created_at: Date;
+    return_number: string;
+  },
+  lines: readonly {
+    id: string;
+    purchase_return_line_id: string;
+    purchase_order_line_id: string;
+    product_variant_id: string;
+    base_quantity: string;
+    net_amount: string;
+    taxes: unknown;
+  }[],
+): DebitNoteRecord {
+  const mapped = lines.map((line) => ({
+    id: line.id,
+    purchaseReturnLineId: line.purchase_return_line_id,
+    purchaseOrderLineId: line.purchase_order_line_id,
+    productVariantId: line.product_variant_id,
+    baseQuantity: Number(line.base_quantity),
+    netAmount: Money.fromMinorUnits(BigInt(line.net_amount), note.currency),
+    taxes: parseSnapshot(line.taxes),
+  }));
+  const zero = Money.fromMinorUnits(0n, note.currency);
+  return {
+    id: note.id,
+    debitNoteNumber: note.debit_note_number,
+    purchaseReturnId: note.purchase_return_id,
+    returnNumber: note.return_number,
+    supplierId: note.supplier_id,
+    debitNoteDate: calendarDate(note.debit_note_date),
+    currency: note.currency,
+    createdAt: note.created_at,
+    lines: mapped,
+    totals:
+      mapped.length > 0
+        ? documentTotals(mapped)
+        : { netAmount: zero, tableTaxAmount: zero, vatAmount: zero, withholdingAmount: zero, totalAmount: zero },
+  };
 }
 
 /** YYYY-MM-DD of a DATE column (pg may hand it back as a local-midnight Date). */

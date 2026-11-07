@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Plus, Trash2 } from 'lucide-react';
-import type { ProductVariantLookupDto, SavePriceListItemDto } from '@erp-platform/contracts';
+import type { PriceListKindDto, ProductVariantLookupDto, SavePriceListItemDto } from '@erp-platform/contracts';
 import {
   Button,
   Can,
@@ -31,6 +31,7 @@ import { decimalToMinorUnits, minorUnitsToDecimalString } from '../../../../lib/
 import { useVariantLookupMap } from '../../../inventory/api/products/queries';
 import { useTenantSettings } from '../../../settings/queries';
 import { useDeletePriceList, usePriceList, useSavePriceList } from '../../api/price-lists/queries';
+import { PRICE_LIST_KINDS } from '../../api/price-lists/price-list-kind';
 
 interface ItemRow {
   key: string;
@@ -45,17 +46,19 @@ let keySeq = 0;
 const newKey = () => `row-${++keySeq}`;
 const emptyRow = (): ItemRow => ({ key: newKey(), variantId: '', allVariants: false, minQuantity: '', price: '' });
 
-/** A price list: header + its fixed prices (per product or per variant, with optional quantity breaks). */
-export function PriceListEditorPage() {
+/** A price list (sales, or supplier with kind 'purchase'): header + its fixed prices (per product or per variant, with optional quantity breaks). */
+export function PriceListEditorPage({ kind = 'sale' }: { kind?: PriceListKindDto }) {
+  const config = PRICE_LIST_KINDS[kind];
+  const listTitleKey = kind === 'purchase' ? 'priceLists.purchaseTitle' : 'priceLists.title';
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const isNew = !id || id === 'new';
-  const { data: list, isLoading } = usePriceList(isNew ? undefined : id);
+  const { data: list, isLoading } = usePriceList(isNew ? undefined : id, kind);
   const { data: tenantSettings } = useTenantSettings();
   const variants = useVariantLookupMap();
-  const save = useSavePriceList();
-  const remove = useDeletePriceList();
+  const save = useSavePriceList(kind);
+  const remove = useDeletePriceList(kind);
 
   const [header, setHeader] = useState({ name: '', currency: '', discountPercent: '', isActive: true, notes: '' });
   const [rows, setRows] = useState<ItemRow[]>(() => [emptyRow()]);
@@ -155,7 +158,7 @@ export function PriceListEditorPage() {
         },
       });
       toast.success(t('priceLists.saved'));
-      if (isNew) navigate(`/sales/price-lists/${saved.id}`, { replace: true });
+      if (isNew) navigate(`${config.path}/${saved.id}`, { replace: true });
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : t('common.error'));
     }
@@ -166,7 +169,7 @@ export function PriceListEditorPage() {
     try {
       await remove.mutateAsync(id);
       toast.success(t('priceLists.deleted'));
-      navigate('/sales/price-lists');
+      navigate(config.path);
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : t('common.error'));
     }
@@ -177,12 +180,12 @@ export function PriceListEditorPage() {
   return (
     <div>
       <DocumentHeaderBar
-        backTo="/sales/price-lists"
-        backLabel={t('priceLists.title')}
-        eyebrow={t('priceLists.title')}
+        backTo={config.path}
+        backLabel={t(listTitleKey)}
+        eyebrow={t(listTitleKey)}
         title={isNew ? t('priceLists.add') : header.name || list?.name}
         actions={
-          <Can permission="sales.manage">
+          <Can permission={config.permission}>
             {!isNew ? (
               <Button variant="outline" onClick={onDelete} disabled={remove.isPending}>
                 {t('common.delete')}
@@ -259,7 +262,7 @@ export function PriceListEditorPage() {
                   {visible.map((row) => {
                     const variant = variants.get(row.variantId);
                     const siblings = variant ? (variantsByProduct.get(variant.productId)?.length ?? 1) : 1;
-                    const normal = variant ? unitPriceText(variant, null, 'sale', header.currency) : null;
+                    const normal = variant ? unitPriceText(variant, null, config.priceKind, header.currency) : null;
                     return (
                       <TableRow key={row.key}>
                         <TableCell>

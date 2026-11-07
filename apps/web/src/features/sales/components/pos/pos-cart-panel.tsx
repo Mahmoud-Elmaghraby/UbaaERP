@@ -155,8 +155,8 @@ export function PosCartPanel({ session }: { session: PosSessionDto }) {
   // The walk-in sentinel stands for the tenant's Walk-in Customer, whose list applies too.
   const pricedCustomer = customerId === WALK_IN_SENTINEL ? walkInCustomer : (customers ?? []).find((c) => c.id === customerId);
   const { priceListId, setPriceListId, pricer } = useDocumentPriceList<CartLine>({
-    customerPriceListId: pricedCustomer?.priceListId,
-    customerId,
+    partyPriceListId: pricedCustomer?.priceListId,
+    partyId: customerId,
     currency,
     variants,
     setLines,

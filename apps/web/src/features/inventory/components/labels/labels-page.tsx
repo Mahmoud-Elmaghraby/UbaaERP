@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
+import { useLocation } from 'react-router-dom';
 import { Printer, Tags, Trash2 } from 'lucide-react';
 import type { ProductVariantLookupDto } from '@erp-platform/contracts';
 import {
@@ -41,6 +42,11 @@ interface LabelLine {
   copies: string;
 }
 
+/** Router state that opens this page with items already chosen (product page, goods receipt). */
+export interface LabelsPrefillState {
+  labels?: { variantId: string; copies: number }[];
+}
+
 /** The code printed on a label: the barcode, else an ASCII SKU (Code 128), else nothing scannable. */
 function labelCode(variant: ProductVariantLookupDto): string | null {
   if (variant.barcode) return variant.barcode;
@@ -56,7 +62,10 @@ function labelCode(variant: ProductVariantLookupDto): string | null {
 export function LabelsPage() {
   const { t } = useTranslation();
   const variants = useVariantLookupMap();
-  const [lines, setLines] = useState<LabelLine[]>([]);
+  const location = useLocation();
+  const [lines, setLines] = useState<LabelLine[]>(() =>
+    ((location.state as LabelsPrefillState | null)?.labels ?? []).map((l) => ({ variantId: l.variantId, copies: String(l.copies) })),
+  );
   const [layout, setLayout] = useState<LayoutKey>('roll38x25');
   const [showPrice, setShowPrice] = useState(true);
   const [showName, setShowName] = useState(true);
@@ -237,13 +246,21 @@ function Label({
   showPrice: boolean;
 }) {
   const code = labelCode(variant);
+  const options = Object.values(variant.attributeValues ?? {})
+    .filter((value) => value !== null && value !== undefined && String(value).trim() !== '')
+    .map(String)
+    .join(' / ');
   return (
     <div
       className="label flex flex-col items-center justify-center overflow-hidden bg-white px-[1.5mm] py-[1mm] text-black"
       style={{ width: `${widthMm}mm`, height: `${heightMm}mm` }}
     >
       {showName ? (
-        <p className="w-full truncate text-center text-[8pt] font-semibold leading-tight">{variantDisplayName(variant)}</p>
+        <p className="w-full truncate text-center text-[7.5pt] font-semibold leading-tight">{variant.productName}</p>
+      ) : null}
+      {options ? (
+        // Size / colour on its own line, so a shop assistant reads it at a glance.
+        <p className="w-full truncate text-center text-[8.5pt] font-bold leading-tight">{options}</p>
       ) : null}
       {code ? <BarcodeSvg value={code} height={36} className="my-[0.5mm] min-h-0 w-full flex-1" /> : null}
       {showPrice && variant.salePrice ? (

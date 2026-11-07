@@ -16,3 +16,5 @@ export const PURCHASE_REQUISITION_STATUS_VARIANT: Record<
 export function purchaseRequisitionStatusLabelKey(status: PurchaseRequisitionStatusDto): string {
   return `purchases.purchaseRequisitions.status.${status}`;
 }
+
+export const PURCHASE_REQUISITIONS_PATH = '/purchases/purchase-requisitions';

@@ -117,8 +117,8 @@ function QuotationEditor({ quotation }: { quotation: QuotationWithLinesDto | und
   const currency = quotation?.lines[0]?.unitPrice.currency || customer?.defaultCurrency || baseCurrency;
   const variants = useVariantLookupMap();
   const { priceListId, setPriceListId, pricer } = useDocumentPriceList<DirectLineDraft>({
-    customerPriceListId: customer?.priceListId,
-    customerId,
+    partyPriceListId: customer?.priceListId,
+    partyId: customerId,
     currency,
     variants,
     setLines,

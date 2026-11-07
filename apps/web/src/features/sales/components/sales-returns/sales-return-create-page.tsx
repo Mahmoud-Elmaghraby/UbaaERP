@@ -37,7 +37,7 @@ import { useDeliveries } from '../../api/deliveries/queries';
 import { useSalesOrders } from '../../api/sales-orders/queries';
 import { useCreateSalesReturn } from '../../api/sales-returns/queries';
 import { useDeliveryReturnable, type ReturnableDeliveryLine } from '../../hooks/sales-returns/use-delivery-returnable';
-import { useVariantIndex } from '../../hooks/sales-returns/use-variant-index';
+import { useVariantIndex } from '../../../../components/product/use-variant-index';
 import { ApiError } from '../../../../lib/api-client';
 import { todayIso } from '../../../../lib/format-date';
 import { DocumentBody, DocumentHeaderBar, SectionCard } from '../../../../components/document/document-layout';

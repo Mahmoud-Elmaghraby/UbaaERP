@@ -20,6 +20,7 @@ import { X } from 'lucide-react';
 
 import { Amount, AMOUNT_CELL } from '../../../../components/amount';
 import { PeriodPicker, ReportFrame, ReportSection, periodText, useReportParams } from '../../../../components/report/report-layout';
+import { formatPercent as formatMargin, formatQuantity, monthLabel } from '../../../../components/report/report-format';
 import { minorUnitsToDecimalString } from '../../../../lib/money';
 import { downloadXlsx } from '../../../../lib/xlsx';
 import { CustomerPicker } from '../../lib/customer-picker';
@@ -191,19 +192,4 @@ export function SalesAnalysisPage() {
       </ReportFrame>
     </div>
   );
-}
-
-function formatMargin(value: number | null): string {
-  return value === null ? '—' : `${value.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 2 })}%`;
-}
-
-function formatQuantity(value: number | null): string {
-  return value === null ? '—' : value.toLocaleString('en-US', { maximumFractionDigits: 3 });
-}
-
-/** "2026-11" → "نوفمبر 2026". */
-function monthLabel(key: string): string {
-  const [year, month] = key.split('-').map(Number);
-  if (!year || !month) return key;
-  return new Date(Date.UTC(year, month - 1, 1)).toLocaleDateString('ar-EG', { month: 'long', year: 'numeric', timeZone: 'UTC' });
 }

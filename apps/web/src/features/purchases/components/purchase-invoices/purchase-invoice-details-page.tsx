@@ -15,14 +15,14 @@ import {
   TableRow,
   useHasFeature,
 } from '@erp-platform/ui';
-import { CheckCircle2, FileQuestion, Info } from 'lucide-react';
+import { Banknote, CheckCircle2, FileQuestion, Info } from 'lucide-react';
 
 import { AttachmentsPanel } from '../../../attachments/components/attachments-panel';
 import { useSupplier } from '../../api/suppliers/queries';
 import { usePurchaseOrder } from '../../api/purchase-orders/queries';
 import { usePurchaseInvoice } from '../../api/purchase-invoices/queries';
 import { useSupplierOutstandingInvoices } from '../../api/supplier-payments/queries';
-import { useVariantIndex } from '../../hooks/purchase-invoices/use-variant-index';
+import { useVariantIndex } from '../../../../components/product/use-variant-index';
 import {
   DocumentBody,
   DocumentChain,
@@ -111,7 +111,7 @@ export function PurchaseInvoiceDetailsPage() {
       label: t('documents.steps.purchaseOrder'),
       detail: order?.poNumber,
       state: 'done',
-      to: '/purchases/purchase-orders',
+      to: `/purchases/purchase-orders/${invoice.purchaseOrderId}`,
     });
   }
   if (goodsReceiptsEnabled) {
@@ -132,7 +132,9 @@ export function PurchaseInvoiceDetailsPage() {
     key: 'payment',
     label: t('documents.steps.supplierPayment'),
     state: fullyPaid ? 'done' : isPosted ? 'current' : 'upcoming',
-    to: isPosted ? '/purchases/supplier-payments' : undefined,
+    to: isPosted && order && !fullyPaid
+      ? `/purchases/supplier-payments/new?supplierId=${order.supplierId}&invoiceId=${invoice.id}`
+      : undefined,
   });
 
   return (
@@ -177,6 +179,14 @@ export function PurchaseInvoiceDetailsPage() {
                   {t('purchases.purchaseInvoices.post')}
                 </Button>
               </>
+            ) : null}
+            {isPosted && order && settlement && !fullyPaid ? (
+              <Button asChild>
+                <Link to={`/purchases/supplier-payments/new?supplierId=${order.supplierId}&invoiceId=${invoice.id}`}>
+                  <Banknote />
+                  {t('purchases.purchaseInvoices.pay')}
+                </Link>
+              </Button>
             ) : null}
           </Can>
           </>

@@ -2,6 +2,8 @@ import { BadRequestException, Controller, Get, Query, UseGuards } from '@nestjs/
 import {
   itemCardSchema,
   lowStockRowSchema,
+  movementAnalysisRowSchema,
+  type MovementAnalysisRowDto,
   lotTraceSchema,
   type LotTraceDto,
   stockValuationRowSchema,
@@ -112,6 +114,34 @@ export class InventoryReportsController {
     if (value.length > 100) throw new BadRequestException('lotNumber is too long.');
     const lots = await this.service.lotTrace(this.connections.getClient(schema), value);
     return lots.map((lot) => lotTraceSchema.parse(lot));
+  }
+
+  /** Best sellers / slow movers. Default period: the last 90 days. Costs only with inventory.costs.view. */
+  @Get('movement-analysis')
+  async movementAnalysis(
+    @CurrentTenantSchema() schema: string,
+    @CurrentUser() user: JwtAccessPayload,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+    @Query('warehouseId') warehouseId?: string,
+    @Query('categoryId') categoryId?: string,
+  ): Promise<MovementAnalysisRowDto[]> {
+    const end = optionalDay(to, true) ?? optionalDay(new Date().toISOString().slice(0, 10), true)!;
+    const start = optionalDay(from) ?? new Date(end.getTime() - 91 * 86_400_000);
+    const rows = await this.service.movementAnalysis(this.connections.getClient(schema), {
+      from: start,
+      to: end,
+      warehouseId: optionalUuid(warehouseId, 'warehouseId'),
+      categoryId: optionalUuid(categoryId, 'categoryId'),
+    });
+    const showCost = canViewCosts(user.permissions);
+    return rows.map((row) =>
+      movementAnalysisRowSchema.parse({
+        ...row,
+        stockValueMinorUnits: showCost ? row.stockValueMinor : null,
+        soldCostMinorUnits: showCost ? row.soldCostMinor : null,
+      }),
+    );
   }
 
   @Get('low-stock')

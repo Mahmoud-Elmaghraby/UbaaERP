@@ -7,3 +7,5 @@ export * from './goods-receipt.contract';
 export * from './purchase-return.contract';
 export * from './purchase-invoice.contract';
 export * from './supplier-payment.contract';
+export * from './purchase-debit-note.contract';
+export * from './purchase-analysis.contract';

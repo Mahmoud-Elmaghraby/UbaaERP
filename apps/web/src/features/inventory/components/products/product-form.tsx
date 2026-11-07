@@ -39,7 +39,7 @@ import { decimalToMinorUnits } from '../../../../lib/money';
 
 const PRODUCT_ENTITY_TYPE = 'product';
 
-export function CreateProductForm({ onDone }: { onDone: () => void }) {
+export function CreateProductForm({ onDone }: { onDone: (productId: string) => void }) {
   const { t } = useTranslation();
   const createProduct = useCreateProduct();
   const { data: definitions, isLoading: definitionsLoading } = useCustomFieldDefinitions(PRODUCT_ENTITY_TYPE);
@@ -110,7 +110,7 @@ export function CreateProductForm({ onDone }: { onDone: () => void }) {
       ownPrices.push({ attributeValues: combo.values, salePrice: { amountMinorUnits: minor, currency } });
     }
     try {
-      await createProduct.mutateAsync({
+      const created = await createProduct.mutateAsync({
         ...values,
         ...resolvedPrices,
         code: values.code?.trim() || undefined,
@@ -127,7 +127,7 @@ export function CreateProductForm({ onDone }: { onDone: () => void }) {
       form.reset();
       setOptions([]);
       setVariantPrices({});
-      onDone();
+      onDone(created.id);
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : t('inventory.products.createError'));
     }
@@ -265,7 +265,7 @@ export function CreateProductForm({ onDone }: { onDone: () => void }) {
   );
 }
 
-export function EditProductForm({ product, onDone }: { product: ProductDto; onDone: () => void }) {
+export function EditProductForm({ product, onDone }: { product: ProductDto; onDone: (productId: string) => void }) {
   const { t } = useTranslation();
   const updateProduct = useUpdateProduct();
   const { data: definitions, isLoading: definitionsLoading } = useCustomFieldDefinitions(PRODUCT_ENTITY_TYPE);
@@ -312,7 +312,7 @@ export function EditProductForm({ product, onDone }: { product: ProductDto; onDo
         input: { ...values, ...resolvedPrices, description: values.description || null },
       });
       toast.success(t('inventory.products.updateSuccess'));
-      onDone();
+      onDone(product.id);
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : t('inventory.products.updateError'));
     }

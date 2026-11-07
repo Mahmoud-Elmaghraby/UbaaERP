@@ -1,4 +1,4 @@
-import { PriceListsController } from './presentation/price-lists.controller';
+import { PriceListsController, PurchasePriceListsController } from './presentation/price-lists.controller';
 import { PriceListsService } from './application/services/price-lists.service';
 import { SalesChannelsController } from './presentation/sales-channels.controller';
 import { SalesChannelsService } from './application/services/sales-channels.service';
@@ -223,6 +223,7 @@ import { StockAvailabilityChecker } from '../../shared/catalog/stock-availabilit
     SalesChannelsController,
     SalesRepsController,
     PriceListsController,
+    PurchasePriceListsController,
     CustomerStatementsController,
     EtaCredentialsController,
     QuotationsController,

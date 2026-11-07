@@ -13,3 +13,5 @@ export const GOODS_RECEIPT_STATUS_VARIANT: Record<
 export function goodsReceiptStatusLabelKey(status: GoodsReceiptStatusDto): string {
   return `purchases.goodsReceipts.status.${status}`;
 }
+
+export const GOODS_RECEIPTS_PATH = '/purchases/goods-receipts';

@@ -7,7 +7,15 @@ const InventorySettingsPage = lazy(() =>
   import('./components/inventory-settings-page').then((m) => ({ default: m.InventorySettingsPage })),
 );
 const ProductsPage = lazy(() => import('./components/products').then((m) => ({ default: m.ProductsPage })));
+const ProductEditorPage = lazy(() => import('./components/products').then((m) => ({ default: m.ProductEditorPage })));
+const ProductPage = lazy(() => import('./components/products').then((m) => ({ default: m.ProductPage })));
 const WarehousesPage = lazy(() => import('./components/warehouses').then((m) => ({ default: m.WarehousesPage })));
+const WarehouseEditorPage = lazy(() => import('./components/warehouses').then((m) => ({ default: m.WarehouseEditorPage })));
+const WarehousePage = lazy(() => import('./components/warehouses').then((m) => ({ default: m.WarehousePage })));
+const UnitEditorPage = lazy(() => import('./components/units-of-measure').then((m) => ({ default: m.UnitEditorPage })));
+const RecordMovementPage = lazy(() => import('./components/stock').then((m) => ({ default: m.RecordMovementPage })));
+const ApplyLandedCostPage = lazy(() => import('./components/landed-costs').then((m) => ({ default: m.ApplyLandedCostPage })));
+const LandedCostPage = lazy(() => import('./components/landed-costs').then((m) => ({ default: m.LandedCostPage })));
 const UnitsOfMeasurePage = lazy(() =>
   import('./components/units-of-measure').then((m) => ({ default: m.UnitsOfMeasurePage })),
 );
@@ -20,6 +28,7 @@ const StockCountPage = lazy(() => import('./components/counts').then((m) => ({ d
 const ItemCardPage = lazy(() => import('./components/reports').then((m) => ({ default: m.ItemCardPage })));
 const ValuationPage = lazy(() => import('./components/reports').then((m) => ({ default: m.ValuationPage })));
 const LowStockPage = lazy(() => import('./components/reports').then((m) => ({ default: m.LowStockPage })));
+const MovementAnalysisPage = lazy(() => import('./components/reports').then((m) => ({ default: m.MovementAnalysisPage })));
 const StockPage = lazy(() => import('./components/stock').then((m) => ({ default: m.StockPage })));
 const StockTransfersPage = lazy(() =>
   import('./components/transfers').then((m) => ({ default: m.StockTransfersPage })),
@@ -56,20 +65,32 @@ export const inventoryRoutes: RouteObject[] = [
     children: [
       { index: true, element: <FirstAllowedRedirect section="/inventory" fallback="/inventory/products" /> },
       { path: 'products', element: <ProductsPage /> },
+      { path: 'products/new', element: <ProductEditorPage /> },
+      { path: 'products/:id', element: <ProductPage /> },
+      { path: 'products/:id/edit', element: <ProductEditorPage /> },
       { path: 'settings', element: <InventorySettingsPage /> },
       { path: 'catalog', element: <CatalogPage /> },
       { path: 'labels', element: <LabelsPage /> },
       { path: 'warehouses', element: <WarehousesPage /> },
+      { path: 'warehouses/new', element: <WarehouseEditorPage /> },
+      { path: 'warehouses/:id', element: <WarehousePage /> },
+      { path: 'warehouses/:id/edit', element: <WarehouseEditorPage /> },
       { path: 'units-of-measure', element: <UnitsOfMeasurePage /> },
+      { path: 'units-of-measure/new', element: <UnitEditorPage /> },
+      { path: 'units-of-measure/:id/edit', element: <UnitEditorPage /> },
       { path: 'stock', element: <StockPage /> },
+      { path: 'stock/movements/new', element: <RecordMovementPage /> },
       { path: 'counts', element: <StockCountsPage /> },
       { path: 'counts/:id', element: <StockCountPage /> },
       { path: 'item-card', element: <ItemCardPage /> },
       { path: 'valuation', element: <ValuationPage /> },
       { path: 'low-stock', element: <LowStockPage /> },
+      { path: 'movement-analysis', element: <MovementAnalysisPage /> },
       { path: 'expiry', element: <ExpiryReportPage /> },
       { path: 'lot-trace', element: <LotTracePage /> },
       { path: 'landed-costs', element: <LandedCostsPage /> },
+      { path: 'landed-costs/new', element: <ApplyLandedCostPage /> },
+      { path: 'landed-costs/:id', element: <LandedCostPage /> },
       { path: 'transfers', element: <StockTransfersPage /> },
       { path: 'transfers/:id', element: <StockTransferPage /> },
       { path: 'adjustments', element: <StockAdjustmentsPage /> },

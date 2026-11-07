@@ -11,7 +11,7 @@ import {
 } from '@erp-platform/ui';
 
 import { useStockLots } from '../../api/stock/queries';
-import { useLocationLookups } from '../../hooks/stock/use-location-lookups';
+import { useLocationLookups } from '../../api/warehouses/queries';
 import { formatMoney } from '../../../../lib/money';
 
 export function StockLotsView({ productVariantId }: { productVariantId: string | undefined }) {
@@ -21,7 +21,7 @@ export function StockLotsView({ productVariantId }: { productVariantId: string |
 
   if (!productVariantId) {
     return (
-      <div className="rounded-md border p-8 text-center text-sm text-muted-foreground">
+      <div className="rounded-xl border bg-card p-8 text-center text-sm text-muted-foreground">
         {t('inventory.stock.selectVariantForLots')}
       </div>
     );
@@ -32,6 +32,7 @@ export function StockLotsView({ productVariantId }: { productVariantId: string |
   }
 
   return (
+    <div className="overflow-hidden rounded-xl border bg-card shadow-card">
     <Table>
       <TableHeader>
         <TableRow>
@@ -68,5 +69,6 @@ export function StockLotsView({ productVariantId }: { productVariantId: string |
         ) : null}
       </TableBody>
     </Table>
+    </div>
   );
 }

@@ -1,6 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type {
-  DocumentShareLinkDto,
   GenerateSalesInvoiceInstallmentsDto,
   InstallmentDueRowDto,
   PlannedInstallmentDto,
@@ -59,9 +58,4 @@ export function useInstallmentsDue(filters: InstallmentsDueFilters) {
       return apiGet<InstallmentDueRowDto[]>(`/sales-installments${qs ? `?${qs}` : ''}`);
     },
   });
-}
-
-/** A public view link (30 days) for an invoice or a receipt. */
-export function createShareLink(kind: 'sales-invoices' | 'payments-received', id: string) {
-  return apiPost<DocumentShareLinkDto>(`/${kind}/${id}/share-link`);
 }

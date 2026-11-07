@@ -15,6 +15,8 @@ export interface StockLevelFilters {
   warehouseId?: string;
   locationId?: string;
   productVariantId?: string;
+  /** Every variant of one product. */
+  productId?: string;
 }
 
 // `filters` is typed as `object` (not `Record<string, ...>`) on purpose: StockLevelFilters/

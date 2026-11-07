@@ -23,12 +23,18 @@ function toDomain(row: Selectable<StockLevelsTable>): StockLevel {
 export class KyselyStockLevelRepository implements StockLevelRepository {
   async list(
     db: Kysely<TenantDatabase>,
-    filter?: { warehouseId?: string; locationId?: string; productVariantId?: string },
+    filter?: { warehouseId?: string; locationId?: string; productVariantId?: string; productId?: string },
   ): Promise<StockLevel[]> {
     let query = db.selectFrom('stock_levels').selectAll();
     if (filter?.warehouseId) query = query.where('warehouse_id', '=', filter.warehouseId);
     if (filter?.locationId) query = query.where('location_id', '=', filter.locationId);
     if (filter?.productVariantId) query = query.where('product_variant_id', '=', filter.productVariantId);
+    if (filter?.productId) {
+      const productId = filter.productId;
+      query = query.where('product_variant_id', 'in', (eb) =>
+        eb.selectFrom('product_variants').select('id').where('product_id', '=', productId),
+      );
+    }
     const rows = await query.execute();
     return rows.map(toDomain);
   }

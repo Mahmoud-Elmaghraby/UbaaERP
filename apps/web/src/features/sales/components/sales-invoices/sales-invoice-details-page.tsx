@@ -25,7 +25,7 @@ import { usePaymentReceivedRegister } from '../../api/payments-received/queries'
 import { useQuotation } from '../../api/quotations/queries';
 import { useSalesOrder } from '../../api/sales-orders/queries';
 import { useSalesInvoice, useSalesInvoiceRegister } from '../../api/sales-invoices/queries';
-import { useVariantIndex } from '../../hooks/sales-invoices/use-variant-index';
+import { useVariantIndex } from '../../../../components/product/use-variant-index';
 import {
   DocumentBody,
   DocumentChain,
@@ -49,7 +49,7 @@ import { PrintButton } from '../../../../components/printing/print-button';
 import { useSalesRepName } from '../sales-reps/sales-rep-select';
 import { useTenantSettings } from '../../../settings/queries';
 import { formatMoney } from '../../../../lib/money';
-import { WhatsAppShareButton } from '../../lib/whatsapp-share';
+import { WhatsAppShareButton } from '../../../../components/document/whatsapp-share';
 import { SalesInvoiceInstallmentsSection } from './sales-invoice-installments-section';
 
 const PAYMENTS_PATH = '/sales/payments-received';

@@ -13,3 +13,5 @@ export const PURCHASE_RETURN_STATUS_VARIANT: Record<
 export function purchaseReturnStatusLabelKey(status: PurchaseReturnStatusDto): string {
   return `purchases.purchaseReturns.status.${status}`;
 }
+
+export const PURCHASE_RETURNS_PATH = '/purchases/purchase-returns';

@@ -10,6 +10,7 @@ import type {
   ItemCardMovementRow,
   LotTraceRow,
   LowStockRow,
+  MovementAnalysisRow,
   ValuationRow,
 } from '../../application/ports/inventory-reports.repository';
 
@@ -34,6 +35,88 @@ const SIGNED_QUANTITY = sql<string>`CASE WHEN m.movement_type IN ('in', 'transfe
  * so it doesn't cross the event-bus rule (§2.6).
  */
 export class KyselyInventoryReportsRepository implements InventoryReportsRepository {
+  async movementAnalysis(
+    db: Kysely<TenantDatabase>,
+    filter: { from: Date; to: Date; warehouseId: string | null; categoryId: string | null },
+  ): Promise<MovementAnalysisRow[]> {
+    const { from, to, warehouseId, categoryId } = filter;
+    const movementValue = sql`COALESCE(m.total_cost_amount, ROUND(m.quantity * COALESCE(m.unit_cost_amount, m.resulting_average_cost_amount)))`;
+    const result = await sql<{
+      product_variant_id: string;
+      product_id: string;
+      product_name: string;
+      product_code: string;
+      sku: string;
+      attribute_values: Record<string, unknown> | null;
+      category_name: string | null;
+      on_hand: string;
+      stock_value: string;
+      sold: string;
+      sold_cost: string;
+      received: string;
+      last_sale: string | null;
+      last_movement: string | null;
+    }>`
+      WITH RECURSIVE cats AS (
+        SELECT id FROM product_categories WHERE id = ${categoryId}::uuid
+        UNION ALL
+        SELECT c.id FROM product_categories c JOIN cats ON c.parent_id = cats.id
+      ),
+      lv AS (
+        SELECT sl.product_variant_id, SUM(sl.quantity_on_hand) AS on_hand, SUM(sl.inventory_value_amount) AS value
+          FROM stock_levels sl
+         WHERE (${warehouseId}::uuid IS NULL OR sl.warehouse_id = ${warehouseId}::uuid)
+         GROUP BY sl.product_variant_id
+      ),
+      mv AS (
+        SELECT m.product_variant_id,
+               SUM(CASE WHEN m.created_at >= ${from} AND m.created_at < ${to} AND m.reference_type = 'delivery' AND m.movement_type = 'out' THEN m.quantity
+                        WHEN m.created_at >= ${from} AND m.created_at < ${to} AND m.reference_type = 'sales_return' AND m.movement_type = 'in' THEN -m.quantity
+                        ELSE 0 END) AS sold,
+               SUM(CASE WHEN m.created_at >= ${from} AND m.created_at < ${to} AND m.reference_type = 'delivery' AND m.movement_type = 'out' THEN ${movementValue}
+                        WHEN m.created_at >= ${from} AND m.created_at < ${to} AND m.reference_type = 'sales_return' AND m.movement_type = 'in' THEN -${movementValue}
+                        ELSE 0 END) AS sold_cost,
+               SUM(CASE WHEN m.created_at >= ${from} AND m.created_at < ${to} AND m.reference_type = 'goods_receipt' AND m.movement_type = 'in' THEN m.quantity
+                        ELSE 0 END) AS received,
+               MAX(CASE WHEN m.created_at < ${to} AND m.reference_type = 'delivery' AND m.movement_type = 'out' THEN m.created_at END) AS last_sale,
+               MAX(CASE WHEN m.created_at < ${to} THEN m.created_at END) AS last_movement
+          FROM stock_movements m
+         WHERE (${warehouseId}::uuid IS NULL OR m.warehouse_id = ${warehouseId}::uuid)
+         GROUP BY m.product_variant_id
+      )
+      SELECT v.id AS product_variant_id, p.id AS product_id, p.name AS product_name, p.code AS product_code, v.sku,
+             v.attribute_values, c.name AS category_name,
+             COALESCE(lv.on_hand, 0)::text AS on_hand, ROUND(COALESCE(lv.value, 0))::bigint::text AS stock_value,
+             COALESCE(mv.sold, 0)::text AS sold, ROUND(COALESCE(mv.sold_cost, 0))::bigint::text AS sold_cost,
+             COALESCE(mv.received, 0)::text AS received,
+             to_char(mv.last_sale, 'YYYY-MM-DD') AS last_sale, to_char(mv.last_movement, 'YYYY-MM-DD') AS last_movement
+        FROM product_variants v
+        JOIN products p ON p.id = v.product_id
+        LEFT JOIN product_categories c ON c.id = p.category_id
+        LEFT JOIN lv ON lv.product_variant_id = v.id
+        LEFT JOIN mv ON mv.product_variant_id = v.id
+       WHERE p.item_type = 'stock'
+         AND (COALESCE(lv.on_hand, 0) <> 0 OR COALESCE(mv.sold, 0) <> 0)
+         AND (${categoryId}::uuid IS NULL OR p.category_id IN (SELECT id FROM cats))
+       ORDER BY p.name, v.sku
+    `.execute(db);
+    return result.rows.map((row) => ({
+      productVariantId: row.product_variant_id,
+      productId: row.product_id,
+      productName: row.product_name,
+      productCode: row.product_code,
+      sku: row.sku,
+      attributeValues: row.attribute_values ?? {},
+      categoryName: row.category_name,
+      onHand: Number(row.on_hand),
+      stockValueMinor: row.stock_value,
+      soldQuantity: Number(row.sold),
+      soldCostMinor: row.sold_cost,
+      receivedQuantity: Number(row.received),
+      lastSaleDate: row.last_sale,
+      lastMovementDate: row.last_movement,
+    }));
+  }
   async quantityBefore(
     db: Kysely<TenantDatabase>,
     productVariantId: string,

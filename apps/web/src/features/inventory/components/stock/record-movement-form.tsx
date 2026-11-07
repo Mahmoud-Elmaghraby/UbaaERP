@@ -30,7 +30,14 @@ import type { DirectMovementType } from './stock-utils';
  * `recordStockMovementSchema` remains the source of truth for validation; a rejected
  * request surfaces the backend's own error message via ApiError.
  */
-export function RecordMovementForm({ onDone }: { onDone: () => void }) {
+export function RecordMovementForm({
+  onDone,
+  initialWarehouseId,
+}: {
+  onDone: (warehouseId: string | undefined) => void;
+  /** e.g. opened from a warehouse page. */
+  initialWarehouseId?: string;
+}) {
   const { t } = useTranslation();
   const recordMovement = useRecordStockMovement();
   const { data: tenantSettings } = useTenantSettings();
@@ -39,7 +46,7 @@ export function RecordMovementForm({ onDone }: { onDone: () => void }) {
   const [productId, setProductId] = useState<string | undefined>();
   const [variantId, setVariantId] = useState<string | undefined>();
   const { data: productDetail } = useProduct(productId);
-  const [warehouseId, setWarehouseId] = useState<string | undefined>();
+  const [warehouseId, setWarehouseId] = useState<string | undefined>(initialWarehouseId);
   const [locationId, setLocationId] = useState<string | undefined>();
   const [movementType, setMovementType] = useState<DirectMovementType>('in');
   const [quantity, setQuantity] = useState('');
@@ -99,7 +106,7 @@ export function RecordMovementForm({ onDone }: { onDone: () => void }) {
         reasonId,
       });
       toast.success(t('inventory.stock.recordMovementSuccess'));
-      onDone();
+      onDone(warehouseId);
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : t('inventory.stock.recordMovementError'));
     }

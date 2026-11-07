@@ -35,7 +35,7 @@ import { BranchField } from './warehouse-form-fields';
 const WAREHOUSE_ENTITY_TYPE = 'warehouse';
 
 /** Same dynamic-custom-fields pattern as BranchesTab (CLAUDE.md §7). */
-export function CreateWarehouseForm({ onDone }: { onDone: () => void }) {
+export function CreateWarehouseForm({ onDone }: { onDone: (warehouseId: string) => void }) {
   const { t } = useTranslation();
   const createWarehouse = useCreateWarehouse();
   const { data: definitions, isLoading: definitionsLoading } =
@@ -57,10 +57,10 @@ export function CreateWarehouseForm({ onDone }: { onDone: () => void }) {
 
   async function onSubmit(values: CreateWarehouseDto) {
     try {
-      await createWarehouse.mutateAsync(values);
+      const created = await createWarehouse.mutateAsync(values);
       toast.success(t('inventory.warehouses.createSuccess'));
       form.reset();
-      onDone();
+      onDone(created.id);
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : t('inventory.warehouses.createError'));
     }
@@ -154,7 +154,7 @@ export function CreateWarehouseForm({ onDone }: { onDone: () => void }) {
   );
 }
 
-export function EditWarehouseForm({ warehouse, onDone }: { warehouse: WarehouseDto; onDone: () => void }) {
+export function EditWarehouseForm({ warehouse, onDone }: { warehouse: WarehouseDto; onDone: (warehouseId: string) => void }) {
   const { t } = useTranslation();
   const updateWarehouse = useUpdateWarehouse();
   const { data: definitions, isLoading: definitionsLoading } =
@@ -182,7 +182,7 @@ export function EditWarehouseForm({ warehouse, onDone }: { warehouse: WarehouseD
     try {
       await updateWarehouse.mutateAsync({ id: warehouse.id, input: values });
       toast.success(t('inventory.warehouses.updateSuccess'));
-      onDone();
+      onDone(warehouse.id);
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : t('inventory.warehouses.updateError'));
     }

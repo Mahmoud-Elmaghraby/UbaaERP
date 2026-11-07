@@ -1,5 +1,8 @@
 import { PurchasesTreasuryMovements } from './infrastructure/statements/purchases-treasury-movements';
 import { SupplierStatementsController } from './presentation/supplier-statements.controller';
+import { PurchaseDebitNotesController } from './presentation/purchase-debit-notes.controller';
+import { PurchaseReportsController } from './presentation/purchase-reports.controller';
+import { PurchaseAnalysisService } from './application/services/purchase-analysis.service';
 import { SupplierLedgerSource } from './infrastructure/statements/supplier-ledger.source';
 import { Module } from '@nestjs/common';
 import { PurchaseOrderPrintProvider } from './infrastructure/printing/purchase-order.print-provider';
@@ -138,6 +141,8 @@ import { StockAvailabilityChecker } from '../../shared/catalog/stock-availabilit
   controllers: [
     SuppliersController,
     SupplierStatementsController,
+    PurchaseDebitNotesController,
+    PurchaseReportsController,
     PurchaseRequisitionsController,
     RfqsController,
     SupplierQuotationsController,
@@ -185,6 +190,7 @@ import { StockAvailabilityChecker } from '../../shared/catalog/stock-availabilit
     GoodsReceiptsService,
     PurchaseReturnsService,
     PurchaseDebitNotesService,
+    PurchaseAnalysisService,
     PurchaseInvoicesService,
     SupplierPaymentsService,
     PurchasesEventPublisher,

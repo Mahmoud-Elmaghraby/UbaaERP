@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import {
@@ -77,6 +77,11 @@ import { receiptLotsToDto, withImplicitSingleLotQuantity } from '../../../../com
 import { useVariantLookupMap } from '../../../inventory/api/products/queries';
 import { WhenTaxesInUse } from '../../../../components/taxes/when-taxes-in-use';
 import { confirmDialog } from '../../../../components/feedback/confirm-dialog';
+import { LastPurchasePrice } from '../../lib/last-purchase-price';
+import { SupplierPicker } from '../../lib/supplier-picker';
+import { draftsFromPrefill, fillMissingPrices, readPrefillLines } from '../../lib/prefill-lines';
+import { useDocumentPriceList } from '../../../sales/api/price-lists/use-document-price-list';
+import { PriceListSelect } from '../../../sales/components/price-lists/price-list-select';
 
 const PURCHASE_INVOICE_ENTITY_TYPE = 'purchase_invoice';
 
@@ -163,7 +168,12 @@ export function PurchaseInvoiceCreatePage() {
   );
 
   const [drafts, setDrafts] = useState<PurchaseInvoiceLineDrafts>({});
-  const [directLines, setDirectLines] = useState<DirectLineDraft[]>(() => [newDirectLine()]);
+  const location = useLocation();
+  // Direct invoice from the low-stock list (Purchase Orders off): its items arrive as router state.
+  const [directLines, setDirectLines] = useState<DirectLineDraft[]>(() => {
+    const prefill = readPrefillLines(location.state);
+    return prefill.length > 0 ? draftsFromPrefill(prefill) : [newDirectLine()];
+  });
   const [linesError, setLinesError] = useState<string | null>(null);
   // A ref, not state: the clicked button sets it right before the form's submit
   // handler runs, and that handler must see the new value in the same tick.
@@ -190,7 +200,8 @@ export function PurchaseInvoiceCreatePage() {
   const form = useForm<HeaderFormValues>({
     resolver: zodResolver(formSchema as z.ZodType<HeaderFormValues>),
     defaultValues: {
-      purchaseOrderId: '',
+      // Opened from a purchase order's page: /purchases/purchase-invoices/new?purchaseOrderId=…
+      purchaseOrderId: new URLSearchParams(window.location.search).get('purchaseOrderId') ?? '',
       supplierId: '',
       warehouseId: '',
       supplierInvoiceNumber: '',
@@ -226,6 +237,20 @@ export function PurchaseInvoiceCreatePage() {
   const currency = directMode
     ? (supplier?.defaultCurrency ?? '')
     : (invoiceableLines[0]?.unitPrice.currency ?? '');
+
+  // Supplier price list (direct invoices): follows the supplier's default, can be switched by hand.
+  const { priceListId, setPriceListId, pricer } = useDocumentPriceList<DirectLineDraft>({
+    partyPriceListId: supplier?.priceListId,
+    partyId: directMode ? selectedSupplierId : null,
+    currency,
+    variants: variantMap,
+    setLines: setDirectLines,
+    kind: 'purchase',
+  });
+
+  useEffect(() => {
+    if (directMode) setDirectLines((current) => fillMissingPrices(current, variantMap, pricer));
+  }, [directMode, variantMap, pricer]);
 
   // The invoicing worksheet's rows depend entirely on which purchase order is selected —
   // reset the drafts whenever that changes, same as the delivering/returnable worksheets.
@@ -436,20 +461,10 @@ export function PurchaseInvoiceCreatePage() {
                         render={({ field }) => (
                           <FormItem className="sm:col-span-2">
                             <FormLabel>{t('purchases.purchaseInvoices.supplier')}</FormLabel>
-                            <Select onValueChange={field.onChange} value={field.value ?? ''}>
-                              <FormControl>
-                                <SelectTrigger>
-                                  <SelectValue placeholder={t('documents.selectPlaceholder')} />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                {(suppliers ?? []).map((c) => (
-                                  <SelectItem key={c.id} value={c.id}>
-                                    {c.name} — {c.code}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
+                            <div className="grid gap-2 sm:grid-cols-[1fr_14rem]">
+                              <SupplierPicker value={field.value ?? ''} onChange={(id) => field.onChange(id)} />
+                              <PriceListSelect kind="purchase" value={priceListId} onChange={setPriceListId} currency={currency} />
+                            </div>
                             <FormMessage />
                           </FormItem>
                         )}
@@ -575,6 +590,16 @@ export function PurchaseInvoiceCreatePage() {
                       currency={currency}
                       receiveLots={needsWarehouse}
                       taxes={lineTaxes}
+                      pricer={pricer}
+                      priceHint={(line, setPrice) => (
+                        <LastPurchasePrice
+                          productVariantId={line.productVariantId}
+                          unitOfMeasureId={line.unitOfMeasureId}
+                          supplierId={selectedSupplierId}
+                          currency={currency}
+                          onUse={setPrice}
+                        />
+                      )}
                     />
                   ) : invoiceableLoading ? (
                     <div className="px-5 pb-5">

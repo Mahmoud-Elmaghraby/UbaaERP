@@ -247,8 +247,8 @@ export function SalesInvoiceCreatePage() {
     : (selectedOrder?.currency ?? invoiceableLines[0]?.unitPrice.currency ?? '');
   const variants = useVariantLookupMap();
   const { priceListId, setPriceListId, pricer } = useDocumentPriceList<DirectLineDraft>({
-    customerPriceListId: customer?.priceListId,
-    customerId: directMode ? selectedCustomerId : null,
+    partyPriceListId: customer?.priceListId,
+    partyId: directMode ? selectedCustomerId : null,
     currency,
     variants,
     setLines: setDirectLines,

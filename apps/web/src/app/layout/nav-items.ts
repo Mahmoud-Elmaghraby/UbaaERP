@@ -95,8 +95,11 @@ export const NAV_GROUPS: NavGroup[] = [
             feature: 'purchases.goods_receipts',
           },
           { to: '/purchases/purchase-returns', labelKey: 'purchases.tabs.purchaseReturns' },
+          { to: '/purchases/debit-notes', labelKey: 'purchases.tabs.debitNotes' },
           { to: '/purchases/purchase-invoices', labelKey: 'purchases.tabs.purchaseInvoices' },
           { to: '/purchases/supplier-payments', labelKey: 'purchases.tabs.supplierPayments' },
+          { to: '/purchases/price-lists', labelKey: 'purchases.tabs.priceLists' },
+          { to: '/purchases/reports/analysis', labelKey: 'purchaseAnalysis.nav' },
         ],
       },
       {
@@ -125,6 +128,7 @@ export const NAV_GROUPS: NavGroup[] = [
           { to: '/inventory/item-card', labelKey: 'inventory.tabs.itemCard', permission: INV.reportsView },
           { to: '/inventory/valuation', labelKey: 'inventory.tabs.valuation', permission: INV.costsView },
           { to: '/inventory/low-stock', labelKey: 'inventory.tabs.lowStock', permission: INV.reportsView },
+          { to: '/inventory/movement-analysis', labelKey: 'inventory.tabs.movementAnalysis', permission: INV.reportsView },
           { to: '/inventory/expiry', labelKey: 'inventory.tabs.expiry', permission: INV.reportsView },
           {
             to: '/inventory/lot-trace',

@@ -6,7 +6,7 @@ import type { Money } from '@erp-platform/shared-kernel';
 export interface StockLevelRepository {
   list(
     db: Kysely<TenantDatabase>,
-    filter?: { warehouseId?: string; locationId?: string; productVariantId?: string },
+    filter?: { warehouseId?: string; locationId?: string; productVariantId?: string; productId?: string },
   ): Promise<StockLevel[]>;
   findByVariantAndLocation(
     db: Kysely<TenantDatabase>,

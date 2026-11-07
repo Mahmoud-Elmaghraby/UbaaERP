@@ -17,8 +17,8 @@ import {
 } from '@erp-platform/ui';
 
 import { useStockMovements, type StockMovementFilters } from '../../api/stock/queries';
-import { useVariantIndex } from '../../hooks/stock/use-variant-index';
-import { useLocationLookups } from '../../hooks/stock/use-location-lookups';
+import { useVariantIndex } from '../../../../components/product/use-variant-index';
+import { useLocationLookups } from '../../api/warehouses/queries';
 import { formatMoney } from '../../../../lib/money';
 import { INV } from '../../../../lib/permissions';
 import { movementTypeLabel } from './stock-utils';

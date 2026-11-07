@@ -6,6 +6,7 @@ import {
   type InventoryReportsRepository,
   type ItemCardMovementRow,
   type LowStockRow,
+  type MovementAnalysisRow,
   type ValuationRow,
 } from '../ports/inventory-reports.repository';
 import { BusinessRuleError } from '../errors';
@@ -116,6 +117,17 @@ export class InventoryReportsService {
       }
       return { ...lot, received: round4(received), shipped: round4(shipped) };
     });
+  }
+
+  /** Best sellers and slow movers: stock now and sales in [from, to) per item. */
+  async movementAnalysis(
+    db: Kysely<TenantDatabase>,
+    filter: { from: Date; to: Date; warehouseId: string | null; categoryId: string | null },
+  ): Promise<MovementAnalysisRow[]> {
+    if (filter.to <= filter.from) {
+      throw new BusinessRuleError('The period end must be after its start.', { code: 'REPORT.INVALID_PERIOD' });
+    }
+    return this.reports.movementAnalysis(db, filter);
   }
 
   lowStock(db: Kysely<TenantDatabase>, warehouseId?: string | null): Promise<LowStockRow[]> {

@@ -27,7 +27,7 @@ import {
   useDeleteSalesReturn,
   useSalesReturn,
 } from '../../api/sales-returns/queries';
-import { useVariantIndex } from '../../hooks/sales-returns/use-variant-index';
+import { useVariantIndex } from '../../../../components/product/use-variant-index';
 import { ApiError } from '../../../../lib/api-client';
 import { formatDate } from '../../../../lib/format-date';
 import { confirmDialog } from '../../../../components/feedback/confirm-dialog';

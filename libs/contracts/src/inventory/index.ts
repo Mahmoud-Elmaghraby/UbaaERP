@@ -12,3 +12,4 @@ export * from './inventory-settings.contract';
 export * from './product-category.contract';
 export * from './stock-count.contract';
 export * from './stock-document.contract';
+export * from './movement-analysis.contract';
