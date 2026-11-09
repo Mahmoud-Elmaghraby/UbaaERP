@@ -139,3 +139,47 @@ Full notes: Claude Project doc `claude/users-permissions-review-2026-11-07.md`, 
 
 **Next:** review the Settings module the same way (code check + competitor comparison + phased plan).
 
+## 7. Settings hub, phase 1 (added 2026-11-09)
+
+Full notes:
+- Claude Project doc `claude/settings-hub-2026-11-09.md`.
+- The Claude Doc "مسح شامل للإعدادات — ERP" holds the competitor survey and the four-phase plan.
+
+**Migrations:** tenant migrations now go up to `0119_app_settings`.
+- `0118`: default switches for activity options.
+- `0119`: the central settings store.
+
+**Activity switches**
+- New keys:
+  - `sales.channels`
+  - `sales.installments`
+  - `sales.reps`
+  - `cheques`
+  - `pos`
+  - `inventory.landed_costs`
+  - `fixed_assets`
+  - `budgets`
+- They are in `PLAN_EXEMPT_FEATURE_KEYS`, so the tenant's own switch decides, never the plan.
+- 0118 turns each off only for a tenant that never used it.
+- `PlanFeatureGuard` requires the class key and the method key.
+- The web hides the menu items and the fields inside documents (`WhenFeature`).
+
+**User rule (2026-11-09)**
+- Anything specific to one kind of business (marketplaces, POS, installments…) becomes a switch in settings.
+- Per-branch settings are deferred together with branch permissions.
+
+**Audit:** `@AuditChanges(module, entity)` (`shared/audit`) logs every write on Settings, inventory-settings and accounting-settings controllers.
+
+**Central store**
+- `APP_SETTINGS` (libs/contracts) is the one registry.
+- `app_settings` table; global `AppSettingsRepository.get()`.
+- `GET/PATCH /app-settings`, audited per key with from/to.
+- First settings: the lockout attempts and minutes.
+
+**Hub UI**
+- `/settings` is a searchable card home in 4 groups; `/settings/:section` shows a section with a sidebar.
+- `AppSettingsSection` renders registry settings, with a save bar and reset to default.
+- Modules & features page: grouped switches with descriptions.
+
+**Next:** phase 2, the sales and POS settings through `APP_SETTINGS`.
+
