@@ -31,6 +31,8 @@ import { DocumentTemplatesController } from './presentation/document-templates.c
 import { TaxRulesController } from './presentation/tax-rules.controller';
 import { CustomFieldDefinitionsController } from './presentation/custom-field-definitions.controller';
 import { FeatureTogglesController } from './presentation/feature-toggles.controller';
+import { AppSettingsController } from './presentation/app-settings.controller';
+import { AppSettingsService } from './application/services/app-settings.service';
 
 /**
  * Settings module (CLAUDE.md §10: step 1, alongside Users & Permissions).
@@ -49,6 +51,7 @@ import { FeatureTogglesController } from './presentation/feature-toggles.control
 @Module({
   controllers: [
     SettingsController,
+    AppSettingsController,
     CurrenciesController,
     BranchesController,
     NumberingSequencesController,
@@ -59,6 +62,7 @@ import { FeatureTogglesController } from './presentation/feature-toggles.control
   ],
   providers: [
     CompanyProfileService,
+    AppSettingsService,
     CurrenciesService,
     { provide: TENANT_SETTINGS_REPOSITORY, useClass: KyselyTenantSettingsRepository },
     { provide: BRANCH_REPOSITORY, useClass: KyselyBranchRepository },

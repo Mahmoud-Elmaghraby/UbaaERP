@@ -52,6 +52,7 @@ import { formatMoney } from '../../../../lib/money';
 import { WhatsAppShareButton } from '../../../../components/document/whatsapp-share';
 import { SalesInvoiceInstallmentsSection } from './sales-invoice-installments-section';
 import { SALES, SALES_WRITE } from '../../../../lib/permissions';
+import { WhenFeature } from '../../../../components/feature/when-feature';
 
 const PAYMENTS_PATH = '/sales/payments-received';
 
@@ -391,11 +392,13 @@ export function SalesInvoiceDetailsPage() {
               </Table>
             </SectionCard>
 
-            <SalesInvoiceInstallmentsSection
-              invoiceId={invoice.id}
-              invoiceDate={invoice.invoiceDate}
-              cancelled={invoice.status === 'cancelled'}
-            />
+            <WhenFeature feature="sales.installments">
+              <SalesInvoiceInstallmentsSection
+                invoiceId={invoice.id}
+                invoiceDate={invoice.invoiceDate}
+                cancelled={invoice.status === 'cancelled'}
+              />
+            </WhenFeature>
 
             {livePayments.length > 0 ? (
               <SectionCard title={t('sales.salesInvoices.payments')} flush>

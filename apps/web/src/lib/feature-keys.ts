@@ -13,4 +13,13 @@ export const FEATURE_KEYS = {
   PURCHASES_PURCHASE_ORDERS: 'purchases.purchase_orders',
   PURCHASES_GOODS_RECEIPTS: 'purchases.goods_receipts',
   MULTI_CURRENCY: 'multi_currency',
+  /** Activity options — the tenant's own switches (Settings → Modules). */
+  SALES_CHANNELS: 'sales.channels',
+  SALES_INSTALLMENTS: 'sales.installments',
+  SALES_REPS: 'sales.reps',
+  CHEQUES: 'cheques',
+  POS: 'pos',
+  INVENTORY_LANDED_COSTS: 'inventory.landed_costs',
+  FIXED_ASSETS: 'fixed_assets',
+  BUDGETS: 'budgets',
 } as const;

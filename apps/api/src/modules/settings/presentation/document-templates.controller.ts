@@ -14,9 +14,11 @@ import { PermissionsGuard } from '../../../shared/auth/permissions.guard';
 import { RequirePermissions } from '../../../shared/auth/require-permissions.decorator';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 import { DocumentTemplatesService } from '../application/services/document-templates.service';
+import { AuditChanges } from '../../../shared/audit/audit-changes.interceptor';
 
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 @RequirePermissions('settings.manage')
+@AuditChanges('settings', 'document_template')
 @Controller('document-templates')
 export class DocumentTemplatesController {
   constructor(

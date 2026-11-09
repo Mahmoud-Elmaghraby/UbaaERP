@@ -57,6 +57,7 @@ export const router = createBrowserRouter([
         children: [
           { index: true, element: <HomePage /> },
           { path: 'settings', element: <SettingsPage /> },
+          { path: 'settings/:section', element: <SettingsPage /> },
           ...inventoryRoutes,
           ...purchasesRoutes,
           ...salesRoutes,

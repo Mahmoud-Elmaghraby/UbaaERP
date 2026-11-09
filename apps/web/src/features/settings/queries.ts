@@ -1,21 +1,23 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type {
-  CreateCurrencyDto,
-  CreateExchangeRateDto,
-  CurrencyDto,
-  ExchangeRateDto,
-  UpdateCurrencyDto,
+  AppSettingEntryDto,
   BranchDto,
   CreateBranchDto,
+  CreateCurrencyDto,
   CreateDocumentTemplateDto,
+  CreateExchangeRateDto,
   CreateNumberingSequenceDto,
   CreateTaxRuleDto,
+  CurrencyDto,
   CustomFieldDefinitionDto,
   DocumentTemplateDto,
+  ExchangeRateDto,
   FeatureToggleDto,
   NumberingSequenceDto,
   TaxRuleDto,
   TenantSettingsDto,
+  UpdateAppSettingsDto,
+  UpdateCurrencyDto,
   UpdateDocumentTemplateDto,
   UpdateFeatureToggleDto,
   UpdateNumberingSequenceDto,
@@ -242,3 +244,18 @@ export function useCreateExchangeRate() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['exchange-rates'] }),
   });
 }
+
+// --- Settings hub store (APP_SETTINGS, /app-settings) ------------------------
+
+export function useAppSettings(enabled = true) {
+  return useQuery({ queryKey: ['app-settings'], queryFn: () => apiGet<AppSettingEntryDto[]>('/app-settings'), enabled });
+}
+
+export function useUpdateAppSettings() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: UpdateAppSettingsDto) => apiPatch<AppSettingEntryDto[]>('/app-settings', input),
+    onSuccess: (entries) => queryClient.setQueryData(['app-settings'], entries),
+  });
+}
+

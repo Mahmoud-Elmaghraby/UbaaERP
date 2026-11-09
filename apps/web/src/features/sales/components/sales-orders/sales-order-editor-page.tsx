@@ -53,6 +53,7 @@ import {
   type DirectLineDraft,
 } from '../../../../components/document/direct-lines-editor';
 import { SALES_ORDERS_PATH, salesOrderStatusLabelKey } from './sales-order-status';
+import { WhenFeature } from '../../../../components/feature/when-feature';
 
 const SALES_ORDER_ENTITY_TYPE = 'sales_order';
 
@@ -260,16 +261,18 @@ function SalesOrderEditor({ order }: { order: SalesOrderWithLinesDto | undefined
                     <Label>{t('priceLists.field')}</Label>
                     <PriceListSelect value={priceListId} onChange={setPriceListId} currency={currency} />
                   </div>
-                  <div className="grid content-start gap-2">
-                    <Label>{t('salesReps.field')}</Label>
-                    <SalesRepSelect
-                      value={salesRepId}
-                      onChange={(id) => {
-                        setRepTouched(true);
-                        setSalesRepId(id);
-                      }}
-                    />
-                  </div>
+                  <WhenFeature feature="sales.reps">
+                    <div className="grid content-start gap-2">
+                      <Label>{t('salesReps.field')}</Label>
+                      <SalesRepSelect
+                        value={salesRepId}
+                        onChange={(id) => {
+                          setRepTouched(true);
+                          setSalesRepId(id);
+                        }}
+                      />
+                    </div>
+                  </WhenFeature>
                 </div>
               </SectionCard>
 

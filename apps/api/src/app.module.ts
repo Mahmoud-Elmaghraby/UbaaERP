@@ -12,6 +12,7 @@ import { SecretsEncryptionModule } from './shared/crypto/secrets-encryption.modu
 import { AuthInfraModule } from './shared/auth/auth-infra.module';
 import { EmailModule } from './shared/email/email.module';
 import { PlansModule } from './shared/plans/plans.module';
+import { AppSettingsModule } from './shared/app-settings/app-settings.module';
 import { HealthController } from './shared/health/health.controller';
 import { DesktopModule } from './shared/desktop/desktop.module';
 import { SettingsModule } from './modules/settings/settings.module';
@@ -67,6 +68,7 @@ import { TreasuryModule } from './modules/treasury/treasury.module';
     AuthInfraModule,
     EmailModule,
     PlansModule,
+    AppSettingsModule,
     DesktopModule,
     SettingsModule,
     UsersPermissionsModule,

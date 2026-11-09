@@ -16,6 +16,7 @@ import { ALL_FEATURE_KEYS } from '../../../../shared/plans/feature-catalog';
 import { AuthenticationError } from '../errors';
 import { AuthService, type MfaChallenge } from './auth.service';
 import { LoginLockoutService } from './login-lockout.service';
+import type { AppSettingsRepository } from '../../../../shared/app-settings/app-settings.repository';
 
 jest.mock('bcryptjs', () => ({ compare: jest.fn() }));
 import * as bcrypt from 'bcryptjs';
@@ -109,7 +110,7 @@ describe('AuthService', () => {
       twoFactor,
       plans,
       featureToggles,
-      new LoginLockoutService(auditLogs),
+      new LoginLockoutService(auditLogs, { get: jest.fn((_db: unknown, key: string) => Promise.resolve(key === 'security.lockoutMaxAttempts' ? 5 : 15)) } as unknown as AppSettingsRepository),
     );
   });
 

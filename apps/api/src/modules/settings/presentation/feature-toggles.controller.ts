@@ -12,6 +12,7 @@ import { PermissionsGuard } from '../../../shared/auth/permissions.guard';
 import { RequirePermissions } from '../../../shared/auth/require-permissions.decorator';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 import { FeatureTogglesService } from '../application/services/feature-toggles.service';
+import { AuditChanges } from '../../../shared/audit/audit-changes.interceptor';
 
 /**
  * Layer 2 of the platform-flexibility design
@@ -25,6 +26,7 @@ import { FeatureTogglesService } from '../application/services/feature-toggles.s
  */
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 @RequirePermissions('settings.manage')
+@AuditChanges('settings', 'feature_toggle')
 @Controller('feature-toggles')
 export class FeatureTogglesController {
   constructor(

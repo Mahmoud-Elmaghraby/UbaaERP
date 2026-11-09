@@ -34,12 +34,14 @@ export class FixedAssetsController {
   ) {}
 
   @Get()
+  @RequireFeature(FEATURE_KEYS.FIXED_ASSETS)
   list(@CurrentTenantSchema() schema: string): Promise<FixedAssetDto[]> {
     return this.service.list(this.connections.getClient(schema));
   }
 
   /** Books the depreciation of every month that ended (or through the given month end). */
   @Post('depreciation/run')
+  @RequireFeature(FEATURE_KEYS.FIXED_ASSETS)
   run(
     @CurrentTenantSchema() schema: string,
     @Body(new ZodValidationPipe(runDepreciationSchema)) body: { through?: string },
@@ -49,6 +51,7 @@ export class FixedAssetsController {
   }
 
   @Get(':id')
+  @RequireFeature(FEATURE_KEYS.FIXED_ASSETS)
   get(
     @CurrentTenantSchema() schema: string,
     @Param('id') id: string,
@@ -57,6 +60,7 @@ export class FixedAssetsController {
   }
 
   @Post()
+  @RequireFeature(FEATURE_KEYS.FIXED_ASSETS)
   create(
     @CurrentTenantSchema() schema: string,
     @Body(new ZodValidationPipe(saveFixedAssetSchema)) body: SaveFixedAssetDto,
@@ -65,6 +69,7 @@ export class FixedAssetsController {
   }
 
   @Patch(':id')
+  @RequireFeature(FEATURE_KEYS.FIXED_ASSETS)
   update(
     @CurrentTenantSchema() schema: string,
     @Param('id') id: string,
@@ -74,6 +79,7 @@ export class FixedAssetsController {
   }
 
   @Post(':id/dispose')
+  @RequireFeature(FEATURE_KEYS.FIXED_ASSETS)
   dispose(
     @CurrentTenantSchema() schema: string,
     @Param('id') id: string,
@@ -83,6 +89,7 @@ export class FixedAssetsController {
   }
 
   @Delete(':id')
+  @RequireFeature(FEATURE_KEYS.FIXED_ASSETS)
   @HttpCode(HttpStatus.NO_CONTENT)
   async remove(@CurrentTenantSchema() schema: string, @Param('id') id: string): Promise<void> {
     await this.service.delete(this.connections.getClient(schema), id);

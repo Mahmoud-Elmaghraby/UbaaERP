@@ -85,6 +85,7 @@ import { WhenTaxesInUse } from '../../../../components/taxes/when-taxes-in-use';
 import { useSalesChannels } from '../../../sales-channels/api';
 import { SalesRepSelect } from '../sales-reps/sales-rep-select';
 import { confirmDialog } from '../../../../components/feedback/confirm-dialog';
+import { WhenFeature } from '../../../../components/feature/when-feature';
 
 const SALES_INVOICE_ENTITY_TYPE = 'sales_invoice';
 
@@ -514,16 +515,18 @@ export function SalesInvoiceCreatePage() {
                         <PriceListSelect value={priceListId} onChange={setPriceListId} currency={currency} />
                       </div>
                     ) : null}
-                    <div className="grid content-start gap-2">
-                      <Label>{t('salesReps.field')}</Label>
-                      <SalesRepSelect
-                        value={salesRepId}
-                        onChange={(id) => {
-                          setRepTouched(true);
-                          setSalesRepId(id);
-                        }}
-                      />
-                    </div>
+                    <WhenFeature feature="sales.reps">
+                      <div className="grid content-start gap-2">
+                        <Label>{t('salesReps.field')}</Label>
+                        <SalesRepSelect
+                          value={salesRepId}
+                          onChange={(id) => {
+                            setRepTouched(true);
+                            setSalesRepId(id);
+                          }}
+                        />
+                      </div>
+                    </WhenFeature>
                     {activeChannels.length > 0 ? (
                       <>
                         <FormField

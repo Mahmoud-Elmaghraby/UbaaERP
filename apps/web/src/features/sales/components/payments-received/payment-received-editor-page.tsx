@@ -25,6 +25,7 @@ import {
   Skeleton,
   Textarea,
   toast,
+  useHasFeature,
 } from '@erp-platform/ui';
 import { CheckCircle2 } from 'lucide-react';
 
@@ -57,6 +58,7 @@ import {
 import { toOpenInvoiceRows } from './open-invoices-allocation';
 import { PAYMENTS_RECEIVED_PATH } from './payment-received-status';
 import { usePaymentReceivedActions } from './use-payment-received-actions';
+import { FEATURE_KEYS } from '../../../../lib/feature-keys';
 
 const PAYMENT_RECEIVED_ENTITY_TYPE = 'payment_received';
 const PAYMENT_METHODS = paymentMethodSchema.options;
@@ -90,6 +92,7 @@ export function PaymentReceivedEditorPage() {
 
 function PaymentReceivedEditor() {
   const { t } = useTranslation();
+  const chequesEnabled = useHasFeature(FEATURE_KEYS.CHEQUES);
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const requestedCustomerId = params.get('customerId') ?? '';
@@ -353,7 +356,7 @@ function PaymentReceivedEditor() {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            {PAYMENT_METHODS.map((method) => (
+                            {PAYMENT_METHODS.filter((method) => method !== 'check' || chequesEnabled).map((method) => (
                               <SelectItem key={method} value={method}>
                                 {t(`sales.paymentsReceived.paymentMethodValue.${method}`)}
                               </SelectItem>

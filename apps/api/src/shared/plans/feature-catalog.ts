@@ -57,11 +57,46 @@ export const FEATURE_KEYS = {
    * being a leaf string in that translation object, not a nested one.
    */
   MULTI_CURRENCY: 'multi_currency',
+  /*
+   * Activity options (2026-11-09): features only some kinds of business use. They are the tenant's
+   * own choice, never a plan tier (PLAN_EXEMPT_FEATURE_KEYS). Off = their screens leave the menu and
+   * writes are refused; history stays readable. Migration 0118 turns each off for a tenant that has
+   * never used it, so a new tenant starts with a short menu and an existing one keeps what it uses.
+   */
+  /** Marketplaces (Amazon, Jumia, Noon…): channels and their settlements. */
+  SALES_CHANNELS: 'sales.channels',
+  /** Installment schedules on sales invoices. */
+  SALES_INSTALLMENTS: 'sales.installments',
+  /** Sales reps on documents, the reps list and commissions. */
+  SALES_REPS: 'sales.reps',
+  /** The cheque cycle: received cheques (collect / bounce) and issued cheques (clear). */
+  CHEQUES: 'cheques',
+  /** Point of sale: sessions, checkout, returns, cash drawer. */
+  POS: 'pos',
+  /** Landed costs spread over received stock. */
+  INVENTORY_LANDED_COSTS: 'inventory.landed_costs',
+  /** Fixed-asset register and depreciation (inside Accounting). */
+  FIXED_ASSETS: 'fixed_assets',
+  /** Budgets vs actuals (inside Accounting). */
+  BUDGETS: 'budgets',
 } as const;
 
 export type FeatureKey = (typeof FEATURE_KEYS)[keyof typeof FEATURE_KEYS];
 
 export const ALL_FEATURE_KEYS: FeatureKey[] = Object.values(FEATURE_KEYS);
+
+/** Keys every plan includes: whether they're used is only the tenant's own switch (Settings → Modules). */
+export const PLAN_EXEMPT_FEATURE_KEYS: FeatureKey[] = [
+  FEATURE_KEYS.MULTI_CURRENCY,
+  FEATURE_KEYS.SALES_CHANNELS,
+  FEATURE_KEYS.SALES_INSTALLMENTS,
+  FEATURE_KEYS.SALES_REPS,
+  FEATURE_KEYS.CHEQUES,
+  FEATURE_KEYS.POS,
+  FEATURE_KEYS.INVENTORY_LANDED_COSTS,
+  FEATURE_KEYS.FIXED_ASSETS,
+  FEATURE_KEYS.BUDGETS,
+];
 
 /** Key of the default plan every tenant gets on provisioning unless told
  * otherwise — see provisionTenant() and seed-plans.command.ts. Grants

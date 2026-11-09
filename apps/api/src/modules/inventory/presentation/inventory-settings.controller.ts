@@ -13,6 +13,7 @@ import { RequireAnyPermission } from '../../../shared/auth/require-permissions.d
 import { CATALOG_READ_PERMISSIONS, INVENTORY_PERMISSIONS as P } from '../../../shared/auth/inventory-permissions';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 import { InventorySettingsService } from '../application/services/inventory-settings.service';
+import { AuditChanges } from '../../../shared/audit/audit-changes.interceptor';
 
 /**
  * Inventory module settings (Settings › Modules › Inventory). Read by the
@@ -21,6 +22,7 @@ import { InventorySettingsService } from '../application/services/inventory-sett
  * changing them is a settings action.
  */
 @UseGuards(JwtAuthGuard, PermissionsGuard)
+@AuditChanges('inventory', 'inventory_settings')
 @Controller('inventory-settings')
 export class InventorySettingsController {
   constructor(

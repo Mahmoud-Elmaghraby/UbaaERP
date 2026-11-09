@@ -14,9 +14,11 @@ import { PermissionsGuard } from '../../../shared/auth/permissions.guard';
 import { RequirePermissions } from '../../../shared/auth/require-permissions.decorator';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 import { CustomFieldDefinitionsService } from '../application/services/custom-field-definitions.service';
+import { AuditChanges } from '../../../shared/audit/audit-changes.interceptor';
 
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 @RequirePermissions('settings.manage')
+@AuditChanges('settings', 'custom_field')
 @Controller('custom-field-definitions')
 export class CustomFieldDefinitionsController {
   constructor(

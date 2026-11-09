@@ -15,6 +15,7 @@ import { RequireFeature } from '../../../shared/auth/require-feature.decorator';
 import { FEATURE_KEYS } from '../../../shared/plans/feature-catalog';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 import { AccountingSettingsService } from '../application/services/accounting-settings.service';
+import { AuditChanges } from '../../../shared/audit/audit-changes.interceptor';
 
 /**
  * Default-account mapping (CLAUDE.md §10 — step 5, Accounting, Stage
@@ -25,6 +26,7 @@ import { AccountingSettingsService } from '../application/services/accounting-se
 @UseGuards(JwtAuthGuard, PermissionsGuard, PlanFeatureGuard)
 @RequirePermissions('accounting.manage')
 @RequireFeature(FEATURE_KEYS.ACCOUNTING)
+@AuditChanges('accounting', 'accounting_settings')
 @Controller('accounting-settings')
 export class AccountingSettingsController {
   constructor(

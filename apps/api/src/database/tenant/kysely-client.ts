@@ -1432,6 +1432,7 @@ export interface TenantDatabase {
   treasury_vouchers: TreasuryVouchersTable;
   pos_sessions: PosSessionsTable;
   tenant_feature_toggles: TenantFeatureTogglesTable;
+  app_settings: AppSettingsTable;
   attachments: AttachmentsTable;
   exchange_rates: ExchangeRatesTable;
 }
@@ -1713,6 +1714,14 @@ export interface TreasuryVouchersTable {
  * (tenant self-service module toggles, on top of Layer 1's Plan/
  * PlanFeature ceiling in the public schema). No row for a key means
  * "enabled" — see that migration's own comment. */
+/** Migration 0119 — the settings hub's store: a row per option someone changed (APP_SETTINGS). */
+export interface AppSettingsTable {
+  key: string;
+  value: unknown;
+  updated_at: Generated<Date>;
+  updated_by: string | null;
+}
+
 export interface TenantFeatureTogglesTable {
   feature_key: string;
   enabled: boolean;

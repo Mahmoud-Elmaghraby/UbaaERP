@@ -10,9 +10,13 @@ import { RequirePermissions } from '../../../shared/auth/require-permissions.dec
 import { SALES_PERMISSIONS as S } from '../../../shared/auth/trade-permissions';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 import { TreasuryVouchersService } from '../application/treasury-vouchers.service';
+import { PlanFeatureGuard } from '../../../shared/auth/plan-feature.guard';
+import { RequireFeature } from '../../../shared/auth/require-feature.decorator';
+import { FEATURE_KEYS } from '../../../shared/plans/feature-catalog';
 
 /** Cash in / out of a POS drawer during its shift — used from the till, so a cashier's permission (migration 0113). */
-@UseGuards(JwtAuthGuard, PermissionsGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard, PlanFeatureGuard)
+@RequireFeature(FEATURE_KEYS.POS)
 @Controller('pos-drawer')
 export class PosDrawerController {
   constructor(

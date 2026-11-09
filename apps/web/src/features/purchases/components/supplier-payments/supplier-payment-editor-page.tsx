@@ -25,6 +25,7 @@ import {
   Skeleton,
   Textarea,
   toast,
+  useHasFeature,
 } from '@erp-platform/ui';
 import { CheckCircle2 } from 'lucide-react';
 
@@ -60,6 +61,7 @@ import {
 } from '../../../../components/document/open-invoices-allocation';
 import { SUPPLIER_PAYMENTS_PATH } from './supplier-payment-status';
 import { useSupplierPaymentActions } from './use-supplier-payment-actions';
+import { FEATURE_KEYS } from '../../../../lib/feature-keys';
 
 const SUPPLIER_PAYMENT_ENTITY_TYPE = 'supplier_payment';
 const PAYMENT_METHODS = paymentMethodSchema.options;
@@ -97,6 +99,7 @@ export function SupplierPaymentEditorPage() {
 
 function SupplierPaymentEditor() {
   const { t } = useTranslation();
+  const chequesEnabled = useHasFeature(FEATURE_KEYS.CHEQUES);
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const requestedInvoiceId = params.get('invoiceId');
@@ -384,7 +387,7 @@ function SupplierPaymentEditor() {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            {PAYMENT_METHODS.map((method) => (
+                            {PAYMENT_METHODS.filter((method) => method !== 'check' || chequesEnabled).map((method) => (
                               <SelectItem key={method} value={method}>
                                 {t(`purchases.supplierPayments.paymentMethodValue.${method}`)}
                               </SelectItem>

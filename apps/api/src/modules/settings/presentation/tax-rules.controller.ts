@@ -14,9 +14,11 @@ import { PermissionsGuard } from '../../../shared/auth/permissions.guard';
 import { RequireAnyPermission, RequirePermissions } from '../../../shared/auth/require-permissions.decorator';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 import { TaxRulesService } from '../application/services/tax-rules.service';
+import { AuditChanges } from '../../../shared/audit/audit-changes.interceptor';
 
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 @RequirePermissions('settings.manage')
+@AuditChanges('settings', 'tax_rule')
 @Controller('tax-rules')
 export class TaxRulesController {
   constructor(

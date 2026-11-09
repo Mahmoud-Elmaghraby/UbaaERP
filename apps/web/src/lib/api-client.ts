@@ -69,7 +69,8 @@ async function parseBody(response: Response): Promise<unknown> {
   }
 }
 
-async function refreshSession(): Promise<boolean> {
+/** Swaps the access token for a fresh one (new permissions, module switches) — also used right after a module switch changes. */
+export async function refreshSession(): Promise<boolean> {
   const { setSession, clearSession } = useAuthStore.getState();
 
   // No body, no refreshToken to read from local state — the refresh

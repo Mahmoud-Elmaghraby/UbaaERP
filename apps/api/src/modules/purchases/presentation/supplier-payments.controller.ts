@@ -43,6 +43,10 @@ import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pip
 import { SupplierPaymentsService } from '../application/services/supplier-payments.service';
 import { PurchasesEventPublisher } from '../infrastructure/events/purchases-event-publisher';
 import { moneyFromDto, moneyToDto } from './money.mapper';
+import { PlanFeatureGuard } from '../../../shared/auth/plan-feature.guard';
+import { RequireFeature } from '../../../shared/auth/require-feature.decorator';
+import { FEATURE_KEYS } from '../../../shared/plans/feature-catalog';
+import { assertFeatureOn } from '../../../shared/auth/assert-feature-on';
 
 function paymentToDto(payment: SupplierPayment): SupplierPaymentDto {
   return supplierPaymentSchema.parse({ ...payment, amount: moneyToDto(payment.amount) });
@@ -71,7 +75,7 @@ function outstandingToDto(invoice: SupplierOutstandingInvoice): SupplierOutstand
  * to settle any purchase invoice regardless of plan, not an optional
  * document-chain step PlanFeatureGuard gates (see feature-catalog.ts).
  */
-@UseGuards(JwtAuthGuard, PermissionsGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard, PlanFeatureGuard)
 @Controller('supplier-payments')
 export class SupplierPaymentsController {
   constructor(
@@ -105,6 +109,7 @@ export class SupplierPaymentsController {
 
   /** أوراق الدفع: our cheques, outstanding or cleared. */
   @Get('cheques')
+  @RequireFeature(FEATURE_KEYS.CHEQUES)
   @RequirePermissions(PU.view)
   async issuedCheques(@CurrentTenantSchema() schema: string, @Query('status') status?: string): Promise<IssuedChequeDto[]> {
     const db = this.connections.getClient(schema);
@@ -149,6 +154,7 @@ export class SupplierPaymentsController {
     @CurrentUser() user: JwtAccessPayload,
     @Body(new ZodValidationPipe(createSupplierPaymentSchema)) body: CreateSupplierPaymentDto,
   ): Promise<SupplierPaymentWithAllocationsDto> {
+    if (body.paymentMethod === 'check') assertFeatureOn(user, FEATURE_KEYS.CHEQUES);
     const db = this.connections.getClient(schema);
     const payment = await this.service.create(db, {
       ...body,
@@ -161,6 +167,7 @@ export class SupplierPaymentsController {
 
   /** No events.publish() here: the service writes 'purchases.supplier_payment.posted' to the Outbox atomically (§2.7). */
   @Post(':id/clear-cheque')
+  @RequireFeature(FEATURE_KEYS.CHEQUES)
   @RequirePermissions(PU.post)
   @HttpCode(HttpStatus.NO_CONTENT)
   async clearCheque(

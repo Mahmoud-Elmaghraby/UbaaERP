@@ -16,9 +16,13 @@ import { RequirePermissions } from '../../../shared/auth/require-permissions.dec
 import { SALES_PERMISSIONS as S } from '../../../shared/auth/trade-permissions';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 import { ReceivedChequesService } from '../application/services/received-cheques.service';
+import { PlanFeatureGuard } from '../../../shared/auth/plan-feature.guard';
+import { RequireFeature } from '../../../shared/auth/require-feature.decorator';
+import { FEATURE_KEYS } from '../../../shared/plans/feature-catalog';
 
 /** أوراق القبض: received cheques and their collection / bounce. */
-@UseGuards(JwtAuthGuard, PermissionsGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard, PlanFeatureGuard)
+@RequireFeature(FEATURE_KEYS.CHEQUES)
 @Controller('cheques/received')
 export class ReceivedChequesController {
   constructor(

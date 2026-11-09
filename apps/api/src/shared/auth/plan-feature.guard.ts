@@ -37,18 +37,19 @@ export class PlanFeatureGuard implements CanActivate {
   constructor(private readonly reflector: Reflector) {}
 
   canActivate(context: ExecutionContext): boolean {
-    const required = this.reflector.getAllAndOverride<string>(FEATURE_METADATA_KEY, [
-      context.getHandler(),
-      context.getClass(),
-    ]);
-    if (!required) return true;
+    // Class AND method keys all apply: e.g. Fixed Assets needs 'accounting' (class) and
+    // 'fixed_assets' (its own switch) — an override would silently drop the class key.
+    const required = [
+      this.reflector.get<string | undefined>(FEATURE_METADATA_KEY, context.getClass()),
+      this.reflector.get<string | undefined>(FEATURE_METADATA_KEY, context.getHandler()),
+    ].filter((key): key is string => Boolean(key));
+    if (required.length === 0) return true;
 
     const request = context.switchToHttp().getRequest<{ user?: JwtAccessPayload; method?: string }>();
     const grantedFeatures = request.user?.features ?? [];
-    if (!grantedFeatures.includes(required)) {
-      throw new ForbiddenException(
-        `This tenant's plan does not include the "${required}" module.`,
-      );
+    const notGranted = required.find((key) => !grantedFeatures.includes(key));
+    if (notGranted) {
+      throw new ForbiddenException(`This tenant's plan does not include the "${notGranted}" module.`);
     }
 
     // Layer 1 passed. GET requests stop here — reading data through an
@@ -57,10 +58,9 @@ export class PlanFeatureGuard implements CanActivate {
     if (request.method === 'GET') return true;
 
     const disabledFeatures = request.user?.disabledFeatures ?? [];
-    if (disabledFeatures.includes(required)) {
-      throw new ForbiddenException(
-        `The "${required}" module has been turned off in this tenant's settings.`,
-      );
+    const disabled = required.find((key) => disabledFeatures.includes(key));
+    if (disabled) {
+      throw new ForbiddenException(`The "${disabled}" module has been turned off in this tenant's settings.`);
     }
     return true;
   }

@@ -23,6 +23,7 @@ export * from './components/ui/data-table';
 export * from './components/ui/tabs';
 export * from './components/ui/dialog';
 export * from './components/ui/checkbox';
+export * from './components/ui/switch';
 export * from './components/ui/select';
 export * from './components/ui/dropdown-menu';
 export * from './components/ui/popover';

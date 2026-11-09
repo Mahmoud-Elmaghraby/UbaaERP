@@ -20,9 +20,13 @@ import { SALES_PERMISSIONS as S } from '../../../shared/auth/trade-permissions';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 import { SalesChannelsService } from '../application/services/sales-channels.service';
 import { ChannelSettlementsService } from '../application/services/channel-settlements.service';
+import { PlanFeatureGuard } from '../../../shared/auth/plan-feature.guard';
+import { RequireFeature } from '../../../shared/auth/require-feature.decorator';
+import { FEATURE_KEYS } from '../../../shared/plans/feature-catalog';
 
 /** Sales channels (Jumia, Noon, direct…) and their weekly marketplace settlements. */
-@UseGuards(JwtAuthGuard, PermissionsGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard, PlanFeatureGuard)
+@RequireFeature(FEATURE_KEYS.SALES_CHANNELS)
 @Controller()
 export class SalesChannelsController {
   constructor(

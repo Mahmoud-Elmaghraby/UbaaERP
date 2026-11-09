@@ -15,6 +15,10 @@ export const AUDIT_MODULES: Record<string, string[]> = {
     'stock_movement', 'stock_consumption', 'stock_restoration', 'unit_of_measure',
   ],
   accounting: ['journal_entry', 'account', 'bank_account', 'recurring_entry', 'fixed_asset', 'budget', 'fiscal_period'],
+  settings: [
+    'tenant_settings', 'branch', 'currency', 'custom_field', 'document_template', 'feature_toggle',
+    'numbering_sequence', 'tax_rule', 'inventory_settings', 'accounting_settings', 'app_setting',
+  ],
   users: ['user', 'role', 'auth'],
 };
 

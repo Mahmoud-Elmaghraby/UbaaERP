@@ -24,6 +24,8 @@ import { PaymentsReceivedService } from '../application/services/payments-receiv
 import { SalesRegisterService } from '../application/services/sales-register.service';
 import { SalesEventPublisher } from '../infrastructure/events/sales-event-publisher';
 import { moneyFromDto, moneyToDto } from './money.mapper';
+import { assertFeatureOn } from '../../../shared/auth/assert-feature-on';
+import { FEATURE_KEYS } from '../../../shared/plans/feature-catalog';
 
 function paymentToDto(payment: PaymentReceived): PaymentReceivedDto {
   return paymentReceivedSchema.parse({ ...payment, amount: moneyToDto(payment.amount) });
@@ -105,6 +107,7 @@ export class PaymentsReceivedController {
     @CurrentUser() user: JwtAccessPayload,
     @Body(new ZodValidationPipe(createPaymentReceivedSchema)) body: CreatePaymentReceivedDto,
   ): Promise<PaymentReceivedWithAllocationsDto> {
+    if (body.paymentMethod === 'check') assertFeatureOn(user, FEATURE_KEYS.CHEQUES);
     const db = this.connections.getClient(schema);
     const payment = await this.service.create(db, {
       ...body,

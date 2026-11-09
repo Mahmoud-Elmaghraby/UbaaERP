@@ -41,6 +41,7 @@ import { WhenTaxesInUse } from '../../../../components/taxes/when-taxes-in-use';
 import { TaxRuleSelect } from '../../../../components/document/tax-rule-select';
 import { CurrencySelect } from '../../../../components/document/currency-select';
 import { DocumentBody, DocumentHeaderBar, SectionCard } from '../../../../components/document/document-layout';
+import { WhenFeature } from '../../../../components/feature/when-feature';
 
 const CUSTOMER_ENTITY_TYPE = 'customer';
 const CUSTOMERS_PATH = '/sales/customers';
@@ -329,20 +330,22 @@ function CustomerEditor({ customer }: { customer: CustomerDto | undefined }) {
                       </FormItem>
                     )}
                   />
-                  <FormField
-                    control={form.control}
-                    name="salesRepId"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>{t('salesReps.customerDefault')}</FormLabel>
-                        <FormControl>
-                          <SalesRepSelect value={field.value ?? null} onChange={field.onChange} />
-                        </FormControl>
-                        <p className="text-xs text-muted-foreground">{t('salesReps.customerDefaultHint')}</p>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                  <WhenFeature feature="sales.reps">
+                    <FormField
+                      control={form.control}
+                      name="salesRepId"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>{t('salesReps.customerDefault')}</FormLabel>
+                          <FormControl>
+                            <SalesRepSelect value={field.value ?? null} onChange={field.onChange} />
+                          </FormControl>
+                          <p className="text-xs text-muted-foreground">{t('salesReps.customerDefaultHint')}</p>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </WhenFeature>
                   {textField('taxNumber', t('sales.customers.taxNumber'))}
                   <WhenTaxesInUse scope="sales">
                     <FormField

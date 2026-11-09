@@ -610,6 +610,8 @@ export const AR_MESSAGES: Record<string, string> = {
   'ROLE.SYSTEM_LOCKED': 'دور "{name}" دور نظامي: اسمه ثابت وبياخد كل الصلاحيات دايمًا.',
   'ROLE.STILL_ASSIGNED': 'الدور "{name}" لا يزال مُسندًا إلى مستخدم واحد أو أكثر ولا يمكن حذفه.',
   'USER_BRANCH_ACCESS.INVALID_BRANCH_IDS': 'واحد أو أكثر من معرّفات الفروع غير موجود.',
+  'APP_SETTING.UNKNOWN': 'إعداد غير معروف: {key}.',
+  'APP_SETTING.INVALID': 'قيمة غير صالحة للإعداد {key}.',
   'AUTH.ACCOUNT_LOCKED': 'الحساب اتقفل مؤقتًا بعد محاولات دخول غلط كتير. جرّب تاني بعد {minutes} دقيقة، أو اطلب من المدير يفتحه.',
   'AUTH.INVALID_CREDENTIALS': 'البريد الإلكتروني أو كلمة المرور غير صحيحة.',
   'AUTH.INVALID_MFA_SESSION': 'جلسة التحقق غير صالحة أو منتهية الصلاحية — يرجى تسجيل الدخول مرة أخرى.',

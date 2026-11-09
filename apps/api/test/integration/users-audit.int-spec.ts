@@ -9,6 +9,7 @@ import { KyselyUserRepository } from '../../src/modules/users-permissions/infras
 import { KyselyRoleRepository } from '../../src/modules/users-permissions/infrastructure/persistence/kysely-role.repository';
 import { KyselyRefreshTokenRepository } from '../../src/modules/users-permissions/infrastructure/persistence/kysely-refresh-token.repository';
 import { UsersService } from '../../src/modules/users-permissions/application/services/users.service';
+import { AppSettingsRepository } from '../../src/shared/app-settings/app-settings.repository';
 import { LoginLockoutService } from '../../src/modules/users-permissions/application/services/login-lockout.service';
 import { openIntegrationDb, uniqueSuffix } from './tenant-db';
 
@@ -97,7 +98,7 @@ describe('Audit trail and user management (integration, real Postgres)', () => {
       roleId: OWNER_ROLE_ID,
       isActive: false,
     });
-    const lockout = new LoginLockoutService(auditLogs);
+    const lockout = new LoginLockoutService(auditLogs, new AppSettingsRepository());
     for (let i = 0; i < 5; i += 1) {
       await auditLogs.record(db, {
         userId: user.id,

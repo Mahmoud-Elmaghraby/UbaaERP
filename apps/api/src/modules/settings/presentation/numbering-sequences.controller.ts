@@ -18,9 +18,11 @@ import { PermissionsGuard } from '../../../shared/auth/permissions.guard';
 import { RequirePermissions } from '../../../shared/auth/require-permissions.decorator';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 import { NumberingSequencesService } from '../application/services/numbering-sequences.service';
+import { AuditChanges, NoAudit } from '../../../shared/audit/audit-changes.interceptor';
 
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 @RequirePermissions('settings.manage')
+@AuditChanges('settings', 'numbering_sequence')
 @Controller('numbering-sequences')
 export class NumberingSequencesController {
   constructor(
@@ -81,6 +83,7 @@ export class NumberingSequencesController {
    * and usable standalone today).
    */
   @Post('allocate-next')
+  @NoAudit()
   async allocateNext(
     @CurrentTenantSchema() schema: string,
     @Body(new ZodValidationPipe(allocateNextRequestSchema)) body: AllocateNextRequestDto,

@@ -23,16 +23,19 @@ export class BudgetsController {
   ) {}
 
   @Get()
+  @RequireFeature(FEATURE_KEYS.BUDGETS)
   list(@CurrentTenantSchema() schema: string): Promise<Omit<BudgetDto, 'lines'>[]> {
     return this.service.list(this.connections.getClient(schema));
   }
 
   @Get(':id')
+  @RequireFeature(FEATURE_KEYS.BUDGETS)
   get(@CurrentTenantSchema() schema: string, @Param('id') id: string): Promise<BudgetDto> {
     return this.service.get(this.connections.getClient(schema), id);
   }
 
   @Get(':id/vs-actual')
+  @RequireFeature(FEATURE_KEYS.BUDGETS)
   vsActual(
     @CurrentTenantSchema() schema: string,
     @Param('id') id: string,
@@ -42,6 +45,7 @@ export class BudgetsController {
   }
 
   @Post()
+  @RequireFeature(FEATURE_KEYS.BUDGETS)
   create(
     @CurrentTenantSchema() schema: string,
     @Body(new ZodValidationPipe(saveBudgetSchema)) body: SaveBudgetDto,
@@ -50,6 +54,7 @@ export class BudgetsController {
   }
 
   @Patch(':id')
+  @RequireFeature(FEATURE_KEYS.BUDGETS)
   update(
     @CurrentTenantSchema() schema: string,
     @Param('id') id: string,
@@ -59,6 +64,7 @@ export class BudgetsController {
   }
 
   @Delete(':id')
+  @RequireFeature(FEATURE_KEYS.BUDGETS)
   @HttpCode(HttpStatus.NO_CONTENT)
   async remove(@CurrentTenantSchema() schema: string, @Param('id') id: string): Promise<void> {
     await this.service.delete(this.connections.getClient(schema), id);

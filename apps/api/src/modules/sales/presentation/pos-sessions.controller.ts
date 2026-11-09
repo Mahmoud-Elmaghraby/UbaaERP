@@ -31,6 +31,9 @@ import { orderWithLinesToDto } from './sales-orders.controller';
 import { deliveryWithLinesToDto } from './deliveries.controller';
 import { invoiceWithLinesToDto } from './sales-invoices.controller';
 import { paymentWithAllocationsToDto } from './payments-received.controller';
+import { PlanFeatureGuard } from '../../../shared/auth/plan-feature.guard';
+import { RequireFeature } from '../../../shared/auth/require-feature.decorator';
+import { FEATURE_KEYS } from '../../../shared/plans/feature-catalog';
 
 function toDto(session: PosSession): PosSessionDto {
   return posSessionSchema.parse({
@@ -84,7 +87,8 @@ function reportToDto(report: PosSessionReport): PosSessionReportDto {
  * area, not one of the 3 optional document-chain steps PlanFeatureGuard
  * gates (see feature-catalog.ts).
  */
-@UseGuards(JwtAuthGuard, PermissionsGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard, PlanFeatureGuard)
+@RequireFeature(FEATURE_KEYS.POS)
 @Controller('pos-sessions')
 export class PosSessionsController {
   constructor(

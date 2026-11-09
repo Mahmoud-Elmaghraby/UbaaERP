@@ -18,6 +18,9 @@ import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pip
 import { LandedCostsService } from '../application/services/landed-costs.service';
 import { InventoryEventPublisher } from '../infrastructure/events/inventory-event-publisher';
 import { moneyFromDto, moneyToDto } from './money.mapper';
+import { PlanFeatureGuard } from '../../../shared/auth/plan-feature.guard';
+import { RequireFeature } from '../../../shared/auth/require-feature.decorator';
+import { FEATURE_KEYS } from '../../../shared/plans/feature-catalog';
 
 function landedCostToDto(landedCost: LandedCost): LandedCostDto {
   return landedCostSchema.parse({
@@ -44,8 +47,9 @@ function landedCostToDto(landedCost: LandedCost): LandedCostDto {
   });
 }
 
-@UseGuards(JwtAuthGuard, PermissionsGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard, PlanFeatureGuard)
 @RequirePermissions(P.landedCostsManage, P.costsView)
+@RequireFeature(FEATURE_KEYS.INVENTORY_LANDED_COSTS)
 @Controller('landed-costs')
 export class LandedCostsController {
   constructor(

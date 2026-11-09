@@ -41,7 +41,7 @@ export function AccountingOverviewPage() {
   const unclosedYears = (fiscalYears ?? []).filter((fy) => fy.status === 'open' && fy.endDate < today);
   const alerts: { key: string; text: string; to: string }[] = [];
   if ((operations.data?.failed ?? 0) > 0) {
-    alerts.push({ key: 'failed', text: t('accounting.overview.failedOperations', { count: operations.data!.failed }), to: '/settings?tab=operations' });
+    alerts.push({ key: 'failed', text: t('accounting.overview.failedOperations', { count: operations.data!.failed }), to: '/settings/operations' });
   }
   if ((drafts.data?.length ?? 0) > 0) {
     alerts.push({ key: 'drafts', text: t('accounting.overview.drafts', { count: drafts.data!.length }), to: '/accounting/journal-entries?status=draft' });

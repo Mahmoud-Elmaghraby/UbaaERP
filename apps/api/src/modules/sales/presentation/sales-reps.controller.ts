@@ -16,9 +16,12 @@ import { SALES_PERMISSIONS as S } from '../../../shared/auth/trade-permissions';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 import { SalesRepsService } from '../application/services/sales-reps.service';
 import { SalesAnalysisService } from '../application/services/sales-analysis.service';
+import { PlanFeatureGuard } from '../../../shared/auth/plan-feature.guard';
+import { RequireFeature } from '../../../shared/auth/require-feature.decorator';
+import { FEATURE_KEYS } from '../../../shared/plans/feature-catalog';
 
 /** Sales representatives (المندوبين) and the sales analysis report. */
-@UseGuards(JwtAuthGuard, PermissionsGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard, PlanFeatureGuard)
 @Controller()
 export class SalesRepsController {
   constructor(
@@ -28,18 +31,21 @@ export class SalesRepsController {
   ) {}
 
   @Get('sales-reps')
+  @RequireFeature(FEATURE_KEYS.SALES_REPS)
   @RequireAnyPermission(S.view, S.posUse)
   list(@CurrentTenantSchema() schema: string): Promise<SalesRepDto[]> {
     return this.reps.list(this.connections.getClient(schema));
   }
 
   @Get('sales-reps/:id')
+  @RequireFeature(FEATURE_KEYS.SALES_REPS)
   @RequireAnyPermission(S.view, S.posUse)
   getById(@CurrentTenantSchema() schema: string, @Param('id') id: string): Promise<SalesRepDto> {
     return this.reps.getById(this.connections.getClient(schema), id);
   }
 
   @Post('sales-reps')
+  @RequireFeature(FEATURE_KEYS.SALES_REPS)
   @RequirePermissions(S.settingsManage)
   create(
     @CurrentTenantSchema() schema: string,
@@ -49,6 +55,7 @@ export class SalesRepsController {
   }
 
   @Put('sales-reps/:id')
+  @RequireFeature(FEATURE_KEYS.SALES_REPS)
   @RequirePermissions(S.settingsManage)
   update(
     @CurrentTenantSchema() schema: string,
@@ -59,6 +66,7 @@ export class SalesRepsController {
   }
 
   @Delete('sales-reps/:id')
+  @RequireFeature(FEATURE_KEYS.SALES_REPS)
   @RequirePermissions(S.settingsManage)
   @HttpCode(HttpStatus.NO_CONTENT)
   async remove(@CurrentTenantSchema() schema: string, @Param('id') id: string): Promise<void> {

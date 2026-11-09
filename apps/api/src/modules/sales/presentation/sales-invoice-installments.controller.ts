@@ -21,6 +21,9 @@ import { BusinessRuleError } from '../application/errors';
 import { SalesInvoiceInstallmentsService } from '../application/services/sales-invoice-installments.service';
 import { SalesInvoicesService } from '../application/services/sales-invoices.service';
 import { PaymentsReceivedService } from '../application/services/payments-received.service';
+import { PlanFeatureGuard } from '../../../shared/auth/plan-feature.guard';
+import { RequireFeature } from '../../../shared/auth/require-feature.decorator';
+import { FEATURE_KEYS } from '../../../shared/plans/feature-catalog';
 
 /**
  * Installment schedules (التقسيط) of sales invoices, the "installments due"
@@ -28,7 +31,7 @@ import { PaymentsReceivedService } from '../application/services/payments-receiv
  * Same keys as SalesInvoicesController (view / create), no PlanFeatureGuard
  * (invoices and payments are mandatory, never gate-able).
  */
-@UseGuards(JwtAuthGuard, PermissionsGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard, PlanFeatureGuard)
 @Controller()
 export class SalesInvoiceInstallmentsController {
   constructor(
@@ -40,12 +43,14 @@ export class SalesInvoiceInstallmentsController {
   ) {}
 
   @Get('sales-invoices/:id/installments')
+  @RequireFeature(FEATURE_KEYS.SALES_INSTALLMENTS)
   @RequirePermissions(S.view)
   schedule(@CurrentTenantSchema() schema: string, @Param('id', new ParseUUIDPipe()) id: string): Promise<SalesInvoiceInstallmentScheduleDto> {
     return this.installments.getSchedule(this.connections.getClient(schema), id);
   }
 
   @Put('sales-invoices/:id/installments')
+  @RequireFeature(FEATURE_KEYS.SALES_INSTALLMENTS)
   @RequirePermissions(S.create)
   replace(
     @CurrentTenantSchema() schema: string,
@@ -60,6 +65,7 @@ export class SalesInvoiceInstallmentsController {
   }
 
   @Post('sales-invoices/:id/installments/generate')
+  @RequireFeature(FEATURE_KEYS.SALES_INSTALLMENTS)
   @RequirePermissions(S.create)
   generate(
     @CurrentTenantSchema() schema: string,
@@ -77,6 +83,7 @@ export class SalesInvoiceInstallmentsController {
 
   /** Open installments of posted invoices (paid ones excluded), oldest due first. */
   @Get('sales-installments')
+  @RequireFeature(FEATURE_KEYS.SALES_INSTALLMENTS)
   @RequirePermissions(S.view)
   due(
     @CurrentTenantSchema() schema: string,

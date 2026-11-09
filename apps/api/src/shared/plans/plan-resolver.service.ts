@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
-import { ALL_FEATURE_KEYS, type FeatureKey } from './feature-catalog';
+import { ALL_FEATURE_KEYS, PLAN_EXEMPT_FEATURE_KEYS, type FeatureKey } from './feature-catalog';
 
 /**
  * Resolves which feature keys a tenant's plan grants — the one place
@@ -38,6 +38,8 @@ export class PlanResolverService {
       where: { planId: tenant.planId },
       select: { featureKey: true },
     });
-    return grants.map((g) => g.featureKey as FeatureKey);
+    const keys = new Set<FeatureKey>(grants.map((g: { featureKey: string }) => g.featureKey as FeatureKey));
+    for (const key of PLAN_EXEMPT_FEATURE_KEYS) keys.add(key);
+    return [...keys];
   }
 }

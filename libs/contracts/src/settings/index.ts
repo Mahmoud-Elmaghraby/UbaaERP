@@ -7,3 +7,4 @@ export * from './custom-field-definition.contract';
 export * from './feature-toggle.contract';
 export * from './outbox-event.contract';
 export * from './currency.contract';
+export * from './app-settings.contract';

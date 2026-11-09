@@ -25,9 +25,11 @@ import { RequirePermissions } from '../../../shared/auth/require-permissions.dec
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 import { TenantSettingsService } from '../application/services/tenant-settings.service';
 import { COMPANY_LOGO_MAX_BYTES, CompanyProfileService } from '../application/services/company-profile.service';
+import { AuditChanges } from '../../../shared/audit/audit-changes.interceptor';
 
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 @RequirePermissions('settings.manage')
+@AuditChanges('settings', 'tenant_settings')
 @Controller('settings')
 export class SettingsController {
   constructor(

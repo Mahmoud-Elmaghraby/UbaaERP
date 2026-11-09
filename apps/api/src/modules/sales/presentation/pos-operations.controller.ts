@@ -19,9 +19,13 @@ import { RequirePermissions } from '../../../shared/auth/require-permissions.dec
 import { SALES_PERMISSIONS as S } from '../../../shared/auth/trade-permissions';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 import { PosOperationsService, type PosActor } from '../application/services/pos-operations.service';
+import { PlanFeatureGuard } from '../../../shared/auth/plan-feature.guard';
+import { RequireFeature } from '../../../shared/auth/require-feature.decorator';
+import { FEATURE_KEYS } from '../../../shared/plans/feature-catalog';
 
 /** The till beyond checkout: receipts, returns on a receipt, parked sales (migration 0113). */
-@UseGuards(JwtAuthGuard, PermissionsGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard, PlanFeatureGuard)
+@RequireFeature(FEATURE_KEYS.POS)
 @Controller('pos')
 export class PosOperationsController {
   constructor(

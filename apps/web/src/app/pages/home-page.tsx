@@ -22,6 +22,7 @@ interface QuickAction {
   labelKey: string;
   icon: LucideIcon;
   permission: string;
+  feature?: string;
 }
 
 const QUICK_ACTIONS: QuickAction[] = [
@@ -31,7 +32,7 @@ const QUICK_ACTIONS: QuickAction[] = [
     icon: FileText,
     permission: SALES.create,
   },
-  { to: '/pos', labelKey: 'home.actions.pos', icon: MonitorSmartphone, permission: SALES.posUse },
+  { to: '/pos', labelKey: 'home.actions.pos', icon: MonitorSmartphone, permission: SALES.posUse, feature: 'pos' },
   {
     to: '/purchases/purchase-invoices/new',
     labelKey: 'home.actions.newPurchaseInvoice',
@@ -102,7 +103,7 @@ export function HomePage() {
       <section className="flex flex-col gap-3">
         <h2 className="text-base font-semibold">{t('home.quickActions')}</h2>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
-          {QUICK_ACTIONS.map((action) => (
+          {QUICK_ACTIONS.filter((action) => !action.feature || hasFeature(action.feature)).map((action) => (
             <Can key={action.to} permission={action.permission}>
               <Link
                 to={action.to}
