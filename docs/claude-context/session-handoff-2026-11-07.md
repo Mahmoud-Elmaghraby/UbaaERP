@@ -97,3 +97,45 @@ Supersedes `session-handoff-2026-10-16.md`, which still holds the deployment and
   - reorder suggestions (reorder point + selling pace);
   - prefill landed costs from a goods receipt.
 - Or move on to the next module review (Settings / Users & Permissions UI pass).
+
+## 6. Users & Permissions (added 2026-11-09)
+
+Full notes: Claude Project doc `claude/users-permissions-review-2026-11-07.md`, which includes the competitor comparison with Daftra, Wafeq, Qoyod and Odoo.
+
+- **Tenant migrations:** now go up to `0117_trade_permissions`.
+  - `0116`: audit-log user index.
+  - `0117`: splits `sales.manage` / `purchases.manage` into granular keys.
+
+**Security**
+- Owner accounts:
+  - Only an Owner may manage Owner accounts or grant the Owner role.
+  - The last active Owner can't be demoted or deactivated.
+  - The Owner role's permissions and name are locked.
+- Admin actions:
+  - Set someone's password (`POST /users/:id/set-password`), which signs them out everywhere.
+  - Reset 2FA (`POST /users/:id/reset-2fa`).
+  - Unlock (`POST /users/:id/unlock`).
+- Per-account lockout: 5 wrong passwords in 15 minutes lock the account for 15 minutes. It is read from the audit log, so there is no new column.
+
+**Pages**
+- Users: list, editor, and a user page with role, branches, manager, 2FA, last login, recent activity and actions.
+- Roles: list, editor with the permission matrix, role templates (cashier, salesperson, storekeeper…), copy role, members.
+
+**Audit trail**
+- `DomainAuditListener` records every `sales.* / purchases.* / inventory.* / accounting.*` event once (Outbox redelivery is de-duplicated). Document history panels now work in every module.
+- The audit-log screen was rebuilt: filters in the URL, Arabic labels, links to records, details, paging, Excel export.
+
+**Granular permissions**
+- Sales keys: `sales.view / create / post / cancel / reports.view / settings.manage` + `pos.use`.
+- Purchases keys: the same set except `pos.use`.
+- Existing roles keep the same access through the migration.
+- API constants live in `shared/auth/trade-permissions.ts`; the web uses `SALES` / `PURCH` in `lib/permissions.ts`.
+
+**Shared**
+- `lib/entity-routes.ts`: one record→page map.
+- `components/audit/audit-format.ts`.
+
+**Deferred by the user:** enforcing branch access, and "own records only". The options are written down in the project doc.
+
+**Next:** review the Settings module the same way (code check + competitor comparison + phased plan).
+
