@@ -11,6 +11,7 @@ import { usePurchaseOrders } from '../../api/purchase-orders/queries';
 import { StatusTabs } from '../../../../components/list/status-tabs';
 import { formatDate } from '../../../../lib/format-date';
 import { PURCHASE_ORDER_STATUS_VARIANT, PURCHASE_ORDERS_PATH, purchaseOrderStatusLabelKey } from './purchase-order-status';
+import { PURCH } from '../../../../lib/permissions';
 
 const STATUS_TABS = ['all', 'draft', 'confirmed', 'partially_received', 'fully_received', 'cancelled'] as const;
 type StatusTab = (typeof STATUS_TABS)[number];
@@ -79,7 +80,7 @@ export function PurchaseOrdersPage() {
         title={t('purchases.tabs.purchaseOrders')}
         description={t('purchases.purchaseOrders.subtitle')}
         actions={
-          <Can permission="purchases.manage">
+          <Can permission={PURCH.create}>
             <Button asChild>
               <Link to={`${PURCHASE_ORDERS_PATH}/new`}>
                 <Plus className="me-1 h-4 w-4" />

@@ -51,6 +51,7 @@ import { formatMoney } from '../../../../lib/money';
 import { WhatsAppShareButton } from '../../../../components/document/whatsapp-share';
 import { ChequeDueDate, ChequeStatusBadge } from '../../../../components/document/cheque-fields';
 import { useChequeActions } from '../cheques/use-cheque-actions';
+import { SALES, SALES_WRITE } from '../../../../lib/permissions';
 
 /** /sales/payments-received/:id — a receipt, its allocations and (when posted) allocating what is left. */
 export function PaymentReceivedPage() {
@@ -147,7 +148,7 @@ export function PaymentReceivedPage() {
           <>
             <PrintButton documentType="payment_received" id={payment.id} receipt />
             {payment.status !== 'cancelled' ? (
-              <Can permission="sales.manage">
+              <Can permission={SALES.view}>
                 <WhatsAppShareButton
                   kind="payments-received"
                   documentId={payment.id}
@@ -165,44 +166,54 @@ export function PaymentReceivedPage() {
                 />
               </Can>
             ) : null}
-            <Can permission="sales.manage">
+            <Can permission={SALES_WRITE}>
               {isDraft || payment.status === 'cancelled' ? (
-                <Button
-                  variant="ghost"
-                  className="text-danger hover:bg-danger-soft hover:text-danger"
-                  disabled={actions.isPending}
-                  onClick={async () => {
-                    if (await actions.remove(payment.id)) navigate(PAYMENTS_RECEIVED_PATH);
-                  }}
-                >
-                  {t('common.delete')}
-                </Button>
-              ) : null}
-              {chequeInHand ? (
-                <>
+                <Can permission={SALES.cancel}>
                   <Button
                     variant="ghost"
                     className="text-danger hover:bg-danger-soft hover:text-danger"
-                    onClick={() => chequeActions.open('bounce', chequeTarget)}
+                    disabled={actions.isPending}
+                    onClick={async () => {
+                      if (await actions.remove(payment.id)) navigate(PAYMENTS_RECEIVED_PATH);
+                    }}
                   >
-                    <Undo2 />
-                    {t('cheques.actions.bounce')}
+                    {t('common.delete')}
                   </Button>
-                  <Button onClick={() => chequeActions.open('collect', chequeTarget)}>
-                    <Landmark />
-                    {t('cheques.actions.collect')}
-                  </Button>
+                </Can>
+              ) : null}
+              {chequeInHand ? (
+                <>
+                  <Can permission={SALES.post}>
+                    <Button
+                      variant="ghost"
+                      className="text-danger hover:bg-danger-soft hover:text-danger"
+                      onClick={() => chequeActions.open('bounce', chequeTarget)}
+                    >
+                      <Undo2 />
+                      {t('cheques.actions.bounce')}
+                    </Button>
+                  </Can>
+                  <Can permission={SALES.post}>
+                    <Button onClick={() => chequeActions.open('collect', chequeTarget)}>
+                      <Landmark />
+                      {t('cheques.actions.collect')}
+                    </Button>
+                  </Can>
                 </>
               ) : null}
               {isDraft ? (
                 <>
-                  <Button variant="outline" disabled={actions.isPending} onClick={() => void actions.cancel(payment.id)}>
-                    {t('sales.paymentsReceived.cancel')}
-                  </Button>
-                  <Button disabled={actions.isPending} onClick={() => void actions.post(payment.id)}>
-                    <CheckCircle2 />
-                    {t('sales.paymentsReceived.post')}
-                  </Button>
+                  <Can permission={SALES.cancel}>
+                    <Button variant="outline" disabled={actions.isPending} onClick={() => void actions.cancel(payment.id)}>
+                      {t('sales.paymentsReceived.cancel')}
+                    </Button>
+                  </Can>
+                  <Can permission={SALES.post}>
+                    <Button disabled={actions.isPending} onClick={() => void actions.post(payment.id)}>
+                      <CheckCircle2 />
+                      {t('sales.paymentsReceived.post')}
+                    </Button>
+                  </Can>
                 </>
               ) : null}
             </Can>
@@ -333,18 +344,20 @@ export function PaymentReceivedPage() {
             </SectionCard>
 
             {isPosted && unallocated > 0n ? (
-              <Can permission="sales.manage">
+              <Can permission={SALES_WRITE}>
                 <SectionCard
                   title={t('sales.paymentsReceived.allocateRemainder')}
                   description={t('sales.paymentsReceived.allocateHint')}
                   actions={
-                    <Button
-                      type="button"
-                      disabled={allocate.isPending || allocationsTotal(drafts) === 0n}
-                      onClick={() => void saveAllocation()}
-                    >
-                      {t('sales.paymentsReceived.saveAllocation')}
-                    </Button>
+                    <Can permission={SALES.post}>
+                      <Button
+                        type="button"
+                        disabled={allocate.isPending || allocationsTotal(drafts) === 0n}
+                        onClick={() => void saveAllocation()}
+                      >
+                        {t('sales.paymentsReceived.saveAllocation')}
+                      </Button>
+                    </Can>
                   }
                   flush
                 >

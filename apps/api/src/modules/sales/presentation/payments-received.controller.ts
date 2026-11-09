@@ -18,6 +18,7 @@ import type { JwtAccessPayload } from '../../../shared/auth/jwt-payload.type';
 import { JwtAuthGuard } from '../../../shared/auth/jwt-auth.guard';
 import { PermissionsGuard } from '../../../shared/auth/permissions.guard';
 import { RequirePermissions } from '../../../shared/auth/require-permissions.decorator';
+import { SALES_PERMISSIONS as S } from '../../../shared/auth/trade-permissions';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 import { PaymentsReceivedService } from '../application/services/payments-received.service';
 import { SalesRegisterService } from '../application/services/sales-register.service';
@@ -48,7 +49,6 @@ export function paymentWithAllocationsToDto(
  * document-chain steps PlanFeatureGuard gates (see feature-catalog.ts).
  */
 @UseGuards(JwtAuthGuard, PermissionsGuard)
-@RequirePermissions('sales.manage')
 @Controller('payments-received')
 export class PaymentsReceivedController {
   constructor(
@@ -60,6 +60,7 @@ export class PaymentsReceivedController {
 
   /** Payments with customer name and allocated / unallocated amounts, for lists and an invoice's payments. */
   @Get('register')
+  @RequirePermissions(S.view)
   paymentRegister(
     @CurrentTenantSchema() schema: string,
     @Query('customerId') customerId?: string,
@@ -74,6 +75,7 @@ export class PaymentsReceivedController {
   }
 
   @Get()
+  @RequirePermissions(S.view)
   async list(
     @CurrentTenantSchema() schema: string,
     @Query('customerId') customerId?: string,
@@ -86,6 +88,7 @@ export class PaymentsReceivedController {
   }
 
   @Get(':id')
+  @RequirePermissions(S.view)
   async getById(
     @CurrentTenantSchema() schema: string,
     @Param('id') id: string,
@@ -96,6 +99,7 @@ export class PaymentsReceivedController {
   }
 
   @Post()
+  @RequirePermissions(S.create)
   async create(
     @CurrentTenantSchema() schema: string,
     @CurrentUser() user: JwtAccessPayload,
@@ -126,6 +130,7 @@ export class PaymentsReceivedController {
    * Bus, on its own schedule.
    */
   @Post(':id/post')
+  @RequirePermissions(S.post)
   async post(
     @CurrentTenantSchema() schema: string,
     @CurrentUser() user: JwtAccessPayload,
@@ -145,6 +150,7 @@ export class PaymentsReceivedController {
    * PaymentsReceivedService.allocate() itself (CLAUDE.md §2.7).
    */
   @Post(':id/allocate')
+  @RequirePermissions(S.post)
   async allocate(
     @CurrentTenantSchema() schema: string,
     @CurrentUser() user: JwtAccessPayload,
@@ -166,6 +172,7 @@ export class PaymentsReceivedController {
   }
 
   @Post(':id/cancel')
+  @RequirePermissions(S.cancel)
   async cancel(
     @CurrentTenantSchema() schema: string,
     @CurrentUser() user: JwtAccessPayload,
@@ -178,6 +185,7 @@ export class PaymentsReceivedController {
   }
 
   @Delete(':id')
+  @RequirePermissions(S.cancel)
   @HttpCode(HttpStatus.NO_CONTENT)
   async delete(
     @CurrentTenantSchema() schema: string,

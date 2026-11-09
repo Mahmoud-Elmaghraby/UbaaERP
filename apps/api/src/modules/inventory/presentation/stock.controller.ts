@@ -129,7 +129,7 @@ export class StockController {
   /** Read by sales/purchase users too — the delivery form lets them pick a lot. */
   @Get('lots')
   @RequirePermissions()
-  @RequireAnyPermission(P.stockView, 'sales.manage', 'purchases.manage')
+  @RequireAnyPermission(P.stockView, 'sales.view', 'pos.use', 'purchases.view')
   async listLots(
     @CurrentTenantSchema() schema: string,
     @CurrentUser() user: JwtAccessPayload,

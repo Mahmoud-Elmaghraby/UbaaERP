@@ -52,6 +52,7 @@ import { QuantityWithUnit } from '../../../../components/product/unit-select';
 import { useVariantIndex } from '../../../../components/product/use-variant-index';
 import { PrintButton } from '../../../../components/printing/print-button';
 import { PURCHASE_ORDER_STATUS_VARIANT, PURCHASE_ORDERS_PATH, purchaseOrderStatusLabelKey } from './purchase-order-status';
+import { PURCH, PURCH_WRITE } from '../../../../lib/permissions';
 
 const RFQS_PATH = '/purchases/rfqs';
 const GOODS_RECEIPTS_PATH = '/purchases/goods-receipts';
@@ -196,7 +197,7 @@ export function PurchaseOrderPage() {
           <>
             <PrintButton documentType="purchase_order" id={order.id} />
             {status !== 'cancelled' ? (
-              <Can permission="purchases.manage">
+              <Can permission={PURCH.view}>
                 <WhatsAppShareButton
                   kind="purchase-orders"
                   documentId={order.id}
@@ -214,70 +215,82 @@ export function PurchaseOrderPage() {
                 />
               </Can>
             ) : null}
-            <Can permission="purchases.manage">
+            <Can permission={PURCH_WRITE}>
               <>
                 {isDraft || status === 'cancelled' ? (
-                  <Button
-                    variant="ghost"
-                    className="text-danger hover:bg-danger-soft hover:text-danger"
-                    disabled={busy}
-                    onClick={() => void handleDelete()}
-                  >
-                    <Trash2 />
-                    {t('common.delete')}
-                  </Button>
+                  <Can permission={PURCH.cancel}>
+                    <Button
+                      variant="ghost"
+                      className="text-danger hover:bg-danger-soft hover:text-danger"
+                      disabled={busy}
+                      onClick={() => void handleDelete()}
+                    >
+                      <Trash2 />
+                      {t('common.delete')}
+                    </Button>
+                  </Can>
                 ) : null}
                 {isDraft || status === 'confirmed' ? (
-                  <Button
-                    variant="outline"
-                    disabled={busy}
-                    onClick={() =>
-                      void run(
-                        cancelOrder,
-                        'purchases.purchaseOrders.cancelSuccess',
-                        'purchases.purchaseOrders.cancelError',
-                        'purchases.purchaseOrders.cancelConfirm',
-                      )
-                    }
-                  >
-                    <Ban />
-                    {t('purchases.purchaseOrders.cancel')}
-                  </Button>
+                  <Can permission={PURCH.cancel}>
+                    <Button
+                      variant="outline"
+                      disabled={busy}
+                      onClick={() =>
+                        void run(
+                          cancelOrder,
+                          'purchases.purchaseOrders.cancelSuccess',
+                          'purchases.purchaseOrders.cancelError',
+                          'purchases.purchaseOrders.cancelConfirm',
+                        )
+                      }
+                    >
+                      <Ban />
+                      {t('purchases.purchaseOrders.cancel')}
+                    </Button>
+                  </Can>
                 ) : null}
                 {isDraft ? (
                   <>
-                    <Button variant="outline" asChild>
-                      <Link to={`${PURCHASE_ORDERS_PATH}/${order.id}/edit`}>
-                        <Pencil />
-                        {t('common.edit')}
-                      </Link>
-                    </Button>
-                    <Button
-                      disabled={busy}
-                      onClick={() =>
-                        void run(confirmOrder, 'purchases.purchaseOrders.confirmSuccess', 'purchases.purchaseOrders.confirmError')
-                      }
-                    >
-                      <CheckCircle2 />
-                      {t('purchases.purchaseOrders.confirm')}
-                    </Button>
+                    <Can permission={PURCH.create}>
+                      <Button variant="outline" asChild>
+                        <Link to={`${PURCHASE_ORDERS_PATH}/${order.id}/edit`}>
+                          <Pencil />
+                          {t('common.edit')}
+                        </Link>
+                      </Button>
+                    </Can>
+                    <Can permission={PURCH.post}>
+                      <Button
+                        disabled={busy}
+                        onClick={() =>
+                          void run(confirmOrder, 'purchases.purchaseOrders.confirmSuccess', 'purchases.purchaseOrders.confirmError')
+                        }
+                      >
+                        <CheckCircle2 />
+                        {t('purchases.purchaseOrders.confirm')}
+                      </Button>
+                    </Can>
                   </>
                 ) : null}
                 {receiptsEnabled && isOpen ? (
-                  <Button asChild>
-                    <Link to={`${GOODS_RECEIPTS_PATH}/new?purchaseOrderId=${order.id}`}>
-                      <PackageCheck />
-                      {t('purchases.purchaseOrders.createReceipt')}
-                    </Link>
-                  </Button>
+                  <Can permission={PURCH.create}>
+                    <Button asChild>
+                      <Link to={`${GOODS_RECEIPTS_PATH}/new?purchaseOrderId=${order.id}`}>
+                        <PackageCheck />
+                        {t('purchases.purchaseOrders.createReceipt')}
+                      </Link>
+                    </Button>
+                  </Can>
                 ) : null}
                 {isActive ? (
-                  <Button variant={receiptsEnabled && isOpen ? 'outline' : 'default'} asChild>
-                    <Link to={`${PURCHASE_INVOICES_PATH}/new?purchaseOrderId=${order.id}`}>
-                      <FileText />
-                      {t('purchases.purchaseOrders.createInvoice')}
-                    </Link>
-                  </Button>
+                  <Can permission={PURCH.create}>
+                    <Button variant={receiptsEnabled && isOpen ? 'outline' : 'default'} asChild>
+                      <Link to={`${PURCHASE_INVOICES_PATH}/new?purchaseOrderId=${order.id}`}>
+                        <FileText />
+                        {t('purchases.purchaseOrders.createInvoice')}
+                      </Link>
+                    </Button>
+                  </Can>
                 ) : null}
               </>
             </Can>

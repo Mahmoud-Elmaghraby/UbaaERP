@@ -24,6 +24,12 @@ export const userSchema = z.object({
   fullName: z.string().min(1),
   roleId: z.string().uuid(),
   isActive: z.boolean(),
+  /** TOTP two-factor confirmed for this account. */
+  twoFactorEnabled: z.boolean(),
+  /** Last successful sign-in (from the audit log), null if never. */
+  lastLoginAt: z.coerce.date().nullable(),
+  /** Locked after too many wrong passwords, until this time (only on GET /users/:id). */
+  lockedUntil: z.coerce.date().nullable().optional(),
   createdAt: z.coerce.date(),
   updatedAt: z.coerce.date(),
 });
@@ -44,6 +50,12 @@ export const updateUserSchema = z.object({
   isActive: z.boolean().optional(),
 });
 export type UpdateUserDto = z.infer<typeof updateUserSchema>;
+
+/** An administrator sets a new password for someone else (no e-mail needed — the desktop build has none). */
+export const setUserPasswordSchema = z.object({
+  password: strongPassword,
+});
+export type SetUserPasswordDto = z.infer<typeof setUserPasswordSchema>;
 
 export const changePasswordSchema = z.object({
   currentPassword: z.string().min(1),

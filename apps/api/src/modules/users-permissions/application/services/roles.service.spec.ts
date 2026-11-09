@@ -14,6 +14,7 @@ function makeRole(overrides: Partial<Role> = {}): Role {
     name: 'Cashier',
     isSystem: false,
     permissionKeys: ['settings.manage'],
+    userCount: 0,
     createdAt: new Date('2026-01-01T00:00:00Z'),
     updatedAt: new Date('2026-01-01T00:00:00Z'),
     ...overrides,
@@ -35,7 +36,7 @@ describe('RolesService', () => {
 
   beforeEach(() => {
     roles = { list: jest.fn(), findById: jest.fn(), create: jest.fn(), update: jest.fn(), delete: jest.fn() };
-    auditLogs = { record: jest.fn(), list: jest.fn() };
+    auditLogs = { record: jest.fn(), existsForEvent: jest.fn(), recentLoginFailures: jest.fn().mockResolvedValue([]), list: jest.fn() };
     service = new RolesService(roles, auditLogs);
   });
 
@@ -83,6 +84,21 @@ describe('RolesService', () => {
   });
 
   describe('update()', () => {
+    beforeEach(() => {
+      roles.findById.mockResolvedValue(makeRole());
+    });
+
+    it('refuses changing the system (Owner) role\'s permissions or name', async () => {
+      roles.findById.mockResolvedValue(makeRole({ isSystem: true, name: 'Owner' }));
+      await expect(service.update(FAKE_DB, 'role-1', { permissionKeys: [] }, 'actor-1')).rejects.toMatchObject({
+        code: 'ROLE.SYSTEM_LOCKED',
+      });
+      await expect(service.update(FAKE_DB, 'role-1', { name: 'Boss' }, 'actor-1')).rejects.toMatchObject({
+        code: 'ROLE.SYSTEM_LOCKED',
+      });
+      expect(roles.update).not.toHaveBeenCalled();
+    });
+
     it('records an audit log entry and returns the updated role', async () => {
       const role = makeRole({ name: 'Senior Cashier' });
       roles.update.mockResolvedValue(role);
@@ -97,7 +113,7 @@ describe('RolesService', () => {
     });
 
     it('throws NotFoundError when the repository returns null, without recording an audit log', async () => {
-      roles.update.mockResolvedValue(null);
+      roles.findById.mockResolvedValue(null);
       await expect(service.update(FAKE_DB, 'missing', { name: 'X' }, 'actor-1')).rejects.toThrow(NotFoundError);
       expect(auditLogs.record).not.toHaveBeenCalled();
     });

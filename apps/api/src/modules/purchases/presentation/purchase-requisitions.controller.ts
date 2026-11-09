@@ -16,6 +16,7 @@ import type { JwtAccessPayload } from '../../../shared/auth/jwt-payload.type';
 import { JwtAuthGuard } from '../../../shared/auth/jwt-auth.guard';
 import { PermissionsGuard } from '../../../shared/auth/permissions.guard';
 import { RequirePermissions } from '../../../shared/auth/require-permissions.decorator';
+import { PURCHASES_PERMISSIONS as PU } from '../../../shared/auth/trade-permissions';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 import { PurchaseRequisitionsService } from '../application/services/purchase-requisitions.service';
 import { PurchasesEventPublisher } from '../infrastructure/events/purchases-event-publisher';
@@ -26,15 +27,14 @@ import { PurchasesEventPublisher } from '../infrastructure/events/purchases-even
  * PlanFeatureGuard gates (see feature-catalog.ts and SuppliersController's
  * class comment for the same reasoning).
  *
- * Status changes (submit/approve/reject/cancel) are gated by the same
- * 'purchases.manage' permission as everything else here — NOT wired to
+ * Submit needs 'purchases.create', approve/reject 'purchases.post', cancel
+ * 'purchases.cancel' (migration 0117) — NOT wired to
  * Users & Permissions' approval_chains (who a requisition's actual
  * approver should be). See PurchaseRequisitionsService's class comment
  * for why that deeper enforcement is deliberately deferred, not silently
  * skipped.
  */
 @UseGuards(JwtAuthGuard, PermissionsGuard)
-@RequirePermissions('purchases.manage')
 @Controller('purchase-requisitions')
 export class PurchaseRequisitionsController {
   constructor(
@@ -44,6 +44,7 @@ export class PurchaseRequisitionsController {
   ) {}
 
   @Get()
+  @RequirePermissions(PU.view)
   async list(@CurrentTenantSchema() schema: string): Promise<PurchaseRequisitionDto[]> {
     const db = this.connections.getClient(schema);
     const requisitions = await this.service.list(db);
@@ -51,6 +52,7 @@ export class PurchaseRequisitionsController {
   }
 
   @Get(':id')
+  @RequirePermissions(PU.view)
   async getById(
     @CurrentTenantSchema() schema: string,
     @Param('id') id: string,
@@ -61,6 +63,7 @@ export class PurchaseRequisitionsController {
   }
 
   @Post()
+  @RequirePermissions(PU.create)
   async create(
     @CurrentTenantSchema() schema: string,
     @CurrentUser() user: JwtAccessPayload,
@@ -77,6 +80,7 @@ export class PurchaseRequisitionsController {
   }
 
   @Patch(':id')
+  @RequirePermissions(PU.create)
   async update(
     @CurrentTenantSchema() schema: string,
     @CurrentUser() user: JwtAccessPayload,
@@ -90,6 +94,7 @@ export class PurchaseRequisitionsController {
   }
 
   @Post(':id/submit')
+  @RequirePermissions(PU.create)
   async submit(
     @CurrentTenantSchema() schema: string,
     @CurrentUser() user: JwtAccessPayload,
@@ -102,6 +107,7 @@ export class PurchaseRequisitionsController {
   }
 
   @Post(':id/approve')
+  @RequirePermissions(PU.post)
   async approve(
     @CurrentTenantSchema() schema: string,
     @CurrentUser() user: JwtAccessPayload,
@@ -114,6 +120,7 @@ export class PurchaseRequisitionsController {
   }
 
   @Post(':id/reject')
+  @RequirePermissions(PU.post)
   async reject(
     @CurrentTenantSchema() schema: string,
     @CurrentUser() user: JwtAccessPayload,
@@ -126,6 +133,7 @@ export class PurchaseRequisitionsController {
   }
 
   @Post(':id/cancel')
+  @RequirePermissions(PU.cancel)
   async cancel(
     @CurrentTenantSchema() schema: string,
     @CurrentUser() user: JwtAccessPayload,
@@ -138,6 +146,7 @@ export class PurchaseRequisitionsController {
   }
 
   @Delete(':id')
+  @RequirePermissions(PU.cancel)
   @HttpCode(HttpStatus.NO_CONTENT)
   async delete(
     @CurrentTenantSchema() schema: string,

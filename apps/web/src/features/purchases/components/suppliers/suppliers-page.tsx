@@ -11,6 +11,7 @@ import { usePartyBalances } from '../../../statements/queries';
 import { StatusTabs } from '../../../../components/list/status-tabs';
 import { Amount, AMOUNT_CELL } from '../../../../components/amount';
 import { SUPPLIERS_PATH } from './supplier-paths';
+import { PURCH } from '../../../../lib/permissions';
 
 const STATUS_TABS = ['all', 'active', 'inactive'] as const;
 type StatusTab = (typeof STATUS_TABS)[number];
@@ -89,7 +90,7 @@ export function SuppliersPage() {
         title={t('purchases.tabs.suppliers')}
         description={t('purchases.suppliers.subtitle')}
         actions={
-          <Can permission="purchases.manage">
+          <Can permission={PURCH.create}>
             <Button asChild>
               <Link to={`${SUPPLIERS_PATH}/new`}>
                 <Plus className="me-1 h-4 w-4" />

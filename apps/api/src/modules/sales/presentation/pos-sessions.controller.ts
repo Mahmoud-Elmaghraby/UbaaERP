@@ -22,6 +22,7 @@ import type { JwtAccessPayload } from '../../../shared/auth/jwt-payload.type';
 import { JwtAuthGuard } from '../../../shared/auth/jwt-auth.guard';
 import { PermissionsGuard } from '../../../shared/auth/permissions.guard';
 import { RequirePermissions } from '../../../shared/auth/require-permissions.decorator';
+import { SALES_PERMISSIONS as S } from '../../../shared/auth/trade-permissions';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 import { PosSessionsService } from '../application/services/pos-sessions.service';
 import { PosSalesService } from '../application/services/pos-sales.service';
@@ -77,14 +78,13 @@ function reportToDto(report: PosSessionReport): PosSessionReportDto {
  * currently authenticated cashier — open()/close() never take a
  * cashierUserId in the request body, they use @CurrentUser()'s `sub`,
  * same "only the controller layer has request context" discipline as
- * every Outbox-writing service. Reusing 'sales.manage' rather than a
- * new permission key, same as every other Sales controller. No
+ * every Outbox-writing service. Gated by 'pos.use' (migration 0117) so a
+ * cashier needs no other Sales permission. No
  * PlanFeatureGuard: intentionally excluded — POS is its own feature
  * area, not one of the 3 optional document-chain steps PlanFeatureGuard
  * gates (see feature-catalog.ts).
  */
 @UseGuards(JwtAuthGuard, PermissionsGuard)
-@RequirePermissions('sales.manage')
 @Controller('pos-sessions')
 export class PosSessionsController {
   constructor(
@@ -94,6 +94,7 @@ export class PosSessionsController {
   ) {}
 
   @Get()
+  @RequirePermissions(S.posUse)
   async list(
     @CurrentTenantSchema() schema: string,
     @Query('status') status?: PosSessionStatus,
@@ -106,6 +107,7 @@ export class PosSessionsController {
 
   /** The current user's own open session, or null — the frontend's first call when entering the POS screen, to decide whether to show "open a session" or go straight to checkout. */
   @Get('current')
+  @RequirePermissions(S.posUse)
   async getCurrentOpen(
     @CurrentTenantSchema() schema: string,
     @CurrentUser() user: JwtAccessPayload,
@@ -116,6 +118,7 @@ export class PosSessionsController {
   }
 
   @Get(':id')
+  @RequirePermissions(S.posUse)
   async getById(@CurrentTenantSchema() schema: string, @Param('id') id: string): Promise<PosSessionDto> {
     const db = this.connections.getClient(schema);
     const session = await this.service.getById(db, id);
@@ -123,6 +126,7 @@ export class PosSessionsController {
   }
 
   @Post()
+  @RequirePermissions(S.posUse)
   async open(
     @CurrentTenantSchema() schema: string,
     @CurrentUser() user: JwtAccessPayload,
@@ -140,6 +144,7 @@ export class PosSessionsController {
   }
 
   @Post(':id/close')
+  @RequirePermissions(S.posUse)
   async close(
     @CurrentTenantSchema() schema: string,
     @CurrentUser() user: JwtAccessPayload,
@@ -165,6 +170,7 @@ export class PosSessionsController {
    * times during a shift.
    */
   @Get(':id/report')
+  @RequirePermissions(S.posUse)
   async getReport(@CurrentTenantSchema() schema: string, @Param('id') id: string): Promise<PosSessionReportDto> {
     const db = this.connections.getClient(schema);
     const report = await this.service.getReport(db, id);
@@ -179,6 +185,7 @@ export class PosSessionsController {
    * omitting it resolves to the tenant's Walk-in Customer.
    */
   @Post(':id/checkout')
+  @RequirePermissions(S.posUse)
   async checkout(
     @CurrentTenantSchema() schema: string,
     @CurrentUser() user: JwtAccessPayload,

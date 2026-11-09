@@ -16,6 +16,7 @@ import type { JwtAccessPayload } from '../../../shared/auth/jwt-payload.type';
 import { JwtAuthGuard } from '../../../shared/auth/jwt-auth.guard';
 import { PermissionsGuard } from '../../../shared/auth/permissions.guard';
 import { RequirePermissions } from '../../../shared/auth/require-permissions.decorator';
+import { PURCHASES_PERMISSIONS as PU } from '../../../shared/auth/trade-permissions';
 import { PlanFeatureGuard } from '../../../shared/auth/plan-feature.guard';
 import { RequireFeature } from '../../../shared/auth/require-feature.decorator';
 import { FEATURE_KEYS } from '../../../shared/plans/feature-catalog';
@@ -25,7 +26,6 @@ import { PurchasesEventPublisher } from '../infrastructure/events/purchases-even
 
 /** Optional document-chain module — gated by PlanFeatureGuard (PURCHASES_RFQ). */
 @UseGuards(JwtAuthGuard, PermissionsGuard, PlanFeatureGuard)
-@RequirePermissions('purchases.manage')
 @RequireFeature(FEATURE_KEYS.PURCHASES_RFQ)
 @Controller('rfqs')
 export class RfqsController {
@@ -36,6 +36,7 @@ export class RfqsController {
   ) {}
 
   @Get()
+  @RequirePermissions(PU.view)
   async list(@CurrentTenantSchema() schema: string): Promise<RfqDto[]> {
     const db = this.connections.getClient(schema);
     const rfqs = await this.service.list(db);
@@ -43,6 +44,7 @@ export class RfqsController {
   }
 
   @Get(':id')
+  @RequirePermissions(PU.view)
   async getById(@CurrentTenantSchema() schema: string, @Param('id') id: string): Promise<RfqWithDetailsDto> {
     const db = this.connections.getClient(schema);
     const rfq = await this.service.getById(db, id);
@@ -50,6 +52,7 @@ export class RfqsController {
   }
 
   @Post()
+  @RequirePermissions(PU.create)
   async create(
     @CurrentTenantSchema() schema: string,
     @CurrentUser() user: JwtAccessPayload,
@@ -62,6 +65,7 @@ export class RfqsController {
   }
 
   @Patch(':id')
+  @RequirePermissions(PU.create)
   async update(
     @CurrentTenantSchema() schema: string,
     @CurrentUser() user: JwtAccessPayload,
@@ -75,6 +79,7 @@ export class RfqsController {
   }
 
   @Post(':id/send')
+  @RequirePermissions(PU.create)
   async send(
     @CurrentTenantSchema() schema: string,
     @CurrentUser() user: JwtAccessPayload,
@@ -87,6 +92,7 @@ export class RfqsController {
   }
 
   @Post(':id/cancel')
+  @RequirePermissions(PU.cancel)
   async cancel(
     @CurrentTenantSchema() schema: string,
     @CurrentUser() user: JwtAccessPayload,
@@ -99,6 +105,7 @@ export class RfqsController {
   }
 
   @Delete(':id')
+  @RequirePermissions(PU.cancel)
   @HttpCode(HttpStatus.NO_CONTENT)
   async delete(
     @CurrentTenantSchema() schema: string,

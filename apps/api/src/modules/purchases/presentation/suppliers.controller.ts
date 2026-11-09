@@ -14,6 +14,7 @@ import type { JwtAccessPayload } from '../../../shared/auth/jwt-payload.type';
 import { JwtAuthGuard } from '../../../shared/auth/jwt-auth.guard';
 import { PermissionsGuard } from '../../../shared/auth/permissions.guard';
 import { RequirePermissions } from '../../../shared/auth/require-permissions.decorator';
+import { PURCHASES_PERMISSIONS as PU } from '../../../shared/auth/trade-permissions';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 import { SuppliersService } from '../application/services/suppliers.service';
 import { PurchasesEventPublisher } from '../infrastructure/events/purchases-event-publisher';
@@ -28,7 +29,6 @@ import { PurchasesEventPublisher } from '../infrastructure/events/purchases-even
  * controller was deliberately left out of its scope.
  */
 @UseGuards(JwtAuthGuard, PermissionsGuard)
-@RequirePermissions('purchases.manage')
 @Controller('suppliers')
 export class SuppliersController {
   constructor(
@@ -38,6 +38,7 @@ export class SuppliersController {
   ) {}
 
   @Get()
+  @RequirePermissions(PU.view)
   async list(@CurrentTenantSchema() schema: string): Promise<SupplierDto[]> {
     const db = this.connections.getClient(schema);
     const suppliers = await this.service.list(db);
@@ -45,6 +46,7 @@ export class SuppliersController {
   }
 
   @Get(':id')
+  @RequirePermissions(PU.view)
   async getById(@CurrentTenantSchema() schema: string, @Param('id') id: string): Promise<SupplierDto> {
     const db = this.connections.getClient(schema);
     const supplier = await this.service.getById(db, id);
@@ -52,6 +54,7 @@ export class SuppliersController {
   }
 
   @Post()
+  @RequirePermissions(PU.create)
   async create(
     @CurrentTenantSchema() schema: string,
     @CurrentUser() user: JwtAccessPayload,
@@ -64,6 +67,7 @@ export class SuppliersController {
   }
 
   @Patch(':id')
+  @RequirePermissions(PU.create)
   async update(
     @CurrentTenantSchema() schema: string,
     @CurrentUser() user: JwtAccessPayload,
@@ -77,6 +81,7 @@ export class SuppliersController {
   }
 
   @Delete(':id')
+  @RequirePermissions(PU.cancel)
   @HttpCode(HttpStatus.NO_CONTENT)
   async delete(
     @CurrentTenantSchema() schema: string,

@@ -17,6 +17,7 @@ import type { JwtAccessPayload } from '../../../shared/auth/jwt-payload.type';
 import { JwtAuthGuard } from '../../../shared/auth/jwt-auth.guard';
 import { PermissionsGuard } from '../../../shared/auth/permissions.guard';
 import { RequirePermissions } from '../../../shared/auth/require-permissions.decorator';
+import { PURCHASES_PERMISSIONS as PU } from '../../../shared/auth/trade-permissions';
 import { PlanFeatureGuard } from '../../../shared/auth/plan-feature.guard';
 import { RequireFeature } from '../../../shared/auth/require-feature.decorator';
 import { FEATURE_KEYS } from '../../../shared/plans/feature-catalog';
@@ -38,7 +39,6 @@ function quotationWithLinesToDto(quotation: SupplierQuotationWithLines): Supplie
 
 /** Optional document-chain module — gated by PlanFeatureGuard (PURCHASES_SUPPLIER_QUOTATIONS). */
 @UseGuards(JwtAuthGuard, PermissionsGuard, PlanFeatureGuard)
-@RequirePermissions('purchases.manage')
 @RequireFeature(FEATURE_KEYS.PURCHASES_SUPPLIER_QUOTATIONS)
 @Controller('supplier-quotations')
 export class SupplierQuotationsController {
@@ -49,6 +49,7 @@ export class SupplierQuotationsController {
   ) {}
 
   @Get()
+  @RequirePermissions(PU.view)
   async list(
     @CurrentTenantSchema() schema: string,
     @Query('rfqId') rfqId?: string,
@@ -59,6 +60,7 @@ export class SupplierQuotationsController {
   }
 
   @Get(':id')
+  @RequirePermissions(PU.view)
   async getById(
     @CurrentTenantSchema() schema: string,
     @Param('id') id: string,
@@ -69,6 +71,7 @@ export class SupplierQuotationsController {
   }
 
   @Post()
+  @RequirePermissions(PU.create)
   async create(
     @CurrentTenantSchema() schema: string,
     @CurrentUser() user: JwtAccessPayload,
@@ -84,6 +87,7 @@ export class SupplierQuotationsController {
   }
 
   @Patch(':id')
+  @RequirePermissions(PU.create)
   async update(
     @CurrentTenantSchema() schema: string,
     @CurrentUser() user: JwtAccessPayload,
@@ -100,6 +104,7 @@ export class SupplierQuotationsController {
   }
 
   @Post(':id/select')
+  @RequirePermissions(PU.post)
   async select(
     @CurrentTenantSchema() schema: string,
     @CurrentUser() user: JwtAccessPayload,
@@ -112,6 +117,7 @@ export class SupplierQuotationsController {
   }
 
   @Post(':id/reject')
+  @RequirePermissions(PU.post)
   async reject(
     @CurrentTenantSchema() schema: string,
     @CurrentUser() user: JwtAccessPayload,
@@ -124,6 +130,7 @@ export class SupplierQuotationsController {
   }
 
   @Delete(':id')
+  @RequirePermissions(PU.cancel)
   @HttpCode(HttpStatus.NO_CONTENT)
   async delete(
     @CurrentTenantSchema() schema: string,

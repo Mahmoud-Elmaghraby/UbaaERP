@@ -16,6 +16,7 @@ import {
   PURCHASE_REQUISITIONS_PATH,
   purchaseRequisitionStatusLabelKey,
 } from './purchase-requisition-status';
+import { PURCH } from '../../../../lib/permissions';
 
 const STATUS_TABS = ['all', 'draft', 'submitted', 'approved', 'rejected', 'cancelled'] as const;
 type StatusTab = (typeof STATUS_TABS)[number];
@@ -91,7 +92,7 @@ export function PurchaseRequisitionsPage() {
         title={t('purchases.tabs.purchaseRequisitions')}
         description={t('purchases.purchaseRequisitions.subtitle')}
         actions={
-          <Can permission="purchases.manage">
+          <Can permission={PURCH.create}>
             <Button asChild>
               <Link to={`${PURCHASE_REQUISITIONS_PATH}/new`}>
                 <Plus className="me-1 h-4 w-4" />

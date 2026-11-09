@@ -15,7 +15,7 @@ import {
 import { useAuthStore } from '../../lib/auth-store';
 import { NAV_ITEMS } from '../layout/nav-items';
 import { HomeAttention } from './home-attention';
-import { INV } from '../../lib/permissions';
+import { INV, PURCH, SALES } from '../../lib/permissions';
 
 interface QuickAction {
   to: string;
@@ -29,14 +29,14 @@ const QUICK_ACTIONS: QuickAction[] = [
     to: '/sales/sales-invoices/new',
     labelKey: 'home.actions.newSalesInvoice',
     icon: FileText,
-    permission: 'sales.manage',
+    permission: SALES.create,
   },
-  { to: '/pos', labelKey: 'home.actions.pos', icon: MonitorSmartphone, permission: 'sales.manage' },
+  { to: '/pos', labelKey: 'home.actions.pos', icon: MonitorSmartphone, permission: SALES.posUse },
   {
     to: '/purchases/purchase-invoices/new',
     labelKey: 'home.actions.newPurchaseInvoice',
     icon: ShoppingBag,
-    permission: 'purchases.manage',
+    permission: PURCH.create,
   },
   {
     to: '/accounting/journal-entries',
@@ -54,7 +54,7 @@ const QUICK_ACTIONS: QuickAction[] = [
     to: '/sales/customers',
     labelKey: 'home.actions.customers',
     icon: UsersRound,
-    permission: 'sales.manage',
+    permission: SALES.view,
   },
 ];
 

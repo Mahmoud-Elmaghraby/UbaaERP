@@ -17,6 +17,7 @@ import type { JwtAccessPayload } from '../../../shared/auth/jwt-payload.type';
 import { JwtAuthGuard } from '../../../shared/auth/jwt-auth.guard';
 import { PermissionsGuard } from '../../../shared/auth/permissions.guard';
 import { RequirePermissions } from '../../../shared/auth/require-permissions.decorator';
+import { SALES_PERMISSIONS as S } from '../../../shared/auth/trade-permissions';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 import { SalesReturnsService } from '../application/services/sales-returns.service';
 import { SalesEventPublisher } from '../infrastructure/events/sales-event-publisher';
@@ -39,7 +40,6 @@ function confirmationToDto(confirmation: SalesReturnConfirmation): SalesReturnCo
  * PlanFeatureGuard gates (see feature-catalog.ts).
  */
 @UseGuards(JwtAuthGuard, PermissionsGuard)
-@RequirePermissions('sales.manage')
 @Controller('sales-returns')
 export class SalesReturnsController {
   constructor(
@@ -49,6 +49,7 @@ export class SalesReturnsController {
   ) {}
 
   @Get()
+  @RequirePermissions(S.view)
   async list(
     @CurrentTenantSchema() schema: string,
     @Query('deliveryId') deliveryId?: string,
@@ -61,6 +62,7 @@ export class SalesReturnsController {
   }
 
   @Get(':id')
+  @RequirePermissions(S.view)
   async getById(
     @CurrentTenantSchema() schema: string,
     @Param('id') id: string,
@@ -71,6 +73,7 @@ export class SalesReturnsController {
   }
 
   @Post()
+  @RequirePermissions(S.create)
   async create(
     @CurrentTenantSchema() schema: string,
     @CurrentUser() user: JwtAccessPayload,
@@ -93,6 +96,7 @@ export class SalesReturnsController {
    * includes the auto-generated credit note's id.
    */
   @Post(':id/confirm')
+  @RequirePermissions(S.post)
   async confirm(
     @CurrentTenantSchema() schema: string,
     @CurrentUser() user: JwtAccessPayload,
@@ -104,6 +108,7 @@ export class SalesReturnsController {
   }
 
   @Post(':id/cancel')
+  @RequirePermissions(S.cancel)
   async cancel(
     @CurrentTenantSchema() schema: string,
     @CurrentUser() user: JwtAccessPayload,
@@ -116,6 +121,7 @@ export class SalesReturnsController {
   }
 
   @Delete(':id')
+  @RequirePermissions(S.cancel)
   @HttpCode(HttpStatus.NO_CONTENT)
   async delete(
     @CurrentTenantSchema() schema: string,

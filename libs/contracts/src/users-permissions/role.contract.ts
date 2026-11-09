@@ -5,6 +5,8 @@ export const roleSchema = z.object({
   name: z.string().min(1),
   isSystem: z.boolean(),
   permissionKeys: z.array(z.string()),
+  /** How many users hold this role. */
+  userCount: z.number().int(),
   createdAt: z.coerce.date(),
   updatedAt: z.coerce.date(),
 });

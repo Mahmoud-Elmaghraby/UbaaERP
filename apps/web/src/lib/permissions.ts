@@ -18,6 +18,34 @@ export const INV = {
   settingsManage: 'inventory.settings.manage',
 } as const;
 
+/** Sales and Purchases keys (migration 0117). Mirrors apps/api/src/shared/auth/trade-permissions.ts. */
+export const SALES = {
+  view: 'sales.view',
+  create: 'sales.create',
+  post: 'sales.post',
+  cancel: 'sales.cancel',
+  reportsView: 'sales.reports.view',
+  settingsManage: 'sales.settings.manage',
+  posUse: 'pos.use',
+  posSupervise: 'pos.supervise',
+} as const;
+
+export const PURCH = {
+  view: 'purchases.view',
+  create: 'purchases.create',
+  post: 'purchases.post',
+  cancel: 'purchases.cancel',
+  reportsView: 'purchases.reports.view',
+  settingsManage: 'purchases.settings.manage',
+} as const;
+
+/** Any document action at all — the header area that holds the individual buttons. */
+export const SALES_WRITE: string[] = [SALES.create, SALES.post, SALES.cancel];
+export const PURCH_WRITE: string[] = [PURCH.create, PURCH.post, PURCH.cancel];
+/** Shows the module in the sidebar. */
+export const ANY_SALES_PERMISSION: string[] = [SALES.view, SALES.reportsView, SALES.settingsManage];
+export const ANY_PURCHASES_PERMISSION: string[] = [PURCH.view, PURCH.reportsView, PURCH.settingsManage];
+
 /** Any inventory permission at all — shows the Inventory section in the sidebar. */
 export const ANY_INVENTORY_PERMISSION: string[] = Object.values(INV);
 

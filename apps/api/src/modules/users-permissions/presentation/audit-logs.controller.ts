@@ -33,11 +33,13 @@ export class AuditLogsController {
       db,
       {
         userId,
-        entityType,
+        // "a,b,c" = any of a module's entity types.
+        ...(entityType?.includes(',') ? { entityTypes: entityType.split(',').filter(Boolean) } : { entityType }),
         entityId,
         action,
         from: from ? new Date(from) : undefined,
-        to: to ? new Date(to) : undefined,
+        // A bare date means the whole day.
+        to: to ? new Date(/^\d{4}-\d{2}-\d{2}$/.test(to) ? `${to}T23:59:59.999` : to) : undefined,
       },
       limit ? Number(limit) : undefined,
       offset ? Number(offset) : undefined,

@@ -18,7 +18,7 @@ describe('UserBranchAccessService', () => {
 
   beforeEach(() => {
     repository = { listBranchIdsForUser: jest.fn(), setForUser: jest.fn() };
-    auditLogs = { record: jest.fn(), list: jest.fn() };
+    auditLogs = { record: jest.fn(), existsForEvent: jest.fn(), recentLoginFailures: jest.fn().mockResolvedValue([]), list: jest.fn() };
     service = new UserBranchAccessService(repository, auditLogs);
   });
 

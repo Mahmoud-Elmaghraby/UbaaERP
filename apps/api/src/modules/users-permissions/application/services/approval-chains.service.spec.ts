@@ -16,6 +16,8 @@ function makeUser(overrides: Partial<User> = {}): User {
     fullName: 'A User',
     roleId: 'role-1',
     isActive: true,
+    twoFactorEnabled: false,
+    lastLoginAt: null,
     createdAt: new Date('2026-01-01T00:00:00Z'),
     updatedAt: new Date('2026-01-01T00:00:00Z'),
     ...overrides,
@@ -41,8 +43,9 @@ describe('ApprovalChainsService', () => {
       setPendingTotpSecret: jest.fn(),
       enableTotp: jest.fn(),
       disableTotp: jest.fn(),
+      countActiveWithRole: jest.fn().mockResolvedValue(1),
     };
-    auditLogs = { record: jest.fn(), list: jest.fn() };
+    auditLogs = { record: jest.fn(), existsForEvent: jest.fn(), recentLoginFailures: jest.fn().mockResolvedValue([]), list: jest.fn() };
     service = new ApprovalChainsService(repository, users, auditLogs);
   });
 

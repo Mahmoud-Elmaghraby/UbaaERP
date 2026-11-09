@@ -11,6 +11,9 @@ import { DesktopSetupPage } from '../features/desktop/setup-page';
 import { ForgotPasswordPage } from '../features/users-permissions/forgot-password-page';
 import { ResetPasswordPage } from '../features/users-permissions/reset-password-page';
 import { UsersPage } from '../features/users-permissions/users-page';
+import { UserPage } from '../features/users-permissions/user-page';
+import { UserEditorPage } from '../features/users-permissions/user-editor-page';
+import { RoleEditorPage } from '../features/users-permissions/role-editor-page';
 import { RolesPage } from '../features/users-permissions/roles-page';
 import { AuditLogsPage } from '../features/users-permissions/audit-logs-page';
 import { ProfilePage } from '../features/users-permissions/profile-page';
@@ -60,7 +63,12 @@ export const router = createBrowserRouter([
           ...accountingRoutes,
           ...treasuryRoutes,
           { path: 'users', element: <UsersPage /> },
+          { path: 'users/new', element: <UserEditorPage /> },
+          { path: 'users/:id', element: <UserPage /> },
+          { path: 'users/:id/edit', element: <UserEditorPage /> },
           { path: 'roles', element: <RolesPage /> },
+          { path: 'roles/new', element: <RoleEditorPage /> },
+          { path: 'roles/:id', element: <RoleEditorPage /> },
           { path: 'audit-logs', element: <AuditLogsPage /> },
           { path: 'profile', element: <ProfilePage /> },
           { path: '*', element: <NotFoundPage /> },

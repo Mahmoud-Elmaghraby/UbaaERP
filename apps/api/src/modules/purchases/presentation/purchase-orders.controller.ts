@@ -33,6 +33,7 @@ import type { JwtAccessPayload } from '../../../shared/auth/jwt-payload.type';
 import { JwtAuthGuard } from '../../../shared/auth/jwt-auth.guard';
 import { PermissionsGuard } from '../../../shared/auth/permissions.guard';
 import { RequirePermissions } from '../../../shared/auth/require-permissions.decorator';
+import { PURCHASES_PERMISSIONS as PU } from '../../../shared/auth/trade-permissions';
 import { PlanFeatureGuard } from '../../../shared/auth/plan-feature.guard';
 import { RequireFeature } from '../../../shared/auth/require-feature.decorator';
 import { FEATURE_KEYS } from '../../../shared/plans/feature-catalog';
@@ -55,7 +56,6 @@ function orderWithLinesToDto(order: PurchaseOrderWithLines): PurchaseOrderWithLi
 
 /** Optional document-chain module — gated by PlanFeatureGuard (PURCHASES_PURCHASE_ORDERS). */
 @UseGuards(JwtAuthGuard, PermissionsGuard, PlanFeatureGuard)
-@RequirePermissions('purchases.manage')
 @RequireFeature(FEATURE_KEYS.PURCHASES_PURCHASE_ORDERS)
 @Controller('purchase-orders')
 export class PurchaseOrdersController {
@@ -67,6 +67,7 @@ export class PurchaseOrdersController {
   ) {}
 
   @Get()
+  @RequirePermissions(PU.view)
   async list(@CurrentTenantSchema() schema: string): Promise<PurchaseOrderDto[]> {
     const db = this.connections.getClient(schema);
     const orders = await this.service.list(db);
@@ -74,6 +75,7 @@ export class PurchaseOrdersController {
   }
 
   @Get(':id')
+  @RequirePermissions(PU.view)
   async getById(
     @CurrentTenantSchema() schema: string,
     @Param('id') id: string,
@@ -85,6 +87,7 @@ export class PurchaseOrdersController {
 
   /** A public, signed link to the printed order (WhatsApp share to the supplier). */
   @Post(':id/share-link')
+  @RequirePermissions(PU.view)
   async shareLink(
     @CurrentTenantSchema() schema: string,
     @Param('id', new ParseUUIDPipe()) id: string,
@@ -98,6 +101,7 @@ export class PurchaseOrdersController {
   }
 
   @Post()
+  @RequirePermissions(PU.create)
   async create(
     @CurrentTenantSchema() schema: string,
     @CurrentUser() user: JwtAccessPayload,
@@ -117,6 +121,7 @@ export class PurchaseOrdersController {
   }
 
   @Patch(':id')
+  @RequirePermissions(PU.create)
   async update(
     @CurrentTenantSchema() schema: string,
     @CurrentUser() user: JwtAccessPayload,
@@ -138,6 +143,7 @@ export class PurchaseOrdersController {
   }
 
   @Post(':id/confirm')
+  @RequirePermissions(PU.post)
   async confirm(
     @CurrentTenantSchema() schema: string,
     @CurrentUser() user: JwtAccessPayload,
@@ -150,6 +156,7 @@ export class PurchaseOrdersController {
   }
 
   @Post(':id/cancel')
+  @RequirePermissions(PU.cancel)
   async cancel(
     @CurrentTenantSchema() schema: string,
     @CurrentUser() user: JwtAccessPayload,
@@ -162,6 +169,7 @@ export class PurchaseOrdersController {
   }
 
   @Delete(':id')
+  @RequirePermissions(PU.cancel)
   @HttpCode(HttpStatus.NO_CONTENT)
   async delete(
     @CurrentTenantSchema() schema: string,

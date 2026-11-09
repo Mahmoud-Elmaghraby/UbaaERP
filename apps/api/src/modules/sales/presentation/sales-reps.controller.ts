@@ -11,14 +11,14 @@ import { TenantConnectionManager } from '../../../shared/tenancy/tenant-connecti
 import { CurrentTenantSchema } from '../../../shared/auth/current-tenant-schema.decorator';
 import { JwtAuthGuard } from '../../../shared/auth/jwt-auth.guard';
 import { PermissionsGuard } from '../../../shared/auth/permissions.guard';
-import { RequirePermissions } from '../../../shared/auth/require-permissions.decorator';
+import { RequireAnyPermission, RequirePermissions } from '../../../shared/auth/require-permissions.decorator';
+import { SALES_PERMISSIONS as S } from '../../../shared/auth/trade-permissions';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 import { SalesRepsService } from '../application/services/sales-reps.service';
 import { SalesAnalysisService } from '../application/services/sales-analysis.service';
 
 /** Sales representatives (المندوبين) and the sales analysis report. */
 @UseGuards(JwtAuthGuard, PermissionsGuard)
-@RequirePermissions('sales.manage')
 @Controller()
 export class SalesRepsController {
   constructor(
@@ -28,16 +28,19 @@ export class SalesRepsController {
   ) {}
 
   @Get('sales-reps')
+  @RequireAnyPermission(S.view, S.posUse)
   list(@CurrentTenantSchema() schema: string): Promise<SalesRepDto[]> {
     return this.reps.list(this.connections.getClient(schema));
   }
 
   @Get('sales-reps/:id')
+  @RequireAnyPermission(S.view, S.posUse)
   getById(@CurrentTenantSchema() schema: string, @Param('id') id: string): Promise<SalesRepDto> {
     return this.reps.getById(this.connections.getClient(schema), id);
   }
 
   @Post('sales-reps')
+  @RequirePermissions(S.settingsManage)
   create(
     @CurrentTenantSchema() schema: string,
     @Body(new ZodValidationPipe(saveSalesRepSchema)) body: SaveSalesRepDto,
@@ -46,6 +49,7 @@ export class SalesRepsController {
   }
 
   @Put('sales-reps/:id')
+  @RequirePermissions(S.settingsManage)
   update(
     @CurrentTenantSchema() schema: string,
     @Param('id') id: string,
@@ -55,12 +59,14 @@ export class SalesRepsController {
   }
 
   @Delete('sales-reps/:id')
+  @RequirePermissions(S.settingsManage)
   @HttpCode(HttpStatus.NO_CONTENT)
   async remove(@CurrentTenantSchema() schema: string, @Param('id') id: string): Promise<void> {
     await this.reps.delete(this.connections.getClient(schema), id);
   }
 
   @Get('sales-reports/analysis')
+  @RequirePermissions(S.reportsView)
   analysisReport(
     @CurrentTenantSchema() schema: string,
     @Query(new ZodValidationPipe(salesAnalysisQuerySchema)) query: SalesAnalysisQueryDto,

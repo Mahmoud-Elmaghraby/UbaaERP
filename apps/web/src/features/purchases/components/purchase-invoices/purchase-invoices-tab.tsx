@@ -23,6 +23,7 @@ import { usePurchaseOrders } from '../../api/purchase-orders/queries';
 import { usePurchaseInvoices } from '../../api/purchase-invoices/queries';
 import { PURCHASE_INVOICE_STATUS_VARIANT, purchaseInvoiceStatusLabelKey } from './purchase-invoice-status';
 import { usePurchaseInvoiceActions } from './use-purchase-invoice-actions';
+import { PURCH, PURCH_WRITE } from '../../../../lib/permissions';
 
 export const PURCHASE_INVOICES_PATH = '/purchases/purchase-invoices';
 
@@ -133,7 +134,7 @@ export function PurchaseInvoicesTab() {
                   <DropdownMenuItem onSelect={() => navigate(`${PURCHASE_INVOICES_PATH}/${invoice.id}`)}>
                     {t('documents.open')}
                   </DropdownMenuItem>
-                  <Can permission="purchases.manage">
+                  <Can permission={PURCH_WRITE}>
                     {invoice.status === 'draft' ? (
                       <>
                         <DropdownMenuItem onSelect={() => void actions.post(invoice.id)}>
@@ -167,7 +168,7 @@ export function PurchaseInvoicesTab() {
   );
 
   const newButton = (
-    <Can permission="purchases.manage">
+    <Can permission={PURCH.create}>
       <Button asChild>
         <Link to={`${PURCHASE_INVOICES_PATH}/new`}>
           <Plus />

@@ -15,7 +15,8 @@ import { CurrentUser } from '../../../shared/auth/current-user.decorator';
 import type { JwtAccessPayload } from '../../../shared/auth/jwt-payload.type';
 import { JwtAuthGuard } from '../../../shared/auth/jwt-auth.guard';
 import { PermissionsGuard } from '../../../shared/auth/permissions.guard';
-import { RequirePermissions } from '../../../shared/auth/require-permissions.decorator';
+import { RequireAnyPermission, RequirePermissions } from '../../../shared/auth/require-permissions.decorator';
+import { SALES_PERMISSIONS as S } from '../../../shared/auth/trade-permissions';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 import { CustomersService } from '../application/services/customers.service';
 import { SalesRegisterService } from '../application/services/sales-register.service';
@@ -43,7 +44,6 @@ function toInput<T extends { creditLimitMinorUnits?: string | null }>(body: T): 
  * same reasoning on the Purchases side).
  */
 @UseGuards(JwtAuthGuard, PermissionsGuard)
-@RequirePermissions('sales.manage')
 @Controller('customers')
 export class CustomersController {
   constructor(
@@ -60,6 +60,7 @@ export class CustomersController {
    * the confirm / post endpoints enforce (migration 0109).
    */
   @Get(':id/credit-check')
+  @RequireAnyPermission(S.view, S.posUse)
   async creditCheck(
     @CurrentTenantSchema() schema: string,
     @CurrentUser() user: JwtAccessPayload,
@@ -88,11 +89,13 @@ export class CustomersController {
 
   /** Balance, overdue, aging and recent activity — the head of the customer page. */
   @Get(':id/account-summary')
+  @RequireAnyPermission(S.view, S.posUse)
   accountSummary(@CurrentTenantSchema() schema: string, @Param('id') id: string): Promise<CustomerAccountSummaryDto> {
     return this.register.customerSummary(this.connections.getClient(schema), id);
   }
 
   @Get()
+  @RequireAnyPermission(S.view, S.posUse)
   async list(@CurrentTenantSchema() schema: string): Promise<CustomerDto[]> {
     const db = this.connections.getClient(schema);
     const customers = await this.service.list(db);
@@ -100,6 +103,7 @@ export class CustomersController {
   }
 
   @Get(':id')
+  @RequireAnyPermission(S.view, S.posUse)
   async getById(@CurrentTenantSchema() schema: string, @Param('id') id: string): Promise<CustomerDto> {
     const db = this.connections.getClient(schema);
     const customer = await this.service.getById(db, id);
@@ -107,6 +111,7 @@ export class CustomersController {
   }
 
   @Post()
+  @RequirePermissions(S.create)
   async create(
     @CurrentTenantSchema() schema: string,
     @CurrentUser() user: JwtAccessPayload,
@@ -119,6 +124,7 @@ export class CustomersController {
   }
 
   @Patch(':id')
+  @RequirePermissions(S.create)
   async update(
     @CurrentTenantSchema() schema: string,
     @CurrentUser() user: JwtAccessPayload,
@@ -132,6 +138,7 @@ export class CustomersController {
   }
 
   @Delete(':id')
+  @RequirePermissions(S.cancel)
   @HttpCode(HttpStatus.NO_CONTENT)
   async delete(
     @CurrentTenantSchema() schema: string,

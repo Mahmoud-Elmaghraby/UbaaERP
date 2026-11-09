@@ -13,14 +13,16 @@ import type {
   TotpEnabledResponseDto,
   TotpSetupResponseDto,
   TotpStatusResponseDto,
+  SetUserPasswordDto,
   UpdateRoleDto,
+  UpdateUserDto,
   UserDto,
 } from '@erp-platform/contracts';
 
-import { apiGet, apiPatch, apiPost } from '../../lib/api-client';
+import { apiDelete, apiGet, apiPatch, apiPost } from '../../lib/api-client';
 
-export function useUsers() {
-  return useQuery({ queryKey: ['users'], queryFn: () => apiGet<UserDto[]>('/users') });
+export function useUsers(enabled = true) {
+  return useQuery({ queryKey: ['users'], queryFn: () => apiGet<UserDto[]>('/users'), enabled });
 }
 
 export function useCreateUser() {
@@ -34,6 +36,47 @@ export function useCreateUser() {
 /** Sends an invite so the user can set their own password — see
  * AccountAccessService.sendInvite()'s comment for why this exists
  * alongside (not instead of) the password field on create. */
+export function useUser(id: string | undefined) {
+  return useQuery({ queryKey: ['users', id], queryFn: () => apiGet<UserDto>(`/users/${id}`), enabled: Boolean(id) });
+}
+
+export function useUpdateUser() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, input }: { id: string; input: UpdateUserDto }) => apiPatch<UserDto>(`/users/${id}`, input),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+      queryClient.invalidateQueries({ queryKey: ['roles'] });
+    },
+  });
+}
+
+/** An administrator sets someone's password (signs them out everywhere). */
+export function useSetUserPassword() {
+  return useMutation({
+    mutationFn: ({ id, input }: { id: string; input: SetUserPasswordDto }) =>
+      apiPost<void>(`/users/${id}/set-password`, input),
+  });
+}
+
+/** Lifts a wrong-password lockout now. */
+export function useUnlockUser() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => apiPost<void>(`/users/${id}/unlock`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['users'] }),
+  });
+}
+
+/** Turns 2FA off for someone who lost their phone. */
+export function useResetUserTwoFactor() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => apiPost<void>(`/users/${id}/reset-2fa`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['users'] }),
+  });
+}
+
 export function useSendUserInvite() {
   return useMutation({
     mutationFn: (userId: string) => apiPost<void>(`/users/${userId}/invite`),
@@ -68,8 +111,19 @@ export function useUpdateRole() {
   });
 }
 
+export function useDeleteRole() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => apiDelete<void>(`/roles/${id}`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['roles'] }),
+  });
+}
+
 export interface AuditLogFilters {
+  limit?: string;
+  offset?: string;
   userId?: string;
+  /** Comma-separated entity types = a whole module. */
   entityType?: string;
   entityId?: string;
   action?: string;

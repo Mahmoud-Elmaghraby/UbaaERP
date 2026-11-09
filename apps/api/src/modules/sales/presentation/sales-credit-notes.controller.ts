@@ -11,6 +11,7 @@ import { CurrentTenantSchema } from '../../../shared/auth/current-tenant-schema.
 import { JwtAuthGuard } from '../../../shared/auth/jwt-auth.guard';
 import { PermissionsGuard } from '../../../shared/auth/permissions.guard';
 import { RequirePermissions } from '../../../shared/auth/require-permissions.decorator';
+import { SALES_PERMISSIONS as S } from '../../../shared/auth/trade-permissions';
 import { SalesCreditNotesService } from '../application/services/sales-credit-notes.service';
 import { moneyToDto } from './money.mapper';
 import { totalsToDto } from '../../../shared/taxes/line-tax-snapshot';
@@ -40,7 +41,6 @@ function creditNoteWithLinesToDto(creditNote: SalesCreditNoteWithLines): SalesCr
  * (see feature-catalog.ts).
  */
 @UseGuards(JwtAuthGuard, PermissionsGuard)
-@RequirePermissions('sales.manage')
 @Controller('sales-credit-notes')
 export class SalesCreditNotesController {
   constructor(
@@ -49,6 +49,7 @@ export class SalesCreditNotesController {
   ) {}
 
   @Get()
+  @RequirePermissions(S.view)
   async list(
     @CurrentTenantSchema() schema: string,
     @Query('salesReturnId') salesReturnId?: string,
@@ -63,6 +64,7 @@ export class SalesCreditNotesController {
   }
 
   @Get(':id')
+  @RequirePermissions(S.view)
   async getById(
     @CurrentTenantSchema() schema: string,
     @Param('id') id: string,

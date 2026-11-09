@@ -4,6 +4,7 @@ import { Button, Can, PageHeader } from '@erp-platform/ui';
 import { Plus } from 'lucide-react';
 
 import { PURCHASE_INVOICES_PATH, PurchaseInvoicesTab } from './purchase-invoices-tab';
+import { PURCH } from '../../../../lib/permissions';
 
 export function PurchaseInvoicesPage() {
   const { t } = useTranslation();
@@ -13,7 +14,7 @@ export function PurchaseInvoicesPage() {
         title={t('purchases.tabs.purchaseInvoices')}
         description={t('purchases.purchaseInvoices.pageDescription')}
         actions={
-          <Can permission="purchases.manage">
+          <Can permission={PURCH.create}>
             <Button asChild>
               <Link to={`${PURCHASE_INVOICES_PATH}/new`}>
                 <Plus />

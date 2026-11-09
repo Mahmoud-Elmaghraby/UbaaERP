@@ -1,253 +1,122 @@
-import { useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
+import { useMemo } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { createUserSchema, type CreateUserDto, type UserDto } from '@erp-platform/contracts';
-import {
-  Badge,
-  Button,
-  Can,
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-  Input,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-  Skeleton,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-  toast,
-  PageHeader,
-} from '@erp-platform/ui';
+import type { ColumnDef } from '@tanstack/react-table';
+import type { UserDto } from '@erp-platform/contracts';
+import { Badge, Button, Can, DataTable, PageHeader } from '@erp-platform/ui';
+import { Plus, ShieldCheck } from 'lucide-react';
 
-import { useCreateUser, useRoles, useSendUserInvite, useUsers } from './queries';
-import { UserAccessDialog } from './user-access-dialog';
-import { ApiError } from '../../lib/api-client';
-import { confirmDialog } from '../../components/feedback/confirm-dialog';
+import { useRoles, useUsers } from './queries';
+import { StatusTabs } from '../../components/list/status-tabs';
+import { formatDateTime } from '../../lib/format-date';
+import { USERS_PATH } from './user-paths';
 
+const STATUS_TABS = ['all', 'active', 'inactive'] as const;
+type StatusTab = (typeof STATUS_TABS)[number];
+
+/** المستخدمين — who can sign in, with which role, and when they last did; a row opens the user. */
 export function UsersPage() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
+  const [params, setParams] = useSearchParams();
+  const rawStatus = params.get('status');
+  const status: StatusTab = STATUS_TABS.includes(rawStatus as StatusTab) ? (rawStatus as StatusTab) : 'all';
   const { data: users, isLoading } = useUsers();
   const { data: roles } = useRoles();
-  const [open, setOpen] = useState(false);
-  const [managingUser, setManagingUser] = useState<UserDto | null>(null);
+  const roleName = useMemo(() => new Map((roles ?? []).map((r) => [r.id, r.name])), [roles]);
+
+  const counts = useMemo(() => {
+    const all = users ?? [];
+    const active = all.filter((u) => u.isActive).length;
+    return { all: all.length, active, inactive: all.length - active };
+  }, [users]);
+  const visible = useMemo(
+    () => (users ?? []).filter((u) => (status === 'all' ? true : status === 'active' ? u.isActive : !u.isActive)),
+    [users, status],
+  );
+
+  const columns = useMemo<ColumnDef<UserDto>[]>(
+    () => [
+      {
+        accessorKey: 'fullName',
+        header: t('users.fullName'),
+        cell: ({ row }) => (
+          <span className="flex items-center gap-1.5 font-medium">
+            {row.original.fullName}
+            {row.original.twoFactorEnabled ? (
+              <ShieldCheck className="h-3.5 w-3.5 text-success" aria-label={t('users.twoFactorOn')} />
+            ) : null}
+          </span>
+        ),
+      },
+      {
+        accessorKey: 'email',
+        header: t('users.email'),
+        cell: ({ row }) => <span className="text-muted-foreground" dir="ltr">{row.original.email}</span>,
+      },
+      {
+        id: 'role',
+        header: t('users.role'),
+        accessorFn: (row) => roleName.get(row.roleId) ?? '—',
+      },
+      {
+        id: 'lastLoginAt',
+        header: t('users.lastLogin'),
+        accessorFn: (row) => (row.lastLoginAt ? new Date(row.lastLoginAt).getTime() : 0),
+        cell: ({ row }) =>
+          row.original.lastLoginAt ? (
+            <span className="tabular-nums text-muted-foreground">{formatDateTime(row.original.lastLoginAt)}</span>
+          ) : (
+            <span className="text-muted-foreground">{t('users.neverLoggedIn')}</span>
+          ),
+      },
+      {
+        id: 'isActive',
+        header: t('common.status'),
+        accessorFn: (row) => (row.isActive ? t('common.active') : t('common.inactive')),
+        cell: ({ row }) => (
+          <Badge variant={row.original.isActive ? 'success' : 'neutral'} dot>
+            {row.original.isActive ? t('common.active') : t('common.inactive')}
+          </Badge>
+        ),
+      },
+    ],
+    [t, roleName],
+  );
 
   return (
-    <div className="grid gap-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <PageHeader title={t('users.title')} />
-          <p className="text-sm text-muted-foreground">{t('users.subtitle')}</p>
-        </div>
-        <Can permission="users.manage">
-          <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-              <Button>{t('users.newUser')}</Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>{t('users.newUser')}</DialogTitle>
-              </DialogHeader>
-              <CreateUserForm roles={roles ?? []} onDone={() => setOpen(false)} />
-            </DialogContent>
-          </Dialog>
-        </Can>
-      </div>
-
-      {isLoading ? (
-        <Skeleton className="h-40 w-full" />
-      ) : (
-        <div className="overflow-hidden rounded-xl border bg-card shadow-card">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>{t('users.fullName')}</TableHead>
-                <TableHead>{t('users.email')}</TableHead>
-                <TableHead>{t('users.role')}</TableHead>
-                <TableHead>{t('users.status')}</TableHead>
-                <TableHead className="w-10" />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {(users ?? []).map((user) => (
-                <TableRow key={user.id}>
-                  <TableCell className="font-medium">{user.fullName}</TableCell>
-                  <TableCell>{user.email}</TableCell>
-                  <TableCell>
-                    {roles?.find((r) => r.id === user.roleId)?.name ?? user.roleId}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={user.isActive ? 'success' : 'neutral'} dot>
-                      {user.isActive ? t('common.active') : t('common.inactive')}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Can permission="users.manage">
-                      <div className="flex justify-end gap-2">
-                        <Button variant="outline" size="sm" onClick={() => setManagingUser(user)}>
-                          {t('users.manageAccess')}
-                        </Button>
-                        <SendInviteButton userId={user.id} />
-                      </div>
-                    </Can>
-                  </TableCell>
-                </TableRow>
-              ))}
-              {(users ?? []).length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={5} className="py-8 text-center text-muted-foreground">
-                    {t('common.noResults')}
-                  </TableCell>
-                </TableRow>
-              ) : null}
-            </TableBody>
-          </Table>
-        </div>
-      )}
-
-      <UserAccessDialog user={managingUser} onClose={() => setManagingUser(null)} />
+    <div className="grid gap-5">
+      <PageHeader
+        title={t('users.title')}
+        description={t('users.subtitle')}
+        actions={
+          <Can permission="users.manage">
+            <Button asChild>
+              <Link to={`${USERS_PATH}/new`}>
+                <Plus className="me-1 h-4 w-4" />
+                {t('users.newUser')}
+              </Link>
+            </Button>
+          </Can>
+        }
+      />
+      <DataTable
+        columns={columns}
+        data={visible}
+        isLoading={isLoading}
+        searchable
+        searchPlaceholder={t('users.search')}
+        onRowClick={(user) => navigate(`${USERS_PATH}/${user.id}`)}
+        toolbar={
+          <StatusTabs
+            tabs={STATUS_TABS}
+            value={status}
+            onChange={(tab) => setParams(tab === 'all' ? {} : { status: tab }, { replace: true })}
+            label={(tab) => (tab === 'all' ? t('common.all') : tab === 'active' ? t('common.active') : t('common.inactive'))}
+            counts={users ? counts : undefined}
+          />
+        }
+      />
     </div>
-  );
-}
-
-function SendInviteButton({ userId }: { userId: string }) {
-  const { t } = useTranslation();
-  const sendInvite = useSendUserInvite();
-
-  async function handleClick() {
-    // eslint-disable-next-line no-alert
-    if (!(await confirmDialog(t('users.sendInviteConfirm')))) return;
-    try {
-      await sendInvite.mutateAsync(userId);
-      toast.success(t('users.sendInviteSuccess'));
-    } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : t('users.sendInviteError'));
-    }
-  }
-
-  return (
-    <Button
-      variant="outline"
-      size="sm"
-      disabled={sendInvite.isPending}
-      onClick={() => void handleClick()}
-    >
-      {t('users.sendInvite')}
-    </Button>
-  );
-}
-
-function CreateUserForm({
-  roles,
-  onDone,
-}: {
-  roles: { id: string; name: string }[];
-  onDone: () => void;
-}) {
-  const { t } = useTranslation();
-  const createUser = useCreateUser();
-
-  const form = useForm<CreateUserDto>({
-    resolver: zodResolver(createUserSchema),
-    defaultValues: { email: '', password: '', fullName: '', roleId: '', isActive: true },
-  });
-
-  async function onSubmit(values: CreateUserDto) {
-    try {
-      await createUser.mutateAsync(values);
-      toast.success(t('users.createSuccess'));
-      onDone();
-      form.reset();
-    } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : t('users.createError'));
-    }
-  }
-
-  return (
-    <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-4">
-        <FormField
-          control={form.control}
-          name="fullName"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>{t('users.fullName')}</FormLabel>
-              <FormControl>
-                <Input {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="email"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>{t('users.email')}</FormLabel>
-              <FormControl>
-                <Input type="email" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="password"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>{t('users.password')}</FormLabel>
-              <FormControl>
-                <Input type="password" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="roleId"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>{t('users.role')}</FormLabel>
-              <Select onValueChange={field.onChange} value={field.value}>
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  {roles.map((role) => (
-                    <SelectItem key={role.id} value={role.id}>
-                      {role.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <Button type="submit" disabled={createUser.isPending} className="mt-2">
-          {t('common.save')}
-        </Button>
-      </form>
-    </Form>
   );
 }

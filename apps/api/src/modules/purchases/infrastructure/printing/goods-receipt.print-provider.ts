@@ -21,7 +21,7 @@ export class GoodsReceiptPrintProvider implements PrintProvider {
   readonly documentType = 'goods_receipt';
   readonly label = 'إذن استلام بضاعة';
   readonly paperSizes = ['a4'] as PrintProvider['paperSizes'];
-  readonly permissions = ['purchases.manage'];
+  readonly permissions = ['purchases.view'];
 
   constructor(
     private readonly receipts: GoodsReceiptsService,

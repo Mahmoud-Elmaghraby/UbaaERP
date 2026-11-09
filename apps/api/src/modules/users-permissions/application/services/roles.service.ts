@@ -6,6 +6,7 @@ import { AUDIT_LOG_REPOSITORY, type AuditLogRepository } from '../ports/audit-lo
 import type { CreateRoleInput, Role, UpdateRoleInput } from '../../domain/role.entity';
 import { ConflictError, isPostgresForeignKeyViolation, isPostgresUniqueViolation } from '../errors';
 import { entityNotFound } from '../../../../shared/errors/entity-errors';
+import { BusinessRuleError } from '../../../../shared/errors/domain-errors';
 
 @Injectable()
 export class RolesService {
@@ -52,6 +53,16 @@ export class RolesService {
     input: UpdateRoleInput,
     actingUserId: string,
   ): Promise<Role> {
+    const current = await this.repository.findById(db, id);
+    if (!current) throw entityNotFound('ROLE', id);
+    // Owner always holds every permission (new ones are granted by migration) and keeps its name:
+    // stripping it would lock the whole tenant out of users and roles.
+    if (current.isSystem && (input.permissionKeys !== undefined || (input.name !== undefined && input.name !== current.name))) {
+      throw new BusinessRuleError(`"${current.name}" is a system role and cannot be changed.`, {
+        code: 'ROLE.SYSTEM_LOCKED',
+        params: { name: current.name },
+      });
+    }
     try {
       const role = await this.repository.update(db, id, input);
       if (!role) throw entityNotFound('ROLE', id);

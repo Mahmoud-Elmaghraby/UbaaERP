@@ -36,8 +36,9 @@ export class TaxRulesController {
   @RequirePermissions()
   @RequireAnyPermission(
     'settings.manage',
-    'sales.manage',
-    'purchases.manage',
+    'sales.view',
+    'pos.use',
+    'purchases.view',
     'inventory.products.manage',
     'inventory.products.view',
   )

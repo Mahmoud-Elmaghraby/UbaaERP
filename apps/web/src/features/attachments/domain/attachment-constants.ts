@@ -20,12 +20,12 @@ import type { AttachmentEntityTypeDto } from '@erp-platform/contracts';
  * backend still re-validates both independently and is the real authority.
  */
 export const ATTACHMENT_ENTITY_PERMISSIONS: Record<AttachmentEntityTypeDto, string> = {
-  sales_invoice: 'sales.manage',
-  sales_order: 'sales.manage',
-  customer: 'sales.manage',
-  purchase_invoice: 'purchases.manage',
-  purchase_order: 'purchases.manage',
-  supplier: 'purchases.manage',
+  sales_invoice: 'sales.create',
+  sales_order: 'sales.create',
+  customer: 'sales.create',
+  purchase_invoice: 'purchases.create',
+  purchase_order: 'purchases.create',
+  supplier: 'purchases.create',
   product: 'inventory.products.manage',
   journal_entry: 'accounting.manage',
 };

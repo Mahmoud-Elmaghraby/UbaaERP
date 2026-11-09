@@ -9,7 +9,7 @@ import { usePurchaseInvoices } from '../../features/purchases/api/purchase-invoi
 import { useJournalEntries } from '../../features/accounting/api/journal-entries/queries';
 import { useStockLevels } from '../../features/inventory/api/stock/queries';
 import { FEATURE_KEYS } from '../../lib/feature-keys';
-import { INV } from '../../lib/permissions';
+import { INV, PURCH, SALES } from '../../lib/permissions';
 
 type Tone = 'warning' | 'info' | 'danger';
 
@@ -132,10 +132,10 @@ export function HomeAttention() {
     <section className="flex flex-col gap-3">
       <h2 className="text-base font-semibold">{t('home.attention.title')}</h2>
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <Can permission="sales.manage">
+        <Can permission={SALES.view}>
           <DraftSalesInvoices />
         </Can>
-        <Can permission="purchases.manage">
+        <Can permission={PURCH.view}>
           <DraftPurchaseInvoices />
         </Can>
         {accountingEnabled ? (

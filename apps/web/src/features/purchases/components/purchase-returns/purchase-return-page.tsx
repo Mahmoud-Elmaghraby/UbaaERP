@@ -44,6 +44,7 @@ import { QuantityWithUnit } from '../../../../components/product/unit-select';
 import { useVariantIndex } from '../../../../components/product/use-variant-index';
 import { PrintButton } from '../../../../components/printing/print-button';
 import { PURCHASE_RETURN_STATUS_VARIANT, PURCHASE_RETURNS_PATH, purchaseReturnStatusLabelKey } from './purchase-return-status';
+import { PURCH, PURCH_WRITE } from '../../../../lib/permissions';
 
 const GOODS_RECEIPTS_PATH = '/purchases/goods-receipts';
 const PURCHASE_ORDERS_PATH = '/purchases/purchase-orders';
@@ -177,51 +178,57 @@ export function PurchaseReturnPage() {
         actions={
           <>
             <PrintButton documentType="purchase_return" id={purchaseReturn.id} />
-            <Can permission="purchases.manage">
+            <Can permission={PURCH_WRITE}>
               <>
                 {isDraft || status === 'cancelled' ? (
-                  <Button
-                    variant="ghost"
-                    className="text-danger hover:bg-danger-soft hover:text-danger"
-                    disabled={busy}
-                    onClick={() => void handleDelete()}
-                  >
-                    <Trash2 />
-                    {t('common.delete')}
-                  </Button>
+                  <Can permission={PURCH.cancel}>
+                    <Button
+                      variant="ghost"
+                      className="text-danger hover:bg-danger-soft hover:text-danger"
+                      disabled={busy}
+                      onClick={() => void handleDelete()}
+                    >
+                      <Trash2 />
+                      {t('common.delete')}
+                    </Button>
+                  </Can>
                 ) : null}
                 {isDraft ? (
                   <>
-                    <Button
-                      variant="outline"
-                      disabled={busy}
-                      onClick={() =>
-                        void run(
-                          cancelReturn,
-                          'purchases.purchaseReturns.cancelSuccess',
-                          'purchases.purchaseReturns.cancelError',
-                          'purchases.purchaseReturns.cancelConfirm',
-                          'danger',
-                        )
-                      }
-                    >
-                      <Ban />
-                      {t('purchases.purchaseReturns.cancel')}
-                    </Button>
-                    <Button
-                      disabled={busy}
-                      onClick={() =>
-                        void run(
-                          confirmReturn,
-                          'purchases.purchaseReturns.confirmSuccess',
-                          'purchases.purchaseReturns.confirmError',
-                          'purchases.purchaseReturns.confirmConfirm',
-                        )
-                      }
-                    >
-                      <CheckCircle2 />
-                      {t('purchases.purchaseReturns.confirm')}
-                    </Button>
+                    <Can permission={PURCH.cancel}>
+                      <Button
+                        variant="outline"
+                        disabled={busy}
+                        onClick={() =>
+                          void run(
+                            cancelReturn,
+                            'purchases.purchaseReturns.cancelSuccess',
+                            'purchases.purchaseReturns.cancelError',
+                            'purchases.purchaseReturns.cancelConfirm',
+                            'danger',
+                          )
+                        }
+                      >
+                        <Ban />
+                        {t('purchases.purchaseReturns.cancel')}
+                      </Button>
+                    </Can>
+                    <Can permission={PURCH.post}>
+                      <Button
+                        disabled={busy}
+                        onClick={() =>
+                          void run(
+                            confirmReturn,
+                            'purchases.purchaseReturns.confirmSuccess',
+                            'purchases.purchaseReturns.confirmError',
+                            'purchases.purchaseReturns.confirmConfirm',
+                          )
+                        }
+                      >
+                        <CheckCircle2 />
+                        {t('purchases.purchaseReturns.confirm')}
+                      </Button>
+                    </Can>
                   </>
                 ) : null}
               </>

@@ -10,6 +10,7 @@ import { useCustomers } from '../../api/customers/queries';
 import { usePartyBalances } from '../../../statements/queries';
 import { StatusTabs } from '../../../../components/list/status-tabs';
 import { Amount, AMOUNT_CELL } from '../../../../components/amount';
+import { SALES } from '../../../../lib/permissions';
 
 const STATUS_TABS = ['all', 'active', 'inactive'] as const;
 type StatusTab = (typeof STATUS_TABS)[number];
@@ -93,7 +94,7 @@ export function CustomersPage() {
         title={t('sales.tabs.customers')}
         description={t('sales.customers.subtitle')}
         actions={
-          <Can permission="sales.manage">
+          <Can permission={SALES.create}>
             <Button asChild>
               <Link to="/sales/customers/new">
                 <Plus className="me-1 h-4 w-4" />

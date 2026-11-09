@@ -12,6 +12,7 @@ import { Amount, AMOUNT_CELL } from '../../../../components/amount';
 import { StatusTabs } from '../../../../components/list/status-tabs';
 import { formatDate, todayIso } from '../../../../lib/format-date';
 import { QUOTATION_STATUS_VARIANT, QUOTATIONS_PATH, isQuotationExpired, quotationStatusLabelKey } from './quotation-status';
+import { SALES } from '../../../../lib/permissions';
 
 const STATUS_TABS = ['all', 'draft', 'sent', 'accepted', 'rejected', 'cancelled'] as const;
 type StatusTab = (typeof STATUS_TABS)[number];
@@ -100,7 +101,7 @@ export function QuotationsPage() {
         title={t('sales.tabs.quotations')}
         description={t('sales.quotations.subtitle')}
         actions={
-          <Can permission="sales.manage">
+          <Can permission={SALES.create}>
             <Button asChild>
               <Link to={`${QUOTATIONS_PATH}/new`}>
                 <Plus className="me-1 h-4 w-4" />

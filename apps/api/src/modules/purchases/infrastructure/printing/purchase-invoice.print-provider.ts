@@ -26,7 +26,7 @@ export class PurchaseInvoicePrintProvider implements PrintProvider {
   readonly documentType = 'purchase_invoice';
   readonly label = 'فاتورة مشتريات';
   readonly paperSizes = ['a4'] as PrintProvider['paperSizes'];
-  readonly permissions = ['purchases.manage'];
+  readonly permissions = ['purchases.view'];
 
   constructor(
     private readonly invoices: PurchaseInvoicesService,

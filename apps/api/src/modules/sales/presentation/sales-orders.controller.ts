@@ -19,6 +19,7 @@ import type { JwtAccessPayload } from '../../../shared/auth/jwt-payload.type';
 import { JwtAuthGuard } from '../../../shared/auth/jwt-auth.guard';
 import { PermissionsGuard } from '../../../shared/auth/permissions.guard';
 import { RequirePermissions } from '../../../shared/auth/require-permissions.decorator';
+import { SALES_PERMISSIONS as S } from '../../../shared/auth/trade-permissions';
 import { PlanFeatureGuard } from '../../../shared/auth/plan-feature.guard';
 import { RequireFeature } from '../../../shared/auth/require-feature.decorator';
 import { FEATURE_KEYS } from '../../../shared/plans/feature-catalog';
@@ -50,7 +51,6 @@ export function orderWithLinesToDto(order: SalesOrderWithLines): SalesOrderWithL
 
 /** Optional document-chain module — gated by PlanFeatureGuard (SALES_SALES_ORDERS). */
 @UseGuards(JwtAuthGuard, PermissionsGuard, PlanFeatureGuard)
-@RequirePermissions('sales.manage')
 @RequireFeature(FEATURE_KEYS.SALES_SALES_ORDERS)
 @Controller('sales-orders')
 export class SalesOrdersController {
@@ -61,6 +61,7 @@ export class SalesOrdersController {
   ) {}
 
   @Get()
+  @RequirePermissions(S.view)
   async list(@CurrentTenantSchema() schema: string): Promise<SalesOrderListItemDto[]> {
     const db = this.connections.getClient(schema);
     const orders = await this.service.listWithTotals(db);
@@ -73,6 +74,7 @@ export class SalesOrdersController {
   }
 
   @Get(':id')
+  @RequirePermissions(S.view)
   async getById(
     @CurrentTenantSchema() schema: string,
     @Param('id') id: string,
@@ -83,6 +85,7 @@ export class SalesOrdersController {
   }
 
   @Post()
+  @RequirePermissions(S.create)
   async create(
     @CurrentTenantSchema() schema: string,
     @CurrentUser() user: JwtAccessPayload,
@@ -107,6 +110,7 @@ export class SalesOrdersController {
   }
 
   @Patch(':id')
+  @RequirePermissions(S.create)
   async update(
     @CurrentTenantSchema() schema: string,
     @CurrentUser() user: JwtAccessPayload,
@@ -133,6 +137,7 @@ export class SalesOrdersController {
   }
 
   @Post(':id/confirm')
+  @RequirePermissions(S.post)
   async confirm(
     @CurrentTenantSchema() schema: string,
     @CurrentUser() user: JwtAccessPayload,
@@ -147,6 +152,7 @@ export class SalesOrdersController {
   }
 
   @Post(':id/cancel')
+  @RequirePermissions(S.cancel)
   async cancel(
     @CurrentTenantSchema() schema: string,
     @CurrentUser() user: JwtAccessPayload,
@@ -159,6 +165,7 @@ export class SalesOrdersController {
   }
 
   @Delete(':id')
+  @RequirePermissions(S.cancel)
   @HttpCode(HttpStatus.NO_CONTENT)
   async delete(
     @CurrentTenantSchema() schema: string,

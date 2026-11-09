@@ -13,6 +13,7 @@ import { Amount, AMOUNT_CELL } from '../../../../components/amount';
 import { StatusTabs } from '../../../../components/list/status-tabs';
 import { formatDate } from '../../../../lib/format-date';
 import { SALES_ORDER_STATUS_VARIANT, SALES_ORDERS_PATH, salesOrderStatusLabelKey } from './sales-order-status';
+import { SALES } from '../../../../lib/permissions';
 
 const STATUS_TABS = ['all', 'draft', 'confirmed', 'partially_delivered', 'fully_delivered', 'cancelled'] as const;
 type StatusTab = (typeof STATUS_TABS)[number];
@@ -130,7 +131,7 @@ export function SalesOrdersPage() {
         title={t('sales.tabs.salesOrders')}
         description={t('sales.salesOrders.subtitle')}
         actions={
-          <Can permission="sales.manage">
+          <Can permission={SALES.create}>
             <Button asChild>
               <Link to={`${SALES_ORDERS_PATH}/new`}>
                 <Plus className="me-1 h-4 w-4" />

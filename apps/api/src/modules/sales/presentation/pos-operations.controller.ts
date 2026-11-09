@@ -16,12 +16,12 @@ import type { JwtAccessPayload } from '../../../shared/auth/jwt-payload.type';
 import { JwtAuthGuard } from '../../../shared/auth/jwt-auth.guard';
 import { PermissionsGuard } from '../../../shared/auth/permissions.guard';
 import { RequirePermissions } from '../../../shared/auth/require-permissions.decorator';
+import { SALES_PERMISSIONS as S } from '../../../shared/auth/trade-permissions';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 import { PosOperationsService, type PosActor } from '../application/services/pos-operations.service';
 
 /** The till beyond checkout: receipts, returns on a receipt, parked sales (migration 0113). */
 @UseGuards(JwtAuthGuard, PermissionsGuard)
-@RequirePermissions('sales.manage')
 @Controller('pos')
 export class PosOperationsController {
   constructor(
@@ -30,16 +30,19 @@ export class PosOperationsController {
   ) {}
 
   @Get('sessions/:id/sales')
+  @RequirePermissions(S.posUse)
   sessionSales(@CurrentTenantSchema() schema: string, @Param('id') id: string): Promise<PosSaleSummaryDto[]> {
     return this.service.sessionSales(this.connections.getClient(schema), id);
   }
 
   @Get('sales/lookup')
+  @RequirePermissions(S.posUse)
   lookup(@CurrentTenantSchema() schema: string, @Query('number') number: string): Promise<PosSaleForReturnDto> {
     return this.service.saleForReturn(this.connections.getClient(schema), number ?? '');
   }
 
   @Post('sessions/:id/returns')
+  @RequirePermissions(S.posUse)
   processReturn(
     @CurrentTenantSchema() schema: string,
     @CurrentUser() user: JwtAccessPayload,
@@ -50,11 +53,13 @@ export class PosOperationsController {
   }
 
   @Get('sessions/:id/held-carts')
+  @RequirePermissions(S.posUse)
   heldCarts(@CurrentTenantSchema() schema: string, @Param('id') id: string): Promise<PosHeldCartDto[]> {
     return this.service.heldCarts(this.connections.getClient(schema), id);
   }
 
   @Post('sessions/:id/held-carts')
+  @RequirePermissions(S.posUse)
   hold(
     @CurrentTenantSchema() schema: string,
     @CurrentUser() user: JwtAccessPayload,
@@ -66,6 +71,7 @@ export class PosOperationsController {
 
   /** Resume (the till loads it first) or discard a parked sale. */
   @Delete('held-carts/:cartId')
+  @RequirePermissions(S.posUse)
   @HttpCode(HttpStatus.NO_CONTENT)
   async take(@CurrentTenantSchema() schema: string, @Param('cartId') cartId: string): Promise<void> {
     await this.service.takeHeldCart(this.connections.getClient(schema), cartId);

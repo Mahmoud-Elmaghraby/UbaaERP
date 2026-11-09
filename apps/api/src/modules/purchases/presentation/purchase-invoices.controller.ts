@@ -15,6 +15,7 @@ import type { JwtAccessPayload } from '../../../shared/auth/jwt-payload.type';
 import { JwtAuthGuard } from '../../../shared/auth/jwt-auth.guard';
 import { PermissionsGuard } from '../../../shared/auth/permissions.guard';
 import { RequirePermissions } from '../../../shared/auth/require-permissions.decorator';
+import { PURCHASES_PERMISSIONS as PU } from '../../../shared/auth/trade-permissions';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 import { PurchaseInvoicesService } from '../application/services/purchase-invoices.service';
 import { PurchasesEventPublisher } from '../infrastructure/events/purchases-event-publisher';
@@ -43,7 +44,6 @@ function invoiceWithLinesToDto(invoice: PurchaseInvoiceWithLines): PurchaseInvoi
  * gate-able (see feature-catalog.ts's class comment).
  */
 @UseGuards(JwtAuthGuard, PermissionsGuard)
-@RequirePermissions('purchases.manage')
 @Controller('purchase-invoices')
 export class PurchaseInvoicesController {
   constructor(
@@ -53,6 +53,7 @@ export class PurchaseInvoicesController {
   ) {}
 
   @Get()
+  @RequirePermissions(PU.view)
   async list(
     @CurrentTenantSchema() schema: string,
     @Query('purchaseOrderId') purchaseOrderId?: string,
@@ -65,6 +66,7 @@ export class PurchaseInvoicesController {
   }
 
   @Get(':id')
+  @RequirePermissions(PU.view)
   async getById(
     @CurrentTenantSchema() schema: string,
     @Param('id') id: string,
@@ -75,6 +77,7 @@ export class PurchaseInvoicesController {
   }
 
   @Post()
+  @RequirePermissions(PU.create)
   async create(
     @CurrentTenantSchema() schema: string,
     @CurrentUser() user: JwtAccessPayload,
@@ -112,6 +115,7 @@ export class PurchaseInvoicesController {
    * Event Bus, on its own schedule.
    */
   @Post(':id/post')
+  @RequirePermissions(PU.post)
   async post(
     @CurrentTenantSchema() schema: string,
     @CurrentUser() user: JwtAccessPayload,
@@ -123,6 +127,7 @@ export class PurchaseInvoicesController {
   }
 
   @Post(':id/cancel')
+  @RequirePermissions(PU.cancel)
   async cancel(
     @CurrentTenantSchema() schema: string,
     @CurrentUser() user: JwtAccessPayload,
@@ -135,6 +140,7 @@ export class PurchaseInvoicesController {
   }
 
   @Delete(':id')
+  @RequirePermissions(PU.cancel)
   @HttpCode(HttpStatus.NO_CONTENT)
   async delete(
     @CurrentTenantSchema() schema: string,

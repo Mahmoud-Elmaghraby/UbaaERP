@@ -28,12 +28,25 @@ async function loadPermissionKeys(
   return map;
 }
 
-function toDomain(row: Selectable<RolesTable>, permissionKeys: string[]): Role {
+/** Users per role, for the given role ids. */
+async function loadUserCounts(db: Kysely<TenantDatabase>, roleIds: string[]): Promise<Map<string, number>> {
+  if (roleIds.length === 0) return new Map();
+  const rows = await db
+    .selectFrom('users')
+    .select(['role_id', (eb) => eb.fn.countAll<string>().as('n')])
+    .where('role_id', 'in', roleIds)
+    .groupBy('role_id')
+    .execute();
+  return new Map(rows.map((r) => [r.role_id, Number(r.n)]));
+}
+
+function toDomain(row: Selectable<RolesTable>, permissionKeys: string[], userCount = 0): Role {
   return {
     id: row.id,
     name: row.name,
     isSystem: row.is_system,
     permissionKeys,
+    userCount,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -42,15 +55,16 @@ function toDomain(row: Selectable<RolesTable>, permissionKeys: string[]): Role {
 export class KyselyRoleRepository implements RoleRepository {
   async list(db: Kysely<TenantDatabase>): Promise<Role[]> {
     const rows = await db.selectFrom('roles').selectAll().orderBy('name').execute();
-    const keysByRole = await loadPermissionKeys(db, rows.map((r) => r.id));
-    return rows.map((r) => toDomain(r, keysByRole.get(r.id) ?? []));
+    const ids = rows.map((r) => r.id);
+    const [keysByRole, counts] = await Promise.all([loadPermissionKeys(db, ids), loadUserCounts(db, ids)]);
+    return rows.map((r) => toDomain(r, keysByRole.get(r.id) ?? [], counts.get(r.id) ?? 0));
   }
 
   async findById(db: Kysely<TenantDatabase>, id: string): Promise<Role | null> {
     const row = await db.selectFrom('roles').selectAll().where('id', '=', id).executeTakeFirst();
     if (!row) return null;
-    const keysByRole = await loadPermissionKeys(db, [row.id]);
-    return toDomain(row, keysByRole.get(row.id) ?? []);
+    const [keysByRole, counts] = await Promise.all([loadPermissionKeys(db, [row.id]), loadUserCounts(db, [row.id])]);
+    return toDomain(row, keysByRole.get(row.id) ?? [], counts.get(row.id) ?? 0);
   }
 
   async create(db: Kysely<TenantDatabase>, input: CreateRoleInput): Promise<Role> {
@@ -85,8 +99,8 @@ export class KyselyRoleRepository implements RoleRepository {
     if (input.permissionKeys !== undefined) {
       await this.setPermissions(db, id, input.permissionKeys);
     }
-    const keysByRole = await loadPermissionKeys(db, [id]);
-    return toDomain(row, keysByRole.get(id) ?? []);
+    const [keysByRole, counts] = await Promise.all([loadPermissionKeys(db, [id]), loadUserCounts(db, [id])]);
+    return toDomain(row, keysByRole.get(id) ?? [], counts.get(id) ?? 0);
   }
 
   async delete(db: Kysely<TenantDatabase>, id: string): Promise<boolean> {

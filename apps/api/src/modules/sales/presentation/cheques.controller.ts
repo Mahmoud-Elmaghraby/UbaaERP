@@ -13,12 +13,12 @@ import type { JwtAccessPayload } from '../../../shared/auth/jwt-payload.type';
 import { JwtAuthGuard } from '../../../shared/auth/jwt-auth.guard';
 import { PermissionsGuard } from '../../../shared/auth/permissions.guard';
 import { RequirePermissions } from '../../../shared/auth/require-permissions.decorator';
+import { SALES_PERMISSIONS as S } from '../../../shared/auth/trade-permissions';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 import { ReceivedChequesService } from '../application/services/received-cheques.service';
 
 /** أوراق القبض: received cheques and their collection / bounce. */
 @UseGuards(JwtAuthGuard, PermissionsGuard)
-@RequirePermissions('sales.manage')
 @Controller('cheques/received')
 export class ReceivedChequesController {
   constructor(
@@ -27,6 +27,7 @@ export class ReceivedChequesController {
   ) {}
 
   @Get()
+  @RequirePermissions(S.view)
   list(
     @CurrentTenantSchema() schema: string,
     @Query('status') status?: string,
@@ -36,6 +37,7 @@ export class ReceivedChequesController {
   }
 
   @Post(':id/collect')
+  @RequirePermissions(S.post)
   @HttpCode(HttpStatus.NO_CONTENT)
   async collect(
     @CurrentTenantSchema() schema: string,
@@ -47,6 +49,7 @@ export class ReceivedChequesController {
   }
 
   @Post(':id/bounce')
+  @RequirePermissions(S.post)
   @HttpCode(HttpStatus.NO_CONTENT)
   async bounce(
     @CurrentTenantSchema() schema: string,

@@ -22,6 +22,8 @@ function makeAuthUser(overrides: Partial<UserAuthRecord> = {}): UserAuthRecord {
     isActive: true,
     totpEnabled: false,
     passwordHash: 'stored-hash',
+    twoFactorEnabled: false,
+    lastLoginAt: null,
     createdAt: new Date('2026-01-01T00:00:00Z'),
     updatedAt: new Date('2026-01-01T00:00:00Z'),
     ...overrides,
@@ -49,9 +51,10 @@ describe('TwoFactorService', () => {
       setPendingTotpSecret: jest.fn(),
       enableTotp: jest.fn(),
       disableTotp: jest.fn(),
+      countActiveWithRole: jest.fn().mockResolvedValue(1),
     };
     backupCodes = { replaceAll: jest.fn(), consume: jest.fn(), deleteAllForUser: jest.fn() };
-    auditLogs = { record: jest.fn(), list: jest.fn() };
+    auditLogs = { record: jest.fn(), existsForEvent: jest.fn(), recentLoginFailures: jest.fn().mockResolvedValue([]), list: jest.fn() };
     secrets = { encrypt: jest.fn(), decrypt: jest.fn() } as unknown as jest.Mocked<SecretsEncryptionService>;
     totp = { generateSecret: jest.fn(), buildOtpauthUri: jest.fn(), verifyCode: jest.fn() } as unknown as jest.Mocked<TotpService>;
 

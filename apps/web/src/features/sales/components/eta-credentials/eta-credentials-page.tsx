@@ -33,6 +33,7 @@ import {
 
 import { useEtaCredentials, useUpdateEtaCredentials } from '../../api/eta-credentials/queries';
 import { ApiError } from '../../../../lib/api-client';
+import { SALES } from '../../../../lib/permissions';
 
 /**
  * Credential-storage readiness for Egypt's e-invoicing (ETA) integration — NOT the
@@ -233,7 +234,7 @@ export function EtaCredentialsPage() {
                   </div>
                 ) : null}
 
-                <Can permission="sales.manage">
+                <Can permission={SALES.settingsManage}>
                   <Button
                     type="submit"
                     disabled={updateCredentials.isPending}

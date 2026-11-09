@@ -29,7 +29,7 @@ export class SalesInvoicePrintProvider implements PrintProvider {
   readonly documentType = 'sales_invoice';
   readonly label = 'فاتورة بيع';
   readonly paperSizes = ['a4', 'thermal80'] as PrintProvider['paperSizes'];
-  readonly permissions = ['sales.manage'];
+  readonly permissions = ['sales.view', 'pos.use'];
 
   constructor(
     private readonly invoices: SalesInvoicesService,

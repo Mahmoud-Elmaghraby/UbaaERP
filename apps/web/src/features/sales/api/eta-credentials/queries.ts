@@ -7,7 +7,7 @@ const KEY = ['eta-credentials'];
 
 /** Settings-shaped singleton (GET + PATCH only, no list/create/delete) — same shape as
  * Settings' own useTenantSettings()/useUpdateTenantSettings(), except this singleton is
- * owned by the Sales module (EtaCredentialsController reuses 'sales.manage', not a
+ * owned by the Sales module (EtaCredentialsController needs 'sales.settings.manage', not a
  * Settings permission) so it lives in Sales' own api/ folder rather than Settings'. */
 export function useEtaCredentials() {
   return useQuery({ queryKey: KEY, queryFn: () => apiGet<EtaCredentialsDto>('/eta-credentials') });

@@ -42,6 +42,7 @@ import {
   useCustomerRefundableCredit,
   useCustomerRefunds,
 } from '../../api/customer-refunds/queries';
+import { SALES } from '../../../../lib/permissions';
 
 const METHODS = refundMethodSchema.options;
 
@@ -52,7 +53,7 @@ export function CustomerRefundAction({ customer }: { customer: CustomerDto }) {
   const [open, setOpen] = useState(false);
   if (!available || BigInt(available.amountMinorUnits) <= 0n) return null;
   return (
-    <Can permission="sales.manage">
+    <Can permission={SALES.post}>
       <Button variant="outline" onClick={() => setOpen(true)}>
         <HandCoins />
         {t('sales.customerRefunds.action')}
@@ -248,7 +249,7 @@ export function CustomerRefundsSection({ customerId }: { customerId: string }) {
               </TableCell>
               <TableCell>
                 {refund.status === 'posted' ? (
-                  <Can permission="sales.manage">
+                  <Can permission={SALES.cancel}>
                     <Button
                       variant="ghost"
                       size="icon-sm"

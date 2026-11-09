@@ -24,6 +24,7 @@ import {
 import { Amount, AMOUNT_CELL } from '../../../../components/amount';
 import { openPrint } from '../../../../components/printing/print-button';
 import { usePosSessionSales } from '../../api/pos/queries';
+import { SALES } from '../../../../lib/permissions';
 
 function timeOf(value: Date | string): string {
   return new Date(value).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' });
@@ -91,7 +92,7 @@ export function PosReceiptsDialog({
             title={filter ? t('common.noResults') : t('pos.receipts.empty')}
             action={
               filter.trim() ? (
-                <Can permission="sales.manage">
+                <Can permission={SALES.posUse}>
                   <Button variant="outline" onClick={() => onReturn(filter.trim())}>
                     <Undo2 />
                     {t('pos.receipts.returnByNumber', { number: filter.trim() })}
@@ -149,7 +150,7 @@ export function PosReceiptsDialog({
                         >
                           <Printer />
                         </Button>
-                        <Can permission="sales.manage">
+                        <Can permission={SALES.posUse}>
                           <Button variant="outline" onClick={() => onReturn(sale.invoiceNumber)}>
                             <Undo2 />
                             {t('pos.return.action')}

@@ -6,7 +6,7 @@ import { AuditLogsService } from './audit-logs.service';
 const FAKE_DB = {} as Kysely<TenantDatabase>;
 
 function makeMockRepository(): jest.Mocked<AuditLogRepository> {
-  return { record: jest.fn(), list: jest.fn().mockResolvedValue([]) };
+  return { record: jest.fn(), existsForEvent: jest.fn(), recentLoginFailures: jest.fn().mockResolvedValue([]), list: jest.fn().mockResolvedValue([]) };
 }
 
 describe('AuditLogsService', () => {

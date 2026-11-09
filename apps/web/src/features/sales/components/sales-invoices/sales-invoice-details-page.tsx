@@ -51,6 +51,7 @@ import { useTenantSettings } from '../../../settings/queries';
 import { formatMoney } from '../../../../lib/money';
 import { WhatsAppShareButton } from '../../../../components/document/whatsapp-share';
 import { SalesInvoiceInstallmentsSection } from './sales-invoice-installments-section';
+import { SALES, SALES_WRITE } from '../../../../lib/permissions';
 
 const PAYMENTS_PATH = '/sales/payments-received';
 
@@ -201,7 +202,7 @@ export function SalesInvoiceDetailsPage() {
           <>
             <PrintButton documentType="sales_invoice" id={invoice.id} receipt />
             {invoice.status !== 'cancelled' ? (
-              <Can permission="sales.manage">
+              <Can permission={SALES.view}>
                 <WhatsAppShareButton
                   kind="sales-invoices"
                   documentId={invoice.id}
@@ -223,48 +224,56 @@ export function SalesInvoiceDetailsPage() {
                 />
               </Can>
             ) : null}
-            <Can permission="sales.manage">
+            <Can permission={SALES_WRITE}>
               {isDraft || invoice.status === 'cancelled' ? (
-                <Button
-                  variant="ghost"
-                  className="text-danger hover:bg-danger-soft hover:text-danger"
-                  disabled={actions.isPending}
-                  onClick={async () => {
-                    if (await actions.remove(invoice.id)) navigate(SALES_INVOICES_PATH);
-                  }}
-                >
-                  {t('common.delete')}
-                </Button>
+                <Can permission={SALES.cancel}>
+                  <Button
+                    variant="ghost"
+                    className="text-danger hover:bg-danger-soft hover:text-danger"
+                    disabled={actions.isPending}
+                    onClick={async () => {
+                      if (await actions.remove(invoice.id)) navigate(SALES_INVOICES_PATH);
+                    }}
+                  >
+                    {t('common.delete')}
+                  </Button>
+                </Can>
               ) : null}
               {isDraft ? (
                 <>
-                  <Button variant="outline" disabled={actions.isPending} onClick={() => void actions.cancel(invoice.id)}>
-                    {t('sales.salesInvoices.cancel')}
-                  </Button>
-                  <Button
-                    disabled={actions.isPending || creditBlocked}
-                    title={creditBlocked ? t('sales.creditLimit.blockedHint') : undefined}
-                    onClick={async () => {
-                      // Above the limit the credit prompt replaces the usual "post?" prompt.
-                      if (creditCheck?.exceeded) {
-                        if (await confirmCreditLimit(creditCheck, t)) void actions.post(invoice.id, { confirm: false });
-                        return;
-                      }
-                      void actions.post(invoice.id);
-                    }}
-                  >
-                    <CheckCircle2 />
-                    {t('sales.salesInvoices.post')}
-                  </Button>
+                  <Can permission={SALES.cancel}>
+                    <Button variant="outline" disabled={actions.isPending} onClick={() => void actions.cancel(invoice.id)}>
+                      {t('sales.salesInvoices.cancel')}
+                    </Button>
+                  </Can>
+                  <Can permission={SALES.post}>
+                    <Button
+                      disabled={actions.isPending || creditBlocked}
+                      title={creditBlocked ? t('sales.creditLimit.blockedHint') : undefined}
+                      onClick={async () => {
+                        // Above the limit the credit prompt replaces the usual "post?" prompt.
+                        if (creditCheck?.exceeded) {
+                          if (await confirmCreditLimit(creditCheck, t)) void actions.post(invoice.id, { confirm: false });
+                          return;
+                        }
+                        void actions.post(invoice.id);
+                      }}
+                    >
+                      <CheckCircle2 />
+                      {t('sales.salesInvoices.post')}
+                    </Button>
+                  </Can>
                 </>
               ) : null}
               {canCollect ? (
-                <Button asChild>
-                  <Link to={collectHref}>
-                    <Wallet />
-                    {t('sales.salesInvoices.recordPayment')}
-                  </Link>
-                </Button>
+                <Can permission={SALES.create}>
+                  <Button asChild>
+                    <Link to={collectHref}>
+                      <Wallet />
+                      {t('sales.salesInvoices.recordPayment')}
+                    </Link>
+                  </Button>
+                </Can>
               ) : null}
             </Can>
           </>

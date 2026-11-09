@@ -14,6 +14,7 @@ import { CurrentTenantSchema } from '../../../shared/auth/current-tenant-schema.
 import { JwtAuthGuard } from '../../../shared/auth/jwt-auth.guard';
 import { PermissionsGuard } from '../../../shared/auth/permissions.guard';
 import { RequirePermissions } from '../../../shared/auth/require-permissions.decorator';
+import { SALES_PERMISSIONS as S } from '../../../shared/auth/trade-permissions';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 import { DocumentShareService } from '../../../shared/printing/document-share.service';
 import { BusinessRuleError } from '../application/errors';
@@ -24,11 +25,10 @@ import { PaymentsReceivedService } from '../application/services/payments-receiv
 /**
  * Installment schedules (التقسيط) of sales invoices, the "installments due"
  * report, and public share links (WhatsApp) for invoices and receipts.
- * Same guard as SalesInvoicesController: 'sales.manage', no PlanFeatureGuard
+ * Same keys as SalesInvoicesController (view / create), no PlanFeatureGuard
  * (invoices and payments are mandatory, never gate-able).
  */
 @UseGuards(JwtAuthGuard, PermissionsGuard)
-@RequirePermissions('sales.manage')
 @Controller()
 export class SalesInvoiceInstallmentsController {
   constructor(
@@ -40,11 +40,13 @@ export class SalesInvoiceInstallmentsController {
   ) {}
 
   @Get('sales-invoices/:id/installments')
+  @RequirePermissions(S.view)
   schedule(@CurrentTenantSchema() schema: string, @Param('id', new ParseUUIDPipe()) id: string): Promise<SalesInvoiceInstallmentScheduleDto> {
     return this.installments.getSchedule(this.connections.getClient(schema), id);
   }
 
   @Put('sales-invoices/:id/installments')
+  @RequirePermissions(S.create)
   replace(
     @CurrentTenantSchema() schema: string,
     @Param('id', new ParseUUIDPipe()) id: string,
@@ -58,6 +60,7 @@ export class SalesInvoiceInstallmentsController {
   }
 
   @Post('sales-invoices/:id/installments/generate')
+  @RequirePermissions(S.create)
   generate(
     @CurrentTenantSchema() schema: string,
     @Param('id', new ParseUUIDPipe()) id: string,
@@ -74,6 +77,7 @@ export class SalesInvoiceInstallmentsController {
 
   /** Open installments of posted invoices (paid ones excluded), oldest due first. */
   @Get('sales-installments')
+  @RequirePermissions(S.view)
   due(
     @CurrentTenantSchema() schema: string,
     @Query('fromDate') fromDate?: string,
@@ -90,6 +94,7 @@ export class SalesInvoiceInstallmentsController {
   }
 
   @Post('sales-invoices/:id/share-link')
+  @RequirePermissions(S.view)
   async shareInvoice(
     @CurrentTenantSchema() schema: string,
     @Param('id', new ParseUUIDPipe()) id: string,
@@ -101,6 +106,7 @@ export class SalesInvoiceInstallmentsController {
   }
 
   @Post('payments-received/:id/share-link')
+  @RequirePermissions(S.view)
   async sharePayment(
     @CurrentTenantSchema() schema: string,
     @Param('id', new ParseUUIDPipe()) id: string,

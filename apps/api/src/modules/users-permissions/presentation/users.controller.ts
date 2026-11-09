@@ -12,6 +12,7 @@ import {
   disableTotpSchema,
   setBranchAccessSchema,
   setManagerSchema,
+  setUserPasswordSchema,
   updateUserSchema,
   userSchema,
   type ChangePasswordDto,
@@ -20,6 +21,7 @@ import {
   type DisableTotpDto,
   type SetBranchAccessDto,
   type SetManagerDto,
+  type SetUserPasswordDto,
   type TotpEnabledResponseDto,
   type TotpSetupResponseDto,
   type TotpStatusResponseDto,
@@ -40,6 +42,7 @@ import { ApprovalChainsService } from '../application/services/approval-chains.s
 import { AccountAccessService } from '../application/services/account-access.service';
 import { TwoFactorService } from '../application/services/two-factor.service';
 import { PosPinService } from '../application/services/pos-pin.service';
+import { LoginLockoutService } from '../application/services/login-lockout.service';
 
 // Every Zod pipe below is bound directly to @Body(), not via a
 // method-level @UsePipes() — see auth.controller.ts's class comment for
@@ -54,6 +57,7 @@ export class UsersController {
     private readonly accountAccess: AccountAccessService,
     private readonly twoFactor: TwoFactorService,
     private readonly posPin: PosPinService,
+    private readonly lockout: LoginLockoutService,
     private readonly connections: TenantConnectionManager,
   ) {}
 
@@ -70,7 +74,7 @@ export class UsersController {
   async getById(@CurrentTenantSchema() schema: string, @Param('id') id: string): Promise<UserDto> {
     const db = this.connections.getClient(schema);
     const user = await this.service.getById(db, id);
-    return userSchema.parse(user);
+    return userSchema.parse({ ...user, lockedUntil: await this.lockout.lockedUntil(db, id) });
   }
 
   @Post()
@@ -195,6 +199,48 @@ export class UsersController {
   ): Promise<void> {
     const db = this.connections.getClient(schema);
     await this.service.revokeSessions(db, id, actor.sub);
+  }
+
+  // An administrator sets someone's password (no e-mail needed). Owner
+  // accounts only by an Owner — UsersService.assertMayManage.
+  @Post(':id/set-password')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @RequirePermissions('users.manage')
+  async setPassword(
+    @CurrentTenantSchema() schema: string,
+    @CurrentUser() actor: JwtAccessPayload,
+    @Param('id') id: string,
+    @Body(new ZodValidationPipe(setUserPasswordSchema)) body: SetUserPasswordDto,
+  ): Promise<void> {
+    const db = this.connections.getClient(schema);
+    await this.service.setPassword(db, id, body.password, actor.sub);
+  }
+
+  // Lift a wrong-password lockout before it expires.
+  @Post(':id/unlock')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @RequirePermissions('users.manage')
+  async unlock(
+    @CurrentTenantSchema() schema: string,
+    @CurrentUser() actor: JwtAccessPayload,
+    @Param('id') id: string,
+  ): Promise<void> {
+    await this.service.unlock(this.connections.getClient(schema), id, actor.sub);
+  }
+
+  // Turn 2FA off for someone who lost their phone and backup codes.
+  @Post(':id/reset-2fa')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @RequirePermissions('users.manage')
+  async resetTwoFactor(
+    @CurrentTenantSchema() schema: string,
+    @CurrentUser() actor: JwtAccessPayload,
+    @Param('id') id: string,
+  ): Promise<void> {
+    const db = this.connections.getClient(schema);
+    const target = await this.service.getById(db, id);
+    await this.service.assertMayManage(db, target, actor.sub);
+    await this.twoFactor.adminReset(db, id, actor.sub);
   }
 
   // Self-service "log out everywhere" — any authenticated user, no

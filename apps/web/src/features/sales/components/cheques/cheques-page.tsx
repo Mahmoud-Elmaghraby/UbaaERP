@@ -26,6 +26,7 @@ import { formatDate } from '../../../../lib/format-date';
 import { ChequeDueDate, chequeDueState, ChequeStatusBadge } from '../../../../components/document/cheque-fields';
 import { PAYMENTS_RECEIVED_PATH } from '../payments-received/payment-received-status';
 import { useChequeActions } from './use-cheque-actions';
+import { PURCH, SALES } from '../../../../lib/permissions';
 
 export const CHEQUES_PATH = '/sales/cheques';
 export const SUPPLIER_PAYMENTS_PATH = '/purchases/supplier-payments';
@@ -75,7 +76,7 @@ export function ChequesPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
-  const canPurchases = useHasPermission('purchases.manage');
+  const canPurchases = useHasPermission(PURCH.view);
   const side: Side = params.get('tab') === 'issued' && canPurchases ? 'issued' : 'received';
   const rawStatus = params.get('status');
   const receivedFilter: ReceivedFilter =
@@ -211,7 +212,7 @@ export function ChequesPage() {
           if (cheque.status !== 'in_hand') return null;
           const target = { id: cheque.id, currency: cheque.amount.currency, chequeNumber: cheque.chequeNumber };
           return (
-            <Can permission="sales.manage">
+            <Can permission={SALES.post}>
               <div className="flex justify-end gap-1.5" onClick={(event) => event.stopPropagation()}>
                 <Button size="sm" variant="outline" onClick={() => openAction('collect', target)}>
                   {t('cheques.actions.collect')}
@@ -311,7 +312,7 @@ export function ChequesPage() {
           const cheque = row.original;
           if (cheque.status !== 'issued') return null;
           return (
-            <Can permission="purchases.manage">
+            <Can permission={PURCH.post}>
               <div className="flex justify-end" onClick={(event) => event.stopPropagation()}>
                 <Button
                   size="sm"
@@ -364,7 +365,7 @@ export function ChequesPage() {
           tone={kpis.overdue.size > 0 ? 'danger' : undefined}
           value={<Sums sums={kpis.overdue} />}
         />
-        <Can permission="purchases.manage">
+        <Can permission={PURCH.view}>
           <Kpi
             label={t('cheques.kpi.issuedOutstanding')}
             loading={issuedLoading}
@@ -377,7 +378,7 @@ export function ChequesPage() {
       <Tabs value={side} onValueChange={setSide}>
         <TabsList>
           <TabsTrigger value="received">{t('cheques.tabs.received')}</TabsTrigger>
-          <Can permission="purchases.manage">
+          <Can permission={PURCH.view}>
             <TabsTrigger value="issued">{t('cheques.tabs.issued')}</TabsTrigger>
           </Can>
         </TabsList>

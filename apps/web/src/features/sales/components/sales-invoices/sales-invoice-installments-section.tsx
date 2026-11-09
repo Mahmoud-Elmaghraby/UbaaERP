@@ -32,6 +32,7 @@ import {
   useInvoiceInstallments,
   useReplaceInvoiceInstallments,
 } from '../../api/sales-invoices/installments';
+import { SALES } from '../../../../lib/permissions';
 
 export const INSTALLMENT_STATUS_VARIANT: Record<InstallmentStatusDto, 'success' | 'info' | 'neutral' | 'danger'> = {
   paid: 'success',
@@ -65,7 +66,7 @@ export function SalesInvoiceInstallmentsSection({
       flush={rows.length > 0}
       actions={
         canEdit ? (
-          <Can permission="sales.manage">
+          <Can permission={SALES.create}>
             <Button variant="outline" size="sm" onClick={() => setOpen(true)}>
               <CalendarClock />
               {rows.length ? t('sales.installments.edit') : t('sales.installments.create')}

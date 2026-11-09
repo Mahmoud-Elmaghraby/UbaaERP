@@ -21,7 +21,7 @@ export class PaymentReceivedPrintProvider implements PrintProvider {
   readonly documentType = 'payment_received';
   readonly label = 'إيصال استلام نقدية';
   readonly paperSizes = ['a4', 'thermal80'] as PrintProvider['paperSizes'];
-  readonly permissions = ['sales.manage'];
+  readonly permissions = ['sales.view'];
 
   constructor(
     private readonly payments: PaymentsReceivedService,

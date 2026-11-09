@@ -38,6 +38,7 @@ import type { JwtAccessPayload } from '../../../shared/auth/jwt-payload.type';
 import { JwtAuthGuard } from '../../../shared/auth/jwt-auth.guard';
 import { PermissionsGuard } from '../../../shared/auth/permissions.guard';
 import { RequirePermissions } from '../../../shared/auth/require-permissions.decorator';
+import { PURCHASES_PERMISSIONS as PU } from '../../../shared/auth/trade-permissions';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 import { SupplierPaymentsService } from '../application/services/supplier-payments.service';
 import { PurchasesEventPublisher } from '../infrastructure/events/purchases-event-publisher';
@@ -71,7 +72,6 @@ function outstandingToDto(invoice: SupplierOutstandingInvoice): SupplierOutstand
  * document-chain step PlanFeatureGuard gates (see feature-catalog.ts).
  */
 @UseGuards(JwtAuthGuard, PermissionsGuard)
-@RequirePermissions('purchases.manage')
 @Controller('supplier-payments')
 export class SupplierPaymentsController {
   constructor(
@@ -81,6 +81,7 @@ export class SupplierPaymentsController {
   ) {}
 
   @Get()
+  @RequirePermissions(PU.view)
   async list(
     @CurrentTenantSchema() schema: string,
     @Query('supplierId') supplierId?: string,
@@ -92,6 +93,7 @@ export class SupplierPaymentsController {
 
   /** Declared before ':id' so the literal path wins. Feeds the web allocation editor. */
   @Get('outstanding-invoices')
+  @RequirePermissions(PU.view)
   async outstandingInvoices(
     @CurrentTenantSchema() schema: string,
     @Query('supplierId', new ParseUUIDPipe()) supplierId: string,
@@ -103,6 +105,7 @@ export class SupplierPaymentsController {
 
   /** أوراق الدفع: our cheques, outstanding or cleared. */
   @Get('cheques')
+  @RequirePermissions(PU.view)
   async issuedCheques(@CurrentTenantSchema() schema: string, @Query('status') status?: string): Promise<IssuedChequeDto[]> {
     const db = this.connections.getClient(schema);
     let query = db
@@ -130,6 +133,7 @@ export class SupplierPaymentsController {
   }
 
   @Get(':id')
+  @RequirePermissions(PU.view)
   async getById(
     @CurrentTenantSchema() schema: string,
     @Param('id') id: string,
@@ -139,6 +143,7 @@ export class SupplierPaymentsController {
   }
 
   @Post()
+  @RequirePermissions(PU.create)
   async create(
     @CurrentTenantSchema() schema: string,
     @CurrentUser() user: JwtAccessPayload,
@@ -156,6 +161,7 @@ export class SupplierPaymentsController {
 
   /** No events.publish() here: the service writes 'purchases.supplier_payment.posted' to the Outbox atomically (§2.7). */
   @Post(':id/clear-cheque')
+  @RequirePermissions(PU.post)
   @HttpCode(HttpStatus.NO_CONTENT)
   async clearCheque(
     @CurrentTenantSchema() schema: string,
@@ -167,6 +173,7 @@ export class SupplierPaymentsController {
   }
 
   @Post(':id/post')
+  @RequirePermissions(PU.post)
   async post(
     @CurrentTenantSchema() schema: string,
     @CurrentUser() user: JwtAccessPayload,
@@ -178,6 +185,7 @@ export class SupplierPaymentsController {
 
   /** Like post(), the 'allocated' event goes through the Outbox inside the service. */
   @Post(':id/allocate')
+  @RequirePermissions(PU.post)
   async allocate(
     @CurrentTenantSchema() schema: string,
     @CurrentUser() user: JwtAccessPayload,
@@ -196,6 +204,7 @@ export class SupplierPaymentsController {
   }
 
   @Post(':id/cancel')
+  @RequirePermissions(PU.cancel)
   async cancel(
     @CurrentTenantSchema() schema: string,
     @CurrentUser() user: JwtAccessPayload,
@@ -208,6 +217,7 @@ export class SupplierPaymentsController {
   }
 
   @Delete(':id')
+  @RequirePermissions(PU.cancel)
   @HttpCode(HttpStatus.NO_CONTENT)
   async delete(
     @CurrentTenantSchema() schema: string,

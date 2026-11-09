@@ -15,6 +15,7 @@ import type { JwtAccessPayload } from '../../../shared/auth/jwt-payload.type';
 import { JwtAuthGuard } from '../../../shared/auth/jwt-auth.guard';
 import { PermissionsGuard } from '../../../shared/auth/permissions.guard';
 import { RequirePermissions } from '../../../shared/auth/require-permissions.decorator';
+import { PURCHASES_PERMISSIONS as PU } from '../../../shared/auth/trade-permissions';
 import { PlanFeatureGuard } from '../../../shared/auth/plan-feature.guard';
 import { RequireFeature } from '../../../shared/auth/require-feature.decorator';
 import { FEATURE_KEYS } from '../../../shared/plans/feature-catalog';
@@ -36,7 +37,6 @@ function receiptWithLinesToDto(receipt: GoodsReceiptWithLines): GoodsReceiptWith
 
 /** Optional document-chain module — gated by PlanFeatureGuard (PURCHASES_GOODS_RECEIPTS). */
 @UseGuards(JwtAuthGuard, PermissionsGuard, PlanFeatureGuard)
-@RequirePermissions('purchases.manage')
 @RequireFeature(FEATURE_KEYS.PURCHASES_GOODS_RECEIPTS)
 @Controller('goods-receipts')
 export class GoodsReceiptsController {
@@ -47,6 +47,7 @@ export class GoodsReceiptsController {
   ) {}
 
   @Get()
+  @RequirePermissions(PU.view)
   async list(
     @CurrentTenantSchema() schema: string,
     @Query('purchaseOrderId') purchaseOrderId?: string,
@@ -59,6 +60,7 @@ export class GoodsReceiptsController {
   }
 
   @Get(':id')
+  @RequirePermissions(PU.view)
   async getById(
     @CurrentTenantSchema() schema: string,
     @Param('id') id: string,
@@ -69,6 +71,7 @@ export class GoodsReceiptsController {
   }
 
   @Post()
+  @RequirePermissions(PU.create)
   async create(
     @CurrentTenantSchema() schema: string,
     @CurrentUser() user: JwtAccessPayload,
@@ -98,6 +101,7 @@ export class GoodsReceiptsController {
    * never a direct call from Purchases into Inventory).
    */
   @Post(':id/confirm')
+  @RequirePermissions(PU.post)
   async confirm(
     @CurrentTenantSchema() schema: string,
     @CurrentUser() user: JwtAccessPayload,
@@ -109,6 +113,7 @@ export class GoodsReceiptsController {
   }
 
   @Post(':id/cancel')
+  @RequirePermissions(PU.cancel)
   async cancel(
     @CurrentTenantSchema() schema: string,
     @CurrentUser() user: JwtAccessPayload,
@@ -121,6 +126,7 @@ export class GoodsReceiptsController {
   }
 
   @Delete(':id')
+  @RequirePermissions(PU.cancel)
   @HttpCode(HttpStatus.NO_CONTENT)
   async delete(
     @CurrentTenantSchema() schema: string,

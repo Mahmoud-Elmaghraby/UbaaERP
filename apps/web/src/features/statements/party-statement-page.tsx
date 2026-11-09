@@ -30,13 +30,14 @@ import { OpeningBalanceDialog } from './opening-balance-dialog';
 import { formatAmount, minorUnitsToDecimalString } from '../../lib/money';
 import { downloadXlsx } from '../../lib/xlsx';
 import { openPrint } from '../../components/printing/print-button';
+import { ENTITY_ROUTES } from '../../lib/entity-routes';
 
 /** Where a statement row's document opens (documents without a details page show their number only). */
 const DOCUMENT_LINKS: Partial<Record<PartyStatementRowDto['kind'], (id: string) => string>> = {
-  sales_invoice: (id) => `/sales/sales-invoices/${id}`,
-  purchase_invoice: (id) => `/purchases/purchase-invoices/${id}`,
-  payment_received: (id) => `/sales/payments-received/${id}`,
-  cheque_bounced: (id) => `/sales/payments-received/${id}`,
+  sales_invoice: ENTITY_ROUTES.sales_invoice,
+  purchase_invoice: ENTITY_ROUTES.purchase_invoice,
+  payment_received: ENTITY_ROUTES.payment_received,
+  cheque_bounced: ENTITY_ROUTES.payment_received,
 };
 
 function yearStart(): string {

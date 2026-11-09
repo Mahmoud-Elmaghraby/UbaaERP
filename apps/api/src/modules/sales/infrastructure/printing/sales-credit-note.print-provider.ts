@@ -20,7 +20,7 @@ export class SalesCreditNotePrintProvider implements PrintProvider {
   readonly documentType = 'sales_credit_note';
   readonly label = 'إشعار دائن';
   readonly paperSizes = ['a4'] as PrintProvider['paperSizes'];
-  readonly permissions = ['sales.manage'];
+  readonly permissions = ['sales.view'];
 
   constructor(
     private readonly creditNotes: SalesCreditNotesService,

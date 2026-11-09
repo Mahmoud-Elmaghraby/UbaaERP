@@ -13,6 +13,7 @@ import { useGoodsReceipts } from '../../api/goods-receipts/queries';
 import { StatusTabs } from '../../../../components/list/status-tabs';
 import { formatDate } from '../../../../lib/format-date';
 import { GOODS_RECEIPT_STATUS_VARIANT, GOODS_RECEIPTS_PATH, goodsReceiptStatusLabelKey } from './goods-receipt-status';
+import { PURCH } from '../../../../lib/permissions';
 
 const STATUS_TABS = ['all', 'draft', 'confirmed', 'cancelled'] as const;
 type StatusTab = (typeof STATUS_TABS)[number];
@@ -93,7 +94,7 @@ export function GoodsReceiptsPage() {
         title={t('purchases.tabs.goodsReceipts')}
         description={t('purchases.goodsReceipts.subtitle')}
         actions={
-          <Can permission="purchases.manage">
+          <Can permission={PURCH.create}>
             <Button asChild>
               <Link to={`${GOODS_RECEIPTS_PATH}/new`}>
                 <Plus className="me-1 h-4 w-4" />

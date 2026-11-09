@@ -28,6 +28,8 @@ function makeAuthUser(overrides: Partial<UserAuthRecord> = {}): UserAuthRecord {
     isActive: true,
     passwordHash: 'stored-hash',
     totpEnabled: false,
+    twoFactorEnabled: false,
+    lastLoginAt: null,
     createdAt: new Date('2026-01-01T00:00:00Z'),
     updatedAt: new Date('2026-01-01T00:00:00Z'),
     ...overrides,
@@ -66,10 +68,11 @@ describe('AccountAccessService', () => {
       setPendingTotpSecret: jest.fn(),
       enableTotp: jest.fn(),
       disableTotp: jest.fn(),
+      countActiveWithRole: jest.fn().mockResolvedValue(1),
     };
     tokens = { create: jest.fn(), findValidByHash: jest.fn(), markUsed: jest.fn() };
     refreshTokens = { create: jest.fn(), findByHash: jest.fn(), revoke: jest.fn(), revokeAllForUser: jest.fn() };
-    auditLogs = { record: jest.fn(), list: jest.fn() };
+    auditLogs = { record: jest.fn(), existsForEvent: jest.fn(), recentLoginFailures: jest.fn().mockResolvedValue([]), list: jest.fn() };
     emailSender = { send: jest.fn() };
     service = new AccountAccessService(users, tokens, refreshTokens, auditLogs, emailSender);
   });

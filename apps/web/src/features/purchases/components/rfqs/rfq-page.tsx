@@ -54,6 +54,7 @@ import { useVariantIndex } from '../../../../components/product/use-variant-inde
 import { CreateSupplierQuotationForm, EditSupplierQuotationForm } from './quotation-form';
 import { QUOTATION_STATUS_VARIANT, quotationStatusLabelKey } from './quotation-status';
 import { RFQ_STATUS_VARIANT, RFQS_PATH, rfqStatusLabelKey } from './rfq-status';
+import { PURCH, PURCH_WRITE } from '../../../../lib/permissions';
 
 const REQUISITIONS_PATH = '/purchases/purchase-requisitions';
 const PURCHASE_ORDERS_PATH = '/purchases/purchase-orders';
@@ -200,69 +201,81 @@ export function RfqPage() {
           </Badge>
         }
         actions={
-          <Can permission="purchases.manage">
+          <Can permission={PURCH_WRITE}>
             <>
               {status === 'draft' || status === 'cancelled' ? (
-                <Button
-                  variant="ghost"
-                  className="text-danger hover:bg-danger-soft hover:text-danger"
-                  disabled={busy}
-                  onClick={async () => {
-                    const ok = await run(() => remove.mutateAsync(rfq.id), 'purchases.rfqs.deleteSuccess', 'common.error', {
-                      key: 'purchases.rfqs.deleteConfirm',
-                      danger: true,
-                    });
-                    if (ok) navigate(RFQS_PATH, { replace: true });
-                  }}
-                >
-                  <Trash2 />
-                  {t('common.delete')}
-                </Button>
+                <Can permission={PURCH.cancel}>
+                  <Button
+                    variant="ghost"
+                    className="text-danger hover:bg-danger-soft hover:text-danger"
+                    disabled={busy}
+                    onClick={async () => {
+                      const ok = await run(() => remove.mutateAsync(rfq.id), 'purchases.rfqs.deleteSuccess', 'common.error', {
+                        key: 'purchases.rfqs.deleteConfirm',
+                        danger: true,
+                      });
+                      if (ok) navigate(RFQS_PATH, { replace: true });
+                    }}
+                  >
+                    <Trash2 />
+                    {t('common.delete')}
+                  </Button>
+                </Can>
               ) : null}
               {status === 'draft' || status === 'sent' ? (
-                <Button
-                  variant="outline"
-                  disabled={busy}
-                  onClick={() =>
-                    void run(() => cancel.mutateAsync(rfq.id), 'purchases.rfqs.cancelSuccess', 'purchases.rfqs.cancelError', {
-                      key: 'purchases.rfqs.cancelConfirm',
-                      danger: true,
-                    })
-                  }
-                >
-                  <Ban />
-                  {t('purchases.rfqs.cancel')}
-                </Button>
+                <Can permission={PURCH.cancel}>
+                  <Button
+                    variant="outline"
+                    disabled={busy}
+                    onClick={() =>
+                      void run(() => cancel.mutateAsync(rfq.id), 'purchases.rfqs.cancelSuccess', 'purchases.rfqs.cancelError', {
+                        key: 'purchases.rfqs.cancelConfirm',
+                        danger: true,
+                      })
+                    }
+                  >
+                    <Ban />
+                    {t('purchases.rfqs.cancel')}
+                  </Button>
+                </Can>
               ) : null}
               {status === 'draft' ? (
                 <>
-                  <Button variant="outline" asChild>
-                    <Link to={`${RFQS_PATH}/${rfq.id}/edit`}>
-                      <Pencil />
-                      {t('common.edit')}
-                    </Link>
-                  </Button>
-                  <Button
-                    disabled={busy}
-                    onClick={() => void run(() => send.mutateAsync(rfq.id), 'purchases.rfqs.sendSuccess', 'purchases.rfqs.sendError')}
-                  >
-                    <Send />
-                    {t('purchases.rfqs.send')}
-                  </Button>
+                  <Can permission={PURCH.create}>
+                    <Button variant="outline" asChild>
+                      <Link to={`${RFQS_PATH}/${rfq.id}/edit`}>
+                        <Pencil />
+                        {t('common.edit')}
+                      </Link>
+                    </Button>
+                  </Can>
+                  <Can permission={PURCH.create}>
+                    <Button
+                      disabled={busy}
+                      onClick={() => void run(() => send.mutateAsync(rfq.id), 'purchases.rfqs.sendSuccess', 'purchases.rfqs.sendError')}
+                    >
+                      <Send />
+                      {t('purchases.rfqs.send')}
+                    </Button>
+                  </Can>
                 </>
               ) : null}
               {canRecordQuotation ? (
-                <Button variant={selected ? 'outline' : 'default'} onClick={() => setRecordOpen(true)}>
-                  {t('purchases.rfqs.recordQuotation')}
-                </Button>
+                <Can permission={PURCH.create}>
+                  <Button variant={selected ? 'outline' : 'default'} onClick={() => setRecordOpen(true)}>
+                    {t('purchases.rfqs.recordQuotation')}
+                  </Button>
+                </Can>
               ) : null}
               {selected && !orderFromSelected ? (
-                <Button asChild>
-                  <Link to={`${PURCHASE_ORDERS_PATH}/new?quotationId=${selected.id}`}>
-                    <ShoppingCart />
-                    {t('purchases.rfqs.createOrder')}
-                  </Link>
-                </Button>
+                <Can permission={PURCH.create}>
+                  <Button asChild>
+                    <Link to={`${PURCHASE_ORDERS_PATH}/new?quotationId=${selected.id}`}>
+                      <ShoppingCart />
+                      {t('purchases.rfqs.createOrder')}
+                    </Link>
+                  </Button>
+                </Can>
               ) : null}
             </>
           </Can>
@@ -396,7 +409,7 @@ export function RfqPage() {
                             {quotation.status === 'received' ? t('common.edit') : t('purchases.rfqs.viewDetails')}
                           </Button>
                           {quotation.status === 'received' ? (
-                            <Can permission="purchases.manage">
+                            <Can permission={PURCH.post}>
                               <>
                                 <Button
                                   variant="ghost"
@@ -412,35 +425,39 @@ export function RfqPage() {
                                 >
                                   {t('purchases.rfqs.select')}
                                 </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() =>
-                                    void run(
-                                      () => rejectQuotation.mutateAsync(quotation.id),
-                                      'purchases.rfqs.rejectQuotationSuccess',
-                                      'purchases.rfqs.rejectQuotationError',
-                                      { key: 'purchases.rfqs.rejectQuotationConfirm', danger: true },
-                                    )
-                                  }
-                                >
-                                  {t('purchases.rfqs.reject')}
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="text-danger"
-                                  onClick={() =>
-                                    void run(
-                                      () => deleteQuotation.mutateAsync({ id: quotation.id, rfqId: rfq.id }),
-                                      'purchases.rfqs.deleteQuotationSuccess',
-                                      'common.error',
-                                      { key: 'purchases.rfqs.deleteQuotationConfirm', danger: true },
-                                    )
-                                  }
-                                >
-                                  {t('common.delete')}
-                                </Button>
+                                <Can permission={PURCH.post}>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() =>
+                                      void run(
+                                        () => rejectQuotation.mutateAsync(quotation.id),
+                                        'purchases.rfqs.rejectQuotationSuccess',
+                                        'purchases.rfqs.rejectQuotationError',
+                                        { key: 'purchases.rfqs.rejectQuotationConfirm', danger: true },
+                                      )
+                                    }
+                                  >
+                                    {t('purchases.rfqs.reject')}
+                                  </Button>
+                                </Can>
+                                <Can permission={PURCH.cancel}>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="text-danger"
+                                    onClick={() =>
+                                      void run(
+                                        () => deleteQuotation.mutateAsync({ id: quotation.id, rfqId: rfq.id }),
+                                        'purchases.rfqs.deleteQuotationSuccess',
+                                        'common.error',
+                                        { key: 'purchases.rfqs.deleteQuotationConfirm', danger: true },
+                                      )
+                                    }
+                                  >
+                                    {t('common.delete')}
+                                  </Button>
+                                </Can>
                               </>
                             </Can>
                           ) : null}

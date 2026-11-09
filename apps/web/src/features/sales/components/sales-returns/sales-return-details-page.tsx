@@ -42,6 +42,7 @@ import { DocumentHistory } from '../../../../components/document/document-histor
 import { QuantityWithUnit } from '../../../../components/product/unit-select';
 import { PrintButton } from '../../../../components/printing/print-button';
 import { SALES_RETURNS_PATH, SALES_RETURN_STATUS_VARIANT, salesReturnStatusLabelKey } from './sales-return-status';
+import { SALES, SALES_WRITE } from '../../../../lib/permissions';
 
 /** /sales/sales-returns/:id — the return with its actions, lines, credit note link and history. */
 export function SalesReturnDetailsPage() {
@@ -136,26 +137,32 @@ export function SalesReturnDetailsPage() {
         actions={
           <>
             <PrintButton documentType="sales_return" id={salesReturn.id} />
-            <Can permission="sales.manage">
+            <Can permission={SALES_WRITE}>
               {isDraft || salesReturn.status === 'cancelled' ? (
-                <Button
-                  variant="ghost"
-                  className="text-danger hover:bg-danger-soft hover:text-danger"
-                  disabled={pending}
-                  onClick={() => void handleDelete()}
-                >
-                  {t('common.delete')}
-                </Button>
+                <Can permission={SALES.cancel}>
+                  <Button
+                    variant="ghost"
+                    className="text-danger hover:bg-danger-soft hover:text-danger"
+                    disabled={pending}
+                    onClick={() => void handleDelete()}
+                  >
+                    {t('common.delete')}
+                  </Button>
+                </Can>
               ) : null}
               {isDraft ? (
                 <>
-                  <Button variant="outline" disabled={pending} onClick={() => void handleCancel()}>
-                    {t('sales.salesReturns.cancel')}
-                  </Button>
-                  <Button disabled={pending} onClick={() => void handleConfirm()}>
-                    <CheckCircle2 />
-                    {t('sales.salesReturns.confirm')}
-                  </Button>
+                  <Can permission={SALES.cancel}>
+                    <Button variant="outline" disabled={pending} onClick={() => void handleCancel()}>
+                      {t('sales.salesReturns.cancel')}
+                    </Button>
+                  </Can>
+                  <Can permission={SALES.post}>
+                    <Button disabled={pending} onClick={() => void handleConfirm()}>
+                      <CheckCircle2 />
+                      {t('sales.salesReturns.confirm')}
+                    </Button>
+                  </Can>
                 </>
               ) : null}
             </Can>

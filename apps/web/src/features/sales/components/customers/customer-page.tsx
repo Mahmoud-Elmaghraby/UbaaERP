@@ -44,6 +44,7 @@ import { ApiError } from '../../../../lib/api-client';
 import { FEATURE_KEYS } from '../../../../lib/feature-keys';
 import { formatDate } from '../../../../lib/format-date';
 import { CustomerRefundAction, CustomerRefundsSection } from './customer-refunds-section';
+import { SALES, SALES_WRITE } from '../../../../lib/permissions';
 
 const CUSTOMERS_PATH = '/sales/customers';
 const RECENT_LIMIT = 10;
@@ -190,23 +191,27 @@ function CustomerView({ customer }: { customer: CustomerDto }) {
               </Link>
             </Button>
             <CustomerRefundAction customer={customer} />
-            <Can permission="sales.manage">
+            <Can permission={SALES_WRITE}>
               {!customer.isSystemDefault ? (
-                <Button
-                  variant="ghost"
-                  className="text-danger hover:bg-danger-soft hover:text-danger"
-                  disabled={deleteCustomer.isPending}
-                  onClick={() => void handleDelete()}
-                >
-                  {t('common.delete')}
-                </Button>
+                <Can permission={SALES.cancel}>
+                  <Button
+                    variant="ghost"
+                    className="text-danger hover:bg-danger-soft hover:text-danger"
+                    disabled={deleteCustomer.isPending}
+                    onClick={() => void handleDelete()}
+                  >
+                    {t('common.delete')}
+                  </Button>
+                </Can>
               ) : null}
-              <Button variant="outline" asChild>
-                <Link to={`${CUSTOMERS_PATH}/${customer.id}/edit`}>
-                  <Pencil />
-                  {t('common.edit')}
-                </Link>
-              </Button>
+              <Can permission={SALES.create}>
+                <Button variant="outline" asChild>
+                  <Link to={`${CUSTOMERS_PATH}/${customer.id}/edit`}>
+                    <Pencil />
+                    {t('common.edit')}
+                  </Link>
+                </Button>
+              </Can>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button>

@@ -28,7 +28,7 @@ export class PurchasesPrintRegistration implements OnModuleInit {
       this.purchaseInvoice,
       this.supplierPayment,
       this.purchaseReturn,
-      new PartyStatementPrintProvider(this.supplierLedger, 'supplier_statement', 'كشف حساب مورد', ['purchases.manage']),
+      new PartyStatementPrintProvider(this.supplierLedger, 'supplier_statement', 'كشف حساب مورد', ['purchases.view']),
     );
   }
 }

@@ -19,7 +19,7 @@ export class SalesReturnPrintProvider implements PrintProvider {
   readonly documentType = 'sales_return';
   readonly label = 'مرتجع مبيعات';
   readonly paperSizes = ['a4'] as PrintProvider['paperSizes'];
-  readonly permissions = ['sales.manage'];
+  readonly permissions = ['sales.view', 'pos.use'];
 
   constructor(@Inject(CUSTOMER_REPOSITORY) private readonly customers: CustomerRepository) {}
 

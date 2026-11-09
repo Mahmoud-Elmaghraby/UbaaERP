@@ -5,6 +5,7 @@ import { useHasPermission } from '@erp-platform/ui';
 import { useCreateSupplier, useSuppliers } from '../api/suppliers/queries';
 import { useBaseCurrency } from '../../settings/queries';
 import { PartyPicker } from '../../../components/party/party-picker';
+import { PURCH } from '../../../lib/permissions';
 
 /** THE supplier field of every purchase document — same behaviour as CustomerPicker. */
 export function SupplierPicker({
@@ -20,7 +21,7 @@ export function SupplierPicker({
 }) {
   const { t } = useTranslation();
   const { data: suppliers } = useSuppliers();
-  const canCreate = useHasPermission('purchases.manage');
+  const canCreate = useHasPermission(PURCH.create);
   const create = useCreateSupplier();
   const currency = useBaseCurrency();
 

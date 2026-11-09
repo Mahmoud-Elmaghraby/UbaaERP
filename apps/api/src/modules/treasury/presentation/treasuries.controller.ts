@@ -43,7 +43,7 @@ export class TreasuriesController {
 
   @Get('lookup')
   @RequirePermissions()
-  @RequireAnyPermission('treasury.view', 'sales.manage', 'purchases.manage', 'accounting.manage')
+  @RequireAnyPermission('treasury.view', 'sales.view', 'pos.use', 'purchases.view', 'accounting.manage')
   lookup(@CurrentTenantSchema() schema: string): Promise<TreasuryLookupDto[]> {
     return this.service.lookup(this.connections.getClient(schema));
   }

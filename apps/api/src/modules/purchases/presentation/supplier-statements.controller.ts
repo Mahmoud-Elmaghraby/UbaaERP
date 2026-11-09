@@ -17,6 +17,7 @@ import type { JwtAccessPayload } from '../../../shared/auth/jwt-payload.type';
 import { JwtAuthGuard } from '../../../shared/auth/jwt-auth.guard';
 import { PermissionsGuard } from '../../../shared/auth/permissions.guard';
 import { RequirePermissions } from '../../../shared/auth/require-permissions.decorator';
+import { PURCHASES_PERMISSIONS as PU } from '../../../shared/auth/trade-permissions';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 import { OutboxWriterService } from '../../../shared/outbox/application/services/outbox-writer.service';
 import {
@@ -33,7 +34,6 @@ import { SupplierLedgerSource } from '../infrastructure/statements/supplier-ledg
  * off. No PlanFeatureGuard: suppliers. balances are core Purchases, like Suppliers.
  */
 @UseGuards(JwtAuthGuard, PermissionsGuard)
-@RequirePermissions('purchases.manage')
 @Controller()
 export class SupplierStatementsController {
   constructor(
@@ -43,6 +43,7 @@ export class SupplierStatementsController {
   ) {}
 
   @Get('supplier-balances')
+  @RequirePermissions(PU.view)
   balances(
     @CurrentTenantSchema() schema: string,
     @Query(new ZodValidationPipe(partyBalancesQuerySchema)) query: PartyBalancesQueryDto,
@@ -51,6 +52,7 @@ export class SupplierStatementsController {
   }
 
   @Get('suppliers/:id/statement')
+  @RequirePermissions(PU.view)
   statement(
     @CurrentTenantSchema() schema: string,
     @Param('id', new ParseUUIDPipe()) id: string,
@@ -60,6 +62,7 @@ export class SupplierStatementsController {
   }
 
   @Get('suppliers/:id/opening-balance')
+  @RequirePermissions(PU.view)
   openingBalance(
     @CurrentTenantSchema() schema: string,
     @Param('id', new ParseUUIDPipe()) id: string,
@@ -68,6 +71,7 @@ export class SupplierStatementsController {
   }
 
   @Put('suppliers/:id/opening-balance')
+  @RequirePermissions(PU.post)
   setOpeningBalance(
     @CurrentTenantSchema() schema: string,
     @CurrentUser() user: JwtAccessPayload,

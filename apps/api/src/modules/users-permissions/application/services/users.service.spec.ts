@@ -8,6 +8,7 @@ import type { Role } from '../../domain/role.entity';
 import type { User } from '../../domain/user.entity';
 import { ConflictError, NotFoundError } from '../errors';
 import { UsersService } from './users.service';
+import { OWNER_ROLE_ID } from '../../../../database/tenant/well-known-ids';
 
 jest.mock('bcryptjs', () => ({
   hash: jest.fn(async (plain: string) => `hashed:${plain}`),
@@ -24,6 +25,8 @@ function makeUser(overrides: Partial<User> = {}): User {
     fullName: 'A User',
     roleId: 'role-1',
     isActive: true,
+    twoFactorEnabled: false,
+    lastLoginAt: null,
     createdAt: new Date('2026-01-01T00:00:00Z'),
     updatedAt: new Date('2026-01-01T00:00:00Z'),
     ...overrides,
@@ -36,6 +39,7 @@ function makeRole(overrides: Partial<Role> = {}): Role {
     name: 'Cashier',
     isSystem: false,
     permissionKeys: [],
+    userCount: 0,
     createdAt: new Date(),
     updatedAt: new Date(),
     ...overrides,
@@ -66,9 +70,10 @@ describe('UsersService', () => {
       setPendingTotpSecret: jest.fn(),
       enableTotp: jest.fn(),
       disableTotp: jest.fn(),
+      countActiveWithRole: jest.fn().mockResolvedValue(1),
     };
     roles = { list: jest.fn(), findById: jest.fn(), create: jest.fn(), update: jest.fn(), delete: jest.fn() };
-    auditLogs = { record: jest.fn(), list: jest.fn() };
+    auditLogs = { record: jest.fn(), existsForEvent: jest.fn(), recentLoginFailures: jest.fn().mockResolvedValue([]), list: jest.fn() };
     refreshTokens = { create: jest.fn(), findByHash: jest.fn(), revoke: jest.fn(), revokeAllForUser: jest.fn() };
     service = new UsersService(repository, roles, auditLogs, refreshTokens);
   });
@@ -147,6 +152,10 @@ describe('UsersService', () => {
   });
 
   describe('update()', () => {
+    beforeEach(() => {
+      repository.findById.mockImplementation((_db, id) => Promise.resolve(makeUser({ id })));
+    });
+
     it('throws NotFoundError when a given roleId does not exist', async () => {
       roles.findById.mockResolvedValue(null);
       await expect(
@@ -282,6 +291,63 @@ describe('UsersService', () => {
         FAKE_DB,
         expect.objectContaining({ metadata: { reason: 'self_requested' } }),
       );
+    });
+  });
+
+  describe('Owner protection', () => {
+    const owner = (id: string, extra: Partial<User> = {}) => makeUser({ id, roleId: OWNER_ROLE_ID, ...extra });
+
+    it('refuses a non-Owner granting the Owner role (to themselves or anyone)', async () => {
+      roles.findById.mockResolvedValue(makeRole({ id: OWNER_ROLE_ID }));
+      repository.findById.mockImplementation((_db, id) => Promise.resolve(makeUser({ id })));
+      await expect(service.update(FAKE_DB, 'actor-1', { roleId: OWNER_ROLE_ID }, 'actor-1')).rejects.toMatchObject({
+        code: 'USER.OWNER_ONLY',
+      });
+      expect(repository.update).not.toHaveBeenCalled();
+    });
+
+    it('refuses a non-Owner changing an Owner account', async () => {
+      repository.findById.mockImplementation((_db, id) => Promise.resolve(id === 'boss' ? owner('boss') : makeUser({ id })));
+      await expect(service.update(FAKE_DB, 'boss', { fullName: 'X' }, 'actor-1')).rejects.toMatchObject({
+        code: 'USER.OWNER_ONLY',
+      });
+    });
+
+    it('refuses demoting or deactivating the last active Owner', async () => {
+      roles.findById.mockResolvedValue(makeRole());
+      repository.findById.mockImplementation((_db, id) => Promise.resolve(owner(id)));
+      repository.countActiveWithRole.mockResolvedValue(0);
+      await expect(service.update(FAKE_DB, 'boss', { roleId: 'role-1' }, 'boss')).rejects.toMatchObject({
+        code: 'USER.LAST_OWNER',
+      });
+      await expect(service.update(FAKE_DB, 'boss', { isActive: false }, 'other-owner')).rejects.toMatchObject({
+        code: 'USER.LAST_OWNER',
+      });
+      expect(repository.update).not.toHaveBeenCalled();
+    });
+
+    it('lets an Owner deactivate another Owner while one stays active', async () => {
+      repository.findById.mockImplementation((_db, id) => Promise.resolve(owner(id)));
+      repository.countActiveWithRole.mockResolvedValue(1);
+      repository.update.mockResolvedValue(owner('boss', { isActive: false }));
+      await expect(service.update(FAKE_DB, 'boss', { isActive: false }, 'other-owner')).resolves.toBeDefined();
+    });
+  });
+
+  describe('setPassword()', () => {
+    it('hashes the new password, signs the user out everywhere and audits it', async () => {
+      repository.findById.mockImplementation((_db, id) => Promise.resolve(makeUser({ id })));
+      (bcrypt.hash as jest.Mock).mockResolvedValue('new-hash');
+      await service.setPassword(FAKE_DB, 'user-2', 'NewPassw0rd', 'actor-1');
+      expect(repository.updatePasswordHash).toHaveBeenCalledWith(FAKE_DB, 'user-2', 'new-hash');
+      expect(refreshTokens.revokeAllForUser).toHaveBeenCalledWith(FAKE_DB, 'user-2');
+      expect(auditLogs.record).toHaveBeenCalledWith(FAKE_DB, expect.objectContaining({ action: 'user.password_set' }));
+    });
+
+    it('refuses the own account (that path needs the current password)', async () => {
+      await expect(service.setPassword(FAKE_DB, 'actor-1', 'NewPassw0rd', 'actor-1')).rejects.toMatchObject({
+        code: 'USER.USE_CHANGE_PASSWORD',
+      });
     });
   });
 });

@@ -5,6 +5,7 @@ import { useHasPermission } from '@erp-platform/ui';
 import { useCreateCustomer, useCustomers } from '../api/customers/queries';
 import { useBaseCurrency } from '../../settings/queries';
 import { PartyPicker } from '../../../components/party/party-picker';
+import { SALES } from '../../../lib/permissions';
 
 /**
  * THE customer field of every sales document: searchable (code, name, phone),
@@ -24,7 +25,7 @@ export function CustomerPicker({
 }) {
   const { t } = useTranslation();
   const { data: customers } = useCustomers();
-  const canCreate = useHasPermission('sales.manage');
+  const canCreate = useHasPermission(SALES.create);
   const create = useCreateCustomer();
   const currency = useBaseCurrency();
 

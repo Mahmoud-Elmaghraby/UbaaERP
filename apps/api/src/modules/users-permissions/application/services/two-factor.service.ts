@@ -130,6 +130,25 @@ export class TwoFactorService {
     return { backupCodes: plainCodes };
   }
 
+  /**
+   * An administrator turns 2FA off for someone who lost their phone and
+   * their backup codes. The caller (UsersController) runs
+   * UsersService.assertMayManage first, so only an Owner can do this to an Owner.
+   */
+  async adminReset(db: Kysely<TenantDatabase>, targetUserId: string, actingUserId: string): Promise<void> {
+    const user = await this.users.findById(db, targetUserId);
+    if (!user) throw entityNotFound('USER', targetUserId);
+    await this.users.disableTotp(db, targetUserId);
+    await this.backupCodes.deleteAllForUser(db, targetUserId);
+    await this.auditLogs.record(db, {
+      userId: actingUserId,
+      action: 'user.2fa_reset',
+      entityType: 'user',
+      entityId: targetUserId,
+      metadata: {},
+    });
+  }
+
   async disable(db: Kysely<TenantDatabase>, userId: string, currentPassword: string): Promise<void> {
     const user = await this.users.findById(db, userId);
     if (!user) throw entityNotFound('USER', userId);

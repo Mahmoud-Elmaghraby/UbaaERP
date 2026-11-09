@@ -73,6 +73,7 @@ import { PosHeldCartsDialog } from './pos-held-carts-dialog';
 import { PosReceiptsDialog } from './pos-receipts-dialog';
 import { PosReturnDialog } from './pos-return-dialog';
 import { PosDrawerDialog } from './pos-drawer-dialog';
+import { SALES } from '../../../../lib/permissions';
 
 const PAYMENT_METHODS = paymentMethodSchema.options;
 
@@ -524,7 +525,7 @@ export function PosCartPanel({ session }: { session: PosSessionDto }) {
           {t('pos.receipts.title')}
           <Kbd>F7</Kbd>
         </Button>
-        <Can permission="sales.manage">
+        <Can permission={SALES.posUse}>
           <Button variant="outline" className="h-11" onClick={() => setReturnState({ open: true, number: '' })}>
             <Undo2 />
             {t('pos.return.action')}

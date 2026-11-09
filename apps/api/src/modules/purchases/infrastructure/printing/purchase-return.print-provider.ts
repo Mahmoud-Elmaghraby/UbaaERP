@@ -22,7 +22,7 @@ export class PurchaseReturnPrintProvider implements PrintProvider {
   readonly documentType = 'purchase_return';
   readonly label = 'مرتجع مشتريات / إشعار خصم';
   readonly paperSizes = ['a4'] as PrintProvider['paperSizes'];
-  readonly permissions = ['purchases.manage'];
+  readonly permissions = ['purchases.view'];
 
   constructor(@Inject(SUPPLIER_REPOSITORY) private readonly suppliers: SupplierRepository) {}
 

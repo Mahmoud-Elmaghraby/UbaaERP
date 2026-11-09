@@ -24,7 +24,7 @@ export class SupplierPaymentPrintProvider implements PrintProvider {
   readonly documentType = 'supplier_payment';
   readonly label = 'سند صرف';
   readonly paperSizes = ['a4', 'thermal80'] as PrintProvider['paperSizes'];
-  readonly permissions = ['purchases.manage'];
+  readonly permissions = ['purchases.view'];
 
   constructor(
     private readonly payments: SupplierPaymentsService,

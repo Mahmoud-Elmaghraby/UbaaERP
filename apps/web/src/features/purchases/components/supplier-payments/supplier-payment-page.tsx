@@ -48,6 +48,7 @@ import {
 import { PrintButton } from '../../../../components/printing/print-button';
 import { SUPPLIER_PAYMENT_STATUS_VARIANT, SUPPLIER_PAYMENTS_PATH, supplierPaymentStatusLabelKey } from './supplier-payment-status';
 import { useSupplierPaymentActions } from './use-supplier-payment-actions';
+import { PURCH, PURCH_WRITE } from '../../../../lib/permissions';
 
 const PURCHASE_INVOICES_PATH = '/purchases/purchase-invoices';
 const SUPPLIERS_PATH = '/purchases/suppliers';
@@ -138,40 +139,48 @@ export function SupplierPaymentPage() {
         actions={
           <>
             <PrintButton documentType="supplier_payment" id={payment.id} receipt />
-            <Can permission="purchases.manage">
+            <Can permission={PURCH_WRITE}>
               <>
                 {isDraft || payment.status === 'cancelled' ? (
-                  <Button
-                    variant="ghost"
-                    className="text-danger hover:bg-danger-soft hover:text-danger"
-                    disabled={actions.isPending}
-                    onClick={async () => {
-                      if (await actions.remove(payment.id)) navigate(SUPPLIER_PAYMENTS_PATH, { replace: true });
-                    }}
-                  >
-                    <Trash2 />
-                    {t('common.delete')}
-                  </Button>
+                  <Can permission={PURCH.cancel}>
+                    <Button
+                      variant="ghost"
+                      className="text-danger hover:bg-danger-soft hover:text-danger"
+                      disabled={actions.isPending}
+                      onClick={async () => {
+                        if (await actions.remove(payment.id)) navigate(SUPPLIER_PAYMENTS_PATH, { replace: true });
+                      }}
+                    >
+                      <Trash2 />
+                      {t('common.delete')}
+                    </Button>
+                  </Can>
                 ) : null}
                 {isDraft ? (
                   <>
-                    <Button variant="outline" disabled={actions.isPending} onClick={() => void actions.cancel(payment.id)}>
-                      <Ban />
-                      {t('purchases.supplierPayments.cancel')}
-                    </Button>
-                    <Button disabled={actions.isPending} onClick={() => void actions.post(payment.id)}>
-                      <CheckCircle2 />
-                      {t('purchases.supplierPayments.post')}
-                    </Button>
+                    <Can permission={PURCH.cancel}>
+                      <Button variant="outline" disabled={actions.isPending} onClick={() => void actions.cancel(payment.id)}>
+                        <Ban />
+                        {t('purchases.supplierPayments.cancel')}
+                      </Button>
+                    </Can>
+                    <Can permission={PURCH.post}>
+                      <Button disabled={actions.isPending} onClick={() => void actions.post(payment.id)}>
+                        <CheckCircle2 />
+                        {t('purchases.supplierPayments.post')}
+                      </Button>
+                    </Can>
                   </>
                 ) : null}
                 {chequeOutstanding && cheque ? (
-                  <Button
-                    variant="outline"
-                    onClick={() => chequeActions.open('clear', { id: payment.id, currency, chequeNumber: cheque.number })}
-                  >
-                    {t('cheques.actions.clear')}
-                  </Button>
+                  <Can permission={PURCH.post}>
+                    <Button
+                      variant="outline"
+                      onClick={() => chequeActions.open('clear', { id: payment.id, currency, chequeNumber: cheque.number })}
+                    >
+                      {t('cheques.actions.clear')}
+                    </Button>
+                  </Can>
                 ) : null}
               </>
             </Can>
@@ -273,13 +282,15 @@ export function SupplierPaymentPage() {
             </SectionCard>
 
             {isPosted && unallocated > 0n ? (
-              <Can permission="purchases.manage">
+              <Can permission={PURCH_WRITE}>
                 <SectionCard
                   title={t('purchases.supplierPayments.allocateRest')}
                   actions={
-                    <Button size="sm" disabled={allocate.isPending || allocationsTotal(drafts) === 0n} onClick={() => void saveAllocation()}>
-                      {t('purchases.supplierPayments.saveAllocation')}
-                    </Button>
+                    <Can permission={PURCH.post}>
+                      <Button size="sm" disabled={allocate.isPending || allocationsTotal(drafts) === 0n} onClick={() => void saveAllocation()}>
+                        {t('purchases.supplierPayments.saveAllocation')}
+                      </Button>
+                    </Can>
                   }
                   flush
                 >

@@ -27,7 +27,7 @@ export class SalesPrintRegistration implements OnModuleInit {
 
   onModuleInit(): void {
     this.registry.register(
-      new PartyStatementPrintProvider(this.customerLedger, 'customer_statement', 'كشف حساب عميل', ['sales.manage']),
+      new PartyStatementPrintProvider(this.customerLedger, 'customer_statement', 'كشف حساب عميل', ['sales.view']),
       this.quotation,
       this.salesOrder,
       this.delivery,

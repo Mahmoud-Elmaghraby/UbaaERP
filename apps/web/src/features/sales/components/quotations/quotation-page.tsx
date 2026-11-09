@@ -53,6 +53,7 @@ import {
   isQuotationExpired,
   quotationStatusLabelKey,
 } from './quotation-status';
+import { SALES, SALES_WRITE } from '../../../../lib/permissions';
 
 const SALES_ORDERS_PATH = '/sales/sales-orders';
 
@@ -188,79 +189,91 @@ export function QuotationPage() {
         actions={
           <>
             <PrintButton documentType="quotation" id={quotation.id} />
-            <Can permission="sales.manage">
+            <Can permission={SALES_WRITE}>
               <>
                 {status === 'draft' || status === 'cancelled' ? (
-                  <Button
-                    variant="ghost"
-                    className="text-danger hover:bg-danger-soft hover:text-danger"
-                    disabled={busy}
-                    onClick={() => void handleDelete()}
-                  >
-                    <Trash2 />
-                    {t('common.delete')}
-                  </Button>
+                  <Can permission={SALES.cancel}>
+                    <Button
+                      variant="ghost"
+                      className="text-danger hover:bg-danger-soft hover:text-danger"
+                      disabled={busy}
+                      onClick={() => void handleDelete()}
+                    >
+                      <Trash2 />
+                      {t('common.delete')}
+                    </Button>
+                  </Can>
                 ) : null}
                 {status === 'draft' || status === 'sent' ? (
-                  <Button
-                    variant="outline"
-                    disabled={busy}
-                    onClick={() =>
-                      void run(
-                        cancelQuotation,
-                        'sales.quotations.cancelSuccess',
-                        'sales.quotations.cancelError',
-                        'sales.quotations.cancelConfirm',
-                      )
-                    }
-                  >
-                    <Ban />
-                    {t('sales.quotations.cancel')}
-                  </Button>
-                ) : null}
-                {status === 'draft' ? (
-                  <>
-                    <Button variant="outline" asChild>
-                      <Link to={`${QUOTATIONS_PATH}/${quotation.id}/edit`}>
-                        <Pencil />
-                        {t('common.edit')}
-                      </Link>
-                    </Button>
-                    <Button
-                      disabled={busy}
-                      onClick={() => void run(sendQuotation, 'sales.quotations.sendSuccess', 'sales.quotations.sendError')}
-                    >
-                      <Send />
-                      {t('sales.quotations.send')}
-                    </Button>
-                  </>
-                ) : null}
-                {status === 'sent' ? (
-                  <>
+                  <Can permission={SALES.cancel}>
                     <Button
                       variant="outline"
                       disabled={busy}
                       onClick={() =>
                         void run(
-                          rejectQuotation,
-                          'sales.quotations.rejectSuccess',
-                          'sales.quotations.rejectError',
-                          'sales.quotations.rejectConfirm',
+                          cancelQuotation,
+                          'sales.quotations.cancelSuccess',
+                          'sales.quotations.cancelError',
+                          'sales.quotations.cancelConfirm',
                         )
                       }
                     >
-                      <X />
-                      {t('sales.quotations.reject')}
+                      <Ban />
+                      {t('sales.quotations.cancel')}
                     </Button>
-                    <Button
-                      disabled={busy}
-                      onClick={() =>
-                        void run(acceptQuotation, 'sales.quotations.acceptSuccess', 'sales.quotations.acceptError')
-                      }
-                    >
-                      <Check />
-                      {t('sales.quotations.accept')}
-                    </Button>
+                  </Can>
+                ) : null}
+                {status === 'draft' ? (
+                  <>
+                    <Can permission={SALES.create}>
+                      <Button variant="outline" asChild>
+                        <Link to={`${QUOTATIONS_PATH}/${quotation.id}/edit`}>
+                          <Pencil />
+                          {t('common.edit')}
+                        </Link>
+                      </Button>
+                    </Can>
+                    <Can permission={SALES.create}>
+                      <Button
+                        disabled={busy}
+                        onClick={() => void run(sendQuotation, 'sales.quotations.sendSuccess', 'sales.quotations.sendError')}
+                      >
+                        <Send />
+                        {t('sales.quotations.send')}
+                      </Button>
+                    </Can>
+                  </>
+                ) : null}
+                {status === 'sent' ? (
+                  <>
+                    <Can permission={SALES.create}>
+                      <Button
+                        variant="outline"
+                        disabled={busy}
+                        onClick={() =>
+                          void run(
+                            rejectQuotation,
+                            'sales.quotations.rejectSuccess',
+                            'sales.quotations.rejectError',
+                            'sales.quotations.rejectConfirm',
+                          )
+                        }
+                      >
+                        <X />
+                        {t('sales.quotations.reject')}
+                      </Button>
+                    </Can>
+                    <Can permission={SALES.create}>
+                      <Button
+                        disabled={busy}
+                        onClick={() =>
+                          void run(acceptQuotation, 'sales.quotations.acceptSuccess', 'sales.quotations.acceptError')
+                        }
+                      >
+                        <Check />
+                        {t('sales.quotations.accept')}
+                      </Button>
+                    </Can>
                   </>
                 ) : null}
                 {status === 'accepted' && salesOrdersEnabled ? (
@@ -271,10 +284,12 @@ export function QuotationPage() {
                       </Link>
                     </Button>
                   ) : (
-                    <Button disabled={busy || !salesOrders} onClick={() => void handleConvert()}>
-                      <ArrowLeftRight />
-                      {t('sales.quotations.convertToOrder')}
-                    </Button>
+                    <Can permission={SALES.create}>
+                      <Button disabled={busy || !salesOrders} onClick={() => void handleConvert()}>
+                        <ArrowLeftRight />
+                        {t('sales.quotations.convertToOrder')}
+                      </Button>
+                    </Can>
                   )
                 ) : null}
               </>

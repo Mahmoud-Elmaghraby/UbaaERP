@@ -19,6 +19,7 @@ import type { JwtAccessPayload } from '../../../shared/auth/jwt-payload.type';
 import { JwtAuthGuard } from '../../../shared/auth/jwt-auth.guard';
 import { PermissionsGuard } from '../../../shared/auth/permissions.guard';
 import { RequirePermissions } from '../../../shared/auth/require-permissions.decorator';
+import { SALES_PERMISSIONS as S } from '../../../shared/auth/trade-permissions';
 import { PlanFeatureGuard } from '../../../shared/auth/plan-feature.guard';
 import { RequireFeature } from '../../../shared/auth/require-feature.decorator';
 import { FEATURE_KEYS } from '../../../shared/plans/feature-catalog';
@@ -41,7 +42,6 @@ function quotationWithLinesToDto(quotation: QuotationWithLines): QuotationWithLi
 
 /** Optional document-chain module — gated by PlanFeatureGuard (SALES_QUOTATIONS). */
 @UseGuards(JwtAuthGuard, PermissionsGuard, PlanFeatureGuard)
-@RequirePermissions('sales.manage')
 @RequireFeature(FEATURE_KEYS.SALES_QUOTATIONS)
 @Controller('quotations')
 export class QuotationsController {
@@ -52,6 +52,7 @@ export class QuotationsController {
   ) {}
 
   @Get()
+  @RequirePermissions(S.view)
   async list(@CurrentTenantSchema() schema: string): Promise<QuotationListItemDto[]> {
     const db = this.connections.getClient(schema);
     const quotations = await this.service.listWithTotals(db);
@@ -64,6 +65,7 @@ export class QuotationsController {
   }
 
   @Get(':id')
+  @RequirePermissions(S.view)
   async getById(
     @CurrentTenantSchema() schema: string,
     @Param('id') id: string,
@@ -74,6 +76,7 @@ export class QuotationsController {
   }
 
   @Post()
+  @RequirePermissions(S.create)
   async create(
     @CurrentTenantSchema() schema: string,
     @CurrentUser() user: JwtAccessPayload,
@@ -93,6 +96,7 @@ export class QuotationsController {
   }
 
   @Patch(':id')
+  @RequirePermissions(S.create)
   async update(
     @CurrentTenantSchema() schema: string,
     @CurrentUser() user: JwtAccessPayload,
@@ -114,6 +118,7 @@ export class QuotationsController {
   }
 
   @Post(':id/send')
+  @RequirePermissions(S.create)
   async send(
     @CurrentTenantSchema() schema: string,
     @CurrentUser() user: JwtAccessPayload,
@@ -126,6 +131,7 @@ export class QuotationsController {
   }
 
   @Post(':id/accept')
+  @RequirePermissions(S.create)
   async accept(
     @CurrentTenantSchema() schema: string,
     @CurrentUser() user: JwtAccessPayload,
@@ -138,6 +144,7 @@ export class QuotationsController {
   }
 
   @Post(':id/reject')
+  @RequirePermissions(S.create)
   async reject(
     @CurrentTenantSchema() schema: string,
     @CurrentUser() user: JwtAccessPayload,
@@ -150,6 +157,7 @@ export class QuotationsController {
   }
 
   @Post(':id/cancel')
+  @RequirePermissions(S.cancel)
   async cancel(
     @CurrentTenantSchema() schema: string,
     @CurrentUser() user: JwtAccessPayload,
@@ -162,6 +170,7 @@ export class QuotationsController {
   }
 
   @Delete(':id')
+  @RequirePermissions(S.cancel)
   @HttpCode(HttpStatus.NO_CONTENT)
   async delete(
     @CurrentTenantSchema() schema: string,

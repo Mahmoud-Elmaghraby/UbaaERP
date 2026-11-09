@@ -37,7 +37,7 @@ export const ALL_INVENTORY_PERMISSIONS: readonly InventoryPermission[] = Object.
  * inventory role — a store keeper who may only count stock still has to see
  * which item a line is.
  */
-export const CATALOG_READ_PERMISSIONS = [...ALL_INVENTORY_PERMISSIONS, 'sales.manage', 'purchases.manage'] as const;
+export const CATALOG_READ_PERMISSIONS = [...ALL_INVENTORY_PERMISSIONS, 'sales.view', 'pos.use', 'purchases.view'] as const;
 
 /** Warehouses / locations are picked on sales and purchase documents and on every stock screen. */
 export const WAREHOUSE_READ_PERMISSIONS = CATALOG_READ_PERMISSIONS;
@@ -48,7 +48,7 @@ export function canViewCosts(permissions: readonly string[] | undefined): boolea
 
 /** Default purchase prices are a purchasing tool as much as a cost: buyers see them too. */
 export function canViewPurchasePrices(permissions: readonly string[] | undefined): boolean {
-  return canViewCosts(permissions) || Boolean(permissions?.includes('purchases.manage'));
+  return canViewCosts(permissions) || Boolean(permissions?.includes('purchases.view'));
 }
 
 /**

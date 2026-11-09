@@ -87,7 +87,7 @@ export class BankAccountsController {
   /** Active bank accounts for the receipt / payment forms — readable by sales and purchases users too. */
   @Get('lookup')
   @RequirePermissions()
-  @RequireAnyPermission('accounting.manage', 'sales.manage', 'purchases.manage')
+  @RequireAnyPermission('accounting.manage', 'sales.view', 'purchases.view')
   async lookup(@CurrentTenantSchema() schema: string): Promise<BankAccountLookupDto[]> {
     const bankAccounts = await this.service.list(this.connections.getClient(schema), { isActive: true });
     return bankAccounts.map((account) =>

@@ -12,6 +12,7 @@ import { CurrentTenantSchema } from '../../../shared/auth/current-tenant-schema.
 import { JwtAuthGuard } from '../../../shared/auth/jwt-auth.guard';
 import { PermissionsGuard } from '../../../shared/auth/permissions.guard';
 import { RequirePermissions } from '../../../shared/auth/require-permissions.decorator';
+import { PURCHASES_PERMISSIONS as PU } from '../../../shared/auth/trade-permissions';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 import { totalsToDto } from '../../../shared/taxes/line-tax-snapshot';
 import {
@@ -39,7 +40,6 @@ function noteWithLinesToDto(note: DebitNoteRecord): PurchaseDebitNoteWithLinesDt
  * PlanFeatureGuard, like the sales credit notes it mirrors.
  */
 @UseGuards(JwtAuthGuard, PermissionsGuard)
-@RequirePermissions('purchases.manage')
 @Controller('purchase-debit-notes')
 export class PurchaseDebitNotesController {
   constructor(
@@ -48,6 +48,7 @@ export class PurchaseDebitNotesController {
   ) {}
 
   @Get()
+  @RequirePermissions(PU.view)
   async list(
     @CurrentTenantSchema() schema: string,
     @Query(new ZodValidationPipe(purchaseDebitNotesQuerySchema)) query: PurchaseDebitNotesQueryDto,
@@ -57,6 +58,7 @@ export class PurchaseDebitNotesController {
   }
 
   @Get(':id')
+  @RequirePermissions(PU.view)
   async getById(
     @CurrentTenantSchema() schema: string,
     @Param('id', new ParseUUIDPipe()) id: string,

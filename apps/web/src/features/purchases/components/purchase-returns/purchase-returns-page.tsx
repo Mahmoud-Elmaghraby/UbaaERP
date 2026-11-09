@@ -13,6 +13,7 @@ import { useSuppliers } from '../../api/suppliers/queries';
 import { StatusTabs } from '../../../../components/list/status-tabs';
 import { formatDate } from '../../../../lib/format-date';
 import { PURCHASE_RETURN_STATUS_VARIANT, PURCHASE_RETURNS_PATH, purchaseReturnStatusLabelKey } from './purchase-return-status';
+import { PURCH } from '../../../../lib/permissions';
 
 const STATUS_TABS = ['all', 'draft', 'confirmed', 'cancelled'] as const;
 type StatusTab = (typeof STATUS_TABS)[number];
@@ -92,7 +93,7 @@ export function PurchaseReturnsPage() {
         title={t('purchases.tabs.purchaseReturns')}
         description={t('purchases.purchaseReturns.subtitle')}
         actions={
-          <Can permission="purchases.manage">
+          <Can permission={PURCH.create}>
             <Button asChild>
               <Link to={`${PURCHASE_RETURNS_PATH}/new`}>
                 <Plus className="me-1 h-4 w-4" />

@@ -26,6 +26,7 @@ import { downloadXlsx } from '../../../../lib/xlsx';
 import { FEATURE_KEYS } from '../../../../lib/feature-keys';
 import type { PurchasePrefillState } from '../../../purchases/lib/prefill-lines';
 import { ALL_WAREHOUSES, WarehouseFilter } from './warehouse-filter';
+import { PURCH } from '../../../../lib/permissions';
 
 /** الأصناف تحت حد الطلب: stock at or below its reorder point — the reorder list for purchasing. */
 export function LowStockPage() {
@@ -96,7 +97,7 @@ export function LowStockPage() {
               <Download />
               {t('inventory.reports.exportCsv')}
             </Button>
-            <Can permission="purchases.manage">
+            <Can permission={PURCH.create}>
               <Button onClick={orderSelected} disabled={selected.size === 0}>
                 <ShoppingCart />
                 {t('inventory.lowStock.createOrder', { count: selected.size })}

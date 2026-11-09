@@ -12,6 +12,7 @@ import { Amount, AMOUNT_CELL } from '../../../../components/amount';
 import { StatusTabs } from '../../../../components/list/status-tabs';
 import { formatDate } from '../../../../lib/format-date';
 import { SUPPLIER_PAYMENT_STATUS_VARIANT, SUPPLIER_PAYMENTS_PATH, supplierPaymentStatusLabelKey } from './supplier-payment-status';
+import { PURCH } from '../../../../lib/permissions';
 
 const STATUS_TABS = ['all', 'draft', 'posted', 'cancelled'] as const;
 type StatusTab = (typeof STATUS_TABS)[number];
@@ -93,7 +94,7 @@ export function SupplierPaymentsPage() {
         title={t('purchases.tabs.supplierPayments')}
         description={t('purchases.supplierPayments.subtitle')}
         actions={
-          <Can permission="purchases.manage">
+          <Can permission={PURCH.create}>
             <Button asChild>
               <Link to={`${SUPPLIER_PAYMENTS_PATH}/new`}>
                 <Plus className="me-1 h-4 w-4" />

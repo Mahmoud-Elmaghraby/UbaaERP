@@ -36,7 +36,8 @@ import { PermissionsController } from './presentation/permissions.controller';
 import { RolesController } from './presentation/roles.controller';
 import { UsersController } from './presentation/users.controller';
 import { AuditLogsController } from './presentation/audit-logs.controller';
-import { InventoryAuditListener } from './infrastructure/listeners/inventory-audit.listener';
+import { LoginLockoutService } from './application/services/login-lockout.service';
+import { DomainAuditListener } from './infrastructure/listeners/domain-audit.listener';
 
 /**
  * Users & Permissions module (CLAUDE.md §10: step 1, alongside Settings).
@@ -67,11 +68,12 @@ import { InventoryAuditListener } from './infrastructure/listeners/inventory-aud
     ApprovalChainsService,
     AuditLogsService,
     AuthService,
+    LoginLockoutService,
     AccountAccessService,
     TotpService,
     TwoFactorService,
     PosPinService,
-    InventoryAuditListener,
+    DomainAuditListener,
   ],
 })
 export class UsersPermissionsModule {}

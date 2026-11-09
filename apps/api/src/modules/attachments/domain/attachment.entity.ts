@@ -40,18 +40,17 @@ export function isAttachmentEntityType(value: string): value is AttachmentEntity
  * introducing a new 'attachments.manage' permission (the user's explicit
  * choice, claude/attachments-strategy.md: "صلاحية الموديول نفسه"). Cross-
  * checked directly against each controller's own
- * @RequirePermissions(...): suppliers.controller.ts and the Purchases
- * order/invoice controllers require 'purchases.manage'; customers.
- * controller.ts and the Sales order/invoice controllers require
- * 'sales.manage'; products.controller.ts requires 'inventory.products.manage' (migration 0082).
+ * @RequirePermissions(...): editing suppliers and purchase orders/invoices
+ * needs 'purchases.create', customers and sales orders/invoices 'sales.create'
+ * (migration 0117); products need 'inventory.products.manage' (migration 0082).
  */
 export const ATTACHMENT_ENTITY_PERMISSIONS: Record<AttachmentEntityType, string> = {
-  sales_invoice: 'sales.manage',
-  sales_order: 'sales.manage',
-  customer: 'sales.manage',
-  purchase_invoice: 'purchases.manage',
-  purchase_order: 'purchases.manage',
-  supplier: 'purchases.manage',
+  sales_invoice: 'sales.create',
+  sales_order: 'sales.create',
+  customer: 'sales.create',
+  purchase_invoice: 'purchases.create',
+  purchase_order: 'purchases.create',
+  supplier: 'purchases.create',
   product: 'inventory.products.manage',
   journal_entry: 'accounting.manage',
 };

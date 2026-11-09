@@ -54,6 +54,7 @@ import { lineDiscountText } from '../../../../components/document/direct-lines-e
 import { QuantityWithUnit } from '../../../../components/product/unit-select';
 import { PrintButton } from '../../../../components/printing/print-button';
 import { SALES_ORDER_STATUS_VARIANT, SALES_ORDERS_PATH, salesOrderStatusLabelKey } from './sales-order-status';
+import { SALES, SALES_WRITE } from '../../../../lib/permissions';
 
 const QUOTATIONS_PATH = '/sales/quotations';
 const DELIVERIES_PATH = '/sales/deliveries';
@@ -222,72 +223,84 @@ export function SalesOrderPage() {
         actions={
           <>
             <PrintButton documentType="sales_order" id={order.id} />
-            <Can permission="sales.manage">
+            <Can permission={SALES_WRITE}>
               <>
                 {isDraft || status === 'cancelled' ? (
-                  <Button
-                    variant="ghost"
-                    className="text-danger hover:bg-danger-soft hover:text-danger"
-                    disabled={busy}
-                    onClick={() => void handleDelete()}
-                  >
-                    <Trash2 />
-                    {t('common.delete')}
-                  </Button>
+                  <Can permission={SALES.cancel}>
+                    <Button
+                      variant="ghost"
+                      className="text-danger hover:bg-danger-soft hover:text-danger"
+                      disabled={busy}
+                      onClick={() => void handleDelete()}
+                    >
+                      <Trash2 />
+                      {t('common.delete')}
+                    </Button>
+                  </Can>
                 ) : null}
                 {isDraft || status === 'confirmed' ? (
-                  <Button
-                    variant="outline"
-                    disabled={busy}
-                    onClick={() =>
-                      void run(
-                        cancelOrder,
-                        'sales.salesOrders.cancelSuccess',
-                        'sales.salesOrders.cancelError',
-                        'sales.salesOrders.cancelConfirm',
-                      )
-                    }
-                  >
-                    <Ban />
-                    {t('sales.salesOrders.cancel')}
-                  </Button>
+                  <Can permission={SALES.cancel}>
+                    <Button
+                      variant="outline"
+                      disabled={busy}
+                      onClick={() =>
+                        void run(
+                          cancelOrder,
+                          'sales.salesOrders.cancelSuccess',
+                          'sales.salesOrders.cancelError',
+                          'sales.salesOrders.cancelConfirm',
+                        )
+                      }
+                    >
+                      <Ban />
+                      {t('sales.salesOrders.cancel')}
+                    </Button>
+                  </Can>
                 ) : null}
                 {isDraft ? (
                   <>
-                    <Button variant="outline" asChild>
-                      <Link to={`${SALES_ORDERS_PATH}/${order.id}/edit`}>
-                        <Pencil />
-                        {t('common.edit')}
-                      </Link>
-                    </Button>
-                    <Button
-                      disabled={busy || creditBlocked}
-                      title={creditBlocked ? t('sales.creditLimit.blockedHint') : undefined}
-                      onClick={async () => {
-                        if (!(await confirmCreditLimit(creditCheck, t))) return;
-                        void run(confirmOrder, 'sales.salesOrders.confirmSuccess', 'sales.salesOrders.confirmError');
-                      }}
-                    >
-                      <CheckCircle2 />
-                      {t('sales.salesOrders.confirm')}
-                    </Button>
+                    <Can permission={SALES.create}>
+                      <Button variant="outline" asChild>
+                        <Link to={`${SALES_ORDERS_PATH}/${order.id}/edit`}>
+                          <Pencil />
+                          {t('common.edit')}
+                        </Link>
+                      </Button>
+                    </Can>
+                    <Can permission={SALES.post}>
+                      <Button
+                        disabled={busy || creditBlocked}
+                        title={creditBlocked ? t('sales.creditLimit.blockedHint') : undefined}
+                        onClick={async () => {
+                          if (!(await confirmCreditLimit(creditCheck, t))) return;
+                          void run(confirmOrder, 'sales.salesOrders.confirmSuccess', 'sales.salesOrders.confirmError');
+                        }}
+                      >
+                        <CheckCircle2 />
+                        {t('sales.salesOrders.confirm')}
+                      </Button>
+                    </Can>
                   </>
                 ) : null}
                 {deliveriesEnabled && isOpen ? (
-                  <Button asChild>
-                    <Link to={`${DELIVERIES_PATH}/new?salesOrderId=${order.id}`}>
-                      <Truck />
-                      {t('sales.salesOrders.createDelivery')}
-                    </Link>
-                  </Button>
+                  <Can permission={SALES.create}>
+                    <Button asChild>
+                      <Link to={`${DELIVERIES_PATH}/new?salesOrderId=${order.id}`}>
+                        <Truck />
+                        {t('sales.salesOrders.createDelivery')}
+                      </Link>
+                    </Button>
+                  </Can>
                 ) : null}
                 {isActive ? (
-                  <Button variant={deliveriesEnabled && isOpen ? 'outline' : 'default'} asChild>
-                    <Link to={`${SALES_INVOICES_PATH}/new?salesOrderId=${order.id}`}>
-                      <FileText />
-                      {t('sales.salesOrders.createInvoice')}
-                    </Link>
-                  </Button>
+                  <Can permission={SALES.create}>
+                    <Button variant={deliveriesEnabled && isOpen ? 'outline' : 'default'} asChild>
+                      <Link to={`${SALES_INVOICES_PATH}/new?salesOrderId=${order.id}`}>
+                        <FileText />
+                        {t('sales.salesOrders.createInvoice')}
+                      </Link>
+                    </Button>
+                  </Can>
                 ) : null}
               </>
             </Can>

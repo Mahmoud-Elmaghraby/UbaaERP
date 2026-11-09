@@ -10,18 +10,25 @@ import { TenantConnectionManager } from '../../../shared/tenancy/tenant-connecti
 import { CurrentTenantSchema } from '../../../shared/auth/current-tenant-schema.decorator';
 import { JwtAuthGuard } from '../../../shared/auth/jwt-auth.guard';
 import { PermissionsGuard } from '../../../shared/auth/permissions.guard';
-import { RequirePermissions } from '../../../shared/auth/require-permissions.decorator';
+import { RequireAnyPermission, RequirePermissions } from '../../../shared/auth/require-permissions.decorator';
+import { PURCHASES_PERMISSIONS as PU, SALES_PERMISSIONS as S } from '../../../shared/auth/trade-permissions';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 import { PriceListsService } from '../application/services/price-lists.service';
 
+interface PriceListPermissions {
+  /** Any of these may read the lists (documents and the POS pick them up). */
+  read: string[];
+  manage: string;
+}
+
 /**
- * One CRUD controller per price-list kind — same endpoints, its own path and permission:
- * sales lists at /price-lists (sales.manage), supplier lists at /purchase-price-lists
- * (purchases.manage). No PlanFeatureGuard: master data, like customers and suppliers.
+ * One CRUD controller per price-list kind — same endpoints, its own path and permissions:
+ * sales lists at /price-lists, supplier lists at /purchase-price-lists. Read by whoever prepares
+ * documents in the module; changed with the module's settings permission. No PlanFeatureGuard:
+ * master data, like customers and suppliers.
  */
-function priceListsController(path: string, permission: string, kind: PriceListKindDto): Type<unknown> {
+function priceListsController(path: string, permissions: PriceListPermissions, kind: PriceListKindDto): Type<unknown> {
   @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @RequirePermissions(permission)
   @Controller(path)
   class PriceListsKindController {
     constructor(
@@ -30,16 +37,19 @@ function priceListsController(path: string, permission: string, kind: PriceListK
     ) {}
 
     @Get()
+    @RequireAnyPermission(...permissions.read)
     list(@CurrentTenantSchema() schema: string): Promise<PriceListSummaryDto[]> {
       return this.service.list(this.connections.getClient(schema), kind);
     }
 
     @Get(':id')
+    @RequireAnyPermission(...permissions.read)
     getById(@CurrentTenantSchema() schema: string, @Param('id') id: string): Promise<PriceListDto> {
       return this.service.getById(this.connections.getClient(schema), id, kind);
     }
 
     @Post()
+    @RequirePermissions(permissions.manage)
     create(
       @CurrentTenantSchema() schema: string,
       @Body(new ZodValidationPipe(savePriceListSchema)) body: SavePriceListDto,
@@ -48,6 +58,7 @@ function priceListsController(path: string, permission: string, kind: PriceListK
     }
 
     @Put(':id')
+    @RequirePermissions(permissions.manage)
     update(
       @CurrentTenantSchema() schema: string,
       @Param('id') id: string,
@@ -58,6 +69,7 @@ function priceListsController(path: string, permission: string, kind: PriceListK
 
     @Delete(':id')
     @HttpCode(HttpStatus.NO_CONTENT)
+    @RequirePermissions(permissions.manage)
     async delete(@CurrentTenantSchema() schema: string, @Param('id') id: string): Promise<void> {
       await this.service.delete(this.connections.getClient(schema), id, kind);
     }
@@ -67,5 +79,13 @@ function priceListsController(path: string, permission: string, kind: PriceListK
   return PriceListsKindController;
 }
 
-export const PriceListsController = priceListsController('price-lists', 'sales.manage', 'sale');
-export const PurchasePriceListsController = priceListsController('purchase-price-lists', 'purchases.manage', 'purchase');
+export const PriceListsController = priceListsController(
+  'price-lists',
+  { read: [S.view, S.posUse, S.settingsManage], manage: S.settingsManage },
+  'sale',
+);
+export const PurchasePriceListsController = priceListsController(
+  'purchase-price-lists',
+  { read: [PU.view, PU.settingsManage], manage: PU.settingsManage },
+  'purchase',
+);

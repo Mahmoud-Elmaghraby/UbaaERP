@@ -13,6 +13,7 @@ import { useInstallmentsDue } from '../../api/sales-invoices/installments';
 import { CustomerPicker } from '../../lib/customer-picker';
 import { SALES_INVOICES_PATH } from './sales-invoice-status';
 import { INSTALLMENT_STATUS_VARIANT } from './sales-invoice-installments-section';
+import { SALES } from '../../../../lib/permissions';
 
 type StatusTab = 'all' | Exclude<InstallmentStatusDto, 'paid'>;
 const STATUS_TABS: readonly StatusTab[] = ['all', 'overdue', 'due', 'partially_paid'];
@@ -136,7 +137,7 @@ export function InstallmentsDuePage() {
         id: 'actions',
         header: '',
         cell: ({ row }) => (
-          <Can permission="sales.manage">
+          <Can permission={SALES.create}>
             <Button variant="ghost" size="sm" asChild onClick={(e) => e.stopPropagation()}>
               <Link
                 to={`/sales/payments-received/new?customerId=${row.original.customerId}&invoiceId=${row.original.salesInvoiceId}`}

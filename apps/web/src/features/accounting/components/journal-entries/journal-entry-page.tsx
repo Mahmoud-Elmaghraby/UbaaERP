@@ -39,26 +39,23 @@ import { Amount, AMOUNT_CELL } from '../../../../components/amount';
 import { confirmDialog } from '../../../../components/feedback/confirm-dialog';
 import { DocumentBody, DocumentHeaderBar, InfoGrid, PanelCard, SectionCard } from '../../../../components/document/document-layout';
 import { DocumentHistory } from '../../../../components/document/document-history';
+import { ENTITY_ROUTES } from '../../../../lib/entity-routes';
 import { AttachmentsPanel } from '../../../attachments/components/attachments-panel';
 import { ReverseJournalEntryForm } from './journal-entry-reverse-form';
 import { JOURNAL_ENTRY_STATUS_VARIANT, journalEntryStatusLabelKey, sourceRefKey } from './journal-entry-status';
 
 /** Where an automatic entry's source document lives in the app (when it has its own page). */
 const SOURCE_ROUTES: Record<string, (id: string) => string> = {
-  sales_invoice: (id) => `/sales/sales-invoices/${id}`,
-  purchase_invoice: (id) => `/purchases/purchase-invoices/${id}`,
-  purchase_debit_note: (id) => `/purchases/debit-notes/${id}`,
-  supplier_payment: (id) => `/purchases/supplier-payments/${id}`,
-  inventory_goods_receipt: (id) => `/purchases/goods-receipts/${id}`,
-  goods_receipt_exchange_difference: (id) => `/purchases/goods-receipts/${id}`,
-  channel_settlement: (id) => `/sales/settlements/${id}`,
-  inventory_stock_count: (id) => `/inventory/counts/${id}`,
-  inventory_stock_adjustment: (id) => `/inventory/adjustments/${id}`,
-  inventory_stock_transfer: (id) => `/inventory/transfers/${id}`,
-  fixed_asset_disposal: (id) => `/accounting/fixed-assets/${id}`,
-  cheque_collected: (id) => `/sales/payments-received/${id}`,
-  cheque_bounced: (id) => `/sales/payments-received/${id}`,
-  cheque_cleared: (id) => `/purchases/supplier-payments/${id}`,
+  ...ENTITY_ROUTES,
+  inventory_goods_receipt: ENTITY_ROUTES.goods_receipt,
+  goods_receipt_exchange_difference: ENTITY_ROUTES.goods_receipt,
+  inventory_stock_count: ENTITY_ROUTES.stock_count,
+  inventory_stock_adjustment: ENTITY_ROUTES.stock_adjustment,
+  inventory_stock_transfer: ENTITY_ROUTES.stock_transfer,
+  fixed_asset_disposal: ENTITY_ROUTES.fixed_asset,
+  cheque_collected: ENTITY_ROUTES.payment_received,
+  cheque_bounced: ENTITY_ROUTES.payment_received,
+  cheque_cleared: ENTITY_ROUTES.supplier_payment,
 };
 
 /** /accounting/journal-entries/:id — one entry: header, lines with totals, and what can be done with it. */

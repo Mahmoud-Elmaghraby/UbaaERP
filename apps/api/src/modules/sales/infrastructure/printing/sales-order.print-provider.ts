@@ -18,7 +18,7 @@ export class SalesOrderPrintProvider implements PrintProvider {
   readonly documentType = 'sales_order';
   readonly label = 'أمر بيع';
   readonly paperSizes = ['a4'] as PrintProvider['paperSizes'];
-  readonly permissions = ['sales.manage'];
+  readonly permissions = ['sales.view'];
 
   constructor(
     private readonly orders: SalesOrdersService,

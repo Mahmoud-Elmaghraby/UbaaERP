@@ -49,6 +49,7 @@ import {
   PURCHASE_REQUISITIONS_PATH,
   purchaseRequisitionStatusLabelKey,
 } from './purchase-requisition-status';
+import { PURCH, PURCH_WRITE } from '../../../../lib/permissions';
 
 const RFQS_PATH = '/purchases/rfqs';
 
@@ -154,66 +155,80 @@ export function PurchaseRequisitionPage() {
           </Badge>
         }
         actions={
-          <Can permission="purchases.manage">
+          <Can permission={PURCH_WRITE}>
             <>
               {status === 'draft' || status === 'cancelled' ? (
-                <Button
-                  variant="ghost"
-                  className="text-danger hover:bg-danger-soft hover:text-danger"
-                  disabled={busy}
-                  onClick={() => void handleDelete()}
-                >
-                  <Trash2 />
-                  {t('common.delete')}
-                </Button>
+                <Can permission={PURCH.cancel}>
+                  <Button
+                    variant="ghost"
+                    className="text-danger hover:bg-danger-soft hover:text-danger"
+                    disabled={busy}
+                    onClick={() => void handleDelete()}
+                  >
+                    <Trash2 />
+                    {t('common.delete')}
+                  </Button>
+                </Can>
               ) : null}
               {status === 'draft' || status === 'submitted' ? (
-                <Button
-                  variant="outline"
-                  disabled={busy}
-                  onClick={() => void run(cancel, 'cancel', 'purchases.purchaseRequisitions.cancelConfirm')}
-                >
-                  <Ban />
-                  {t('purchases.purchaseRequisitions.cancel')}
-                </Button>
+                <Can permission={PURCH.cancel}>
+                  <Button
+                    variant="outline"
+                    disabled={busy}
+                    onClick={() => void run(cancel, 'cancel', 'purchases.purchaseRequisitions.cancelConfirm')}
+                  >
+                    <Ban />
+                    {t('purchases.purchaseRequisitions.cancel')}
+                  </Button>
+                </Can>
               ) : null}
               {status === 'draft' ? (
                 <>
-                  <Button variant="outline" asChild>
-                    <Link to={`${PURCHASE_REQUISITIONS_PATH}/${requisition.id}/edit`}>
-                      <Pencil />
-                      {t('common.edit')}
-                    </Link>
-                  </Button>
-                  <Button disabled={busy} onClick={() => void run(submit, 'submit')}>
-                    <Send />
-                    {t('purchases.purchaseRequisitions.submit')}
-                  </Button>
+                  <Can permission={PURCH.create}>
+                    <Button variant="outline" asChild>
+                      <Link to={`${PURCHASE_REQUISITIONS_PATH}/${requisition.id}/edit`}>
+                        <Pencil />
+                        {t('common.edit')}
+                      </Link>
+                    </Button>
+                  </Can>
+                  <Can permission={PURCH.create}>
+                    <Button disabled={busy} onClick={() => void run(submit, 'submit')}>
+                      <Send />
+                      {t('purchases.purchaseRequisitions.submit')}
+                    </Button>
+                  </Can>
                 </>
               ) : null}
               {status === 'submitted' ? (
                 <>
-                  <Button
-                    variant="outline"
-                    disabled={busy}
-                    onClick={() => void run(reject, 'reject', 'purchases.purchaseRequisitions.rejectConfirm')}
-                  >
-                    <X />
-                    {t('purchases.purchaseRequisitions.reject')}
-                  </Button>
-                  <Button disabled={busy} onClick={() => void run(approve, 'approve')}>
-                    <CheckCircle2 />
-                    {t('purchases.purchaseRequisitions.approve')}
-                  </Button>
+                  <Can permission={PURCH.post}>
+                    <Button
+                      variant="outline"
+                      disabled={busy}
+                      onClick={() => void run(reject, 'reject', 'purchases.purchaseRequisitions.rejectConfirm')}
+                    >
+                      <X />
+                      {t('purchases.purchaseRequisitions.reject')}
+                    </Button>
+                  </Can>
+                  <Can permission={PURCH.post}>
+                    <Button disabled={busy} onClick={() => void run(approve, 'approve')}>
+                      <CheckCircle2 />
+                      {t('purchases.purchaseRequisitions.approve')}
+                    </Button>
+                  </Can>
                 </>
               ) : null}
               {status === 'approved' && rfqEnabled ? (
-                <Button asChild>
-                  <Link to={`${RFQS_PATH}/new?requisitionId=${requisition.id}`}>
-                    <FileSearch />
-                    {t('purchases.purchaseRequisitions.createRfq')}
-                  </Link>
-                </Button>
+                <Can permission={PURCH.create}>
+                  <Button asChild>
+                    <Link to={`${RFQS_PATH}/new?requisitionId=${requisition.id}`}>
+                      <FileSearch />
+                      {t('purchases.purchaseRequisitions.createRfq')}
+                    </Link>
+                  </Button>
+                </Can>
               ) : null}
             </>
           </Can>

@@ -4,6 +4,9 @@ export interface User {
   fullName: string;
   roleId: string;
   isActive: boolean;
+  twoFactorEnabled: boolean;
+  /** Last successful sign-in, read from the audit log. */
+  lastLoginAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }

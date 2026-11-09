@@ -13,6 +13,7 @@ import { useSalesReturns } from '../../api/sales-returns/queries';
 import { StatusTabs } from '../../../../components/list/status-tabs';
 import { formatDate } from '../../../../lib/format-date';
 import { SALES_RETURNS_PATH, SALES_RETURN_STATUS_VARIANT, salesReturnStatusLabelKey } from './sales-return-status';
+import { SALES } from '../../../../lib/permissions';
 
 const STATUS_TABS = ['all', 'draft', 'confirmed', 'cancelled'] as const;
 type StatusTab = (typeof STATUS_TABS)[number];
@@ -98,7 +99,7 @@ export function SalesReturnsPage() {
         title={t('sales.tabs.salesReturns')}
         description={t('sales.salesReturns.subtitle')}
         actions={
-          <Can permission="sales.manage">
+          <Can permission={SALES.create}>
             <Button asChild>
               <Link to={`${SALES_RETURNS_PATH}/new`}>
                 <Plus className="me-1 h-4 w-4" />

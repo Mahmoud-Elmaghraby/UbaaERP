@@ -12,12 +12,12 @@ import { CurrentTenantSchema } from '../../../shared/auth/current-tenant-schema.
 import { JwtAuthGuard } from '../../../shared/auth/jwt-auth.guard';
 import { PermissionsGuard } from '../../../shared/auth/permissions.guard';
 import { RequirePermissions } from '../../../shared/auth/require-permissions.decorator';
+import { PURCHASES_PERMISSIONS as PU } from '../../../shared/auth/trade-permissions';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 import { PurchaseAnalysisService } from '../application/services/purchase-analysis.service';
 
 /** Purchase analysis and an item's purchase price history. Read-only; core Purchases (no PlanFeatureGuard). */
 @UseGuards(JwtAuthGuard, PermissionsGuard)
-@RequirePermissions('purchases.manage')
 @Controller('purchase-reports')
 export class PurchaseReportsController {
   constructor(
@@ -26,6 +26,7 @@ export class PurchaseReportsController {
   ) {}
 
   @Get('analysis')
+  @RequirePermissions(PU.reportsView)
   report(
     @CurrentTenantSchema() schema: string,
     @Query(new ZodValidationPipe(purchaseAnalysisQuerySchema)) query: PurchaseAnalysisQueryDto,
@@ -34,6 +35,7 @@ export class PurchaseReportsController {
   }
 
   @Get('price-history')
+  @RequirePermissions(PU.reportsView)
   priceHistory(
     @CurrentTenantSchema() schema: string,
     @Query(new ZodValidationPipe(purchasePriceHistoryQuerySchema)) query: PurchasePriceHistoryQueryDto,

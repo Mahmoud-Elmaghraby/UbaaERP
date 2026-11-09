@@ -12,21 +12,21 @@ import type { JwtAccessPayload } from '../../../shared/auth/jwt-payload.type';
 import { JwtAuthGuard } from '../../../shared/auth/jwt-auth.guard';
 import { PermissionsGuard } from '../../../shared/auth/permissions.guard';
 import { RequirePermissions } from '../../../shared/auth/require-permissions.decorator';
+import { SALES_PERMISSIONS as S } from '../../../shared/auth/trade-permissions';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 import { EtaCredentialsService } from '../application/services/eta-credentials.service';
 import { SalesEventPublisher } from '../infrastructure/events/sales-event-publisher';
 
 /**
  * Settings-shaped singleton, same as TenantSettingsController (GET +
- * PATCH only — no POST/DELETE, see migration 0040's comment). Reuses
- * 'sales.manage' rather than minting a new permission.
+ * PATCH only — no POST/DELETE, see migration 0040's comment). Gated by
+ * 'sales.settings.manage' (migration 0117), reading included — it holds credentials.
  *
  * No PlanFeatureGuard: intentionally excluded — this is an integration
  * credentials record, not one of the optional document-chain steps
  * PlanFeatureGuard gates (see feature-catalog.ts).
  */
 @UseGuards(JwtAuthGuard, PermissionsGuard)
-@RequirePermissions('sales.manage')
 @Controller('eta-credentials')
 export class EtaCredentialsController {
   constructor(
@@ -36,6 +36,7 @@ export class EtaCredentialsController {
   ) {}
 
   @Get()
+  @RequirePermissions(S.settingsManage)
   async get(@CurrentTenantSchema() schema: string): Promise<EtaCredentialsDto> {
     const db = this.connections.getClient(schema);
     const credentials = await this.service.get(db);
@@ -43,6 +44,7 @@ export class EtaCredentialsController {
   }
 
   @Patch()
+  @RequirePermissions(S.settingsManage)
   async update(
     @CurrentTenantSchema() schema: string,
     @CurrentUser() user: JwtAccessPayload,

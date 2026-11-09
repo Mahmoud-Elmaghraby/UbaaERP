@@ -21,7 +21,7 @@ export class DeliveryPrintProvider implements PrintProvider {
   readonly documentType = 'delivery';
   readonly label = 'إذن تسليم';
   readonly paperSizes = ['a4'] as PrintProvider['paperSizes'];
-  readonly permissions = ['sales.manage'];
+  readonly permissions = ['sales.view'];
 
   constructor(
     private readonly deliveries: DeliveriesService,

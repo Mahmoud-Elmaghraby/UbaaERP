@@ -15,6 +15,7 @@ import type { JwtAccessPayload } from '../../../shared/auth/jwt-payload.type';
 import { JwtAuthGuard } from '../../../shared/auth/jwt-auth.guard';
 import { PermissionsGuard } from '../../../shared/auth/permissions.guard';
 import { RequirePermissions } from '../../../shared/auth/require-permissions.decorator';
+import { SALES_PERMISSIONS as S } from '../../../shared/auth/trade-permissions';
 import { PlanFeatureGuard } from '../../../shared/auth/plan-feature.guard';
 import { RequireFeature } from '../../../shared/auth/require-feature.decorator';
 import { FEATURE_KEYS } from '../../../shared/plans/feature-catalog';
@@ -32,7 +33,6 @@ export function deliveryWithLinesToDto(delivery: DeliveryWithLines): DeliveryWit
 
 /** Optional document-chain module — gated by PlanFeatureGuard (SALES_DELIVERIES). */
 @UseGuards(JwtAuthGuard, PermissionsGuard, PlanFeatureGuard)
-@RequirePermissions('sales.manage')
 @RequireFeature(FEATURE_KEYS.SALES_DELIVERIES)
 @Controller('deliveries')
 export class DeliveriesController {
@@ -43,6 +43,7 @@ export class DeliveriesController {
   ) {}
 
   @Get()
+  @RequirePermissions(S.view)
   async list(
     @CurrentTenantSchema() schema: string,
     @Query('salesOrderId') salesOrderId?: string,
@@ -55,6 +56,7 @@ export class DeliveriesController {
   }
 
   @Get(':id')
+  @RequirePermissions(S.view)
   async getById(
     @CurrentTenantSchema() schema: string,
     @Param('id') id: string,
@@ -65,6 +67,7 @@ export class DeliveriesController {
   }
 
   @Post()
+  @RequirePermissions(S.create)
   async create(
     @CurrentTenantSchema() schema: string,
     @CurrentUser() user: JwtAccessPayload,
@@ -88,6 +91,7 @@ export class DeliveriesController {
    * 'sales.delivery.confirmed' on the Event Bus, on its own schedule.
    */
   @Post(':id/confirm')
+  @RequirePermissions(S.post)
   async confirm(
     @CurrentTenantSchema() schema: string,
     @CurrentUser() user: JwtAccessPayload,
@@ -99,6 +103,7 @@ export class DeliveriesController {
   }
 
   @Post(':id/cancel')
+  @RequirePermissions(S.cancel)
   async cancel(
     @CurrentTenantSchema() schema: string,
     @CurrentUser() user: JwtAccessPayload,
@@ -111,6 +116,7 @@ export class DeliveriesController {
   }
 
   @Delete(':id')
+  @RequirePermissions(S.cancel)
   @HttpCode(HttpStatus.NO_CONTENT)
   async delete(
     @CurrentTenantSchema() schema: string,

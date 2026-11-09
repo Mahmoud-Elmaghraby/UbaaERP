@@ -43,6 +43,7 @@ import { LotsSummary } from '../../../../components/document/lot-entry';
 import { QuantityWithUnit } from '../../../../components/product/unit-select';
 import { PrintButton } from '../../../../components/printing/print-button';
 import { DELIVERIES_PATH, DELIVERY_STATUS_VARIANT, deliveryStatusLabelKey } from './delivery-status';
+import { SALES, SALES_WRITE } from '../../../../lib/permissions';
 
 /** /sales/deliveries/:id — the delivery note with its actions, lines and history. */
 export function DeliveryDetailsPage() {
@@ -134,35 +135,43 @@ export function DeliveryDetailsPage() {
         actions={
           <>
             <PrintButton documentType="delivery" id={delivery.id} />
-            <Can permission="sales.manage">
+            <Can permission={SALES_WRITE}>
               {isDraft || delivery.status === 'cancelled' ? (
-                <Button
-                  variant="ghost"
-                  className="text-danger hover:bg-danger-soft hover:text-danger"
-                  disabled={pending}
-                  onClick={() => void handleDelete()}
-                >
-                  {t('common.delete')}
-                </Button>
+                <Can permission={SALES.cancel}>
+                  <Button
+                    variant="ghost"
+                    className="text-danger hover:bg-danger-soft hover:text-danger"
+                    disabled={pending}
+                    onClick={() => void handleDelete()}
+                  >
+                    {t('common.delete')}
+                  </Button>
+                </Can>
               ) : null}
               {isDraft ? (
                 <>
-                  <Button variant="outline" disabled={pending} onClick={() => void handleCancel()}>
-                    {t('sales.deliveries.cancel')}
-                  </Button>
-                  <Button disabled={pending} onClick={() => void handleConfirm()}>
-                    <CheckCircle2 />
-                    {t('sales.deliveries.confirm')}
-                  </Button>
+                  <Can permission={SALES.cancel}>
+                    <Button variant="outline" disabled={pending} onClick={() => void handleCancel()}>
+                      {t('sales.deliveries.cancel')}
+                    </Button>
+                  </Can>
+                  <Can permission={SALES.post}>
+                    <Button disabled={pending} onClick={() => void handleConfirm()}>
+                      <CheckCircle2 />
+                      {t('sales.deliveries.confirm')}
+                    </Button>
+                  </Can>
                 </>
               ) : null}
               {delivery.status === 'confirmed' ? (
-                <Button variant="outline" asChild>
-                  <Link to={`/sales/sales-returns/new?deliveryId=${delivery.id}`}>
-                    <Undo2 />
-                    {t('sales.deliveries.createReturn')}
-                  </Link>
-                </Button>
+                <Can permission={SALES.create}>
+                  <Button variant="outline" asChild>
+                    <Link to={`/sales/sales-returns/new?deliveryId=${delivery.id}`}>
+                      <Undo2 />
+                      {t('sales.deliveries.createReturn')}
+                    </Link>
+                  </Button>
+                </Can>
               ) : null}
             </Can>
           </>

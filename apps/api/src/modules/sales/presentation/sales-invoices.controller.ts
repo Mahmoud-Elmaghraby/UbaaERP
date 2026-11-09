@@ -15,6 +15,7 @@ import type { JwtAccessPayload } from '../../../shared/auth/jwt-payload.type';
 import { JwtAuthGuard } from '../../../shared/auth/jwt-auth.guard';
 import { PermissionsGuard } from '../../../shared/auth/permissions.guard';
 import { RequirePermissions } from '../../../shared/auth/require-permissions.decorator';
+import { SALES_PERMISSIONS as S } from '../../../shared/auth/trade-permissions';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 import { SalesInvoicesService } from '../application/services/sales-invoices.service';
 import { SalesRegisterService } from '../application/services/sales-register.service';
@@ -45,7 +46,6 @@ export function invoiceWithLinesToDto(invoice: SalesInvoiceWithLines): SalesInvo
  * gate-able (see feature-catalog.ts's class comment).
  */
 @UseGuards(JwtAuthGuard, PermissionsGuard)
-@RequirePermissions('sales.manage')
 @Controller('sales-invoices')
 export class SalesInvoicesController {
   constructor(
@@ -57,6 +57,7 @@ export class SalesInvoicesController {
 
   /** Invoices with customer and money state (paid / credited / outstanding / overdue) for lists and pickers. */
   @Get('register')
+  @RequirePermissions(S.view)
   invoiceRegister(
     @CurrentTenantSchema() schema: string,
     @Query('customerId') customerId?: string,
@@ -77,6 +78,7 @@ export class SalesInvoicesController {
   }
 
   @Get()
+  @RequirePermissions(S.view)
   async list(
     @CurrentTenantSchema() schema: string,
     @Query('salesOrderId') salesOrderId?: string,
@@ -89,6 +91,7 @@ export class SalesInvoicesController {
   }
 
   @Get(':id')
+  @RequirePermissions(S.view)
   async getById(
     @CurrentTenantSchema() schema: string,
     @Param('id') id: string,
@@ -99,6 +102,7 @@ export class SalesInvoicesController {
   }
 
   @Post()
+  @RequirePermissions(S.create)
   async create(
     @CurrentTenantSchema() schema: string,
     @CurrentUser() user: JwtAccessPayload,
@@ -136,6 +140,7 @@ export class SalesInvoicesController {
    * on its own schedule.
    */
   @Post(':id/post')
+  @RequirePermissions(S.post)
   async post(
     @CurrentTenantSchema() schema: string,
     @CurrentUser() user: JwtAccessPayload,
@@ -149,6 +154,7 @@ export class SalesInvoicesController {
   }
 
   @Post(':id/cancel')
+  @RequirePermissions(S.cancel)
   async cancel(
     @CurrentTenantSchema() schema: string,
     @CurrentUser() user: JwtAccessPayload,
@@ -161,6 +167,7 @@ export class SalesInvoicesController {
   }
 
   @Delete(':id')
+  @RequirePermissions(S.cancel)
   @HttpCode(HttpStatus.NO_CONTENT)
   async delete(
     @CurrentTenantSchema() schema: string,

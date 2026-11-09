@@ -14,7 +14,7 @@ export class QuotationPrintProvider implements PrintProvider {
   readonly documentType = 'quotation';
   readonly label = 'عرض سعر';
   readonly paperSizes = ['a4'] as PrintProvider['paperSizes'];
-  readonly permissions = ['sales.manage'];
+  readonly permissions = ['sales.view'];
 
   constructor(
     private readonly quotations: QuotationsService,

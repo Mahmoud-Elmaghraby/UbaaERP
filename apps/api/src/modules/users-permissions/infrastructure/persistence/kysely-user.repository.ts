@@ -9,27 +9,55 @@ import type {
 } from '../../application/ports/user.repository';
 import type { UpdateUserInput, User } from '../../domain/user.entity';
 
-function toDomain(row: Selectable<UsersTable>): User {
+function toDomain(row: Selectable<UsersTable> & { last_login_at?: Date | string | null }): User {
   return {
     id: row.id,
     email: row.email,
     fullName: row.full_name,
     roleId: row.role_id,
     isActive: row.is_active,
+    twoFactorEnabled: row.totp_enabled,
+    lastLoginAt: row.last_login_at ? new Date(row.last_login_at) : null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
 }
 
+/** Users plus their last successful sign-in, taken from the audit log (no extra column to keep in sync). */
+function selectUsers(db: Kysely<TenantDatabase>) {
+  return db
+    .selectFrom('users')
+    .selectAll('users')
+    .select((eb) =>
+      eb
+        .selectFrom('audit_logs')
+        .select((sub) => sub.fn.max('audit_logs.created_at').as('m'))
+        .whereRef('audit_logs.user_id', '=', 'users.id')
+        .where('audit_logs.action', '=', 'auth.login')
+        .as('last_login_at'),
+    );
+}
+
 export class KyselyUserRepository implements UserRepository {
   async list(db: Kysely<TenantDatabase>): Promise<User[]> {
-    const rows = await db.selectFrom('users').selectAll().orderBy('full_name').execute();
+    const rows = await selectUsers(db).orderBy('users.full_name').execute();
     return rows.map(toDomain);
   }
 
   async findById(db: Kysely<TenantDatabase>, id: string): Promise<User | null> {
-    const row = await db.selectFrom('users').selectAll().where('id', '=', id).executeTakeFirst();
+    const row = await selectUsers(db).where('users.id', '=', id).executeTakeFirst();
     return row ? toDomain(row) : null;
+  }
+
+  async countActiveWithRole(db: Kysely<TenantDatabase>, roleId: string, excludeUserId?: string): Promise<number> {
+    let query = db
+      .selectFrom('users')
+      .select((eb) => eb.fn.countAll<string>().as('n'))
+      .where('role_id', '=', roleId)
+      .where('is_active', '=', true);
+    if (excludeUserId) query = query.where('id', '!=', excludeUserId);
+    const row = await query.executeTakeFirst();
+    return Number(row?.n ?? 0);
   }
 
   async findByEmailForAuth(db: Kysely<TenantDatabase>, email: string): Promise<UserAuthRecord | null> {
@@ -65,9 +93,9 @@ export class KyselyUserRepository implements UserRepository {
         updated_at: new Date(),
       })
       .where('id', '=', id)
-      .returningAll()
+      .returning('id')
       .executeTakeFirst();
-    return row ? toDomain(row) : null;
+    return row ? this.findById(db, row.id) : null;
   }
 
   async updatePasswordHash(db: Kysely<TenantDatabase>, id: string, passwordHash: string): Promise<void> {

@@ -29,6 +29,7 @@ import { Plus } from 'lucide-react';
 import { ApiError, apiGet } from '../../../../lib/api-client';
 import { confirmDialog } from '../../../../components/feedback/confirm-dialog';
 import { useDeleteSalesRep, useSalesReps, useSaveSalesRep } from '../../api/sales-reps/queries';
+import { SALES } from '../../../../lib/permissions';
 
 const NONE = '__none__';
 
@@ -92,7 +93,7 @@ export function SalesRepsPage() {
         title={t('salesReps.title')}
         description={t('salesReps.subtitle')}
         actions={
-          <Can permission="sales.manage">
+          <Can permission={SALES.settingsManage}>
             <Button onClick={() => setEditing('new')}>
               <Plus className="me-1 h-4 w-4" />
               {t('salesReps.add')}
@@ -245,7 +246,7 @@ function SalesRepDialog({ value, onClose }: { value: SalesRepDto | 'new' | null;
           <div className="flex items-center justify-between gap-2">
             <div>
               {existing ? (
-                <Can permission="sales.manage">
+                <Can permission={SALES.settingsManage}>
                   <Button variant="ghost" className="text-destructive" onClick={onDelete} disabled={remove.isPending}>
                     {t('common.delete')}
                   </Button>
@@ -256,7 +257,7 @@ function SalesRepDialog({ value, onClose }: { value: SalesRepDto | 'new' | null;
               <Button variant="outline" onClick={onClose}>
                 {t('common.cancel')}
               </Button>
-              <Can permission="sales.manage">
+              <Can permission={SALES.settingsManage}>
                 <Button onClick={submit} disabled={save.isPending || !form.code.trim() || !form.name.trim() || !commissionValid}>
                   {t('common.save')}
                 </Button>

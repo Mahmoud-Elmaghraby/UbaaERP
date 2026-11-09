@@ -8,6 +8,7 @@ import type {
 } from '@erp-platform/contracts';
 
 import { apiGet, apiPut } from '../../lib/api-client';
+import { PURCH, SALES } from '../../lib/permissions';
 
 /** API paths and print type of each party kind — the only place they differ. */
 export const PARTY_CONFIG: Record<
@@ -18,7 +19,7 @@ export const PARTY_CONFIG: Record<
     base: '/customers',
     balances: '/customer-balances',
     printType: 'customer_statement',
-    permission: 'sales.manage',
+    permission: SALES.view,
     listPath: '/sales/receivables',
     statementPath: (id) => `/sales/customers/${id}/statement`,
   },
@@ -26,7 +27,7 @@ export const PARTY_CONFIG: Record<
     base: '/suppliers',
     balances: '/supplier-balances',
     printType: 'supplier_statement',
-    permission: 'purchases.manage',
+    permission: PURCH.view,
     listPath: '/purchases/payables',
     statementPath: (id) => `/purchases/suppliers/${id}/statement`,
   },

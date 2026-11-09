@@ -4,6 +4,7 @@ import { Badge, Button, Can, PageHeader, Table, TableBody, TableCell, TableHead,
 
 import { formatAmount } from '../../lib/money';
 import { useChannelSettlements } from './api';
+import { SALES } from '../../lib/permissions';
 
 export const SETTLEMENTS_PATH = '/sales/settlements';
 
@@ -17,7 +18,7 @@ export function SettlementsPage() {
         title={t('settlements.title')}
         description={t('settlements.subtitle')}
         actions={
-          <Can permission="sales.manage">
+          <Can permission={SALES.create}>
             <Button asChild>
               <Link to={`${SETTLEMENTS_PATH}/new`}>{t('settlements.new')}</Link>
             </Button>

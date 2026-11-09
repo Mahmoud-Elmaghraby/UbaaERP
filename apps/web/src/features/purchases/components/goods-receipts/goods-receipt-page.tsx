@@ -49,6 +49,7 @@ import { QuantityWithUnit } from '../../../../components/product/unit-select';
 import { useVariantIndex } from '../../../../components/product/use-variant-index';
 import { PrintButton } from '../../../../components/printing/print-button';
 import { GOODS_RECEIPT_STATUS_VARIANT, GOODS_RECEIPTS_PATH, goodsReceiptStatusLabelKey } from './goods-receipt-status';
+import { PURCH, PURCH_WRITE } from '../../../../lib/permissions';
 
 const PURCHASE_ORDERS_PATH = '/purchases/purchase-orders';
 const PURCHASE_RETURNS_PATH = '/purchases/purchase-returns';
@@ -184,60 +185,68 @@ export function GoodsReceiptPage() {
               <Tags />
               {t('purchases.goodsReceipts.printLabels')}
             </Button>
-            <Can permission="purchases.manage">
+            <Can permission={PURCH_WRITE}>
               <>
                 {isDraft || status === 'cancelled' ? (
-                  <Button
-                    variant="ghost"
-                    className="text-danger hover:bg-danger-soft hover:text-danger"
-                    disabled={busy}
-                    onClick={() => void handleDelete()}
-                  >
-                    <Trash2 />
-                    {t('common.delete')}
-                  </Button>
+                  <Can permission={PURCH.cancel}>
+                    <Button
+                      variant="ghost"
+                      className="text-danger hover:bg-danger-soft hover:text-danger"
+                      disabled={busy}
+                      onClick={() => void handleDelete()}
+                    >
+                      <Trash2 />
+                      {t('common.delete')}
+                    </Button>
+                  </Can>
                 ) : null}
                 {isDraft ? (
                   <>
-                    <Button
-                      variant="outline"
-                      disabled={busy}
-                      onClick={() =>
-                        void run(
-                          cancelReceipt,
-                          'purchases.goodsReceipts.cancelSuccess',
-                          'purchases.goodsReceipts.cancelError',
-                          'purchases.goodsReceipts.cancelConfirm',
-                          'danger',
-                        )
-                      }
-                    >
-                      <Ban />
-                      {t('purchases.goodsReceipts.cancel')}
-                    </Button>
-                    <Button
-                      disabled={busy}
-                      onClick={() =>
-                        void run(
-                          confirmReceipt,
-                          'purchases.goodsReceipts.confirmSuccess',
-                          'purchases.goodsReceipts.confirmError',
-                          'purchases.goodsReceipts.confirmConfirm',
-                        )
-                      }
-                    >
-                      <CheckCircle2 />
-                      {t('purchases.goodsReceipts.confirm')}
-                    </Button>
+                    <Can permission={PURCH.cancel}>
+                      <Button
+                        variant="outline"
+                        disabled={busy}
+                        onClick={() =>
+                          void run(
+                            cancelReceipt,
+                            'purchases.goodsReceipts.cancelSuccess',
+                            'purchases.goodsReceipts.cancelError',
+                            'purchases.goodsReceipts.cancelConfirm',
+                            'danger',
+                          )
+                        }
+                      >
+                        <Ban />
+                        {t('purchases.goodsReceipts.cancel')}
+                      </Button>
+                    </Can>
+                    <Can permission={PURCH.post}>
+                      <Button
+                        disabled={busy}
+                        onClick={() =>
+                          void run(
+                            confirmReceipt,
+                            'purchases.goodsReceipts.confirmSuccess',
+                            'purchases.goodsReceipts.confirmError',
+                            'purchases.goodsReceipts.confirmConfirm',
+                          )
+                        }
+                      >
+                        <CheckCircle2 />
+                        {t('purchases.goodsReceipts.confirm')}
+                      </Button>
+                    </Can>
                   </>
                 ) : null}
                 {status === 'confirmed' ? (
-                  <Button variant="outline" asChild>
-                    <Link to={`${PURCHASE_RETURNS_PATH}/new?goodsReceiptId=${receipt.id}`}>
-                      <Undo2 />
-                      {t('purchases.goodsReceipts.createReturn')}
-                    </Link>
-                  </Button>
+                  <Can permission={PURCH.create}>
+                    <Button variant="outline" asChild>
+                      <Link to={`${PURCHASE_RETURNS_PATH}/new?goodsReceiptId=${receipt.id}`}>
+                        <Undo2 />
+                        {t('purchases.goodsReceipts.createReturn')}
+                      </Link>
+                    </Button>
+                  </Can>
                 ) : null}
               </>
             </Can>

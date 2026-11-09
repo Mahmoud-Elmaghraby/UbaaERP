@@ -37,6 +37,7 @@ import { DocumentBody, DocumentHeaderBar, InfoGrid, PanelCard, SectionCard } fro
 import { DocumentHistory } from '../../../../components/document/document-history';
 import { PURCHASE_ORDER_STATUS_VARIANT, purchaseOrderStatusLabelKey } from '../purchase-orders/purchase-order-status';
 import { SUPPLIERS_PATH } from './supplier-paths';
+import { PURCH, PURCH_WRITE } from '../../../../lib/permissions';
 
 const AGING_KEYS = ['current', 'days1To30', 'days31To60', 'days61To90', 'over90'] as const;
 
@@ -121,23 +122,27 @@ function SupplierProfile({ supplier }: { supplier: SupplierDto }) {
                 {t('purchases.suppliers.statement')}
               </Link>
             </Button>
-            <Can permission="purchases.manage">
+            <Can permission={PURCH_WRITE}>
               <>
-                <Button
-                  variant="ghost"
-                  className="text-danger hover:bg-danger-soft hover:text-danger"
-                  disabled={deleteSupplier.isPending}
-                  onClick={() => void handleDelete()}
-                >
-                  <Trash2 />
-                  {t('common.delete')}
-                </Button>
-                <Button variant="outline" asChild>
-                  <Link to={`${SUPPLIERS_PATH}/${supplier.id}/edit`}>
-                    <Pencil />
-                    {t('common.edit')}
-                  </Link>
-                </Button>
+                <Can permission={PURCH.cancel}>
+                  <Button
+                    variant="ghost"
+                    className="text-danger hover:bg-danger-soft hover:text-danger"
+                    disabled={deleteSupplier.isPending}
+                    onClick={() => void handleDelete()}
+                  >
+                    <Trash2 />
+                    {t('common.delete')}
+                  </Button>
+                </Can>
+                <Can permission={PURCH.create}>
+                  <Button variant="outline" asChild>
+                    <Link to={`${SUPPLIERS_PATH}/${supplier.id}/edit`}>
+                      <Pencil />
+                      {t('common.edit')}
+                    </Link>
+                  </Button>
+                </Can>
                 <Button variant="outline" asChild>
                   <Link to={`/purchases/supplier-payments/new?supplierId=${supplier.id}`}>
                     <Banknote />

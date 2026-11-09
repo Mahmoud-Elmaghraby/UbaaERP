@@ -17,6 +17,7 @@ import type { JwtAccessPayload } from '../../../shared/auth/jwt-payload.type';
 import { JwtAuthGuard } from '../../../shared/auth/jwt-auth.guard';
 import { PermissionsGuard } from '../../../shared/auth/permissions.guard';
 import { RequirePermissions } from '../../../shared/auth/require-permissions.decorator';
+import { SALES_PERMISSIONS as S } from '../../../shared/auth/trade-permissions';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 import { OutboxWriterService } from '../../../shared/outbox/application/services/outbox-writer.service';
 import {
@@ -33,7 +34,6 @@ import { CustomerLedgerSource } from '../infrastructure/statements/customer-ledg
  * off. No PlanFeatureGuard: customers' balances are core Sales, like Customers.
  */
 @UseGuards(JwtAuthGuard, PermissionsGuard)
-@RequirePermissions('sales.manage')
 @Controller()
 export class CustomerStatementsController {
   constructor(
@@ -43,6 +43,7 @@ export class CustomerStatementsController {
   ) {}
 
   @Get('customer-balances')
+  @RequirePermissions(S.view)
   balances(
     @CurrentTenantSchema() schema: string,
     @Query(new ZodValidationPipe(partyBalancesQuerySchema)) query: PartyBalancesQueryDto,
@@ -51,6 +52,7 @@ export class CustomerStatementsController {
   }
 
   @Get('customers/:id/statement')
+  @RequirePermissions(S.view)
   statement(
     @CurrentTenantSchema() schema: string,
     @Param('id', new ParseUUIDPipe()) id: string,
@@ -60,6 +62,7 @@ export class CustomerStatementsController {
   }
 
   @Get('customers/:id/opening-balance')
+  @RequirePermissions(S.view)
   openingBalance(
     @CurrentTenantSchema() schema: string,
     @Param('id', new ParseUUIDPipe()) id: string,
@@ -68,6 +71,7 @@ export class CustomerStatementsController {
   }
 
   @Put('customers/:id/opening-balance')
+  @RequirePermissions(S.post)
   setOpeningBalance(
     @CurrentTenantSchema() schema: string,
     @CurrentUser() user: JwtAccessPayload,

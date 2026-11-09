@@ -42,6 +42,7 @@ import { PURCHASE_INVOICES_PATH } from './purchase-invoices-tab';
 import { usePurchaseInvoiceActions } from './use-purchase-invoice-actions';
 import { QuantityWithUnit } from '../../../../components/product/unit-select';
 import { PrintButton } from '../../../../components/printing/print-button';
+import { PURCH, PURCH_WRITE } from '../../../../lib/permissions';
 
 export function PurchaseInvoiceDetailsPage() {
   const { t } = useTranslation();
@@ -152,41 +153,49 @@ export function PurchaseInvoiceDetailsPage() {
         actions={
           <>
           <PrintButton documentType="purchase_invoice" id={invoice.id} />
-          <Can permission="purchases.manage">
+          <Can permission={PURCH_WRITE}>
             {isDraft || invoice.status === 'cancelled' ? (
-              <Button
-                variant="ghost"
-                className="text-danger hover:bg-danger-soft hover:text-danger"
-                disabled={actions.isPending}
-                onClick={async () => {
-                  if (await actions.remove(invoice.id)) navigate(PURCHASE_INVOICES_PATH);
-                }}
-              >
-                {t('common.delete')}
-              </Button>
+              <Can permission={PURCH.cancel}>
+                <Button
+                  variant="ghost"
+                  className="text-danger hover:bg-danger-soft hover:text-danger"
+                  disabled={actions.isPending}
+                  onClick={async () => {
+                    if (await actions.remove(invoice.id)) navigate(PURCHASE_INVOICES_PATH);
+                  }}
+                >
+                  {t('common.delete')}
+                </Button>
+              </Can>
             ) : null}
             {isDraft ? (
               <>
-                <Button
-                  variant="outline"
-                  disabled={actions.isPending}
-                  onClick={() => void actions.cancel(invoice.id)}
-                >
-                  {t('purchases.purchaseInvoices.cancel')}
-                </Button>
-                <Button disabled={actions.isPending} onClick={() => void actions.post(invoice.id)}>
-                  <CheckCircle2 />
-                  {t('purchases.purchaseInvoices.post')}
-                </Button>
+                <Can permission={PURCH.cancel}>
+                  <Button
+                    variant="outline"
+                    disabled={actions.isPending}
+                    onClick={() => void actions.cancel(invoice.id)}
+                  >
+                    {t('purchases.purchaseInvoices.cancel')}
+                  </Button>
+                </Can>
+                <Can permission={PURCH.post}>
+                  <Button disabled={actions.isPending} onClick={() => void actions.post(invoice.id)}>
+                    <CheckCircle2 />
+                    {t('purchases.purchaseInvoices.post')}
+                  </Button>
+                </Can>
               </>
             ) : null}
             {isPosted && order && settlement && !fullyPaid ? (
-              <Button asChild>
-                <Link to={`/purchases/supplier-payments/new?supplierId=${order.supplierId}&invoiceId=${invoice.id}`}>
-                  <Banknote />
-                  {t('purchases.purchaseInvoices.pay')}
-                </Link>
-              </Button>
+              <Can permission={PURCH.create}>
+                <Button asChild>
+                  <Link to={`/purchases/supplier-payments/new?supplierId=${order.supplierId}&invoiceId=${invoice.id}`}>
+                    <Banknote />
+                    {t('purchases.purchaseInvoices.pay')}
+                  </Link>
+                </Button>
+              </Can>
             ) : null}
           </Can>
           </>

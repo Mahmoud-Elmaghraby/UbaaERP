@@ -17,6 +17,7 @@ import { TwoFactorService } from './two-factor.service';
 import { PlanResolverService } from '../../../../shared/plans/plan-resolver.service';
 import { TenantFeatureTogglesRepository } from '../../../../shared/plans/tenant-feature-toggles.repository';
 import { AuthenticationError } from '../errors';
+import { LoginLockoutService } from './login-lockout.service';
 
 const REFRESH_TOKEN_TTL_DAYS = Number(process.env.JWT_REFRESH_TTL_DAYS ?? 30);
 const REFRESH_TOKEN_BYTES = 48;
@@ -58,6 +59,14 @@ function hashToken(token: string): string {
  * module-audit.md §2.2/Task 9) so this layer stays free of any
  * HTTP-transport detail, per Clean Architecture §2.1.
  */
+function lockedError(until: Date): AuthenticationError {
+  const minutes = Math.max(1, Math.ceil((until.getTime() - Date.now()) / 60_000));
+  return new AuthenticationError(`Too many wrong passwords. Try again in ${minutes} minutes.`, {
+    code: 'AUTH.ACCOUNT_LOCKED',
+    params: { minutes },
+  });
+}
+
 @Injectable()
 export class AuthService {
   constructor(
@@ -70,6 +79,7 @@ export class AuthService {
     private readonly twoFactor: TwoFactorService,
     private readonly plans: PlanResolverService,
     private readonly featureToggles: TenantFeatureTogglesRepository,
+    private readonly lockout: LoginLockoutService,
   ) {}
 
   async login(
@@ -94,6 +104,17 @@ export class AuthService {
       });
       throw new AuthenticationError('Invalid email or password.', { code: 'AUTH.INVALID_CREDENTIALS' });
     }
+    const lockedUntil = await this.lockout.lockedUntil(db, user.id);
+    if (lockedUntil) {
+      await this.auditLogs.record(db, {
+        userId: user.id,
+        action: 'auth.login_failed',
+        entityType: 'user',
+        entityId: user.id,
+        metadata: { email: normalizedEmail, reason: 'locked' },
+      });
+      throw lockedError(lockedUntil);
+    }
     const matches = await bcrypt.compare(password, user.passwordHash);
     if (!matches) {
       await this.auditLogs.record(db, {
@@ -103,6 +124,18 @@ export class AuthService {
         entityId: user.id,
         metadata: { email: normalizedEmail, reason: 'wrong_password' },
       });
+      // The attempt that reaches the limit says so, instead of a plain "wrong password".
+      const nowLocked = await this.lockout.lockedUntil(db, user.id);
+      if (nowLocked) {
+        await this.auditLogs.record(db, {
+          userId: user.id,
+          action: 'auth.account_locked',
+          entityType: 'user',
+          entityId: user.id,
+          metadata: { until: nowLocked.toISOString() },
+        });
+        throw lockedError(nowLocked);
+      }
       throw new AuthenticationError('Invalid email or password.', { code: 'AUTH.INVALID_CREDENTIALS' });
     }
 

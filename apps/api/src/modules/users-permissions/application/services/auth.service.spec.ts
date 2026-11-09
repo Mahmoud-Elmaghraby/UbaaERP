@@ -15,6 +15,7 @@ import type { TenantFeatureTogglesRepository } from '../../../../shared/plans/te
 import { ALL_FEATURE_KEYS } from '../../../../shared/plans/feature-catalog';
 import { AuthenticationError } from '../errors';
 import { AuthService, type MfaChallenge } from './auth.service';
+import { LoginLockoutService } from './login-lockout.service';
 
 jest.mock('bcryptjs', () => ({ compare: jest.fn() }));
 import * as bcrypt from 'bcryptjs';
@@ -35,6 +36,8 @@ function makeAuthUser(overrides: Partial<UserAuthRecord> = {}): UserAuthRecord {
     isActive: true,
     totpEnabled: false,
     passwordHash: 'stored-hash',
+    twoFactorEnabled: false,
+    lastLoginAt: null,
     createdAt: new Date('2026-01-01T00:00:00Z'),
     updatedAt: new Date('2026-01-01T00:00:00Z'),
     ...overrides,
@@ -47,6 +50,7 @@ function makeRole(overrides: Partial<Role> = {}): Role {
     name: 'Owner',
     isSystem: true,
     permissionKeys: ['settings.manage', 'users.manage', 'roles.manage', 'audit_logs.view'],
+    userCount: 0,
     createdAt: new Date(),
     updatedAt: new Date(),
     ...overrides,
@@ -78,10 +82,11 @@ describe('AuthService', () => {
       setPendingTotpSecret: jest.fn(),
       enableTotp: jest.fn(),
       disableTotp: jest.fn(),
+      countActiveWithRole: jest.fn().mockResolvedValue(1),
     };
     roles = { list: jest.fn(), findById: jest.fn(), create: jest.fn(), update: jest.fn(), delete: jest.fn() };
     refreshTokens = { create: jest.fn(), findByHash: jest.fn(), revoke: jest.fn(), revokeAllForUser: jest.fn() };
-    auditLogs = { record: jest.fn(), list: jest.fn() };
+    auditLogs = { record: jest.fn(), existsForEvent: jest.fn(), recentLoginFailures: jest.fn().mockResolvedValue([]), list: jest.fn() };
     actionTokens = { create: jest.fn(), findValidByHash: jest.fn(), markUsed: jest.fn() };
     twoFactor = { verifyLoginCode: jest.fn() } as unknown as jest.Mocked<TwoFactorService>;
     plans = {
@@ -104,6 +109,7 @@ describe('AuthService', () => {
       twoFactor,
       plans,
       featureToggles,
+      new LoginLockoutService(auditLogs),
     );
   });
 

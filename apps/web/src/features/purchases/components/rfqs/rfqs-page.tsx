@@ -11,6 +11,7 @@ import { usePurchaseRequisitions } from '../../api/purchase-requisitions/queries
 import { StatusTabs } from '../../../../components/list/status-tabs';
 import { formatDate } from '../../../../lib/format-date';
 import { RFQ_STATUS_VARIANT, RFQS_PATH, rfqStatusLabelKey } from './rfq-status';
+import { PURCH } from '../../../../lib/permissions';
 
 const STATUS_TABS = ['all', 'draft', 'sent', 'closed', 'cancelled'] as const;
 type StatusTab = (typeof STATUS_TABS)[number];
@@ -81,7 +82,7 @@ export function RfqsPage() {
         title={t('purchases.tabs.rfqs')}
         description={t('purchases.rfqs.subtitle')}
         actions={
-          <Can permission="purchases.manage">
+          <Can permission={PURCH.create}>
             <Button asChild>
               <Link to={`${RFQS_PATH}/new`}>
                 <Plus className="me-1 h-4 w-4" />

@@ -32,6 +32,7 @@ import { formatAmount } from '../../lib/money';
 import { useCustomers } from '../sales/api/customers/queries';
 import { useTreasuryLookup } from '../treasury/api/queries';
 import { useSalesChannels, useSaveSalesChannel, useUnpaidOrders } from './api';
+import { SALES } from '../../lib/permissions';
 
 const NONE = '__none__';
 
@@ -48,7 +49,7 @@ export function ChannelsPage() {
         title={t('channels.title')}
         description={t('channels.subtitle')}
         actions={
-          <Can permission="sales.manage">
+          <Can permission={SALES.settingsManage}>
             <Button onClick={() => setEditing('new')}>{t('channels.add')}</Button>
           </Can>
         }

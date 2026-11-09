@@ -16,13 +16,13 @@ import type { JwtAccessPayload } from '../../../shared/auth/jwt-payload.type';
 import { JwtAuthGuard } from '../../../shared/auth/jwt-auth.guard';
 import { PermissionsGuard } from '../../../shared/auth/permissions.guard';
 import { RequirePermissions } from '../../../shared/auth/require-permissions.decorator';
+import { SALES_PERMISSIONS as S } from '../../../shared/auth/trade-permissions';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 import { SalesChannelsService } from '../application/services/sales-channels.service';
 import { ChannelSettlementsService } from '../application/services/channel-settlements.service';
 
 /** Sales channels (Jumia, Noon, direct…) and their weekly marketplace settlements. */
 @UseGuards(JwtAuthGuard, PermissionsGuard)
-@RequirePermissions('sales.manage')
 @Controller()
 export class SalesChannelsController {
   constructor(
@@ -32,11 +32,13 @@ export class SalesChannelsController {
   ) {}
 
   @Get('sales-channels')
+  @RequirePermissions(S.view)
   listChannels(@CurrentTenantSchema() schema: string): Promise<SalesChannelDto[]> {
     return this.channels.list(this.connections.getClient(schema));
   }
 
   @Post('sales-channels')
+  @RequirePermissions(S.settingsManage)
   createChannel(
     @CurrentTenantSchema() schema: string,
     @Body(new ZodValidationPipe(saveSalesChannelSchema)) body: SaveSalesChannelDto,
@@ -45,6 +47,7 @@ export class SalesChannelsController {
   }
 
   @Put('sales-channels/:id')
+  @RequirePermissions(S.settingsManage)
   updateChannel(
     @CurrentTenantSchema() schema: string,
     @Param('id') id: string,
@@ -54,21 +57,25 @@ export class SalesChannelsController {
   }
 
   @Get('sales-channels/:id/unpaid-orders')
+  @RequirePermissions(S.view)
   unpaidOrders(@CurrentTenantSchema() schema: string, @Param('id') id: string): Promise<ChannelUnpaidOrderDto[]> {
     return this.settlements.unpaidOrders(this.connections.getClient(schema), id);
   }
 
   @Get('channel-settlements')
+  @RequirePermissions(S.view)
   listSettlements(@CurrentTenantSchema() schema: string, @Query('channelId') channelId?: string): Promise<ChannelSettlementSummaryDto[]> {
     return this.settlements.list(this.connections.getClient(schema), channelId);
   }
 
   @Get('channel-settlements/:id')
+  @RequirePermissions(S.view)
   getSettlement(@CurrentTenantSchema() schema: string, @Param('id') id: string): Promise<ChannelSettlementDto> {
     return this.settlements.getById(this.connections.getClient(schema), id);
   }
 
   @Post('channel-settlements')
+  @RequirePermissions(S.create)
   createSettlement(
     @CurrentTenantSchema() schema: string,
     @CurrentUser() user: JwtAccessPayload,
@@ -78,6 +85,7 @@ export class SalesChannelsController {
   }
 
   @Put('channel-settlements/:id')
+  @RequirePermissions(S.create)
   updateSettlement(
     @CurrentTenantSchema() schema: string,
     @CurrentUser() user: JwtAccessPayload,
@@ -88,6 +96,7 @@ export class SalesChannelsController {
   }
 
   @Patch('channel-settlements/:id/post')
+  @RequirePermissions(S.post)
   postSettlement(
     @CurrentTenantSchema() schema: string,
     @CurrentUser() user: JwtAccessPayload,
@@ -97,6 +106,7 @@ export class SalesChannelsController {
   }
 
   @Delete('channel-settlements/:id')
+  @RequirePermissions(S.cancel)
   @HttpCode(HttpStatus.NO_CONTENT)
   async deleteSettlement(@CurrentTenantSchema() schema: string, @Param('id') id: string): Promise<void> {
     await this.settlements.delete(this.connections.getClient(schema), id);

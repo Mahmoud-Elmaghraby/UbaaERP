@@ -31,6 +31,8 @@ export interface UserTotpState {
 export interface UserRepository {
   list(db: Kysely<TenantDatabase>): Promise<User[]>;
   findById(db: Kysely<TenantDatabase>, id: string): Promise<User | null>;
+  /** Active users holding a role, optionally not counting one user (the "last Owner" guard). */
+  countActiveWithRole(db: Kysely<TenantDatabase>, roleId: string, excludeUserId?: string): Promise<number>;
   /** The only read path that returns passwordHash — used solely by
    * AuthService (login) and UsersService (own-password change). Every
    * other read goes through findById/list, which never expose the hash. */

@@ -37,6 +37,7 @@ import {
   salesInvoiceStatusLabelKey,
 } from "./sales-invoice-status";
 import { useSalesInvoiceActions } from "./use-sales-invoice-actions";
+import { SALES } from '../../../../lib/permissions';
 
 type StatusTab = "all" | "unpaid" | SalesInvoiceStatusDto;
 const STATUS_TABS: readonly StatusTab[] = [
@@ -257,7 +258,7 @@ export function SalesInvoicesPage() {
                   >
                     {t("documents.open")}
                   </DropdownMenuItem>
-                  <Can permission="sales.manage">
+                  <Can permission={SALES.create}>
                     {isUnpaid(invoice) ? (
                       <DropdownMenuItem
                         onSelect={() =>
@@ -307,7 +308,7 @@ export function SalesInvoicesPage() {
   );
 
   const newButton = (
-    <Can permission="sales.manage">
+    <Can permission={SALES.create}>
       <Button asChild>
         <Link to={`${SALES_INVOICES_PATH}/new`}>
           <Plus />

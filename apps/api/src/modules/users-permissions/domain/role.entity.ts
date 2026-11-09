@@ -3,6 +3,7 @@ export interface Role {
   name: string;
   isSystem: boolean;
   permissionKeys: string[];
+  userCount: number;
   createdAt: Date;
   updatedAt: Date;
 }

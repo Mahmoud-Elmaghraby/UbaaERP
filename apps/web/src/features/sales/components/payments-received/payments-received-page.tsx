@@ -15,6 +15,7 @@ import {
   PAYMENTS_RECEIVED_PATH,
   paymentReceivedStatusLabelKey,
 } from './payment-received-status';
+import { SALES } from '../../../../lib/permissions';
 
 type StatusTab = 'all' | 'unallocated' | PaymentReceivedStatusDto;
 const STATUS_TABS: readonly StatusTab[] = ['all', 'draft', 'posted', 'unallocated', 'bounced', 'cancelled'];
@@ -115,7 +116,7 @@ export function PaymentsReceivedPage() {
   );
 
   const newButton = (
-    <Can permission="sales.manage">
+    <Can permission={SALES.create}>
       <Button asChild>
         <Link to={`${PAYMENTS_RECEIVED_PATH}/new`}>
           <Plus />

@@ -12,7 +12,7 @@ import { CurrentTenantSchema } from '../../../shared/auth/current-tenant-schema.
 import { CurrentUser } from '../../../shared/auth/current-user.decorator';
 import { JwtAuthGuard } from '../../../shared/auth/jwt-auth.guard';
 import { PermissionsGuard } from '../../../shared/auth/permissions.guard';
-import { RequirePermissions } from '../../../shared/auth/require-permissions.decorator';
+import { RequireAnyPermission, RequirePermissions } from '../../../shared/auth/require-permissions.decorator';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 import { RolesService } from '../application/services/roles.service';
 import type { JwtAccessPayload } from '../../../shared/auth/jwt-payload.type';
@@ -26,7 +26,10 @@ export class RolesController {
     private readonly connections: TenantConnectionManager,
   ) {}
 
+  // Read by the users screens too (role picker), so users.manage is enough here.
   @Get()
+  @RequirePermissions()
+  @RequireAnyPermission('roles.manage', 'users.manage')
   async list(@CurrentTenantSchema() schema: string): Promise<RoleDto[]> {
     const db = this.connections.getClient(schema);
     const roles = await this.service.list(db);

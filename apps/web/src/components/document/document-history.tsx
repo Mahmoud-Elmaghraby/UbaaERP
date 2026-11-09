@@ -1,10 +1,11 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Can } from '@erp-platform/ui';
+import { Can, useHasAnyPermission } from '@erp-platform/ui';
 import { History } from 'lucide-react';
 
 import { useAuditLogs, useUsers } from '../../features/users-permissions/queries';
 import { formatDateTime } from '../../lib/format-date';
+import { auditActionLabel } from '../audit/audit-format';
 
 /**
  * Who did what to one document, newest first (created, posted, cancelled,
@@ -22,7 +23,8 @@ export function DocumentHistory({ entityType, entityId }: { entityType: string; 
 function DocumentHistoryContent({ entityType, entityId }: { entityType: string; entityId: string }) {
   const { t } = useTranslation();
   const { data: logs, isLoading } = useAuditLogs({ entityType, entityId });
-  const { data: users } = useUsers();
+  const canListUsers = useHasAnyPermission(['users.manage']);
+  const { data: users } = useUsers(canListUsers);
   const nameById = useMemo(() => new Map((users ?? []).map((u) => [u.id, u.fullName])), [users]);
 
   return (
@@ -40,7 +42,7 @@ function DocumentHistoryContent({ entityType, entityId }: { entityType: string; 
           {logs.map((log) => (
             <li key={log.id} className="relative text-sm">
               <span className="absolute -start-[21px] top-1.5 h-2 w-2 rounded-full bg-primary" aria-hidden="true" />
-              <p className="font-medium">{t(`history.actions.${log.action}`, { defaultValue: log.action })}</p>
+              <p className="font-medium">{auditActionLabel(t, log.action)}</p>
               <p className="text-xs text-muted-foreground">
                 {(log.userId && nameById.get(log.userId)) || t('history.system')} · {formatDateTime(log.createdAt)}
               </p>

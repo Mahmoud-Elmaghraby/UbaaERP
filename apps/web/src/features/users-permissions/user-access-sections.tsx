@@ -1,14 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { UserDto } from '@erp-platform/contracts';
 import {
   Button,
   Can,
   Checkbox,
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
   Select,
   SelectContent,
   SelectItem,
@@ -27,44 +22,15 @@ import {
   useUsers,
 } from './queries';
 import { ApiError } from '../../lib/api-client';
+import { SectionCard } from '../../components/document/document-layout';
 
 const NO_MANAGER = '__no_manager__';
 
 /**
- * Branch-access + manager (approval-chain) editing for one user. Both
- * endpoints already exist on the backend (UsersController's
- * /:id/branch-access and /:id/manager, see users.controller.ts) — this is
- * pure frontend wiring, no new API surface.
+ * Branch access and direct manager (approval chain) of one user, as sections of the user page.
+ * Both endpoints are UsersController's /:id/branch-access and /:id/manager.
  */
-export function UserAccessDialog({
-  user,
-  onClose,
-}: {
-  user: UserDto | null;
-  onClose: () => void;
-}) {
-  const { t } = useTranslation();
-
-  return (
-    <Dialog open={user !== null} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-lg">
-        <DialogHeader>
-          <DialogTitle>
-            {t('users.manageAccess')} — {user?.fullName}
-          </DialogTitle>
-        </DialogHeader>
-        {user ? (
-          <div className="grid gap-6">
-            <BranchAccessSection userId={user.id} />
-            <ManagerSection userId={user.id} />
-          </div>
-        ) : null}
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-function BranchAccessSection({ userId }: { userId: string }) {
+export function BranchAccessSection({ userId }: { userId: string }) {
   const { t } = useTranslation();
   const { data: branches, isLoading: branchesLoading } = useBranches();
   const { data: access, isLoading: accessLoading } = useUserBranchAccess(userId);
@@ -91,8 +57,8 @@ function BranchAccessSection({ userId }: { userId: string }) {
   const isLoading = branchesLoading || accessLoading;
 
   return (
-    <div className="grid gap-2">
-      <p className="text-sm font-medium">{t('users.branchAccess')}</p>
+    <SectionCard title={t('users.branchAccess')} description={t('users.branchAccessHint')}>
+      <div className="grid gap-3 pt-4">
       {isLoading ? (
         <Skeleton className="h-20 w-full" />
       ) : (
@@ -121,11 +87,12 @@ function BranchAccessSection({ userId }: { userId: string }) {
           {t('common.save')}
         </Button>
       </Can>
-    </div>
+      </div>
+    </SectionCard>
   );
 }
 
-function ManagerSection({ userId }: { userId: string }) {
+export function ManagerSection({ userId }: { userId: string }) {
   const { t } = useTranslation();
   const { data: users } = useUsers();
   const { data: manager, isLoading } = useUserManager(userId);
@@ -148,8 +115,8 @@ function ManagerSection({ userId }: { userId: string }) {
   const candidates = (users ?? []).filter((candidate) => candidate.id !== userId);
 
   return (
-    <div className="grid gap-2">
-      <p className="text-sm font-medium">{t('users.manager')}</p>
+    <SectionCard title={t('users.manager')} description={t('users.managerHint')}>
+      <div className="grid gap-3 pt-4">
       {isLoading ? (
         <Skeleton className="h-9 w-full" />
       ) : (
@@ -177,6 +144,7 @@ function ManagerSection({ userId }: { userId: string }) {
           {t('common.save')}
         </Button>
       </Can>
-    </div>
+      </div>
+    </SectionCard>
   );
 }

@@ -9,6 +9,8 @@ import { REFRESH_TOKEN_REPOSITORY, type RefreshTokenRepository } from '../ports/
 import type { CreateUserInput, UpdateUserInput, User } from '../../domain/user.entity';
 import { ConflictError, isPostgresUniqueViolation } from '../errors';
 import { duplicateEntity, entityNotFound } from '../../../../shared/errors/entity-errors';
+import { BusinessRuleError } from '../../../../shared/errors/domain-errors';
+import { OWNER_ROLE_ID } from '../../../../database/tenant/well-known-ids';
 
 const BCRYPT_ROUNDS = 12;
 const MIN_PASSWORD_LENGTH = 8;
@@ -21,6 +23,39 @@ export class UsersService {
     @Inject(AUDIT_LOG_REPOSITORY) private readonly auditLogs: AuditLogRepository,
     @Inject(REFRESH_TOKEN_REPOSITORY) private readonly refreshTokens: RefreshTokenRepository,
   ) {}
+
+  /**
+   * Owner-account protection, used by every admin action on another user:
+   * - only an Owner may act on an Owner account or hand out the Owner role
+   *   (otherwise anyone with users.manage could make themselves Owner, or
+   *   reset an Owner's password and sign in as them);
+   * - the tenant must keep at least one active Owner (demoting or
+   *   deactivating the last one would lock everybody out of users/roles).
+   */
+  async assertMayManage(
+    db: Kysely<TenantDatabase>,
+    target: User,
+    actingUserId: string,
+    change: { newRoleId?: string; deactivate?: boolean } = {},
+  ): Promise<void> {
+    const targetIsOwner = target.roleId === OWNER_ROLE_ID;
+    const grantsOwner = change.newRoleId === OWNER_ROLE_ID && !targetIsOwner;
+    if (targetIsOwner || grantsOwner) {
+      const actor = target.id === actingUserId ? target : await this.repository.findById(db, actingUserId);
+      if (actor?.roleId !== OWNER_ROLE_ID) {
+        throw new BusinessRuleError('Only an Owner can manage Owner accounts or grant the Owner role.', {
+          code: 'USER.OWNER_ONLY',
+        });
+      }
+    }
+    const losesOwner =
+      targetIsOwner &&
+      target.isActive &&
+      ((change.newRoleId !== undefined && change.newRoleId !== OWNER_ROLE_ID) || change.deactivate === true);
+    if (losesOwner && (await this.repository.countActiveWithRole(db, OWNER_ROLE_ID, target.id)) === 0) {
+      throw new BusinessRuleError('The tenant must keep at least one active Owner.', { code: 'USER.LAST_OWNER' });
+    }
+  }
 
   list(db: Kysely<TenantDatabase>): Promise<User[]> {
     return this.repository.list(db);
@@ -45,6 +80,12 @@ export class UsersService {
     // UserBranchAccessService's comment on that trade-off).
     const role = await this.roles.findById(db, input.roleId);
     if (!role) throw entityNotFound('ROLE', input.roleId);
+    if (input.roleId === OWNER_ROLE_ID) {
+      const actor = await this.repository.findById(db, actingUserId);
+      if (actor?.roleId !== OWNER_ROLE_ID) {
+        throw new BusinessRuleError('Only an Owner can grant the Owner role.', { code: 'USER.OWNER_ONLY' });
+      }
+    }
 
     const email = input.email.trim().toLowerCase();
     const passwordHash = await bcrypt.hash(input.password, BCRYPT_ROUNDS);
@@ -88,6 +129,12 @@ export class UsersService {
         code: 'USER.CANNOT_DEACTIVATE_SELF',
       });
     }
+    const existing = await this.repository.findById(db, id);
+    if (!existing) throw entityNotFound('USER', id);
+    await this.assertMayManage(db, existing, actingUserId, {
+      newRoleId: input.roleId,
+      deactivate: input.isActive === false && existing.isActive,
+    });
 
     const user = await this.repository.update(db, id, input);
     if (!user) throw entityNotFound('USER', id);
@@ -133,6 +180,7 @@ export class UsersService {
   async revokeSessions(db: Kysely<TenantDatabase>, targetUserId: string, actingUserId: string): Promise<void> {
     const user = await this.repository.findById(db, targetUserId);
     if (!user) throw entityNotFound('USER', targetUserId);
+    if (targetUserId !== actingUserId) await this.assertMayManage(db, user, actingUserId);
 
     await this.refreshTokens.revokeAllForUser(db, targetUserId);
     await this.auditLogs.record(db, {
@@ -141,6 +189,56 @@ export class UsersService {
       entityType: 'user',
       entityId: targetUserId,
       metadata: { reason: actingUserId === targetUserId ? 'self_requested' : 'admin_requested' },
+    });
+  }
+
+  /**
+   * An administrator sets someone else's password — the only recovery path
+   * on the desktop build, which has no e-mail. Signs the user out of every
+   * device; the new password is told to them in person.
+   */
+  async setPassword(
+    db: Kysely<TenantDatabase>,
+    targetUserId: string,
+    newPassword: string,
+    actingUserId: string,
+  ): Promise<void> {
+    if (targetUserId === actingUserId) {
+      throw new BusinessRuleError('Use change-password for your own account.', { code: 'USER.USE_CHANGE_PASSWORD' });
+    }
+    if (newPassword.length < MIN_PASSWORD_LENGTH) {
+      throw new ConflictError(`Password must be at least ${MIN_PASSWORD_LENGTH} characters.`, {
+        code: 'USER.PASSWORD_TOO_SHORT',
+        params: { minLength: MIN_PASSWORD_LENGTH },
+      });
+    }
+    const user = await this.repository.findById(db, targetUserId);
+    if (!user) throw entityNotFound('USER', targetUserId);
+    await this.assertMayManage(db, user, actingUserId);
+
+    const passwordHash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
+    await this.repository.updatePasswordHash(db, targetUserId, passwordHash);
+    await this.refreshTokens.revokeAllForUser(db, targetUserId);
+    await this.auditLogs.record(db, {
+      userId: actingUserId,
+      action: 'user.password_set',
+      entityType: 'user',
+      entityId: targetUserId,
+      metadata: {},
+    });
+  }
+
+  /** Lifts a wrong-password lockout now (the lock is read from the audit log, so this entry resets it). */
+  async unlock(db: Kysely<TenantDatabase>, targetUserId: string, actingUserId: string): Promise<void> {
+    const user = await this.repository.findById(db, targetUserId);
+    if (!user) throw entityNotFound('USER', targetUserId);
+    await this.assertMayManage(db, user, actingUserId);
+    await this.auditLogs.record(db, {
+      userId: actingUserId,
+      action: 'user.unlocked',
+      entityType: 'user',
+      entityId: targetUserId,
+      metadata: {},
     });
   }
 
