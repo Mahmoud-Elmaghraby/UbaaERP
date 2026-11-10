@@ -183,3 +183,41 @@ Full notes:
 
 **Next:** phase 2, the sales and POS settings through `APP_SETTINGS`.
 
+## 8. Settings hub, phase 2: sales, POS and document dates (added 2026-11-10)
+
+Full notes: Claude Project doc `claude/settings-hub-phase2-2026-11-09.md`.
+
+Tenant migrations go up to `0120_sales_settings`:
+- copies `credit_limit_mode` and `pos_max_discount_percent` into `app_settings` (the old columns are left in place, unread);
+- adds `products.min_sale_price_*`;
+- adds the permissions `sales.override_limits` and `documents.backdate`.
+
+**Registry (`APP_SETTINGS`)**
+- New: nullable / decimal numbers, text, `feature`, `group`.
+- Each section says who may change it (`APP_SETTING_SECTION_PERMISSIONS`).
+- `GET /app-settings` is open to any signed-in user; PATCH resets a key with `{reset:true}`.
+
+**Sales limits**
+- `SalesLimitsService` checks:
+  - the maximum discount;
+  - selling below cost or below the minimum price (allow / warn / block);
+  - the required rep.
+- Checked on order confirm, and on direct-invoice post.
+- `GET …/limits-check` on orders and invoices feeds the warning shown before confirming.
+- The return window is checked in `SalesReturnsService.create`.
+
+**Document dates**
+- The `@CheckDocumentDates()` guard (`shared/app-settings/document-date.ts`) is on every create endpoint with a document date.
+
+**POS**
+- The discount limit comes from the store.
+- Cash rounding goes on the sale's discount, always rounded down.
+- Auto-print and the cashier's name on the receipt.
+
+**Web**
+- `lib/app-settings.ts` (`useAppSetting`).
+- Sales / POS / Document-dates hub sections.
+- `SalesLimitsCallout` on the order and invoice pages.
+- New sales documents are prefilled from the settings.
+- The product form has a minimum sale price.
+
