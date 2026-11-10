@@ -221,3 +221,21 @@ Tenant migrations go up to `0120_sales_settings`:
 - New sales documents are prefilled from the settings.
 - The product form has a minimum sale price.
 
+## 9. Settings hub, phase 3: purchases (added 2026-11-10)
+
+Migration `0121_purchases_settings` adds the permission `purchases.approve`. It goes to the roles holding `purchases.settings.manage`, and to Owner.
+
+**Settings** (all in `APP_SETTINGS`, section `purchases`):
+- `orderApprovalAmount`: a PO at or above it, in the company currency, needs `purchases.approve` to confirm. With no exchange rate on file, the PO is treated as reaching the amount.
+- `priceIncreaseMode` (allow / warn / block) and `priceIncreaseTolerancePercent`: price against the last purchase price. That is the last posted invoice line per base unit, or else the last confirmed PO line (`last-purchase-prices.ts`). Checked on PO confirm and on invoice post.
+- `overReceiptTolerancePercent`: receipts and invoices may exceed the ordered quantity by this much (`PurchaseLimitsService.orderedLimit`, used by both `assertWithinOrdered` checks).
+- `supplierInvoiceNumberRequired`: checked on post; nobody can override it.
+- `defaultOrderNotes`: prefills a new PO.
+
+**API:** `GET /purchase-orders/:id/limits-check` and `GET /purchase-invoices/:id/limits-check`.
+
+**Web:**
+- `features/purchases/lib/purchase-limits.tsx` (callout and confirm prompt).
+- The hub's Purchases section, plus a gear on the purchases menu.
+- `use-new-document-defaults.ts` moved to `components/document` and is shared by sales and purchases.
+
