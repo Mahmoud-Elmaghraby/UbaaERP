@@ -19,6 +19,7 @@ import { PURCHASES_PERMISSIONS as PU } from '../../../shared/auth/trade-permissi
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 import { PurchaseReturnsService } from '../application/services/purchase-returns.service';
 import { PurchasesEventPublisher } from '../infrastructure/events/purchases-event-publisher';
+import { CheckDocumentDates } from '../../../shared/app-settings/document-date';
 
 function returnToDto(purchaseReturn: PurchaseReturn): PurchaseReturnDto {
   return purchaseReturnSchema.parse(purchaseReturn);
@@ -67,6 +68,7 @@ export class PurchaseReturnsController {
   }
 
   @Post()
+  @CheckDocumentDates('returnDate')
   @RequirePermissions(PU.create)
   async create(
     @CurrentTenantSchema() schema: string,

@@ -25,6 +25,8 @@ export const productSchema = z.object({
   brandId: z.string().uuid().nullable(),
   salePrice: moneySchema.nullable(),
   purchasePrice: moneySchema.nullable(),
+  /** Lowest price per base unit (migration 0120), checked by 'sales.belowMinPriceMode'; null = none. */
+  minSalePrice: moneySchema.nullable().default(null),
   taxRuleId: z.string().uuid().nullable(),
   /** Thumbnail of the primary image (presigned, cache-friendly) — migration 0085. */
   imageUrl: z.string().nullable().optional(),
@@ -55,6 +57,7 @@ export const createProductSchema = z.object({
   brandId: z.string().uuid().nullable().optional(),
   salePrice: nonNegativeMoneySchema.nullable().optional(),
   purchasePrice: nonNegativeMoneySchema.nullable().optional(),
+  minSalePrice: nonNegativeMoneySchema.nullable().optional(),
   taxRuleId: z.string().uuid().nullable().optional(),
   defaultVariantSku: z.string().min(1).optional(),
   /** Barcode for the auto-created default variant of a simple (non-variant) product. */

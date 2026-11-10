@@ -27,6 +27,7 @@ import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pip
 import { JournalEntriesService } from '../application/services/journal-entries.service';
 import { AccountingEventPublisher } from '../infrastructure/events/accounting-event-publisher';
 import { moneyToDto } from './money.mapper';
+import { CheckDocumentDates } from '../../../shared/app-settings/document-date';
 
 function entryToDto(entry: JournalEntry): JournalEntryDto {
   return journalEntrySchema.parse(entry);
@@ -85,6 +86,7 @@ export class JournalEntriesController {
   }
 
   @Post()
+  @CheckDocumentDates('entryDate')
   async create(
     @CurrentTenantSchema() schema: string,
     @CurrentUser() user: JwtAccessPayload,
@@ -97,6 +99,7 @@ export class JournalEntriesController {
   }
 
   @Patch(':id')
+  @CheckDocumentDates('entryDate')
   async update(
     @CurrentTenantSchema() schema: string,
     @CurrentUser() user: JwtAccessPayload,

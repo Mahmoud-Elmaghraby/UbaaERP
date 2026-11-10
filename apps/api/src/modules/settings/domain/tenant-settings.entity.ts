@@ -16,10 +16,6 @@ export interface TenantSettings {
   website: string | null;
   /** Object storage key of the company logo (null = none). */
   logoObjectKey: string | null;
-  /** Migration 0109 — Sales: above a customer's credit limit, do nothing / warn / block. */
-  creditLimitMode: 'off' | 'warn' | 'block';
-  /** Migration 0113 — null = cashiers have no discount limit. */
-  posMaxDiscountPercent: number | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -34,6 +30,4 @@ export interface UpdateTenantSettingsInput {
   email?: string | null;
   website?: string | null;
   logoObjectKey?: string | null;
-  creditLimitMode?: 'off' | 'warn' | 'block';
-  posMaxDiscountPercent?: number | null;
 }

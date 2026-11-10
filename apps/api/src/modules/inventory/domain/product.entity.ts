@@ -28,6 +28,8 @@ export interface Product {
   brandId: string | null;
   /** Default selling price, prefilled on sales lines and POS. */
   salePrice: Money | null;
+  /** Migration 0120 — lowest sale price per base unit (null = none). */
+  minSalePrice: Money | null;
   /** Default purchase price, prefilled on purchase lines. */
   purchasePrice: Money | null;
   /** Default tax rule (Settings › Taxes). */
@@ -43,6 +45,8 @@ export interface ProductMasterDataInput {
   brandId?: string | null;
   salePrice?: Money | null;
   purchasePrice?: Money | null;
+  /** Migration 0120 — lowest sale price per base unit. */
+  minSalePrice?: Money | null;
   taxRuleId?: string | null;
 }
 

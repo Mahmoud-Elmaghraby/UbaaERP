@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { sql, type Kysely } from 'kysely';
-import { APP_SETTINGS, type AppSettingKey, type AppSettingValue } from '@erp-platform/contracts';
+import { APP_SETTINGS, type AppSettingKey, type AppSettingValue, type AppSettingValueOf } from '@erp-platform/contracts';
 import type { TenantDatabase } from '../../database/tenant/kysely-client';
 
 export interface StoredAppSetting {
@@ -23,9 +23,20 @@ export class AppSettingsRepository {
   }
 
   /** The current value of one setting, or its default. */
-  async get<K extends AppSettingKey>(db: Kysely<TenantDatabase>, key: K): Promise<(typeof APP_SETTINGS)[K]['default']> {
+  async get<K extends AppSettingKey>(db: Kysely<TenantDatabase>, key: K): Promise<AppSettingValueOf<K>> {
     const row = await db.selectFrom('app_settings').select('value').where('key', '=', key).executeTakeFirst();
-    return (row ? row.value : APP_SETTINGS[key].default) as (typeof APP_SETTINGS)[K]['default'];
+    return (row ? row.value : APP_SETTINGS[key].default) as AppSettingValueOf<K>;
+  }
+
+  /** Several settings in one query. */
+  async getMany<K extends AppSettingKey>(db: Kysely<TenantDatabase>, keys: readonly K[]): Promise<{ [P in K]: AppSettingValueOf<P> }> {
+    const rows = keys.length
+      ? await db.selectFrom('app_settings').select(['key', 'value']).where('key', 'in', keys as readonly string[]).execute()
+      : [];
+    const stored = new Map(rows.map((r) => [r.key, r.value]));
+    const out = {} as Record<string, unknown>;
+    for (const key of keys) out[key] = stored.has(key) ? stored.get(key) : APP_SETTINGS[key].default;
+    return out as { [P in K]: AppSettingValueOf<P> };
   }
 
   async set(db: Kysely<TenantDatabase>, key: string, value: AppSettingValue, userId: string): Promise<void> {

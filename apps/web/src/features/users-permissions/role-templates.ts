@@ -13,7 +13,7 @@ export const ROLE_TEMPLATES: RoleTemplate[] = [
   { key: 'cashier', permissionKeys: ['pos.use', ...INVENTORY_READ] },
   {
     key: 'storeSupervisor',
-    permissionKeys: ['pos.use', 'pos.supervise', 'sales.view', 'sales.create', 'sales.post', 'sales.override_credit_limit', 'sales.reports.view', ...INVENTORY_READ, 'inventory.reports.view'],
+    permissionKeys: ['pos.use', 'pos.supervise', 'sales.view', 'sales.create', 'sales.post', 'sales.override_credit_limit', 'sales.override_limits', 'sales.reports.view', ...INVENTORY_READ, 'inventory.reports.view'],
   },
   { key: 'salesperson', permissionKeys: ['sales.view', 'sales.create', ...INVENTORY_READ] },
   {

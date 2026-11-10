@@ -26,6 +26,7 @@ import { SalesEventPublisher } from '../infrastructure/events/sales-event-publis
 import { moneyFromDto, moneyToDto } from './money.mapper';
 import { assertFeatureOn } from '../../../shared/auth/assert-feature-on';
 import { FEATURE_KEYS } from '../../../shared/plans/feature-catalog';
+import { CheckDocumentDates } from '../../../shared/app-settings/document-date';
 
 function paymentToDto(payment: PaymentReceived): PaymentReceivedDto {
   return paymentReceivedSchema.parse({ ...payment, amount: moneyToDto(payment.amount) });
@@ -101,6 +102,7 @@ export class PaymentsReceivedController {
   }
 
   @Post()
+  @CheckDocumentDates('paymentDate')
   @RequirePermissions(S.create)
   async create(
     @CurrentTenantSchema() schema: string,

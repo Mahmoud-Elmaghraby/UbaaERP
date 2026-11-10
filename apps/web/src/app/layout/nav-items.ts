@@ -51,7 +51,7 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       {
         to: '/sales',
-        settings: { to: '/settings/sales', permission: 'settings.manage' },
+        settings: { to: '/settings/sales', permission: ['settings.manage', 'sales.settings.manage'] },
         labelKey: 'nav.sales',
         icon: ShoppingCart,
         permission: ANY_SALES_PERMISSION,

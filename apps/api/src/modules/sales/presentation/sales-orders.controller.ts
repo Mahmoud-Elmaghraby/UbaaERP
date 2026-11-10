@@ -11,6 +11,7 @@ import {
   type CreateSalesOrderDto,
   type UpdateSalesOrderDto,
 } from '@erp-platform/contracts';
+import type { SalesLimitsCheckDto } from '@erp-platform/contracts';
 import type { SalesOrder, SalesOrderWithLines } from '../domain/sales-order.entity';
 import { TenantConnectionManager } from '../../../shared/tenancy/tenant-connection-manager';
 import { CurrentTenantSchema } from '../../../shared/auth/current-tenant-schema.decorator';
@@ -71,6 +72,16 @@ export class SalesOrdersController {
         totalAmount: order.totalAmount ? moneyToDto(order.totalAmount) : null,
       }),
     );
+  }
+
+  @Get(':id/limits-check')
+  @RequirePermissions(S.view)
+  limitsCheck(
+    @CurrentTenantSchema() schema: string,
+    @CurrentUser() user: JwtAccessPayload,
+    @Param('id') id: string,
+  ): Promise<SalesLimitsCheckDto> {
+    return this.service.limitsCheck(this.connections.getClient(schema), id, schema, user.permissions);
   }
 
   @Get(':id')
@@ -144,9 +155,12 @@ export class SalesOrdersController {
     @Param('id') id: string,
   ): Promise<SalesOrderDto> {
     const db = this.connections.getClient(schema);
-    const order = await this.service.confirm(db, id, {
-      canOverride: user.permissions.includes('sales.override_credit_limit'),
-    });
+    const order = await this.service.confirm(
+      db,
+      id,
+      { canOverride: user.permissions.includes('sales.override_credit_limit') },
+      { schema, permissions: user.permissions },
+    );
     this.events.publish('sales_order', 'confirmed', { schema, entityId: id, actorUserId: user.sub });
     return orderToDto(order);
   }

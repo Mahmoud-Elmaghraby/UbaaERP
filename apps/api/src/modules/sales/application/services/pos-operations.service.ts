@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
+import { OVERRIDE_LIMITS_PERMISSION } from './sales-limits.service';
 import { sql, type Kysely } from 'kysely';
 import { Money } from '@erp-platform/shared-kernel';
 import type {
@@ -139,7 +140,7 @@ export class PosOperationsService {
         lines: input.lines.map((line) => ({ deliveryLineId: line.deliveryLineId, quantityReturned: line.quantity, reason: line.reason ?? null })),
         returnDate: null,
         notes: input.notes ?? null,
-      });
+      }, { canOverride: actor.permissions.includes(OVERRIDE_LIMITS_PERMISSION) });
       await this.approvals.approve(trx, actor.schema, {
         action: 'return',
         pin: input.approvalPin,

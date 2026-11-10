@@ -23,12 +23,16 @@ function pricesToDto<T extends { salePrice: Product['salePrice']; purchasePrice:
   };
 }
 
+function productPricesToDto(product: Product) {
+  return { ...pricesToDto(product), minSalePrice: product.minSalePrice ? moneyToDto(product.minSalePrice) : null };
+}
+
 export function productToDto(product: Product): ProductDto {
-  return productSchema.parse(pricesToDto(product));
+  return productSchema.parse(productPricesToDto(product));
 }
 
 export function productWithVariantsToDto(product: Product & { variants: ProductVariant[] }): ProductWithVariantsDto {
-  return productWithVariantsSchema.parse({ ...pricesToDto(product), variants: product.variants.map((v) => pricesToDto(v)) });
+  return productWithVariantsSchema.parse({ ...productPricesToDto(product), variants: product.variants.map((v) => pricesToDto(v)) });
 }
 
 export function variantToDto(variant: ProductVariant): ProductVariantDto {
@@ -53,13 +57,14 @@ export function variantLookupToDto(variant: ProductVariantLookup): ProductVarian
 /** DTO prices (wire Money) → domain Money; undefined stays undefined (= not sent / unchanged). */
 export function productInputFromDto<T extends CreateProductDto | UpdateProductDto>(
   dto: T,
-): Omit<T, 'salePrice' | 'purchasePrice' | 'variantPrices'> &
-  Pick<CreateProductInput & UpdateProductInput, 'salePrice' | 'purchasePrice'> &
+): Omit<T, 'salePrice' | 'purchasePrice' | 'minSalePrice' | 'variantPrices'> &
+  Pick<CreateProductInput & UpdateProductInput, 'salePrice' | 'purchasePrice' | 'minSalePrice'> &
   Pick<CreateProductInput, 'variantPrices'> {
-  const { salePrice, purchasePrice, ...rest } = dto;
+  const { salePrice, purchasePrice, minSalePrice, ...rest } = dto;
   const { variantPrices, ...others } = rest as typeof rest & { variantPrices?: CreateProductDto['variantPrices'] };
   return {
-    ...(others as Omit<T, 'salePrice' | 'purchasePrice' | 'variantPrices'>),
+    ...(others as Omit<T, 'salePrice' | 'purchasePrice' | 'minSalePrice' | 'variantPrices'>),
+    ...(minSalePrice !== undefined ? { minSalePrice: minSalePrice ? moneyFromDto(minSalePrice) : null } : {}),
     ...(variantPrices
       ? { variantPrices: variantPrices.map((p) => ({ attributeValues: p.attributeValues, ...variantPricesFromDto(p) })) }
       : {}),

@@ -18,6 +18,7 @@ import { PosOperationsService } from './application/services/pos-operations.serv
 import { CustomerRefundsController } from './presentation/customer-refunds.controller';
 import { PosOperationsController } from './presentation/pos-operations.controller';
 import { CustomerCreditService } from './application/services/customer-credit.service';
+import { SalesLimitsService } from './application/services/sales-limits.service';
 import { SalesInvoicePrintProvider } from './infrastructure/printing/sales-invoice.print-provider';
 import { SalesCreditNotePrintProvider } from './infrastructure/printing/sales-credit-note.print-provider';
 import { PaymentReceivedPrintProvider } from './infrastructure/printing/payment-received.print-provider';
@@ -250,6 +251,7 @@ import { StockAvailabilityChecker } from '../../shared/catalog/stock-availabilit
     PosOperationsService,
     ChequeEndorsementListener,
     CustomerCreditService,
+    SalesLimitsService,
     SalesInvoicePrintProvider,
     SalesCreditNotePrintProvider,
     SalesReturnPrintProvider,

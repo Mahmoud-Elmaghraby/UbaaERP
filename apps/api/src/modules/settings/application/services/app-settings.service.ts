@@ -1,10 +1,12 @@
-import { Injectable } from '@nestjs/common';
+import { ForbiddenException, Injectable } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import type { Kysely } from 'kysely';
 import {
   APP_SETTINGS,
   APP_SETTING_KEYS,
+  APP_SETTING_SECTION_PERMISSIONS,
   appSettingValueSchema,
+  type AppSettingValue,
   type AppSettingEntryDto,
   type AppSettingKey,
   type UpdateAppSettingsDto,
@@ -44,29 +46,36 @@ export class AppSettingsService {
     schema: string,
     input: UpdateAppSettingsDto,
     actorUserId: string,
+    /** The caller's permissions: each section names who may change it. */
+    permissions: readonly string[],
   ): Promise<AppSettingEntryDto[]> {
     const current = new Map((await this.list(db)).map((entry) => [entry.key, entry]));
     // Validate everything before writing anything.
-    const changes: { key: AppSettingKey; value: number | boolean | string | null }[] = [];
-    for (const [key, value] of Object.entries(input)) {
+    const changes: { key: AppSettingKey; value: AppSettingValue; reset: boolean }[] = [];
+    for (const [key, raw] of Object.entries(input)) {
       if (!APP_SETTING_KEYS.includes(key as AppSettingKey)) {
         throw new BusinessRuleError(`Unknown setting "${key}".`, { code: 'APP_SETTING.UNKNOWN', params: { key } });
       }
       const def = APP_SETTINGS[key as AppSettingKey];
-      if (value !== null && !appSettingValueSchema(def).safeParse(value).success) {
+      if (!APP_SETTING_SECTION_PERMISSIONS[def.section].some((p) => permissions.includes(p))) {
+        throw new ForbiddenException(`You may not change "${key}".`);
+      }
+      const reset = typeof raw === 'object' && raw !== null;
+      const value = reset ? null : (raw as AppSettingValue);
+      if (!reset && !appSettingValueSchema(def).safeParse(value).success) {
         throw new BusinessRuleError(`Invalid value for "${key}".`, { code: 'APP_SETTING.INVALID', params: { key } });
       }
-      changes.push({ key: key as AppSettingKey, value });
+      changes.push({ key: key as AppSettingKey, value, reset });
     }
     await db.transaction().execute(async (trx) => {
-      for (const { key, value } of changes) {
-        if (value === null) await this.repository.reset(trx, key);
+      for (const { key, value, reset } of changes) {
+        if (reset) await this.repository.reset(trx, key);
         else await this.repository.set(trx, key, value, actorUserId);
       }
     });
-    for (const { key, value } of changes) {
+    for (const { key, value, reset } of changes) {
       const before = current.get(key)?.value;
-      const after = value ?? APP_SETTINGS[key].default;
+      const after = reset ? APP_SETTINGS[key].default : value;
       if (before === after) continue;
       const payload: DomainEventPayload = {
         schema,
@@ -74,7 +83,7 @@ export class AppSettingsService {
         entityId: key,
         action: 'updated',
         actorUserId,
-        metadata: { key, from: before, to: after, reset: value === null },
+        metadata: { key, from: before, to: after, reset },
         occurredAt: new Date(),
       };
       this.emitter.emit('settings.app_setting.updated', payload);

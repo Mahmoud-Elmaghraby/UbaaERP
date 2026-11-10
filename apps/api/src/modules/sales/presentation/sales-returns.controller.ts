@@ -19,8 +19,10 @@ import { PermissionsGuard } from '../../../shared/auth/permissions.guard';
 import { RequirePermissions } from '../../../shared/auth/require-permissions.decorator';
 import { SALES_PERMISSIONS as S } from '../../../shared/auth/trade-permissions';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
+import { OVERRIDE_LIMITS_PERMISSION } from '../application/services/sales-limits.service';
 import { SalesReturnsService } from '../application/services/sales-returns.service';
 import { SalesEventPublisher } from '../infrastructure/events/sales-event-publisher';
+import { CheckDocumentDates } from '../../../shared/app-settings/document-date';
 
 function returnToDto(salesReturn: SalesReturn): SalesReturnDto {
   return salesReturnSchema.parse(salesReturn);
@@ -73,6 +75,7 @@ export class SalesReturnsController {
   }
 
   @Post()
+  @CheckDocumentDates('returnDate')
   @RequirePermissions(S.create)
   async create(
     @CurrentTenantSchema() schema: string,
@@ -80,7 +83,9 @@ export class SalesReturnsController {
     @Body(new ZodValidationPipe(createSalesReturnSchema)) body: CreateSalesReturnDto,
   ): Promise<SalesReturnWithLinesDto> {
     const db = this.connections.getClient(schema);
-    const salesReturn = await this.service.create(db, body);
+    const salesReturn = await this.service.create(db, body, {
+      canOverride: user.permissions.includes(OVERRIDE_LIMITS_PERMISSION),
+    });
     this.events.publish('sales_return', 'created', { schema, entityId: salesReturn.id, actorUserId: user.sub });
     return returnWithLinesToDto(salesReturn);
   }

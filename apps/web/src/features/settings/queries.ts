@@ -26,6 +26,7 @@ import type {
 } from '@erp-platform/contracts';
 
 import { apiDelete, apiGet, apiPatch, apiPost, apiUpload } from '../../lib/api-client';
+import { useAppSettingsQuery } from '../../lib/app-settings';
 
 export function useBranches() {
   return useQuery({ queryKey: ['branches'], queryFn: () => apiGet<BranchDto[]>('/branches') });
@@ -247,9 +248,8 @@ export function useCreateExchangeRate() {
 
 // --- Settings hub store (APP_SETTINGS, /app-settings) ------------------------
 
-export function useAppSettings(enabled = true) {
-  return useQuery({ queryKey: ['app-settings'], queryFn: () => apiGet<AppSettingEntryDto[]>('/app-settings'), enabled });
-}
+/** Same query as the screens that apply the settings (lib/app-settings). */
+export const useAppSettings = useAppSettingsQuery;
 
 export function useUpdateAppSettings() {
   const queryClient = useQueryClient();

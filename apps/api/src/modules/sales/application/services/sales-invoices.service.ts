@@ -38,6 +38,8 @@ import { FeatureAvailabilityService } from '../../../../shared/plans/feature-ava
 import { FEATURE_KEYS } from '../../../../shared/plans/feature-catalog';
 import { assertCurrencyAllowedForTenant } from '../../../../shared/plans/currency-gate';
 import { CustomerCreditService } from './customer-credit.service';
+import { SalesLimitsService, type LimitsDocument } from './sales-limits.service';
+import type { SalesLimitsCheckDto } from '@erp-platform/contracts';
 import { SalesOrdersService } from './sales-orders.service';
 import { DeliveriesService } from './deliveries.service';
 import { resolveSalesRepId } from './sales-reps.service';
@@ -115,6 +117,7 @@ export class SalesInvoicesService {
     private readonly salesOrdersService: SalesOrdersService,
     private readonly deliveriesService: DeliveriesService,
     private readonly customerCredit: CustomerCreditService,
+    private readonly limits: SalesLimitsService,
   ) {}
 
   list(db: Kysely<TenantDatabase>): Promise<SalesInvoice[]> {
@@ -123,6 +126,34 @@ export class SalesInvoicesService {
 
   listBySalesOrderId(db: Kysely<TenantDatabase>, salesOrderId: string): Promise<SalesInvoice[]> {
     return this.invoices.listBySalesOrderId(db, salesOrderId);
+  }
+
+  /**
+   * The sales limits for a draft invoice. Prices are checked here only in direct invoicing (no
+   * Sales Orders): with orders on, the order's confirm already checked them. The rep rule always
+   * applies.
+   */
+  async limitsCheck(db: Kysely<TenantDatabase>, id: string, schema: string, permissions: readonly string[]): Promise<SalesLimitsCheckDto> {
+    const invoice = await this.invoices.findById(db, id);
+    if (!invoice) throw entityNotFound('SALES_INVOICE', id);
+    return this.limits.check(db, await this.limitsDocument(db, invoice, schema), permissions);
+  }
+
+  private async limitsDocument(db: Kysely<TenantDatabase>, invoice: SalesInvoice, schema: string): Promise<LimitsDocument> {
+    const ordersOn = await this.featureAvailability.isEnabled(db, schema, FEATURE_KEYS.SALES_SALES_ORDERS);
+    const lines = ordersOn ? [] : await this.lines.listBySalesInvoiceId(db, invoice.id);
+    return {
+      schema,
+      salesRepId: invoice.salesRepId,
+      // An invoice line has no discount of its own: its net amount is what the customer pays.
+      lines: lines.map((line) => ({
+        id: line.id,
+        productVariantId: line.productVariantId,
+        quantity: 1,
+        unitPrice: line.netAmount,
+        unitFactor: line.quantityInvoiced * (line.unitFactor || 1),
+      })),
+    };
   }
 
   async getById(db: Kysely<TenantDatabase>, id: string): Promise<SalesInvoiceWithLines> {
@@ -480,6 +511,8 @@ export class SalesInvoicesService {
     actorUserId: string | null,
     /** Passed by the controller only (a user posting) — POS sales are paid in full and skip it. */
     creditCheck?: { canOverride: boolean },
+    /** Passed by the controller only: the settings hub's sales limits. */
+    limits?: { permissions: readonly string[] },
   ): Promise<SalesInvoiceWithLines> {
     const existing = await this.invoices.findById(db, id);
     if (!existing) throw entityNotFound('SALES_INVOICE', id);
@@ -498,6 +531,7 @@ export class SalesInvoicesService {
       });
     }
     const totals = calculateSalesInvoiceTotals(lines);
+    if (limits) await this.limits.assert(db, await this.limitsDocument(db, existing, schema), limits.permissions);
     if (creditCheck) {
       const order = await this.salesOrderRepo.findById(db, existing.salesOrderId);
       if (order) await this.customerCredit.assertWithinLimit(db, order.customerId, totals.totalAmount, creditCheck.canOverride);

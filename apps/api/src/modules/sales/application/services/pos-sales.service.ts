@@ -1,4 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { CASH_ROUNDING_STEPS, type CashRounding } from '@erp-platform/contracts';
+import { AppSettingsRepository } from '../../../../shared/app-settings/app-settings.repository';
 import type { Kysely } from 'kysely';
 import { Money } from '@erp-platform/shared-kernel';
 import type { TenantDatabase } from '../../../../database/tenant/kysely-client';
@@ -72,6 +74,7 @@ export class PosSalesService {
     private readonly salesInvoices: SalesInvoicesService,
     private readonly paymentsReceived: PaymentsReceivedService,
     private readonly approvals: SupervisorApprovalService,
+    private readonly settings: AppSettingsRepository,
   ) {}
 
   async checkout(
@@ -142,10 +145,13 @@ export class PosSalesService {
         assertSessionUsable(current, posSessionId, actorUserId, options.canSupervise ?? false);
 
         // A discount deeper than the cashier's limit needs a supervisor.
-        const discount = deepestDiscountPercent(input);
+        // A sale discount smaller than the cash-rounding step is the rounding itself, not a cashier's discount.
+        const step = CASH_ROUNDING_STEPS[(await this.settings.get(trx, 'pos.cashRounding')) as CashRounding];
+        const roundingOnly =
+          step > 0 && input.discountType === 'fixed' && input.discountFixedAmount != null && Number(input.discountFixedAmount.toMinorUnits()) < step * 100;
+        const discount = deepestDiscountPercent(roundingOnly ? { ...input, discountType: null, discountFixedAmount: null } : input);
         if (discount > 0) {
-          const settings = await trx.selectFrom('tenant_settings').select('pos_max_discount_percent').executeTakeFirst();
-          const limit = settings?.pos_max_discount_percent == null ? null : Number(settings.pos_max_discount_percent);
+          const limit = await this.settings.get(trx, 'pos.maxDiscountPercent');
           if (limit !== null && discount > limit + 0.005) {
             await this.approvals.approve(trx, schema, {
               action: 'discount',

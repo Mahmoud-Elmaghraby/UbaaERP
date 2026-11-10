@@ -44,6 +44,7 @@ import {
   type DirectLineDraft,
 } from '../../../../components/document/direct-lines-editor';
 import { QUOTATIONS_PATH, quotationStatusLabelKey } from './quotation-status';
+import { useNewDocumentDefaults } from '../../lib/use-new-document-defaults';
 
 const QUOTATION_ENTITY_TYPE = 'quotation';
 
@@ -109,6 +110,8 @@ function QuotationEditor({ quotation }: { quotation: QuotationWithLinesDto | und
       customFields: quotation?.customFields ?? {},
     },
   });
+
+  useNewDocumentDefaults(form, { isNew: !quotation, notesSetting: 'sales.defaultQuotationTerms', customers });
 
   const customerId = form.watch('customerId');
   const customer = customers?.find((c) => c.id === customerId);

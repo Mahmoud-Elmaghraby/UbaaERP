@@ -33,6 +33,8 @@ import { assertCurrencyAllowedForTenant } from '../../../../shared/plans/currenc
 import { ProductUnitResolver } from '../../../../shared/catalog/product-unit-resolver';
 import { resolveSalesRepId } from './sales-reps.service';
 import { CustomerCreditService } from './customer-credit.service';
+import { SalesLimitsService } from './sales-limits.service';
+import type { SalesLimitsCheckDto } from '@erp-platform/contracts';
 
 @Injectable()
 export class SalesOrdersService {
@@ -47,6 +49,7 @@ export class SalesOrdersService {
     private readonly featureAvailability: FeatureAvailabilityService,
     private readonly unitResolver: ProductUnitResolver,
     private readonly customerCredit: CustomerCreditService,
+    private readonly limits: SalesLimitsService,
   ) {}
 
   /** Shared by create()/update() — see currency-gate.ts's own comment. */
@@ -84,6 +87,14 @@ export class SalesOrdersService {
       const own = byOrder.get(order.id);
       return { ...order, totalAmount: own?.length ? calculateSalesOrderTotal(order, own).totalAmount : null };
     });
+  }
+
+  /** What the sales limits say about this order before it is confirmed. */
+  async limitsCheck(db: Kysely<TenantDatabase>, id: string, schema: string, permissions: readonly string[]): Promise<SalesLimitsCheckDto> {
+    const order = await this.orders.findById(db, id);
+    if (!order) throw entityNotFound('SALES_ORDER', id);
+    const lines = await this.lines.listBySalesOrderId(db, id);
+    return this.limits.check(db, { ...order, lines, schema }, permissions);
   }
 
   async getById(db: Kysely<TenantDatabase>, id: string): Promise<SalesOrderWithLines> {
@@ -332,13 +343,22 @@ export class SalesOrdersService {
    * customer's credit limit is enforced then (migration 0109). POS and the
    * automatic order behind a direct invoice confirm without it.
    */
-  async confirm(db: Kysely<TenantDatabase>, id: string, creditCheck?: { canOverride: boolean }): Promise<SalesOrder> {
-    if (creditCheck) {
+  async confirm(
+    db: Kysely<TenantDatabase>,
+    id: string,
+    creditCheck?: { canOverride: boolean },
+    /** Passed by the controller only: the settings hub's sales limits (SalesLimitsService). */
+    limits?: { schema: string; permissions: readonly string[] },
+  ): Promise<SalesOrder> {
+    if (creditCheck || limits) {
       const order = await this.orders.findById(db, id);
       const lines = order?.status === 'draft' ? await this.lines.listBySalesOrderId(db, id) : [];
       if (order && lines.length > 0) {
-        const { totalAmount } = calculateSalesOrderTotal(order, lines);
-        await this.customerCredit.assertWithinLimit(db, order.customerId, totalAmount, creditCheck.canOverride);
+        if (limits) await this.limits.assert(db, { ...order, lines, schema: limits.schema }, limits.permissions);
+        if (creditCheck) {
+          const { totalAmount } = calculateSalesOrderTotal(order, lines);
+          await this.customerCredit.assertWithinLimit(db, order.customerId, totalAmount, creditCheck.canOverride);
+        }
       }
     }
     return this.transitionStatus(db, id, ['draft'], 'confirmed');

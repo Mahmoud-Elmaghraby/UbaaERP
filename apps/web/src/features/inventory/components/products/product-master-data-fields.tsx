@@ -21,19 +21,23 @@ import { useCategoryOptions, useProductBrands } from '../../api/catalog/queries'
 import { useTaxRuleLookup } from '../../../settings/queries';
 import { decimalToMinorUnits, minorUnitsToDecimalString } from '../../../../lib/money';
 import { WhenTaxesInUse } from '../../../../components/taxes/when-taxes-in-use';
+import { useAppSetting } from '../../../../lib/app-settings';
 
 /** Radix Select can't hold an empty value — this stands for "none". */
 const NONE = '__none__';
 
 /** Default sale / purchase price as editable decimal text, converted to MoneyDto on submit. */
-export function usePriceDrafts(initial?: { salePrice: MoneyDto | null; purchasePrice: MoneyDto | null }) {
+export function usePriceDrafts(initial?: { salePrice: MoneyDto | null; purchasePrice: MoneyDto | null; minSalePrice?: MoneyDto | null }) {
   const [sale, setSale] = useState(initial?.salePrice ? minorUnitsToDecimalString(initial.salePrice.amountMinorUnits) : '');
+  const [minSale, setMinSale] = useState(initial?.minSalePrice ? minorUnitsToDecimalString(initial.minSalePrice.amountMinorUnits) : '');
   const [purchase, setPurchase] = useState(
     initial?.purchasePrice ? minorUnitsToDecimalString(initial.purchasePrice.amountMinorUnits) : '',
   );
 
   /** null = cleared; 'invalid' = text that isn't a non-negative amount. */
-  function resolve(currency: string): { salePrice: MoneyDto | null; purchasePrice: MoneyDto | null } | 'invalid' {
+  function resolve(
+    currency: string,
+  ): { salePrice: MoneyDto | null; purchasePrice: MoneyDto | null; minSalePrice: MoneyDto | null } | 'invalid' {
     const toMoney = (text: string): MoneyDto | null | 'invalid' => {
       if (!text.trim()) return null;
       try {
@@ -45,11 +49,12 @@ export function usePriceDrafts(initial?: { salePrice: MoneyDto | null; purchaseP
     };
     const salePrice = toMoney(sale);
     const purchasePrice = toMoney(purchase);
-    if (salePrice === 'invalid' || purchasePrice === 'invalid') return 'invalid';
-    return { salePrice, purchasePrice };
+    const minSalePrice = toMoney(minSale);
+    if (salePrice === 'invalid' || purchasePrice === 'invalid' || minSalePrice === 'invalid') return 'invalid';
+    return { salePrice, purchasePrice, minSalePrice };
   }
 
-  return { sale, setSale, purchase, setPurchase, resolve };
+  return { sale, setSale, purchase, setPurchase, minSale, setMinSale, resolve };
 }
 
 /**
@@ -67,6 +72,9 @@ export function ProductMasterDataFields({
 }) {
   const { t } = useTranslation();
   const form = useFormContext();
+  // The minimum price matters only once the sales settings check it (or the product already has one).
+  const { get: getSetting } = useAppSetting();
+  const showMinPrice = getSetting('sales.belowMinPriceMode') !== 'allow' || prices.minSale !== '';
   const { options: categories } = useCategoryOptions();
   const { data: brands } = useProductBrands();
   const { data: taxRules } = useTaxRuleLookup();
@@ -202,6 +210,19 @@ export function ProductMasterDataFields({
             onChange={(e) => prices.setPurchase(e.target.value)}
           />
         </div>
+        {showMinPrice ? (
+          <div className="grid gap-1.5">
+            <label className="text-sm font-medium">{t('inventory.products.minSalePrice', { currency })}</label>
+            <Input
+              inputMode="decimal"
+              placeholder={t('inventory.products.minSalePricePlaceholder')}
+              className="text-end"
+              value={prices.minSale}
+              onChange={(e) => prices.setMinSale(e.target.value)}
+            />
+            <span className="text-xs text-muted-foreground">{t('inventory.products.minSalePriceHint')}</span>
+          </div>
+        ) : null}
       </div>
     </div>
   );

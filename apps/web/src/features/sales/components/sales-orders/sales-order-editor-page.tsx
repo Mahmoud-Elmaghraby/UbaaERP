@@ -54,6 +54,7 @@ import {
 } from '../../../../components/document/direct-lines-editor';
 import { SALES_ORDERS_PATH, salesOrderStatusLabelKey } from './sales-order-status';
 import { WhenFeature } from '../../../../components/feature/when-feature';
+import { useNewDocumentDefaults } from '../../lib/use-new-document-defaults';
 
 const SALES_ORDER_ENTITY_TYPE = 'sales_order';
 
@@ -145,6 +146,8 @@ function SalesOrderEditor({ order }: { order: SalesOrderWithLinesDto | undefined
       customFields: order?.customFields ?? {},
     },
   });
+
+  useNewDocumentDefaults(form, { isNew: !order, notesSetting: 'sales.defaultInvoiceNotes', customers });
 
   const customerId = form.watch('customerId');
   const customer = customers?.find((c) => c.id === customerId);

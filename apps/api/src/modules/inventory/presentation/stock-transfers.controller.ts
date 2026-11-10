@@ -40,6 +40,7 @@ import { StockTransfersService } from '../application/services/stock-transfers.s
 import type { StockTransferWithLines } from '../domain/stock-transfer.entity';
 import { InventoryEventPublisher } from '../infrastructure/events/inventory-event-publisher';
 import { moneyToDto } from './money.mapper';
+import { CheckDocumentDates } from '../../../shared/app-settings/document-date';
 
 function withLinesToDto(transfer: StockTransferWithLines, showCost: boolean): StockTransferWithLinesDto {
   return stockTransferWithLinesSchema.parse({
@@ -113,6 +114,7 @@ export class StockTransfersController {
   }
 
   @Post()
+  @CheckDocumentDates('transferDate')
   async create(
     @CurrentTenantSchema() schema: string,
     @CurrentUser() user: JwtAccessPayload,
@@ -124,6 +126,7 @@ export class StockTransfersController {
   }
 
   @Patch(':id')
+  @CheckDocumentDates('transferDate')
   async update(
     @CurrentTenantSchema() schema: string,
     @CurrentUser() user: JwtAccessPayload,

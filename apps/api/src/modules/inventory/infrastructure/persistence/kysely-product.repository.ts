@@ -28,6 +28,7 @@ function toDomain(row: Selectable<ProductsTable>): Product {
     categoryId: row.category_id,
     brandId: row.brand_id,
     salePrice: toMoney(row.sale_price_amount, row.sale_price_currency),
+    minSalePrice: toMoney(row.min_sale_price_amount, row.min_sale_price_currency),
     purchasePrice: toMoney(row.purchase_price_amount, row.purchase_price_currency),
     taxRuleId: row.tax_rule_id,
     createdAt: row.created_at,
@@ -50,6 +51,12 @@ function masterDataColumns(input: ProductMasterDataInput) {
       ? {
           sale_price_amount: input.salePrice ? input.salePrice.toMinorUnits().toString() : null,
           sale_price_currency: input.salePrice ? input.salePrice.currency : null,
+        }
+      : {}),
+    ...(input.minSalePrice !== undefined
+      ? {
+          min_sale_price_amount: input.minSalePrice ? input.minSalePrice.toMinorUnits().toString() : null,
+          min_sale_price_currency: input.minSalePrice ? input.minSalePrice.currency : null,
         }
       : {}),
     ...(input.purchasePrice !== undefined

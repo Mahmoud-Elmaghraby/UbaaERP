@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import type { Kysely } from 'kysely';
 import { Money } from '@erp-platform/shared-kernel';
 import type { TenantDatabase } from '../../../../database/tenant/kysely-client';
-import { TenantSettingsService } from '../../../settings/application/services/tenant-settings.service';
+import { AppSettingsRepository } from '../../../../shared/app-settings/app-settings.repository';
 import { CustomerLedgerSource } from '../../infrastructure/statements/customer-ledger.source';
 import { evaluateCreditLimit, parseCreditLimitMode, type CreditLimitMode } from '../../domain/customer-credit';
 import { entityNotFound } from '../../../../shared/errors/entity-errors';
@@ -31,7 +31,7 @@ export interface CustomerCreditCheck {
 @Injectable()
 export class CustomerCreditService {
   constructor(
-    private readonly tenantSettings: TenantSettingsService,
+    private readonly settings: AppSettingsRepository,
     private readonly ledger: CustomerLedgerSource,
   ) {}
 
@@ -47,7 +47,7 @@ export class CustomerCreditService {
       .where('id', '=', customerId)
       .executeTakeFirst();
     if (!customer) throw entityNotFound('CUSTOMER', customerId);
-    const mode = parseCreditLimitMode((await this.tenantSettings.get(db)).creditLimitMode);
+    const mode = parseCreditLimitMode(await this.settings.get(db, 'sales.creditLimitMode'));
     const currency = customer.default_currency;
     const limitMinor = customer.credit_limit_amount === null ? null : BigInt(customer.credit_limit_amount);
     const exempt = customer.is_system_default;

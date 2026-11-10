@@ -3,12 +3,14 @@ import {
   Activity,
   Blocks,
   Building2,
+  CalendarClock,
   Coins,
   FileText,
   Hash,
   History,
   KeyRound,
   Landmark,
+  MonitorSmartphone,
   Package,
   Percent,
   Printer,
@@ -26,7 +28,8 @@ import { NumberingTab } from '../numbering-tab';
 import { TemplatesTab } from '../templates-tab';
 import { TaxesTab } from '../taxes-tab';
 import { BackgroundOperationsTab } from '../background-operations-tab';
-import { SalesSettingsSection } from '../sales-settings-section';
+import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { AppSettingsSection } from './app-settings-section';
 
 export type SettingsGroup = 'organization' | 'documents' | 'modules' | 'system';
@@ -46,6 +49,26 @@ export interface SettingsSection {
 }
 
 const SecuritySection = () => <AppSettingsSection section="security" />;
+const SalesSection = () => <AppSettingsSection section="sales" />;
+const DocumentDatesSection = () => <AppSettingsSection section="documents" />;
+function PosSection() {
+  const { t } = useTranslation();
+  return (
+    <AppSettingsSection
+      section="pos"
+      footer={
+        <p className="px-1 text-sm text-muted-foreground">
+          {t('settings.hub.posReceiptDesign')}{' '}
+          <Link to="/settings/templates" className="font-medium text-primary hover:underline">
+            {t('settings.hub.cards.templates.title')}
+          </Link>
+        </p>
+      }
+    />
+  );
+}
+/** Sales and POS settings: the company admin or the sales manager. */
+const SALES_SETTINGS = ['settings.manage', 'sales.settings.manage'];
 
 /**
  * Every section of the settings hub, in reading order. Titles, descriptions and search keywords
@@ -62,8 +85,10 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
   { id: 'numbering', group: 'documents', icon: Hash, component: NumberingTab },
   { id: 'taxes', group: 'documents', icon: Percent, component: TaxesTab },
   { id: 'templates', group: 'documents', icon: Printer, component: TemplatesTab },
+  { id: 'documents', group: 'documents', icon: CalendarClock, component: DocumentDatesSection, permission: 'settings.manage' },
   { id: 'features', group: 'modules', icon: Blocks, component: ModulesTab, permission: 'settings.manage' },
-  { id: 'sales', group: 'modules', icon: ShoppingCart, component: SalesSettingsSection },
+  { id: 'sales', group: 'modules', icon: ShoppingCart, component: SalesSection, permission: SALES_SETTINGS },
+  { id: 'pos', group: 'modules', icon: MonitorSmartphone, component: PosSection, permission: SALES_SETTINGS, feature: 'pos' },
   { id: 'inventory', group: 'modules', icon: Package, to: '/inventory/settings', permission: ['settings.manage', 'inventory.settings.manage'] },
   { id: 'accounting', group: 'modules', icon: FileText, to: '/accounting/settings', permission: 'accounting.manage', feature: 'accounting' },
   { id: 'operations', group: 'system', icon: Activity, component: BackgroundOperationsTab },

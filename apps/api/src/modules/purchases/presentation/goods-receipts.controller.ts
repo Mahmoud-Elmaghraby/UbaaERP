@@ -23,6 +23,7 @@ import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pip
 import { GoodsReceiptsService } from '../application/services/goods-receipts.service';
 import { PurchasesEventPublisher } from '../infrastructure/events/purchases-event-publisher';
 import { moneyFromDto, moneyToDto } from './money.mapper';
+import { CheckDocumentDates } from '../../../shared/app-settings/document-date';
 
 function receiptToDto(receipt: GoodsReceipt): GoodsReceiptDto {
   return goodsReceiptSchema.parse(receipt);
@@ -71,6 +72,7 @@ export class GoodsReceiptsController {
   }
 
   @Post()
+  @CheckDocumentDates('receivedDate')
   @RequirePermissions(PU.create)
   async create(
     @CurrentTenantSchema() schema: string,

@@ -17,6 +17,7 @@ import { SALES_PERMISSIONS as S } from '../../../shared/auth/trade-permissions';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 import { CustomerRefundsService } from '../application/services/customer-refunds.service';
 import { moneyFromDto } from './money.mapper';
+import { CheckDocumentDates } from '../../../shared/app-settings/document-date';
 
 /** رد مبلغ لعميل — money paid back to a customer out of a treasury (migration 0113). */
 @UseGuards(JwtAuthGuard, PermissionsGuard)
@@ -56,6 +57,7 @@ export class CustomerRefundsController {
   }
 
   @Post()
+  @CheckDocumentDates('refundDate')
   @RequirePermissions(S.post)
   create(
     @CurrentTenantSchema() schema: string,

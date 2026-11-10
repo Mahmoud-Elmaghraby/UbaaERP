@@ -20,6 +20,7 @@ import { CheckCircle2, FileQuestion, Info, Wallet } from 'lucide-react';
 import { AttachmentsPanel } from '../../../attachments/components/attachments-panel';
 import { useCustomer, useCustomerCreditCheck } from '../../api/customers/queries';
 import { CreditLimitCallout, confirmCreditLimit, isCreditBlocked } from '../../lib/credit-limit';
+import { SalesLimitsCallout, confirmSalesLimits, useSalesLimitsCheck } from '../../lib/sales-limits';
 import { useDeliveriesBySalesOrder } from '../../api/deliveries/queries';
 import { usePaymentReceivedRegister } from '../../api/payments-received/queries';
 import { useQuotation } from '../../api/quotations/queries';
@@ -72,6 +73,9 @@ export function SalesInvoiceDetailsPage() {
     invoice?.totalAmount.currency,
   );
   const creditBlocked = isCreditBlocked(creditCheck);
+  // Settings hub limits (prices in direct invoicing, required rep).
+  const { data: limitsCheck } = useSalesLimitsCheck('sales-invoices', invoice?.id, invoice?.status === 'draft');
+  const limitsBlocked = Boolean(limitsCheck?.blocked);
   const salesOrdersEnabled = useHasFeature(FEATURE_KEYS.SALES_SALES_ORDERS);
   const deliveriesEnabled = useHasFeature(FEATURE_KEYS.SALES_DELIVERIES);
   const quotationsEnabled = useHasFeature(FEATURE_KEYS.SALES_QUOTATIONS);
@@ -249,15 +253,17 @@ export function SalesInvoiceDetailsPage() {
                   </Can>
                   <Can permission={SALES.post}>
                     <Button
-                      disabled={actions.isPending || creditBlocked}
-                      title={creditBlocked ? t('sales.creditLimit.blockedHint') : undefined}
+                      disabled={actions.isPending || creditBlocked || limitsBlocked}
+                      title={creditBlocked ? t('sales.creditLimit.blockedHint') : limitsBlocked ? t('sales.limits.blockedHint') : undefined}
                       onClick={async () => {
-                        // Above the limit the credit prompt replaces the usual "post?" prompt.
+                        // A limits prompt (warn-mode prices…) or the credit prompt replaces the usual "post?" prompt.
+                        const asked = Boolean(limitsCheck?.needsConfirmation);
+                        if (!(await confirmSalesLimits(limitsCheck, t))) return;
                         if (creditCheck?.exceeded) {
                           if (await confirmCreditLimit(creditCheck, t)) void actions.post(invoice.id, { confirm: false });
                           return;
                         }
-                        void actions.post(invoice.id);
+                        void actions.post(invoice.id, asked ? { confirm: false } : undefined);
                       }}
                     >
                       <CheckCircle2 />
@@ -287,6 +293,7 @@ export function SalesInvoiceDetailsPage() {
         main={
           <>
             {isDraft ? <CreditLimitCallout check={creditCheck} /> : null}
+            {isDraft ? <SalesLimitsCallout check={limitsCheck} /> : null}
             {invoice.status !== 'cancelled' ? (
               <div className="flex items-start gap-2.5 rounded-xl border border-info/20 bg-info-soft px-4 py-3 text-[13px] text-info">
                 <Info className="mt-0.5 h-4 w-4 shrink-0" />

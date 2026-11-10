@@ -19,10 +19,11 @@ import { SALES_PERMISSIONS as S } from '../../../shared/auth/trade-permissions';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 import { SalesInvoicesService } from '../application/services/sales-invoices.service';
 import { SalesRegisterService } from '../application/services/sales-register.service';
-import type { SalesInvoiceRegisterRowDto } from '@erp-platform/contracts';
+import type { SalesInvoiceRegisterRowDto, SalesLimitsCheckDto } from '@erp-platform/contracts';
 import { SalesEventPublisher } from '../infrastructure/events/sales-event-publisher';
 import { moneyFromDto, moneyToDto } from './money.mapper';
 import { totalsToDto } from '../../../shared/taxes/line-tax-snapshot';
+import { CheckDocumentDates } from '../../../shared/app-settings/document-date';
 
 function invoiceToDto(invoice: SalesInvoice): SalesInvoiceDto {
   return salesInvoiceSchema.parse(invoice);
@@ -90,6 +91,16 @@ export class SalesInvoicesController {
     return invoices.map(invoiceToDto);
   }
 
+  @Get(':id/limits-check')
+  @RequirePermissions(S.view)
+  limitsCheck(
+    @CurrentTenantSchema() schema: string,
+    @CurrentUser() user: JwtAccessPayload,
+    @Param('id') id: string,
+  ): Promise<SalesLimitsCheckDto> {
+    return this.service.limitsCheck(this.connections.getClient(schema), id, schema, user.permissions);
+  }
+
   @Get(':id')
   @RequirePermissions(S.view)
   async getById(
@@ -102,6 +113,7 @@ export class SalesInvoicesController {
   }
 
   @Post()
+  @CheckDocumentDates('invoiceDate')
   @RequirePermissions(S.create)
   async create(
     @CurrentTenantSchema() schema: string,
@@ -147,9 +159,14 @@ export class SalesInvoicesController {
     @Param('id') id: string,
   ): Promise<SalesInvoiceWithLinesDto> {
     const db = this.connections.getClient(schema);
-    const invoice = await this.service.post(db, id, schema, user.sub, {
-      canOverride: user.permissions.includes('sales.override_credit_limit'),
-    });
+    const invoice = await this.service.post(
+      db,
+      id,
+      schema,
+      user.sub,
+      { canOverride: user.permissions.includes('sales.override_credit_limit') },
+      { permissions: user.permissions },
+    );
     return invoiceWithLinesToDto(invoice);
   }
 

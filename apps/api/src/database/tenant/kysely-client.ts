@@ -246,6 +246,9 @@ export interface ProductsTable {
   sale_price_currency: string | null;
   purchase_price_amount: string | null;
   purchase_price_currency: string | null;
+  /** Migration 0120 — the lowest sale price per base unit (NULL = none). */
+  min_sale_price_amount: string | null;
+  min_sale_price_currency: string | null;
   tax_rule_id: string | null;
 }
 

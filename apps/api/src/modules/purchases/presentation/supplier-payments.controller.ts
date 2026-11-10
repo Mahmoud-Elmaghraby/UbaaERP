@@ -47,6 +47,7 @@ import { PlanFeatureGuard } from '../../../shared/auth/plan-feature.guard';
 import { RequireFeature } from '../../../shared/auth/require-feature.decorator';
 import { FEATURE_KEYS } from '../../../shared/plans/feature-catalog';
 import { assertFeatureOn } from '../../../shared/auth/assert-feature-on';
+import { CheckDocumentDates } from '../../../shared/app-settings/document-date';
 
 function paymentToDto(payment: SupplierPayment): SupplierPaymentDto {
   return supplierPaymentSchema.parse({ ...payment, amount: moneyToDto(payment.amount) });
@@ -148,6 +149,7 @@ export class SupplierPaymentsController {
   }
 
   @Post()
+  @CheckDocumentDates('paymentDate')
   @RequirePermissions(PU.create)
   async create(
     @CurrentTenantSchema() schema: string,

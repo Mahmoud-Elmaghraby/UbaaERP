@@ -41,6 +41,7 @@ import { StockAdjustmentsService } from '../application/services/stock-adjustmen
 import type { CreateStockAdjustmentInput, StockAdjustmentWithLines } from '../domain/stock-adjustment.entity';
 import { InventoryEventPublisher } from '../infrastructure/events/inventory-event-publisher';
 import { moneyFromDto, moneyToDto } from './money.mapper';
+import { CheckDocumentDates } from '../../../shared/app-settings/document-date';
 
 function withLinesToDto(adjustment: StockAdjustmentWithLines, showCost: boolean): StockAdjustmentWithLinesDto {
   return stockAdjustmentWithLinesSchema.parse({
@@ -143,6 +144,7 @@ export class StockAdjustmentsController {
   }
 
   @Post()
+  @CheckDocumentDates('adjustmentDate')
   async create(
     @CurrentTenantSchema() schema: string,
     @CurrentUser() user: JwtAccessPayload,
@@ -163,6 +165,7 @@ export class StockAdjustmentsController {
   }
 
   @Patch(':id')
+  @CheckDocumentDates('adjustmentDate')
   async update(
     @CurrentTenantSchema() schema: string,
     @CurrentUser() user: JwtAccessPayload,

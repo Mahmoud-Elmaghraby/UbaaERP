@@ -22,6 +22,7 @@ import { FEATURE_KEYS } from '../../../shared/plans/feature-catalog';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 import { DeliveriesService } from '../application/services/deliveries.service';
 import { SalesEventPublisher } from '../infrastructure/events/sales-event-publisher';
+import { CheckDocumentDates } from '../../../shared/app-settings/document-date';
 
 function deliveryToDto(delivery: Delivery): DeliveryDto {
   return deliverySchema.parse(delivery);
@@ -67,6 +68,7 @@ export class DeliveriesController {
   }
 
   @Post()
+  @CheckDocumentDates('deliveryDate')
   @RequirePermissions(S.create)
   async create(
     @CurrentTenantSchema() schema: string,

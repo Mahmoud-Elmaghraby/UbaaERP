@@ -22,6 +22,7 @@ import { Ban, CheckCircle2, FileQuestion, FileText, Pencil, Trash2, Truck } from
 import { AttachmentsPanel } from '../../../attachments/components/attachments-panel';
 import { useCustomer, useCustomerCreditCheck } from '../../api/customers/queries';
 import { CreditLimitCallout, confirmCreditLimit, isCreditBlocked } from '../../lib/credit-limit';
+import { SalesLimitsCallout, confirmSalesLimits, useSalesLimitsCheck } from '../../lib/sales-limits';
 import { useQuotation } from '../../api/quotations/queries';
 import { useDeliveriesBySalesOrder } from '../../api/deliveries/queries';
 import { useSalesInvoicesBySalesOrder } from '../../api/sales-invoices/queries';
@@ -92,6 +93,9 @@ export function SalesOrderPage() {
     order?.totalAmount.currency,
   );
   const creditBlocked = isCreditBlocked(creditCheck);
+  // Settings hub limits (discount, below cost / minimum price, required rep).
+  const { data: limitsCheck } = useSalesLimitsCheck('sales-orders', order?.id, order?.status === 'draft');
+  const limitsBlocked = Boolean(limitsCheck?.blocked);
 
   const confirmOrder = useConfirmSalesOrder();
   const cancelOrder = useCancelSalesOrder();
@@ -269,9 +273,10 @@ export function SalesOrderPage() {
                     </Can>
                     <Can permission={SALES.post}>
                       <Button
-                        disabled={busy || creditBlocked}
-                        title={creditBlocked ? t('sales.creditLimit.blockedHint') : undefined}
+                        disabled={busy || creditBlocked || limitsBlocked}
+                        title={creditBlocked ? t('sales.creditLimit.blockedHint') : limitsBlocked ? t('sales.limits.blockedHint') : undefined}
                         onClick={async () => {
+                          if (!(await confirmSalesLimits(limitsCheck, t))) return;
                           if (!(await confirmCreditLimit(creditCheck, t))) return;
                           void run(confirmOrder, 'sales.salesOrders.confirmSuccess', 'sales.salesOrders.confirmError');
                         }}
@@ -313,6 +318,11 @@ export function SalesOrderPage() {
       {isDraft && creditCheck?.exceeded ? (
         <div className="mb-5">
           <CreditLimitCallout check={creditCheck} />
+        </div>
+      ) : null}
+      {isDraft ? (
+        <div className="mb-5 empty:hidden">
+          <SalesLimitsCallout check={limitsCheck} />
         </div>
       ) : null}
 

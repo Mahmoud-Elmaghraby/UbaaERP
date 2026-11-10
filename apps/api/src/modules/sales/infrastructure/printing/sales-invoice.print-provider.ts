@@ -1,5 +1,6 @@
 import { localIsoDate } from '../../../../shared/time/local-date';
 import { Inject, Injectable } from '@nestjs/common';
+import { AppSettingsRepository } from '../../../../shared/app-settings/app-settings.repository';
 import type { Kysely } from 'kysely';
 import { Money } from '@erp-platform/shared-kernel';
 import type { TenantDatabase } from '../../../../database/tenant/kysely-client';
@@ -36,7 +37,21 @@ export class SalesInvoicePrintProvider implements PrintProvider {
     @Inject(SALES_ORDER_REPOSITORY) private readonly orders: SalesOrderRepository,
     @Inject(CUSTOMER_REPOSITORY) private readonly customers: CustomerRepository,
     @Inject(PAYMENT_ALLOCATION_REPOSITORY) private readonly allocations: PaymentAllocationRepository,
+    private readonly settings: AppSettingsRepository,
   ) {}
+
+  /** The POS cashier's name, when the sale was rung up at a till and 'pos.receiptShowCashier' is on. */
+  private async cashierName(db: Kysely<TenantDatabase>, salesOrderId: string): Promise<string | null> {
+    const row = await db
+      .selectFrom('sales_orders as so')
+      .innerJoin('pos_sessions as ps', 'ps.id', 'so.pos_session_id')
+      .innerJoin('users as u', 'u.id', 'ps.cashier_user_id')
+      .select('u.full_name')
+      .where('so.id', '=', salesOrderId)
+      .executeTakeFirst();
+    if (!row) return null;
+    return (await this.settings.get(db, 'pos.receiptShowCashier')) ? row.full_name : null;
+  }
 
   async build(db: Kysely<TenantDatabase>, id: string): Promise<PrintDocumentBody> {
     const invoice = await this.invoices.getById(db, id);
@@ -47,6 +62,7 @@ export class SalesInvoicePrintProvider implements PrintProvider {
       invoice.status === 'posted'
         ? ((await this.allocations.sumAllocatedAmountBySalesInvoiceIds(db, [id]))[id] ?? Money.zero(currency))
         : null;
+    const cashier = order ? await this.cashierName(db, order.id) : null;
     const labels = await readPrintLabels(
       db,
       invoice.lines.map((line) => line.productVariantId),
@@ -65,6 +81,7 @@ export class SalesInvoicePrintProvider implements PrintProvider {
       fields: [
         ...(order ? [{ label: 'أمر البيع', value: order.soNumber }] : []),
         ...(invoice.pricesIncludeTax ? [{ label: 'الأسعار', value: 'شاملة الضريبة' }] : []),
+        ...(cashier ? [{ label: 'الكاشير', value: cashier }] : []),
       ],
       lines: invoice.lines.map((line) => {
         const label = labels.variant(line.productVariantId);

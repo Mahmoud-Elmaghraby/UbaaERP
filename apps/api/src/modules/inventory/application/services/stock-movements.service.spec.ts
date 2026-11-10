@@ -128,6 +128,7 @@ function makeProduct(overrides: Partial<Product> = {}): Product {
     categoryId: null,
     brandId: null,
     salePrice: null,
+    minSalePrice: null,
     purchasePrice: null,
     taxRuleId: null,
     createdAt: new Date('2026-01-01T00:00:00Z'),

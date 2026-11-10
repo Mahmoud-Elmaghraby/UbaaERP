@@ -271,7 +271,7 @@ export function EditProductForm({ product, onDone }: { product: ProductDto; onDo
   const { data: definitions, isLoading: definitionsLoading } = useCustomFieldDefinitions(PRODUCT_ENTITY_TYPE);
   const { data: tenantSettings } = useTenantSettings();
   const currency = tenantSettings?.currencyCode ?? 'EGP';
-  const prices = usePriceDrafts({ salePrice: product.salePrice, purchasePrice: product.purchasePrice });
+  const prices = usePriceDrafts({ salePrice: product.salePrice, purchasePrice: product.purchasePrice, minSalePrice: product.minSalePrice });
 
   const formSchema = useMemo(() => {
     const staticSchema = updateProductSchema.omit({ customFields: true });

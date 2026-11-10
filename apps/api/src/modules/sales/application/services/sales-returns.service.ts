@@ -23,6 +23,8 @@ import { lockRowsForUpdate } from '../../../../shared/persistence/row-locks';
 import { NumberingSequencesService } from '../../../settings/application/services/numbering-sequences.service';
 import { OutboxWriterService } from '../../../../shared/outbox/application/services/outbox-writer.service';
 import { SalesCreditNotesService } from './sales-credit-notes.service';
+import { localIsoDate } from '../../../../shared/time/local-date';
+import { SalesLimitsService } from './sales-limits.service';
 
 /**
  * Records goods physically sent back by a customer after a confirmed
@@ -65,6 +67,7 @@ export class SalesReturnsService {
     private readonly numberingSequences: NumberingSequencesService,
     private readonly outboxWriter: OutboxWriterService,
     private readonly creditNotes: SalesCreditNotesService,
+    private readonly limits: SalesLimitsService,
   ) {}
 
   list(db: Kysely<TenantDatabase>): Promise<SalesReturn[]> {
@@ -82,7 +85,12 @@ export class SalesReturnsService {
     return { ...salesReturn, lines };
   }
 
-  async create(db: Kysely<TenantDatabase>, input: CreateSalesReturnInput): Promise<SalesReturnWithLines> {
+  async create(
+    db: Kysely<TenantDatabase>,
+    input: CreateSalesReturnInput,
+    /** From a user (the controller / POS): the return window applies ('sales.returnWindowDays'). */
+    returnWindow?: { canOverride: boolean },
+  ): Promise<SalesReturnWithLines> {
     if (input.lines.length === 0) {
       throw new BusinessRuleError('A sales return must have at least one line.', {
         code: 'SALES_RETURN.AT_LEAST_ONE_LINE_REQUIRED',
@@ -100,6 +108,11 @@ export class SalesReturnsService {
           params: { id: input.deliveryId, status: delivery.status },
         },
       );
+    }
+
+    if (returnWindow) {
+      const deliveredOn = delivery.deliveryDate ?? localIsoDate(delivery.createdAt);
+      await this.limits.assertReturnWindow(db, deliveredOn, input.returnDate ?? null, returnWindow.canOverride);
     }
 
     const deliveryLinesList = await this.deliveryLines.listByDeliveryId(db, delivery.id);

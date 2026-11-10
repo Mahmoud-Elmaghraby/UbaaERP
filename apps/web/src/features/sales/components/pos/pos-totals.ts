@@ -42,3 +42,13 @@ export function previewDiscountedAmount(baseAmount: number, discount: DiscountDr
 export function formatPreviewAmount(amount: number, currency: string): string {
   return `${amount.toFixed(2)} ${currency}`;
 }
+
+/**
+ * Cash rounding ('pos.cashRounding'): what comes off a cash sale so the total lands on the step
+ * (25 / 50 / 100 piasters), always rounded DOWN — sent as part of the sale's fixed discount, so it
+ * is never extra revenue and needs no account of its own.
+ */
+export function cashRoundingMinor(totalMinor: bigint, stepMinor: bigint): bigint {
+  if (stepMinor <= 0n || totalMinor <= 0n) return 0n;
+  return totalMinor % stepMinor;
+}

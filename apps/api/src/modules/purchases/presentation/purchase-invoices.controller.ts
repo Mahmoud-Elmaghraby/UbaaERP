@@ -21,6 +21,7 @@ import { PurchaseInvoicesService } from '../application/services/purchase-invoic
 import { PurchasesEventPublisher } from '../infrastructure/events/purchases-event-publisher';
 import { moneyFromDto, moneyToDto } from './money.mapper';
 import { totalsToDto } from '../../../shared/taxes/line-tax-snapshot';
+import { CheckDocumentDates } from '../../../shared/app-settings/document-date';
 
 function invoiceToDto(invoice: PurchaseInvoice): PurchaseInvoiceDto {
   return purchaseInvoiceSchema.parse(invoice);
@@ -77,6 +78,7 @@ export class PurchaseInvoicesController {
   }
 
   @Post()
+  @CheckDocumentDates('invoiceDate')
   @RequirePermissions(PU.create)
   async create(
     @CurrentTenantSchema() schema: string,

@@ -63,7 +63,7 @@ import {
   type DiscountDraft,
 } from '../../lib/discount-fields';
 import { CustomerPicker } from '../../lib/customer-picker';
-import { previewDiscountedAmount, previewLineAmount } from './pos-totals';
+import { cashRoundingMinor, previewDiscountedAmount, previewLineAmount } from './pos-totals';
 import { openPrint } from '../../../../components/printing/print-button';
 import { useTreasuryLookup } from '../../../treasury/api/queries';
 import { fromHeldPayload, makeKey, toHeldPayload, type CartLine } from './pos-cart-state';
@@ -74,6 +74,8 @@ import { PosReceiptsDialog } from './pos-receipts-dialog';
 import { PosReturnDialog } from './pos-return-dialog';
 import { PosDrawerDialog } from './pos-drawer-dialog';
 import { SALES } from '../../../../lib/permissions';
+import { useAppSetting } from '../../../../lib/app-settings';
+import { CASH_ROUNDING_STEPS, type CashRounding } from '@erp-platform/contracts';
 
 const PAYMENT_METHODS = paymentMethodSchema.options;
 
@@ -169,6 +171,7 @@ export function PosCartPanel({ session }: { session: PosSessionDto }) {
   const [notes, setNotes] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [lastResult, setLastResult] = useState<PosCheckoutResultDto | null>(null);
+  const { get: getSetting } = useAppSetting();
   const [moreOpen, setMoreOpen] = useState(false);
   // One id per sale, kept across retries (a timeout + retry must not sell twice); new after each sale.
   const [checkoutId, setCheckoutId] = useState(() => crypto.randomUUID());
@@ -300,8 +303,15 @@ export function PosCartPanel({ session }: { session: PosSessionDto }) {
     (sum, line) => sum + previewDiscountedAmount(previewLineAmount(line.unitPrice, line.quantity), line.discount),
     0,
   );
-  const cartTotalPreview = previewDiscountedAmount(cartSubtotalPreview, headerDiscount);
-  const discountPreview = Math.max(0, grossPreview - cartTotalPreview);
+  const unroundedTotalPreview = previewDiscountedAmount(cartSubtotalPreview, headerDiscount);
+  const discountPreview = Math.max(0, grossPreview - unroundedTotalPreview);
+  // Cash rounding (settings hub): only while every tender is cash, and not on top of a % discount.
+  const roundingStep = CASH_ROUNDING_STEPS[getSetting('pos.cashRounding') as CashRounding] ?? 0;
+  const roundingMinor =
+    roundingStep > 0 && headerDiscount.discountType !== 'percentage' && tenders.every((tender) => tender.paymentMethod === 'cash')
+      ? cashRoundingMinor(BigInt(Math.max(0, Math.round(unroundedTotalPreview * 100))), BigInt(Math.round(roundingStep * 100)))
+      : 0n;
+  const cartTotalPreview = unroundedTotalPreview - Number(roundingMinor) / 100;
   const tenderedPreview = tenders.reduce((sum, tender) => sum + (Number(tender.amount) || 0), 0);
   const remainingPreview = cartTotalPreview - tenderedPreview;
   const itemsCount = lines.reduce((sum, line) => sum + (Number(line.quantity) || 0), 0);
@@ -423,11 +433,23 @@ export function PosCartPanel({ session }: { session: PosSessionDto }) {
       });
     }
 
-    const resolvedHeaderDiscount = resolveDiscountInput(headerDiscount, currency);
-    if (resolvedHeaderDiscount === 'invalid') {
+    const typedHeaderDiscount = resolveDiscountInput(headerDiscount, currency);
+    if (typedHeaderDiscount === 'invalid') {
       setError(t('sales.salesOrders.discountError'));
       return;
     }
+    // The cash rounding rides on the sale's fixed discount.
+    const resolvedHeaderDiscount =
+      roundingMinor > 0n && typedHeaderDiscount.discountType !== 'percentage'
+        ? {
+            discountType: 'fixed' as const,
+            discountPercentage: null,
+            discountFixedAmount: {
+              amountMinorUnits: (BigInt(typedHeaderDiscount.discountFixedAmount?.amountMinorUnits ?? '0') + roundingMinor).toString(),
+              currency,
+            },
+          }
+        : typedHeaderDiscount;
 
     const freeSale = cartTotalPreview <= 0;
     if (tenders.length === 0 && !freeSale) {
@@ -471,6 +493,7 @@ export function PosCartPanel({ session }: { session: PosSessionDto }) {
       );
       setLastResult(result);
       toast.success(t('pos.checkout.success'));
+      if (getSetting('pos.autoPrintReceipt')) openPrint('sales_invoice', result.salesInvoice.id, { paper: 'thermal80', autoprint: true });
       resetCart();
       focusSearch();
     } catch (err) {
@@ -777,6 +800,12 @@ export function PosCartPanel({ session }: { session: PosSessionDto }) {
                 <div className="flex justify-between text-danger">
                   <span>{t('pos.cart.discountTotal')}</span>
                   <Amount value={previewMinor(-discountPreview)} hideCurrency />
+                </div>
+              ) : null}
+              {roundingMinor > 0n ? (
+                <div className="flex justify-between text-muted-foreground">
+                  <span>{t('pos.cart.cashRounding')}</span>
+                  <Amount value={(-roundingMinor).toString()} hideCurrency />
                 </div>
               ) : null}
               <div className="mt-1 flex items-baseline justify-between border-t pt-2">
