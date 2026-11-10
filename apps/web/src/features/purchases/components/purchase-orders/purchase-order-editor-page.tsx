@@ -67,6 +67,7 @@ import {
   type DirectLineDraft,
 } from '../../../../components/document/direct-lines-editor';
 import { PURCHASE_ORDERS_PATH, purchaseOrderStatusLabelKey } from './purchase-order-status';
+import { useNewDocumentDefaults } from '../../../../components/document/use-new-document-defaults';
 
 const PURCHASE_ORDER_ENTITY_TYPE = 'purchase_order';
 
@@ -152,6 +153,7 @@ function PurchaseOrderEditor({ order }: { order: PurchaseOrderWithLinesDto | und
       customFields: order?.customFields ?? {},
     },
   });
+  useNewDocumentDefaults(form, { isNew: !order, notesSetting: 'purchases.defaultOrderNotes', prefillCustomer: false });
 
   const supplierId = form.watch('supplierId');
   const quotationId = form.watch('sourceQuotationId');

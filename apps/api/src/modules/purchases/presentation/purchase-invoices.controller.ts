@@ -22,6 +22,7 @@ import { PurchasesEventPublisher } from '../infrastructure/events/purchases-even
 import { moneyFromDto, moneyToDto } from './money.mapper';
 import { totalsToDto } from '../../../shared/taxes/line-tax-snapshot';
 import { CheckDocumentDates } from '../../../shared/app-settings/document-date';
+import type { PurchaseLimitsCheckDto } from '@erp-platform/contracts';
 
 function invoiceToDto(invoice: PurchaseInvoice): PurchaseInvoiceDto {
   return purchaseInvoiceSchema.parse(invoice);
@@ -64,6 +65,16 @@ export class PurchaseInvoicesController {
       ? await this.service.listByPurchaseOrderId(db, purchaseOrderId)
       : await this.service.list(db);
     return invoices.map(invoiceToDto);
+  }
+
+  @Get(':id/limits-check')
+  @RequirePermissions(PU.view)
+  limitsCheck(
+    @CurrentTenantSchema() schema: string,
+    @CurrentUser() user: JwtAccessPayload,
+    @Param('id') id: string,
+  ): Promise<PurchaseLimitsCheckDto> {
+    return this.service.limitsCheck(this.connections.getClient(schema), id, user.permissions);
   }
 
   @Get(':id')
@@ -124,7 +135,7 @@ export class PurchaseInvoicesController {
     @Param('id') id: string,
   ): Promise<PurchaseInvoiceWithLinesDto> {
     const db = this.connections.getClient(schema);
-    const invoice = await this.service.post(db, id, schema, user.sub);
+    const invoice = await this.service.post(db, id, schema, user.sub, { permissions: user.permissions });
     return invoiceWithLinesToDto(invoice);
   }
 

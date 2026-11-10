@@ -29,6 +29,8 @@ import type { DomainEventPayload } from '../../src/shared/events/domain-event';
 import { KyselyInventoryReportsRepository } from '../../src/modules/inventory/infrastructure/persistence/kysely-inventory-reports.repository';
 import { InventoryReportsService } from '../../src/modules/inventory/application/services/inventory-reports.service';
 import { openIntegrationDb, uniqueSuffix } from './tenant-db';
+import { PurchaseLimitsService } from '../../src/modules/purchases/application/services/purchase-limits.service';
+import { AppSettingsRepository } from '../../src/shared/app-settings/app-settings.repository';
 
 /**
  * Lots, expiry and serials on documents (inventory audit 2026-10, C2):
@@ -168,6 +170,7 @@ describe('Lots/expiry/serials on documents (integration, real Postgres)', () => 
       numbering,
       outbox,
       new KyselyProductTrackingReader(),
+      new PurchaseLimitsService(new AppSettingsRepository()),
     );
   });
 

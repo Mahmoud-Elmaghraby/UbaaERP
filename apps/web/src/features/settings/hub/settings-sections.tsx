@@ -16,6 +16,7 @@ import {
   Printer,
   ShieldCheck,
   ShoppingCart,
+  Truck,
   Users,
   type LucideIcon,
 } from 'lucide-react';
@@ -51,6 +52,7 @@ export interface SettingsSection {
 const SecuritySection = () => <AppSettingsSection section="security" />;
 const SalesSection = () => <AppSettingsSection section="sales" />;
 const DocumentDatesSection = () => <AppSettingsSection section="documents" />;
+const PurchasesSection = () => <AppSettingsSection section="purchases" />;
 function PosSection() {
   const { t } = useTranslation();
   return (
@@ -69,6 +71,8 @@ function PosSection() {
 }
 /** Sales and POS settings: the company admin or the sales manager. */
 const SALES_SETTINGS = ['settings.manage', 'sales.settings.manage'];
+/** Purchases settings: the company admin or the purchasing manager. */
+const PURCHASES_SETTINGS = ['settings.manage', 'purchases.settings.manage'];
 
 /**
  * Every section of the settings hub, in reading order. Titles, descriptions and search keywords
@@ -89,6 +93,7 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
   { id: 'features', group: 'modules', icon: Blocks, component: ModulesTab, permission: 'settings.manage' },
   { id: 'sales', group: 'modules', icon: ShoppingCart, component: SalesSection, permission: SALES_SETTINGS },
   { id: 'pos', group: 'modules', icon: MonitorSmartphone, component: PosSection, permission: SALES_SETTINGS, feature: 'pos' },
+  { id: 'purchases', group: 'modules', icon: Truck, component: PurchasesSection, permission: PURCHASES_SETTINGS },
   { id: 'inventory', group: 'modules', icon: Package, to: '/inventory/settings', permission: ['settings.manage', 'inventory.settings.manage'] },
   { id: 'accounting', group: 'modules', icon: FileText, to: '/accounting/settings', permission: 'accounting.manage', feature: 'accounting' },
   { id: 'operations', group: 'system', icon: Activity, component: BackgroundOperationsTab },

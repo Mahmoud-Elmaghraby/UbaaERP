@@ -43,6 +43,7 @@ import { usePurchaseInvoiceActions } from './use-purchase-invoice-actions';
 import { QuantityWithUnit } from '../../../../components/product/unit-select';
 import { PrintButton } from '../../../../components/printing/print-button';
 import { PURCH, PURCH_WRITE } from '../../../../lib/permissions';
+import { PurchaseLimitsCallout, confirmPurchaseLimits, usePurchaseLimitsCheck } from '../../lib/purchase-limits';
 
 export function PurchaseInvoiceDetailsPage() {
   const { t } = useTranslation();
@@ -53,6 +54,8 @@ export function PurchaseInvoiceDetailsPage() {
   const { data: supplier } = useSupplier(order?.supplierId);
   const variantIndex = useVariantIndex();
   const actions = usePurchaseInvoiceActions();
+  // Settings hub limits (price above the last one, supplier number, approval for a direct invoice).
+  const { data: limitsCheck } = usePurchaseLimitsCheck('purchase-invoices', invoice?.id, invoice?.status === 'draft');
   const purchaseOrdersEnabled = useHasFeature(FEATURE_KEYS.PURCHASES_PURCHASE_ORDERS);
   const goodsReceiptsEnabled = useHasFeature(FEATURE_KEYS.PURCHASES_GOODS_RECEIPTS);
   const quotationsEnabled = useHasFeature(FEATURE_KEYS.PURCHASES_SUPPLIER_QUOTATIONS);
@@ -180,7 +183,16 @@ export function PurchaseInvoiceDetailsPage() {
                   </Button>
                 </Can>
                 <Can permission={PURCH.post}>
-                  <Button disabled={actions.isPending} onClick={() => void actions.post(invoice.id)}>
+                  <Button
+                    disabled={actions.isPending || Boolean(limitsCheck?.blocked)}
+                    title={limitsCheck?.blocked ? t('purchases.limits.blockedHint') : undefined}
+                    onClick={async () => {
+                      // The limits prompt replaces the usual "post?" prompt.
+                      const asked = Boolean(limitsCheck?.needsConfirmation);
+                      if (!(await confirmPurchaseLimits(limitsCheck, t))) return;
+                      void actions.post(invoice.id, asked ? { confirm: false } : undefined);
+                    }}
+                  >
                     <CheckCircle2 />
                     {t('purchases.purchaseInvoices.post')}
                   </Button>
@@ -207,6 +219,7 @@ export function PurchaseInvoiceDetailsPage() {
       <DocumentBody
         main={
           <>
+            {isDraft ? <PurchaseLimitsCallout check={limitsCheck} /> : null}
             {invoice.status !== 'cancelled' ? (
               <div className="flex items-start gap-2.5 rounded-xl border border-info/20 bg-info-soft px-4 py-3 text-[13px] text-info">
                 <Info className="mt-0.5 h-4 w-4 shrink-0" />

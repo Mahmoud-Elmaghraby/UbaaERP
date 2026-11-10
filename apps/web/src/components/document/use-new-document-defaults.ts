@@ -2,14 +2,15 @@ import { useEffect, useRef } from 'react';
 import type { FieldValues, Path, PathValue, UseFormReturn } from 'react-hook-form';
 import type { CustomerDto } from '@erp-platform/contracts';
 
-import { useAppSetting } from '../../../lib/app-settings';
+import { useAppSetting } from '../../lib/app-settings';
 
 /**
- * Fills a NEW sales document from the settings hub, once, when the settings and customers have
- * loaded: the walk-in customer ('sales.prefillWalkInCustomer') when no customer was chosen, and the
- * default notes / terms when the notes are still empty. An existing document is never touched.
+ * Fills a NEW document from the settings hub, once, when the settings (and, for sales, the
+ * customers) have loaded: the default notes / terms when the notes are still empty, and on sales
+ * documents the walk-in customer ('sales.prefillWalkInCustomer') when no customer was chosen. An
+ * existing document is never touched. Shared by sales and purchases editors.
  */
-export function useNewDocumentDefaults<T extends FieldValues & { customerId?: string; notes?: string | null }>(
+export function useNewDocumentDefaults<T extends FieldValues & { notes?: string | null }>(
   form: UseFormReturn<T>,
   {
     isNew,
@@ -18,8 +19,9 @@ export function useNewDocumentDefaults<T extends FieldValues & { customerId?: st
     prefillCustomer = true,
   }: {
     isNew: boolean;
-    notesSetting: 'sales.defaultInvoiceNotes' | 'sales.defaultQuotationTerms';
-    customers: CustomerDto[] | undefined;
+    notesSetting: 'sales.defaultInvoiceNotes' | 'sales.defaultQuotationTerms' | 'purchases.defaultOrderNotes';
+    /** Sales only: the customers list, for the walk-in customer. */
+    customers?: CustomerDto[];
     prefillCustomer?: boolean;
   },
 ) {

@@ -44,7 +44,7 @@ import {
   type DirectLineDraft,
 } from '../../../../components/document/direct-lines-editor';
 import { QUOTATIONS_PATH, quotationStatusLabelKey } from './quotation-status';
-import { useNewDocumentDefaults } from '../../lib/use-new-document-defaults';
+import { useNewDocumentDefaults } from '../../../../components/document/use-new-document-defaults';
 
 const QUOTATION_ENTITY_TYPE = 'quotation';
 

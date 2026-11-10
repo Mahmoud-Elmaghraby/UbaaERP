@@ -80,6 +80,7 @@ export const NAV_GROUPS: NavGroup[] = [
         labelKey: 'nav.purchases',
         icon: Truck,
         permission: ANY_PURCHASES_PERMISSION,
+        settings: { to: '/settings/purchases', permission: ['settings.manage', 'purchases.settings.manage'] },
         children: [
           { to: '/purchases/suppliers', permission: PURCH.view, labelKey: 'purchases.tabs.suppliers' },
           { to: '/purchases/payables', permission: PURCH.view, labelKey: 'statements.balances.title.supplier' },

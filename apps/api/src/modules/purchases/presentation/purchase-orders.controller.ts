@@ -41,6 +41,7 @@ import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pip
 import { PurchaseOrdersService } from '../application/services/purchase-orders.service';
 import { PurchasesEventPublisher } from '../infrastructure/events/purchases-event-publisher';
 import { moneyFromDto, moneyToDto } from './money.mapper';
+import type { PurchaseLimitsCheckDto } from '@erp-platform/contracts';
 
 function orderToDto(order: PurchaseOrder): PurchaseOrderDto {
   return purchaseOrderSchema.parse(order);
@@ -72,6 +73,16 @@ export class PurchaseOrdersController {
     const db = this.connections.getClient(schema);
     const orders = await this.service.list(db);
     return orders.map(orderToDto);
+  }
+
+  @Get(':id/limits-check')
+  @RequirePermissions(PU.view)
+  limitsCheck(
+    @CurrentTenantSchema() schema: string,
+    @CurrentUser() user: JwtAccessPayload,
+    @Param('id') id: string,
+  ): Promise<PurchaseLimitsCheckDto> {
+    return this.service.limitsCheck(this.connections.getClient(schema), id, user.permissions);
   }
 
   @Get(':id')
@@ -150,7 +161,7 @@ export class PurchaseOrdersController {
     @Param('id') id: string,
   ): Promise<PurchaseOrderDto> {
     const db = this.connections.getClient(schema);
-    const order = await this.service.confirm(db, id);
+    const order = await this.service.confirm(db, id, { permissions: user.permissions });
     this.events.publish('purchase_order', 'confirmed', { schema, entityId: id, actorUserId: user.sub });
     return orderToDto(order);
   }

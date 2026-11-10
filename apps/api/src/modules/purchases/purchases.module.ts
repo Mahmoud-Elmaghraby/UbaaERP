@@ -76,6 +76,7 @@ import { PRODUCT_TRACKING_READER } from './application/ports/product-tracking.re
 import { KyselyProductTrackingReader } from './infrastructure/persistence/kysely-product-tracking.reader';
 import { ProductUnitResolver } from '../../shared/catalog/product-unit-resolver';
 import { StockAvailabilityChecker } from '../../shared/catalog/stock-availability-checker';
+import { PurchaseLimitsService } from './application/services/purchase-limits.service';
 
 /**
  * Purchases module (CLAUDE.md §10: step 3). Stages so far — see
@@ -153,6 +154,7 @@ import { StockAvailabilityChecker } from '../../shared/catalog/stock-availabilit
     SupplierPaymentsController,
   ],
   providers: [
+    PurchaseLimitsService,
     PurchasesTreasuryMovements,
     SupplierLedgerSource,
     PurchaseOrderPrintProvider,

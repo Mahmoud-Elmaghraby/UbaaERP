@@ -258,7 +258,7 @@ function SettingControl({
         {def.unit ? <span className="text-sm text-muted-foreground">{t(`settings.hub.units.${def.unit}`)}</span> : null}
       </div>
       <span className={cn('text-xs', invalid ? 'text-danger' : 'text-muted-foreground')}>
-        {t(def.nullable ? 'settings.hub.rangeOrEmpty' : 'settings.hub.range', { min: def.min, max: def.max })}
+        {t(def.nullable ? 'settings.hub.rangeOrEmpty' : 'settings.hub.range', { min: def.min.toLocaleString('en-US'), max: def.max.toLocaleString('en-US') })}
       </span>
     </div>
   );

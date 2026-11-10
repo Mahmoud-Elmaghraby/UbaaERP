@@ -44,6 +44,9 @@ import { computePurchasePriceDifferences } from './purchase-price-differences';
 import { CurrencyRateReader, applyRate } from '../../../../shared/catalog/currency-rate-reader';
 import type { PurchasePriceDifference } from '../../../../shared/events/purchase-price-difference';
 import { localIsoDate } from '../../../../shared/time/local-date';
+import { PurchaseLimitsService, type PurchaseLimitsDocument } from './purchase-limits.service';
+import type { PurchaseLimitsCheckDto } from '@erp-platform/contracts';
+import { AppSettingsRepository } from '../../../../shared/app-settings/app-settings.repository';
 
 /**
  * Purchase Invoices (master doc §10, step 3 — Purchases, Stage 7). This
@@ -135,6 +138,8 @@ export class PurchaseInvoicesService {
     private readonly featureAvailability: FeatureAvailabilityService,
     private readonly purchaseOrdersService: PurchaseOrdersService,
     private readonly goodsReceiptsService: GoodsReceiptsService,
+    private readonly limits: PurchaseLimitsService,
+    private readonly settings: AppSettingsRepository,
   ) {}
 
   private readonly currencyRates = new CurrencyRateReader();
@@ -145,6 +150,37 @@ export class PurchaseInvoicesService {
 
   listByPurchaseOrderId(db: Kysely<TenantDatabase>, purchaseOrderId: string): Promise<PurchaseInvoice[]> {
     return this.invoices.listByPurchaseOrderId(db, purchaseOrderId);
+  }
+
+  /**
+   * The purchases limits for a draft invoice: the price against the last purchase price (a
+   * supplier may bill above the order), the required supplier number, and — for a direct invoice,
+   * which is its own order — the approval amount.
+   */
+  async limitsCheck(db: Kysely<TenantDatabase>, id: string, permissions: readonly string[]): Promise<PurchaseLimitsCheckDto> {
+    const invoice = await this.invoices.findById(db, id);
+    if (!invoice) throw entityNotFound('PURCHASE_INVOICE', id);
+    return this.limits.check(db, await this.limitsDocument(db, invoice), permissions);
+  }
+
+  private async limitsDocument(db: Kysely<TenantDatabase>, invoice: PurchaseInvoice): Promise<PurchaseLimitsDocument> {
+    const [lines, order, numberRequired] = await Promise.all([
+      this.lines.listByPurchaseInvoiceId(db, invoice.id),
+      db.selectFrom('purchase_orders').select('source_purchase_invoice_id').where('id', '=', invoice.purchaseOrderId).executeTakeFirst(),
+      this.settings.get(db, 'purchases.supplierInvoiceNumberRequired'),
+    ]);
+    return {
+      purchaseOrderId: invoice.purchaseOrderId,
+      checkApproval: order?.source_purchase_invoice_id === invoice.id,
+      supplierInvoiceNumberMissing: numberRequired && !invoice.supplierInvoiceNumber?.trim(),
+      lines: lines.map((line) => ({
+        lineId: line.id,
+        productVariantId: line.productVariantId,
+        netMinor: line.netAmount.toMinorUnits(),
+        currency: line.netAmount.currency,
+        baseQuantity: line.quantityInvoiced * (line.unitFactor || 1),
+      })),
+    };
   }
 
   async getById(db: Kysely<TenantDatabase>, id: string): Promise<PurchaseInvoiceWithLines> {
@@ -495,6 +531,8 @@ export class PurchaseInvoicesService {
     id: string,
     schema: string,
     actorUserId: string | null,
+    /** Passed by the controller only (a user posting): the settings hub's purchases limits. */
+    limits?: { permissions: readonly string[] },
   ): Promise<PurchaseInvoiceWithLines> {
     const existing = await this.invoices.findById(db, id);
     if (!existing) throw entityNotFound('PURCHASE_INVOICE', id);
@@ -513,6 +551,7 @@ export class PurchaseInvoicesService {
       });
     }
     const totals = calculatePurchaseInvoiceTotals(lines);
+    if (limits) await this.limits.assert(db, await this.limitsDocument(db, existing), limits.permissions);
 
     return withTransaction(db, async (trx) => {
       // Re-read under a lock: a concurrent post/cancel of this same invoice waits here.
@@ -744,13 +783,15 @@ export class PurchaseInvoicesService {
     const invoiced = await this.lines.sumInvoicedBaseQuantityByPurchaseOrderLineIds(db, [
       ...new Set(requested.map((line) => line.purchaseOrderLineId)),
     ]);
+    // Receipts / invoices may go past the ordered quantity by 'purchases.overReceiptTolerancePercent'.
+    const limit = await this.limits.orderedLimit(db);
     const excess = findQuantityExcess(
       requested.map((line) => ({
         sourceLineId: line.purchaseOrderLineId,
         quantity: line.quantityInvoiced,
         unitFactor: line.unitFactor,
       })),
-      new Map(poLines.map((line) => [line.id, toBaseQuantity(line.quantity, line.unitFactor)])),
+      new Map(poLines.map((line) => [line.id, limit(toBaseQuantity(line.quantity, line.unitFactor))])),
       invoiced,
     );
     if (!excess) return;

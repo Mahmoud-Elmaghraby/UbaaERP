@@ -54,7 +54,7 @@ import {
 } from '../../../../components/document/direct-lines-editor';
 import { SALES_ORDERS_PATH, salesOrderStatusLabelKey } from './sales-order-status';
 import { WhenFeature } from '../../../../components/feature/when-feature';
-import { useNewDocumentDefaults } from '../../lib/use-new-document-defaults';
+import { useNewDocumentDefaults } from '../../../../components/document/use-new-document-defaults';
 
 const SALES_ORDER_ENTITY_TYPE = 'sales_order';
 

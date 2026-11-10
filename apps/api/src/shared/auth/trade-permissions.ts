@@ -25,4 +25,5 @@ export const PURCHASES_PERMISSIONS = {
   cancel: 'purchases.cancel',
   reportsView: 'purchases.reports.view',
   settingsManage: 'purchases.settings.manage',
+  approve: 'purchases.approve',
 } as const;

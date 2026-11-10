@@ -25,6 +25,8 @@ import { ProductUnitResolver } from '../../src/shared/catalog/product-unit-resol
 import { OutboxWriterService } from '../../src/shared/outbox/application/services/outbox-writer.service';
 import { KyselyOutboxEventRepository } from '../../src/shared/outbox/infrastructure/persistence/kysely-outbox-event.repository';
 import { openIntegrationDb, uniqueSuffix } from './tenant-db';
+import { PurchaseLimitsService } from '../../src/modules/purchases/application/services/purchase-limits.service';
+import { AppSettingsRepository } from '../../src/shared/app-settings/app-settings.repository';
 
 /** Selling and buying by carton / sack (migration 0079). */
 describe('Product units on documents (integration, real Postgres)', () => {
@@ -97,6 +99,7 @@ describe('Product units on documents (integration, real Postgres)', () => {
       numbering,
       new OutboxWriterService(new KyselyOutboxEventRepository()),
       new KyselyProductTrackingReader(),
+      new PurchaseLimitsService(new AppSettingsRepository()),
     );
     pieceId = await createUnit('piece');
     cartonId = await createUnit('carton');

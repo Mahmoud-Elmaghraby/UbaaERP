@@ -86,7 +86,7 @@ import { useSalesChannels } from '../../../sales-channels/api';
 import { SalesRepSelect } from '../sales-reps/sales-rep-select';
 import { confirmDialog } from '../../../../components/feedback/confirm-dialog';
 import { WhenFeature } from '../../../../components/feature/when-feature';
-import { useNewDocumentDefaults } from '../../lib/use-new-document-defaults';
+import { useNewDocumentDefaults } from '../../../../components/document/use-new-document-defaults';
 
 const SALES_INVOICE_ENTITY_TYPE = 'sales_invoice';
 

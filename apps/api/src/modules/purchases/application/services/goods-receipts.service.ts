@@ -32,6 +32,7 @@ import { OutboxWriterService } from '../../../../shared/outbox/application/servi
 import { CurrencyRateReader, applyRate } from '../../../../shared/catalog/currency-rate-reader';
 import type { ReceiptInvoiceDifference } from '../../../../shared/events/purchase-price-difference';
 import { computeReceiptInvoiceDifferences, type PostedInvoiceLineForReceipt } from './purchase-price-differences';
+import { PurchaseLimitsService } from './purchase-limits.service';
 
 /**
  * Records physical receipt of goods against a purchase order (master doc
@@ -75,6 +76,7 @@ export class GoodsReceiptsService {
     private readonly numberingSequences: NumberingSequencesService,
     private readonly outboxWriter: OutboxWriterService,
     @Inject(PRODUCT_TRACKING_READER) private readonly tracking: ProductTrackingReader,
+    private readonly limits: PurchaseLimitsService,
   ) {}
 
   /** Plain read helper (no dependencies) — not injected, so callers' wiring is unchanged. */
@@ -370,13 +372,15 @@ export class GoodsReceiptsService {
     const received = await this.lines.sumReceivedBaseQuantityByPurchaseOrderLineIds(db, [
       ...new Set(requested.map((line) => line.purchaseOrderLineId)),
     ]);
+    // Receipts / invoices may go past the ordered quantity by 'purchases.overReceiptTolerancePercent'.
+    const limit = await this.limits.orderedLimit(db);
     const excess = findQuantityExcess(
       requested.map((line) => ({
         sourceLineId: line.purchaseOrderLineId,
         quantity: line.quantityReceived,
         unitFactor: line.unitFactor,
       })),
-      new Map(poLines.map((line) => [line.id, toBaseQuantity(line.quantity, line.unitFactor)])),
+      new Map(poLines.map((line) => [line.id, limit(toBaseQuantity(line.quantity, line.unitFactor))])),
       received,
     );
     if (!excess) return;

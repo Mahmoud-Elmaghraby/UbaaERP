@@ -24,6 +24,8 @@ import { KyselyNumberingSequenceRepository } from '../../src/modules/settings/in
 import { OutboxWriterService } from '../../src/shared/outbox/application/services/outbox-writer.service';
 import { KyselyOutboxEventRepository } from '../../src/shared/outbox/infrastructure/persistence/kysely-outbox-event.repository';
 import { openIntegrationDb, uniqueSuffix } from './tenant-db';
+import { PurchaseLimitsService } from '../../src/modules/purchases/application/services/purchase-limits.service';
+import { AppSettingsRepository } from '../../src/shared/app-settings/app-settings.repository';
 
 const egp = (minor: number | bigint) => Money.fromMinorUnits(BigInt(minor), 'EGP');
 
@@ -161,6 +163,7 @@ describe('Inventory cost accuracy (integration, real Postgres)', () => {
       numbering,
       outbox,
       new KyselyProductTrackingReader(),
+      new PurchaseLimitsService(new AppSettingsRepository()),
     );
     const suffix = uniqueSuffix();
     unitId = randomUUID();

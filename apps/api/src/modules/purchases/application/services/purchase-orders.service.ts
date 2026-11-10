@@ -20,6 +20,7 @@ import {
   assertSingleCurrency,
   calculatePurchaseOrderTotal,
   type PurchaseOrder,
+  type PurchaseOrderLine,
   type PurchaseOrderWithLines,
   type PurchaseOrderStatus,
   type CreatePurchaseOrderInput,
@@ -35,6 +36,8 @@ import { FeatureAvailabilityService } from '../../../../shared/plans/feature-ava
 import { FEATURE_KEYS } from '../../../../shared/plans/feature-catalog';
 import { assertCurrencyAllowedForTenant } from '../../../../shared/plans/currency-gate';
 import { ProductUnitResolver } from '../../../../shared/catalog/product-unit-resolver';
+import { PurchaseLimitsService, type PurchaseLimitsDocument } from './purchase-limits.service';
+import type { PurchaseLimitsCheckDto } from '@erp-platform/contracts';
 
 @Injectable()
 export class PurchaseOrdersService {
@@ -48,6 +51,7 @@ export class PurchaseOrdersService {
     private readonly tenantSettings: TenantSettingsService,
     private readonly featureAvailability: FeatureAvailabilityService,
     private readonly unitResolver: ProductUnitResolver,
+    private readonly limits: PurchaseLimitsService,
   ) {}
 
   /** Shared by create()/update() — see currency-gate.ts's own comment. */
@@ -320,8 +324,28 @@ export class PurchaseOrdersService {
     return updated;
   }
 
-  confirm(db: Kysely<TenantDatabase>, id: string): Promise<PurchaseOrder> {
+  /**
+   * `limits` is passed by the controller only (a user confirming): the settings hub's purchases
+   * limits apply then. The automatic order behind a direct invoice is checked when that invoice
+   * is posted instead.
+   */
+  async confirm(db: Kysely<TenantDatabase>, id: string, limits?: { permissions: readonly string[] }): Promise<PurchaseOrder> {
+    if (limits) {
+      const order = await this.orders.findById(db, id);
+      if (order?.status === 'draft') {
+        const lines = await this.lines.listByPurchaseOrderId(db, id);
+        await this.limits.assert(db, orderLimitsDocument(id, lines), limits.permissions);
+      }
+    }
     return this.transitionStatus(db, id, ['draft'], 'confirmed');
+  }
+
+  /** What the purchases limits say about this order before it is confirmed. */
+  async limitsCheck(db: Kysely<TenantDatabase>, id: string, permissions: readonly string[]): Promise<PurchaseLimitsCheckDto> {
+    const order = await this.orders.findById(db, id);
+    if (!order) throw entityNotFound('PURCHASE_ORDER', id);
+    const lines = await this.lines.listByPurchaseOrderId(db, id);
+    return this.limits.check(db, orderLimitsDocument(id, lines), permissions);
   }
 
   /**
@@ -375,4 +399,19 @@ export class PurchaseOrdersService {
     }
     await this.orders.delete(db, id);
   }
+}
+
+/** An order's lines for the purchases limits: amount = price × quantity, quantity in base units. */
+function orderLimitsDocument(orderId: string, lines: PurchaseOrderLine[]): PurchaseLimitsDocument {
+  return {
+    purchaseOrderId: orderId,
+    checkApproval: true,
+    lines: lines.map((line) => ({
+      lineId: line.id,
+      productVariantId: line.productVariantId,
+      netMinor: line.unitPrice.multiplyByQuantity(line.quantity).toMinorUnits(),
+      currency: line.unitPrice.currency,
+      baseQuantity: line.quantity * (line.unitFactor || 1),
+    })),
+  };
 }

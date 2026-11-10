@@ -9,3 +9,4 @@ export * from './purchase-invoice.contract';
 export * from './supplier-payment.contract';
 export * from './purchase-debit-note.contract';
 export * from './purchase-analysis.contract';
+export * from './purchase-limits.contract';

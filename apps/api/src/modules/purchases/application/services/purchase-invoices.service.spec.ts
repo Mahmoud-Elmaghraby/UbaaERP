@@ -69,6 +69,8 @@ function setup(rate: string | null) {
     {} as never,
     {} as never,
     goodsReceipts as never,
+    { orderedLimit: jest.fn().mockResolvedValue((n: number) => n), assert: jest.fn(), check: jest.fn() } as never,
+    { get: jest.fn().mockResolvedValue(false) } as never,
   );
   Object.assign(service as unknown as Record<string, unknown>, {
     currencyRates: {

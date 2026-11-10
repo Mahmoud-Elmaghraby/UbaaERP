@@ -53,6 +53,7 @@ import { useVariantIndex } from '../../../../components/product/use-variant-inde
 import { PrintButton } from '../../../../components/printing/print-button';
 import { PURCHASE_ORDER_STATUS_VARIANT, PURCHASE_ORDERS_PATH, purchaseOrderStatusLabelKey } from './purchase-order-status';
 import { PURCH, PURCH_WRITE } from '../../../../lib/permissions';
+import { PurchaseLimitsCallout, confirmPurchaseLimits, usePurchaseLimitsCheck } from '../../lib/purchase-limits';
 
 const RFQS_PATH = '/purchases/rfqs';
 const GOODS_RECEIPTS_PATH = '/purchases/goods-receipts';
@@ -75,6 +76,8 @@ export function PurchaseOrderPage() {
   const { data: settings } = useTenantSettings();
 
   const confirmOrder = useConfirmPurchaseOrder();
+  // Settings hub limits (approval amount, price above the last purchase price).
+  const { data: limitsCheck } = usePurchaseLimitsCheck('purchase-orders', order?.id, order?.status === 'draft');
   const cancelOrder = useCancelPurchaseOrder();
   const deleteOrder = useDeletePurchaseOrder();
   const busy = confirmOrder.isPending || cancelOrder.isPending || deleteOrder.isPending;
@@ -261,10 +264,12 @@ export function PurchaseOrderPage() {
                     </Can>
                     <Can permission={PURCH.post}>
                       <Button
-                        disabled={busy}
-                        onClick={() =>
-                          void run(confirmOrder, 'purchases.purchaseOrders.confirmSuccess', 'purchases.purchaseOrders.confirmError')
-                        }
+                        disabled={busy || Boolean(limitsCheck?.blocked)}
+                        title={limitsCheck?.blocked ? t('purchases.limits.blockedHint') : undefined}
+                        onClick={async () => {
+                          if (!(await confirmPurchaseLimits(limitsCheck, t))) return;
+                          void run(confirmOrder, 'purchases.purchaseOrders.confirmSuccess', 'purchases.purchaseOrders.confirmError');
+                        }}
                       >
                         <CheckCircle2 />
                         {t('purchases.purchaseOrders.confirm')}
@@ -303,6 +308,7 @@ export function PurchaseOrderPage() {
       <DocumentBody
         main={
           <>
+            {isDraft ? <PurchaseLimitsCallout check={limitsCheck} /> : null}
             <SectionCard title={t('documents.info')}>
               <InfoGrid
                 items={[

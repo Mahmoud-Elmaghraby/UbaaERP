@@ -8,7 +8,7 @@ import { z } from 'zod';
  * entry here plus the code that reads it. The default is always today's behaviour, so a new option
  * never changes anything until someone sets it.
  */
-export type AppSettingSection = 'security' | 'sales' | 'pos' | 'documents';
+export type AppSettingSection = 'security' | 'sales' | 'pos' | 'purchases' | 'documents';
 
 /**
  * Who may change a section's settings (any one of the keys). Reading is open to every signed-in
@@ -19,6 +19,7 @@ export const APP_SETTING_SECTION_PERMISSIONS: Record<AppSettingSection, readonly
   documents: ['settings.manage'],
   sales: ['settings.manage', 'sales.settings.manage'],
   pos: ['settings.manage', 'sales.settings.manage'],
+  purchases: ['settings.manage', 'purchases.settings.manage'],
 };
 
 interface BaseDef {
@@ -86,6 +87,14 @@ export const APP_SETTINGS = {
   'pos.autoPrintReceipt': { section: 'pos', group: 'receipt', feature: 'pos', kind: 'boolean', default: false },
   // Logo, footer and the rest of the receipt's look live in the print template (sales_invoice, 80 mm).
   'pos.receiptShowCashier': { section: 'pos', group: 'receipt', feature: 'pos', kind: 'boolean', default: false },
+
+  // Purchases (settings hub phase 3). 'purchases.approve' (migration 0121) confirms big orders and passes a price block.
+  'purchases.orderApprovalAmount': { section: 'purchases', group: 'approval', kind: 'number', default: null, nullable: true, min: 0, max: 999_999_999, decimals: 2, unit: 'companyCurrency' },
+  'purchases.priceIncreaseMode': { section: 'purchases', group: 'purchasePricing', kind: 'choice', default: 'allow', options: RULE_MODES },
+  'purchases.priceIncreaseTolerancePercent': { section: 'purchases', group: 'purchasePricing', kind: 'number', default: 0, min: 0, max: 1000, decimals: 2, unit: 'percent' },
+  'purchases.overReceiptTolerancePercent': { section: 'purchases', group: 'receiving', kind: 'number', default: 0, min: 0, max: 100, decimals: 2, unit: 'percent' },
+  'purchases.supplierInvoiceNumberRequired': { section: 'purchases', group: 'documents', kind: 'boolean', default: false },
+  'purchases.defaultOrderNotes': { section: 'purchases', group: 'documents', kind: 'text', default: '', maxLength: 2000, multiline: true },
 
   // Document dates, every module.
   'documents.backdateDays': { section: 'documents', kind: 'number', default: null, nullable: true, min: 0, max: 3650, unit: 'days' },

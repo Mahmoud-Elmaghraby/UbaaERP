@@ -20,6 +20,8 @@ import { OutboxWriterService } from '../../src/shared/outbox/application/service
 import { KyselyOutboxEventRepository } from '../../src/shared/outbox/infrastructure/persistence/kysely-outbox-event.repository';
 import { localIsoDate } from '../../src/shared/time/local-date';
 import { openIntegrationDb, uniqueSuffix } from './tenant-db';
+import { PurchaseLimitsService } from '../../src/modules/purchases/application/services/purchase-limits.service';
+import { AppSettingsRepository } from '../../src/shared/app-settings/app-settings.repository';
 
 /**
  * Purchases integrity (migration 0114 + the confirm/post re-checks): two
@@ -190,6 +192,7 @@ describe('Purchases integrity (integration, real Postgres)', () => {
       numbering,
       outbox,
       new KyselyProductTrackingReader(),
+      new PurchaseLimitsService(new AppSettingsRepository()),
     );
     // Only cancel() is exercised here: the create-time collaborators are never reached.
     orders = new PurchaseOrdersService(
@@ -202,6 +205,7 @@ describe('Purchases integrity (integration, real Postgres)', () => {
       {} as never,
       {} as never,
       {} as never,
+      new PurchaseLimitsService(new AppSettingsRepository()),
     );
     // Only post()/cancel() are exercised: tenant settings and feature toggles are create()-only.
     invoices = new PurchaseInvoicesService(
@@ -216,11 +220,64 @@ describe('Purchases integrity (integration, real Postgres)', () => {
       {} as never,
       orders,
       goodsReceipts,
+      new PurchaseLimitsService(new AppSettingsRepository()),
+      new AppSettingsRepository(),
     );
   });
 
   afterAll(async () => {
     await db.destroy();
+  });
+
+  it('over-receipt tolerance lets receipts and invoices pass the ordered quantity by the set %', async () => {
+    const settings = new AppSettingsRepository();
+    const order = await createOrder(10);
+    await expect(draftReceipt(order, 11)).rejects.toMatchObject({ code: 'GOODS_RECEIPT.QUANTITY_EXCEEDS_REMAINING' });
+    await settings.set(db, 'purchases.overReceiptTolerancePercent', 10, '00000000-0000-0000-0000-000000000001');
+    try {
+      await expect(draftReceipt(order, 12)).rejects.toMatchObject({ code: 'GOODS_RECEIPT.QUANTITY_EXCEEDS_REMAINING' });
+      const receipt = await draftReceipt(order, 11); // 11 of 10 ordered, within 10%
+      await goodsReceipts.confirm(db, receipt.id, schema, null);
+      const invoice = await createDraftInvoice(order, 11);
+      await expect(invoices.post(db, invoice, schema, null)).resolves.toMatchObject({ status: 'posted' });
+    } finally {
+      await settings.reset(db, 'purchases.overReceiptTolerancePercent');
+    }
+  });
+
+  it('purchases limits: approval amount, price above the last one, supplier number required', async () => {
+    const settings = new AppSettingsRepository();
+    const limits = new PurchaseLimitsService(settings);
+    const u = '00000000-0000-0000-0000-000000000001';
+    // A posted invoice at 10.00 sets "the last price"; the new order pays 11.50.
+    const earlier = await createOrder(1);
+    const earlierInvoice = await createDraftInvoice(earlier, 1);
+    await invoices.post(db, earlierInvoice, schema, null);
+    const doc = {
+      purchaseOrderId: randomUUID(),
+      checkApproval: true,
+      lines: [{ lineId: 'l1', productVariantId: earlier.variantId, netMinor: 11_500n, currency: 'EGP', baseQuantity: 10 }],
+    };
+    await settings.set(db, 'purchases.priceIncreaseMode', 'block', u);
+    await settings.set(db, 'purchases.priceIncreaseTolerancePercent', 10, u);
+    await settings.set(db, 'purchases.orderApprovalAmount', 100, u);
+    try {
+      const res = await limits.check(db, doc, []);
+      expect(res).toMatchObject({ approvalRequired: true, blocked: true, canApprove: false });
+      expect(res.priceIncreases).toEqual([expect.objectContaining({ unitPrice: '11.50', lastPrice: '10.00', increasePercent: 15 })]);
+      await expect(limits.assert(db, doc, [])).rejects.toMatchObject({ code: 'PURCHASE_LIMITS.APPROVAL_REQUIRED' });
+      await expect(limits.assert(db, doc, ['purchases.approve'])).resolves.toBeUndefined();
+      // Below the amount and within 20%: nothing to stop.
+      await settings.set(db, 'purchases.priceIncreaseTolerancePercent', 20, u);
+      await settings.set(db, 'purchases.orderApprovalAmount', 1000, u);
+      expect(await limits.check(db, doc, [])).toMatchObject({ approvalRequired: false, priceIncreases: [], blocked: false });
+      // Supplier number required: nobody overrides it.
+      await expect(limits.assert(db, { ...doc, supplierInvoiceNumberMissing: true }, ['purchases.approve'])).rejects.toMatchObject({
+        code: 'PURCHASE_LIMITS.SUPPLIER_INVOICE_NUMBER_REQUIRED',
+      });
+    } finally {
+      await db.deleteFrom('app_settings').where('key', 'like', 'purchases.%').execute();
+    }
   });
 
   it('two draft receipts for the whole order line: only one can be confirmed, even at the same moment', async () => {
