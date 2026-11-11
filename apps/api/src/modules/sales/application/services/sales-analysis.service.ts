@@ -55,6 +55,7 @@ export class SalesAnalysisService {
     const toDate = query.toDate ?? null;
     const repId = query.salesRepId ?? null;
     const customerId = query.customerId ?? null;
+    const channelId = query.salesChannelId ?? null;
     const facts: SalesFact[] = [];
     const foreignDocuments = new Set<string>();
 
@@ -76,6 +77,15 @@ export class SalesAnalysisService {
         sales_rep_name: string | null;
         product_name: string;
         sku: string | null;
+        product_id: string;
+        product_code: string;
+        category_id: string | null;
+        category_name: string | null;
+        attribute_values: Record<string, unknown> | null;
+        cashier_id: string | null;
+        cashier_name: string | null;
+        channel_id: string | null;
+        channel_name: string | null;
       }>`
         SELECT l.sales_invoice_id, l.sales_order_line_id, l.product_variant_id,
                (l.quantity_invoiced * l.unit_factor)::text AS base_quantity,
@@ -84,7 +94,10 @@ export class SalesAnalysisService {
                to_char(COALESCE(si.invoice_date::date, si.created_at::date), 'YYYY-MM-DD') AS doc_date,
                so.customer_id, c.name AS customer_name,
                si.sales_rep_id, r.name AS sales_rep_name,
-               p.name AS product_name, v.sku
+               p.name AS product_name, v.sku,
+               p.id AS product_id, p.code AS product_code, p.category_id, pc.name AS category_name, v.attribute_values,
+               ps.cashier_user_id AS cashier_id, u.full_name AS cashier_name,
+               si.sales_channel_id AS channel_id, sc.name AS channel_name
           FROM sales_invoice_lines l
           JOIN sales_invoices si ON si.id = l.sales_invoice_id
           JOIN sales_orders so ON so.id = si.sales_order_id
@@ -92,7 +105,12 @@ export class SalesAnalysisService {
           LEFT JOIN sales_reps r ON r.id = si.sales_rep_id
           JOIN product_variants v ON v.id = l.product_variant_id
           JOIN products p ON p.id = v.product_id
+          LEFT JOIN product_categories pc ON pc.id = p.category_id
+          LEFT JOIN pos_sessions ps ON ps.id = so.pos_session_id
+          LEFT JOIN users u ON u.id = ps.cashier_user_id
+          LEFT JOIN sales_channels sc ON sc.id = si.sales_channel_id
          WHERE si.status = 'posted'
+           AND (${channelId}::uuid IS NULL OR si.sales_channel_id = ${channelId}::uuid)
            AND (${fromDate}::date IS NULL OR COALESCE(si.invoice_date::date, si.created_at::date) >= ${fromDate}::date)
            AND (${toDate}::date IS NULL OR COALESCE(si.invoice_date::date, si.created_at::date) <= ${toDate}::date)
            AND (${repId}::uuid IS NULL OR si.sales_rep_id = ${repId}::uuid)
@@ -155,6 +173,7 @@ export class SalesAnalysisService {
         productVariantId: line.product_variant_id,
         productName: line.product_name,
         sku: line.sku,
+        ...describe(line),
         quantity: Number(line.base_quantity),
         netMinor: lineNet(line.net_amount, line.unit_price_amount, line.quantity_invoiced),
         costMinor: costOfQuantity(
@@ -184,6 +203,15 @@ export class SalesAnalysisService {
         sales_rep_name: string | null;
         product_name: string;
         sku: string | null;
+        product_id: string;
+        product_code: string;
+        category_id: string | null;
+        category_name: string | null;
+        attribute_values: Record<string, unknown> | null;
+        cashier_id: string | null;
+        cashier_name: string | null;
+        channel_id: string | null;
+        channel_name: string | null;
       }>`
         WITH notes AS (
           SELECT cn.id, cn.sales_return_id, cn.customer_id, cn.currency, cn.created_at::date AS doc_date,
@@ -192,7 +220,11 @@ export class SalesAnalysisService {
                      WHERE si.sales_order_id = d.sales_order_id AND si.status = 'posted'
                      ORDER BY si.created_at LIMIT 1),
                    so.sales_rep_id
-                 ) AS sales_rep_id
+                 ) AS sales_rep_id,
+                 (SELECT si.sales_channel_id FROM sales_invoices si
+                   WHERE si.sales_order_id = d.sales_order_id AND si.status = 'posted'
+                   ORDER BY si.created_at LIMIT 1) AS channel_id,
+                 so.pos_session_id
             FROM sales_credit_notes cn
             JOIN sales_returns sr ON sr.id = cn.sales_return_id
             JOIN deliveries d ON d.id = sr.delivery_id
@@ -207,7 +239,10 @@ export class SalesAnalysisService {
                l.unit_price_amount::text AS unit_price_amount, l.quantity::text AS quantity, l.net_amount::text AS net_amount,
                n.currency, to_char(n.doc_date, 'YYYY-MM-DD') AS doc_date,
                n.customer_id, c.name AS customer_name, n.sales_rep_id, r.name AS sales_rep_name,
-               p.name AS product_name, v.sku
+               p.name AS product_name, v.sku,
+               p.id AS product_id, p.code AS product_code, p.category_id, pc.name AS category_name, v.attribute_values,
+               ps.cashier_user_id AS cashier_id, u.full_name AS cashier_name,
+               n.channel_id, sc.name AS channel_name
           FROM notes n
           JOIN sales_credit_note_lines l ON l.sales_credit_note_id = n.id
           JOIN sales_return_lines rl ON rl.id = l.sales_return_line_id
@@ -215,7 +250,12 @@ export class SalesAnalysisService {
           LEFT JOIN sales_reps r ON r.id = n.sales_rep_id
           JOIN product_variants v ON v.id = l.product_variant_id
           JOIN products p ON p.id = v.product_id
+          LEFT JOIN product_categories pc ON pc.id = p.category_id
+          LEFT JOIN pos_sessions ps ON ps.id = n.pos_session_id
+          LEFT JOIN users u ON u.id = ps.cashier_user_id
+          LEFT JOIN sales_channels sc ON sc.id = n.channel_id
          WHERE (${repId}::uuid IS NULL OR n.sales_rep_id = ${repId}::uuid)
+           AND (${channelId}::uuid IS NULL OR n.channel_id = ${channelId}::uuid)
       `.execute(db)
     ).rows;
 
@@ -257,13 +297,17 @@ export class SalesAnalysisService {
         productVariantId: line.product_variant_id,
         productName: line.product_name,
         sku: line.sku,
+        ...describe(line),
         quantity: -Number(line.base_quantity),
         netMinor: -lineNet(line.net_amount, line.unit_price_amount, line.quantity),
         costMinor: -cost,
       });
     }
 
-    const { rows, totals } = aggregateSalesAnalysis(facts, query.groupBy);
+    const { rows, totals } = aggregateSalesAnalysis(facts, query.groupBy, query.optionName);
+    // By channel: the platform fees its posted settlements deducted in the period.
+    const fees = query.groupBy === 'channel' ? await this.channelFees(db, fromDate, toDate, channelId, currency) : new Map<string, bigint>();
+    const optionNames = [...new Set(facts.flatMap((f) => Object.keys(f.attributes ?? {})))].sort();
     return {
       groupBy: query.groupBy,
       fromDate,
@@ -279,6 +323,8 @@ export class SalesAnalysisService {
         grossProfitMinorUnits: row.grossProfitMinor.toString(),
         marginPercent: row.marginPercent,
         invoiceCount: row.invoiceCount,
+        feesMinorUnits: query.groupBy === 'channel' && row.key ? (fees.get(row.key) ?? 0n).toString() : null,
+        netProfitMinorUnits: query.groupBy === 'channel' && row.key ? (row.grossProfitMinor - (fees.get(row.key) ?? 0n)).toString() : null,
       })),
       totals: {
         netSalesMinorUnits: totals.netSalesMinor.toString(),
@@ -286,9 +332,36 @@ export class SalesAnalysisService {
         grossProfitMinorUnits: totals.grossProfitMinor.toString(),
         marginPercent: totals.marginPercent,
         invoiceCount: totals.invoiceCount,
+        feesMinorUnits: query.groupBy === 'channel' ? [...fees.values()].reduce((a, b) => a + b, 0n).toString() : null,
+        netProfitMinorUnits:
+          query.groupBy === 'channel' ? (totals.grossProfitMinor - [...fees.values()].reduce((a, b) => a + b, 0n)).toString() : null,
       },
+      optionNames,
       excludedForeignCurrencyDocuments: foreignDocuments.size,
     };
+  }
+
+  /** Fee lines of posted channel settlements dated in the period, per channel (company currency). */
+  private async channelFees(
+    db: Kysely<TenantDatabase>,
+    fromDate: string | null,
+    toDate: string | null,
+    channelId: string | null,
+    currency: string,
+  ): Promise<Map<string, bigint>> {
+    const rows = (
+      await sql<{ sales_channel_id: string; fees: string }>`
+        SELECT s.sales_channel_id, SUM(l.amount)::bigint::text AS fees
+          FROM channel_settlement_lines l
+          JOIN channel_settlements s ON s.id = l.channel_settlement_id
+         WHERE s.status = 'posted' AND l.kind = 'fee' AND s.currency = ${currency}
+           AND (${fromDate}::date IS NULL OR s.statement_date >= ${fromDate}::date)
+           AND (${toDate}::date IS NULL OR s.statement_date <= ${toDate}::date)
+           AND (${channelId}::uuid IS NULL OR s.sales_channel_id = ${channelId}::uuid)
+         GROUP BY s.sales_channel_id
+      `.execute(db)
+    ).rows;
+    return new Map(rows.map((r) => [r.sales_channel_id, BigInt(r.fees)]));
   }
 
   /** Each item's running average cost after its latest stock movement (minor units). */
@@ -310,4 +383,29 @@ export class SalesAnalysisService {
 function lineNet(netAmount: string | null, unitPriceAmount: string, quantity: string): bigint {
   if (netAmount !== null) return BigInt(netAmount);
   return proportionalShare(BigInt(unitPriceAmount), quantity, 1);
+}
+
+/** The descriptive fields every fact carries for the extra groupings. */
+function describe(line: {
+  product_id: string;
+  product_code: string;
+  category_id: string | null;
+  category_name: string | null;
+  attribute_values: Record<string, unknown> | null;
+  cashier_id: string | null;
+  cashier_name: string | null;
+  channel_id: string | null;
+  channel_name: string | null;
+}) {
+  return {
+    productId: line.product_id,
+    productCode: line.product_code,
+    categoryId: line.category_id,
+    categoryName: line.category_name,
+    attributes: line.attribute_values ?? {},
+    cashierId: line.cashier_id,
+    cashierName: line.cashier_name,
+    channelId: line.channel_id,
+    channelName: line.channel_name,
+  };
 }

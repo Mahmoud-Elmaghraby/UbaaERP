@@ -14,7 +14,10 @@ import {
  * (QUANTITY_SCALE decimals) so no float ever touches an amount.
  */
 
-export type SalesAnalysisGroupBy = 'rep' | 'item' | 'customer' | 'month';
+export type SalesAnalysisGroupBy = 'rep' | 'item' | 'product' | 'category' | 'option' | 'customer' | 'cashier' | 'channel' | 'month';
+
+/** Groupings that sum a quantity (one item, or items of one kind). */
+const QUANTITY_GROUPS: ReadonlySet<SalesAnalysisGroupBy> = new Set(['item', 'product', 'category', 'option']);
 
 /** One invoice line (positive) or credit-note line (negative quantity, net and cost). */
 export interface SalesFact {
@@ -29,6 +32,17 @@ export interface SalesFact {
   productVariantId: string;
   productName: string;
   sku: string | null;
+  /** The product (all its sizes / colours), its category and option values (size, colour…). */
+  productId?: string;
+  productCode?: string;
+  categoryId?: string | null;
+  categoryName?: string | null;
+  attributes?: Record<string, unknown>;
+  /** POS cashier of the sale (null = not a till sale) and the sales channel (null = direct). */
+  cashierId?: string | null;
+  cashierName?: string | null;
+  channelId?: string | null;
+  channelName?: string | null;
   /** Base units, signed. */
   quantity: number;
   netMinor: bigint;
@@ -58,6 +72,8 @@ export interface SalesAnalysisTotals {
 export function aggregateSalesAnalysis(
   facts: readonly SalesFact[],
   groupBy: SalesAnalysisGroupBy,
+  /** groupBy 'option': which option ("المقاس", "اللون"…). */
+  optionName?: string,
 ): { rows: SalesAnalysisRow[]; totals: SalesAnalysisTotals } {
   interface Bucket {
     key: string | null;
@@ -74,7 +90,7 @@ export function aggregateSalesAnalysis(
   let totalCost = 0n;
 
   for (const fact of facts) {
-    const { key, label, secondaryLabel } = groupKey(fact, groupBy);
+    const { key, label, secondaryLabel } = groupKey(fact, groupBy, optionName);
     const mapKey = key ?? '\u0000none';
     let bucket = buckets.get(mapKey);
     if (!bucket) {
@@ -96,7 +112,7 @@ export function aggregateSalesAnalysis(
     key: b.key,
     label: b.label,
     secondaryLabel: b.secondaryLabel,
-    quantity: groupBy === 'item' ? fromScaledQuantity(b.quantityScaled) : null,
+    quantity: QUANTITY_GROUPS.has(groupBy) ? fromScaledQuantity(b.quantityScaled) : null,
     netSalesMinor: b.net,
     costMinor: b.cost,
     grossProfitMinor: b.net - b.cost,
@@ -121,8 +137,25 @@ export function aggregateSalesAnalysis(
   };
 }
 
-function groupKey(fact: SalesFact, groupBy: SalesAnalysisGroupBy): { key: string | null; label: string; secondaryLabel: string | null } {
+function groupKey(
+  fact: SalesFact,
+  groupBy: SalesAnalysisGroupBy,
+  optionName?: string,
+): { key: string | null; label: string; secondaryLabel: string | null } {
   switch (groupBy) {
+    case 'product':
+      return { key: fact.productId ?? fact.productVariantId, label: fact.productName, secondaryLabel: fact.productCode ?? null };
+    case 'category':
+      return { key: fact.categoryId ?? null, label: fact.categoryName ?? '', secondaryLabel: null };
+    case 'option': {
+      const value = optionName ? fact.attributes?.[optionName] : undefined;
+      const text = value === undefined || value === null || value === '' ? null : String(value);
+      return { key: text, label: text ?? '', secondaryLabel: null };
+    }
+    case 'cashier':
+      return { key: fact.cashierId ?? null, label: fact.cashierName ?? '', secondaryLabel: null };
+    case 'channel':
+      return { key: fact.channelId ?? null, label: fact.channelName ?? '', secondaryLabel: null };
     case 'rep':
       return { key: fact.salesRepId, label: fact.salesRepName ?? '' /* the UI shows "no rep" for a null key */, secondaryLabel: null };
     case 'customer':

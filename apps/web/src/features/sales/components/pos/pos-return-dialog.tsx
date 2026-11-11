@@ -29,7 +29,18 @@ import { multiplyMinorUnits, sumMinorUnits } from '../../../../lib/money';
 import { fetchPosSaleForReturn, usePosReturn } from '../../api/pos/queries';
 import { isApprovalCancelled, useSupervisorApproval } from './use-supervisor-approval';
 
-type RefundMode = 'cash' | 'same' | 'credit';
+type RefundMode = 'cash' | 'same' | 'credit' | 'exchange';
+
+/** A return waiting to pay for the next sale (استبدال) — sent with the checkout as one exchange. */
+export interface PosExchangeDraft {
+  deliveryId: string;
+  saleNumber: string;
+  lines: { deliveryLineId: string; quantity: number; reason: string | null }[];
+  notes: string | null;
+  /** What the returned items are worth, as charged on the receipt. */
+  creditMinorUnits: string;
+  currency: string;
+}
 const NON_CASH_METHODS: RefundMethodDto[] = ['card', 'bank_transfer', 'other'];
 
 function round3(n: number): number {
@@ -48,11 +59,14 @@ export function PosReturnDialog({
   open,
   onOpenChange,
   initialNumber,
+  onExchange,
 }: {
   session: PosSessionDto;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   initialNumber: string;
+  /** Given by the till: "استبدال" hands the chosen lines back to the cart instead of refunding. */
+  onExchange?: (draft: PosExchangeDraft) => void;
 }) {
   const { t } = useTranslation();
   const posReturn = usePosReturn();
@@ -118,8 +132,24 @@ export function PosReturnDialog({
 
   async function submit() {
     if (!sale || chosen.length === 0) return;
+    if (mode === 'exchange' && onExchange) {
+      onExchange({
+        deliveryId: sale.deliveryId,
+        saleNumber: sale.invoiceNumber,
+        lines: chosen.map((line) => ({
+          deliveryLineId: line.deliveryLineId,
+          quantity: quantities[line.deliveryLineId]!,
+          reason: reasons[line.deliveryLineId]?.trim() || null,
+        })),
+        notes: notes.trim() || null,
+        creditMinorUnits: refundTotal,
+        currency,
+      });
+      onOpenChange(false);
+      return;
+    }
     const refund =
-      mode === 'credit'
+      mode === 'credit' || mode === 'exchange'
         ? null
         : mode === 'cash'
           ? { paymentMethod: 'cash' as const }
@@ -303,9 +333,10 @@ export function PosReturnDialog({
 
                   <div className="grid gap-2">
                     <span className="text-sm font-medium">{t('pos.return.refundTitle')}</span>
-                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                    <div className={`grid grid-cols-1 gap-2 ${onExchange ? 'sm:grid-cols-4' : 'sm:grid-cols-3'}`}>
                       {(
                         [
+                          ...(onExchange ? ([['exchange', 'pos.return.modeExchange']] as const) : []),
                           ['cash', 'pos.return.modeCash'],
                           ['same', 'pos.return.modeSame'],
                           ['credit', 'pos.return.modeCredit'],
@@ -316,7 +347,7 @@ export function PosReturnDialog({
                           type="button"
                           variant={mode === value ? 'default' : 'outline'}
                           className="h-12"
-                          disabled={value === 'cash' && !cashAllowed}
+                          disabled={(value === 'cash' || value === 'exchange') && !cashAllowed}
                           onClick={() => setMode(value)}
                         >
                           {t(key)}
@@ -356,7 +387,7 @@ export function PosReturnDialog({
                   <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-card p-4">
                     <div className="grid">
                       <span className="text-sm text-muted-foreground">
-                        {mode === 'credit' ? t('pos.return.creditTotal') : t('pos.return.refundTotal')}
+                        {mode === 'credit' || mode === 'exchange' ? t('pos.return.creditTotal') : t('pos.return.refundTotal')}
                       </span>
                       <Amount value={refundTotal} currency={currency} className="text-2xl font-bold" />
                     </div>
@@ -366,7 +397,7 @@ export function PosReturnDialog({
                       disabled={chosen.length === 0 || posReturn.isPending || (mode === 'same' && !treasuryId)}
                       onClick={() => void submit()}
                     >
-                      {t('pos.return.submit')}
+                      {mode === 'exchange' ? t('pos.exchange.pickNew') : t('pos.return.submit')}
                     </Button>
                   </div>
                 </>

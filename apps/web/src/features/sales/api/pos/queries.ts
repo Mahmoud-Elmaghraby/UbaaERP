@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type {
+import type { PosExchangeDto, PosExchangeResultDto,
   ClosePosSessionDto,
   HoldPosCartDto,
   OpenPosSessionDto,
@@ -112,6 +112,20 @@ export function usePosSessionSales(sessionId: string | undefined, enabled = true
 /** A sale by its invoice number, with what can still be returned. */
 export function fetchPosSaleForReturn(invoiceNumber: string) {
   return apiGet<PosSaleForReturnDto>(`/pos/sales/lookup?number=${encodeURIComponent(invoiceNumber.trim())}`);
+}
+
+/** استبدال: the return and the new sale in one request (PosExchangeService). */
+export function usePosExchange() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ sessionId, input }: { sessionId: string; input: PosExchangeDto }) =>
+      apiPost<PosExchangeResultDto>(`/pos/sessions/${sessionId}/exchange`, input),
+    onSuccess: () => {
+      for (const key of ['pos-sessions', 'sales-invoices', 'sales-returns', 'sales-credit-notes', 'sales-orders', 'deliveries', 'customers', 'customer-refunds', 'payments-received', 'party-statement', 'party-balances', 'treasury']) {
+        queryClient.invalidateQueries({ queryKey: [key] });
+      }
+    },
+  });
 }
 
 export function usePosReturn() {

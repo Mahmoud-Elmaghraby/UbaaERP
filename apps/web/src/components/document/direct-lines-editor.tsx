@@ -1,4 +1,4 @@
-import { Fragment, type ReactNode } from 'react';
+import { Fragment, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Button,
@@ -10,7 +10,7 @@ import {
   TableHeader,
   TableRow,
 } from '@erp-platform/ui';
-import { Plus, Trash2 } from 'lucide-react';
+import { Grid3x3, Plus, Trash2 } from 'lucide-react';
 
 import { ProductVariantPicker } from '../product/product-variant-picker';
 import { defaultUnitId, unitPriceText } from '../product/variant-search';
@@ -21,6 +21,7 @@ import { useVariantLookupMap } from '../../features/inventory/api/products/queri
 import { emptyReceiptLotsDraft, ReceiptLotsEditor, type ReceiptLotsDraft } from './lot-entry';
 import { LineTaxPicker } from '../taxes/line-tax-picker';
 import type { LineTaxesController } from '../taxes/use-line-taxes';
+import { VariantGridDialog } from './variant-grid-dialog';
 
 export interface DirectLineDraft {
   key: string;
@@ -181,6 +182,8 @@ export function DirectLinesEditor({
   const pricer: SalePricer =
     salePricer ?? ((variant, unitOfMeasureId) => unitPriceText(variant, unitOfMeasureId, priceKind, currency));
 
+  const [gridOpen, setGridOpen] = useState(false);
+
   function update(key: string, patch: Partial<DirectLineDraft>) {
     onChange(lines.map((line) => (line.key === key ? { ...line, ...patch } : line)));
   }
@@ -328,7 +331,31 @@ export function DirectLinesEditor({
           <Plus />
           {t('documents.addLine')}
         </Button>
+        <Button type="button" variant="ghost" size="sm" className="ms-2" onClick={() => setGridOpen(true)}>
+          <Grid3x3 />
+          {t('documents.grid.open')}
+        </Button>
       </div>
+      <VariantGridDialog
+        open={gridOpen}
+        onOpenChange={setGridOpen}
+        variants={variants}
+        priceOf={(variant) => pricer(variant, null, '1')}
+        onAdd={(added) => {
+          // Untouched empty lines make way for the model's lines.
+          const kept = lines.filter((line) => line.productVariantId);
+          onChange([
+            ...kept,
+            ...added.map((line) => ({
+              ...newDirectLine(),
+              productVariantId: line.productVariantId,
+              unitOfMeasureId: null, // the grid counts pieces (the base unit)
+              quantity: line.quantity,
+              unitPrice: line.unitPrice,
+            })),
+          ]);
+        }}
+      />
     </div>
   );
 }

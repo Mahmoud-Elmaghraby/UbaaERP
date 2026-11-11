@@ -22,6 +22,9 @@ import { PosOperationsService, type PosActor } from '../application/services/pos
 import { PlanFeatureGuard } from '../../../shared/auth/plan-feature.guard';
 import { RequireFeature } from '../../../shared/auth/require-feature.decorator';
 import { FEATURE_KEYS } from '../../../shared/plans/feature-catalog';
+import { posExchangeResultSchema, posExchangeSchema, type PosExchangeDto, type PosExchangeResultDto } from '@erp-platform/contracts';
+import { PosExchangeService } from '../application/services/pos-exchange.service';
+import { checkoutInputFromDto, checkoutResultToDto } from './pos-checkout.mapper';
 
 /** The till beyond checkout: receipts, returns on a receipt, parked sales (migration 0113). */
 @UseGuards(JwtAuthGuard, PermissionsGuard, PlanFeatureGuard)
@@ -30,6 +33,7 @@ import { FEATURE_KEYS } from '../../../shared/plans/feature-catalog';
 export class PosOperationsController {
   constructor(
     private readonly service: PosOperationsService,
+    private readonly exchanges: PosExchangeService,
     private readonly connections: TenantConnectionManager,
   ) {}
 
@@ -43,6 +47,29 @@ export class PosOperationsController {
   @RequirePermissions(S.posUse)
   lookup(@CurrentTenantSchema() schema: string, @Query('number') number: string): Promise<PosSaleForReturnDto> {
     return this.service.saleForReturn(this.connections.getClient(schema), number ?? '');
+  }
+
+  /** استبدال: a return and a new sale in one transaction (PosExchangeService). */
+  @Post('sessions/:id/exchange')
+  @RequirePermissions(S.posUse)
+  async exchange(
+    @CurrentTenantSchema() schema: string,
+    @CurrentUser() user: JwtAccessPayload,
+    @Param('id') id: string,
+    @Body(new ZodValidationPipe(posExchangeSchema)) body: PosExchangeDto,
+  ): Promise<PosExchangeResultDto> {
+    const result = await this.exchanges.exchange(
+      this.connections.getClient(schema),
+      id,
+      { return: body.return, sale: checkoutInputFromDto(body.sale) },
+      { ...actor(schema, user), canSupervise: user.permissions.includes(S.posSupervise) },
+    );
+    return posExchangeResultSchema.parse({
+      return: result.return,
+      sale: checkoutResultToDto(result.sale),
+      creditAmount: { amountMinorUnits: result.credit.toMinorUnits().toString(), currency: result.credit.currency },
+      balance: { amountMinorUnits: result.balance.toMinorUnits().toString(), currency: result.balance.currency },
+    });
   }
 
   @Post('sessions/:id/returns')

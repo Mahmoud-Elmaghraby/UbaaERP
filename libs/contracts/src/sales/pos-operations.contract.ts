@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { moneySchema, positiveMoneySchema } from '../inventory/money.contract';
 import { paymentMethodSchema } from './payment-received.contract';
 import { customerRefundSchema, refundMethodSchema } from './customer-refund.contract';
+import { posCheckoutResultSchema, posCheckoutSchema } from './pos-sale.contract';
 
 /** A supervisor's PIN typed on the till for an action the cashier can't do alone (migration 0113). */
 export const approvalPinSchema = z.string().regex(/^\d{4,6}$/).nullable().optional();
@@ -113,3 +114,24 @@ export const posCashMovementRowSchema = z.object({
   createdAt: z.coerce.date(),
 });
 export type PosCashMovementRowDto = z.infer<typeof posCashMovementRowSchema>;
+
+/**
+ * استبدال — a return and a new sale in one go (clothing client: a customer swaps a size). The
+ * returned items' value pays for the new sale; the cashier's tenders cover only what is left, and
+ * when the return is worth more, the rest goes back to the customer in cash.
+ */
+export const posExchangeSchema = z.object({
+  return: posReturnSchema.omit({ refund: true, approvalPin: true }),
+  sale: posCheckoutSchema,
+});
+export type PosExchangeDto = z.infer<typeof posExchangeSchema>;
+
+export const posExchangeResultSchema = z.object({
+  return: posReturnResultSchema,
+  sale: posCheckoutResultSchema,
+  /** What the returned items were worth (the credit note). */
+  creditAmount: moneySchema,
+  /** > 0 the customer paid this on top; < 0 this went back to the customer; 0 an even swap. */
+  balance: z.object({ amountMinorUnits: z.string(), currency: z.string() }),
+});
+export type PosExchangeResultDto = z.infer<typeof posExchangeResultSchema>;

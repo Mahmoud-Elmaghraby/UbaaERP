@@ -3,10 +3,11 @@ import { z } from 'zod';
 const currencySchema = z.string().regex(/^[A-Z]{3}$/, 'currency must be a three-letter ISO 4217 code');
 /** Decimal text, up to 3 places (quantities) — never a float on the wire. */
 const quantityTextSchema = z.string().regex(/^\d+(\.\d{1,3})?$/, 'Must be a non-negative number');
-const percentTextSchema = z
+/** Signed %, two places: −100 (free) … +1000. Negative = discount, positive = markup. */
+const adjustTextSchema = z
   .string()
-  .regex(/^\d+(\.\d{1,2})?$/, 'Must be a non-negative number')
-  .refine((v) => Number(v) <= 100, 'Must be 100 or less');
+  .regex(/^-?\d+(\.\d{1,2})?$/, 'Must be a number')
+  .refine((v) => Number(v) >= -100 && Number(v) <= 1000, 'Must be between -100 and 1000');
 
 /** One fixed price: a product (all its variants) or one variant, from a minimum quantity in base units. */
 export const priceListItemSchema = z.object({
@@ -29,8 +30,11 @@ export const priceListSummarySchema = z.object({
   kind: priceListKindSchema.default('sale'),
   name: z.string(),
   currency: z.string(),
-  /** General discount off the normal sale (or purchase) price, for items without a fixed price ("0" = none). */
-  discountPercent: z.string(),
+  /**
+   * Migration 0122 — signed % on the normal sale (or purchase) price for items without a fixed
+   * price: "-10" = 10% off, "15" = 15% above (an online channel), "0" = none.
+   */
+  adjustPercent: z.string(),
   isActive: z.boolean(),
   notes: z.string().nullable(),
   itemCount: z.number().int(),
@@ -39,8 +43,21 @@ export const priceListSummarySchema = z.object({
 });
 export type PriceListSummaryDto = z.infer<typeof priceListSummarySchema>;
 
+/** A % for one category (and its sub-categories without a rule of their own). */
+export const priceListCategoryRuleSchema = z.object({
+  categoryId: z.string().uuid(),
+  adjustPercent: adjustTextSchema,
+});
+export type PriceListCategoryRuleDto = z.infer<typeof priceListCategoryRuleSchema>;
+
 export const priceListSchema = priceListSummarySchema.extend({
   items: z.array(priceListItemSchema),
+  categoryRules: z.array(priceListCategoryRuleSchema).default([]),
+  /**
+   * Every category the rules reach, with the % that applies to it (its own rule, or the nearest
+   * parent's) — computed by the API, so the pricer needs no category tree.
+   */
+  categoryAdjust: z.record(z.string()).default({}),
 });
 export type PriceListDto = z.infer<typeof priceListSchema>;
 
@@ -56,9 +73,10 @@ export type SavePriceListItemDto = z.infer<typeof savePriceListItemSchema>;
 export const savePriceListSchema = z.object({
   name: z.string().trim().min(1).max(80),
   currency: currencySchema,
-  discountPercent: percentTextSchema.optional(),
+  adjustPercent: adjustTextSchema.optional(),
   isActive: z.boolean().optional(),
   notes: z.string().trim().max(500).nullable().optional(),
   items: z.array(savePriceListItemSchema).max(20000),
+  categoryRules: z.array(priceListCategoryRuleSchema).max(2000).optional(),
 });
 export type SavePriceListDto = z.infer<typeof savePriceListSchema>;

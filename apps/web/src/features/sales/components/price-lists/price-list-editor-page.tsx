@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Plus, Trash2 } from 'lucide-react';
-import type { PriceListKindDto, ProductVariantLookupDto, SavePriceListItemDto } from '@erp-platform/contracts';
+import { Download, Plus, Trash2, Upload } from 'lucide-react';
+import type { PriceListCategoryRuleDto, PriceListKindDto, ProductVariantLookupDto, SavePriceListItemDto } from '@erp-platform/contracts';
 import {
   Button,
   Can,
   Checkbox,
+  Combobox,
   Input,
   Label,
   Skeleton,
@@ -32,6 +33,72 @@ import { useVariantLookupMap } from '../../../inventory/api/products/queries';
 import { useTenantSettings } from '../../../settings/queries';
 import { useDeletePriceList, usePriceList, useSavePriceList } from '../../api/price-lists/queries';
 import { PRICE_LIST_KINDS } from '../../api/price-lists/price-list-kind';
+import { useCategoryOptions } from '../../../inventory/api/catalog/queries';
+import { downloadXlsx, readSpreadsheet } from '../../../../lib/xlsx';
+import { exportSheet, parseSheet } from './price-list-excel';
+
+type AdjustMode = 'discount' | 'markup';
+interface RuleRow {
+  key: string;
+  categoryId: string;
+  mode: AdjustMode;
+  value: string;
+}
+/** "-12.5" → discount 12.5 · "15" → markup 15 · "0" → empty. */
+const splitAdjust = (pct: string): { mode: AdjustMode; value: string } => {
+  const n = Number(pct);
+  if (!n) return { mode: 'discount', value: '' };
+  return n < 0 ? { mode: 'discount', value: pct.replace(/^-/, '') } : { mode: 'markup', value: pct };
+};
+/** Back to a signed % ("" → "0"); null = not a number. */
+const joinAdjust = (mode: AdjustMode, value: string): string | null => {
+  const text = value.trim();
+  if (!text) return '0';
+  if (!/^\d+(\.\d{1,2})?$/.test(text)) return null;
+  return mode === 'discount' && Number(text) > 0 ? `-${text}` : text;
+};
+
+/** "خصم / زيادة" + the %: one signed adjustment, read the way people say it. */
+function AdjustInput({
+  mode,
+  value,
+  onChange,
+  maxDiscount = 100,
+}: {
+  mode: AdjustMode;
+  value: string;
+  onChange: (next: { mode: AdjustMode; value: string }) => void;
+  maxDiscount?: number;
+}) {
+  const { t } = useTranslation();
+  return (
+    <div className="flex items-center gap-2">
+      <div role="radiogroup" className="flex shrink-0 rounded-md bg-muted p-0.5">
+        {(['discount', 'markup'] as const).map((m) => (
+          <button
+            key={m}
+            type="button"
+            role="radio"
+            aria-checked={mode === m}
+            onClick={() => onChange({ mode: m, value })}
+            className={`rounded px-2.5 py-1 text-xs font-medium ${mode === m ? 'bg-card shadow-sm' : 'text-muted-foreground'}`}
+          >
+            {t(`priceLists.adjust.${m}`)}
+          </button>
+        ))}
+      </div>
+      <Input
+        inputMode="decimal"
+        placeholder="0"
+        className="w-24"
+        max={mode === 'discount' ? maxDiscount : 1000}
+        value={value}
+        onChange={(e) => onChange({ mode, value: e.target.value })}
+      />
+      <span className="text-sm text-muted-foreground">%</span>
+    </div>
+  );
+}
 
 interface ItemRow {
   key: string;
@@ -60,8 +127,11 @@ export function PriceListEditorPage({ kind = 'sale' }: { kind?: PriceListKindDto
   const save = useSavePriceList(kind);
   const remove = useDeletePriceList(kind);
 
-  const [header, setHeader] = useState({ name: '', currency: '', discountPercent: '', isActive: true, notes: '' });
+  const [header, setHeader] = useState({ name: '', currency: '', adjustMode: 'discount' as AdjustMode, adjustValue: '', isActive: true, notes: '' });
   const [rows, setRows] = useState<ItemRow[]>(() => [emptyRow()]);
+  const [rules, setRules] = useState<RuleRow[]>([]);
+  const { options: categoryOptions } = useCategoryOptions();
+  const importInput = useRef<HTMLInputElement>(null);
   const [search, setSearch] = useState('');
 
   // Product id → its variants, to show "all sizes/colours" and to name a product-wide row.
@@ -87,13 +157,16 @@ export function PriceListEditorPage({ kind = 'sale' }: { kind?: PriceListKindDto
     // Product-wide rows are named through one of the product's variants.
     if (list.items.length > 0 && variants.size === 0) return;
     loadedFor.current = list.id;
+    const adjust = splitAdjust(list.adjustPercent);
     setHeader({
       name: list.name,
       currency: list.currency,
-      discountPercent: Number(list.discountPercent) > 0 ? list.discountPercent : '',
+      adjustMode: adjust.mode,
+      adjustValue: adjust.value,
       isActive: list.isActive,
       notes: list.notes ?? '',
     });
+    setRules(list.categoryRules.map((rule) => ({ key: newKey(), categoryId: rule.categoryId, ...splitAdjust(rule.adjustPercent) })));
     setRows(
       list.items.map((item) => ({
         key: newKey(),
@@ -139,10 +212,62 @@ export function PriceListEditorPage({ kind = 'sale' }: { kind?: PriceListKindDto
     return items;
   }
 
+  function buildRules(): PriceListCategoryRuleDto[] | null {
+    const out: PriceListCategoryRuleDto[] = [];
+    for (const rule of rules) {
+      if (!rule.categoryId && !rule.value.trim()) continue;
+      const pct = joinAdjust(rule.mode, rule.value);
+      if (!rule.categoryId || pct === null || Number(pct) < -100 || Number(pct) > 1000) return null;
+      out.push({ categoryId: rule.categoryId, adjustPercent: pct });
+    }
+    return out;
+  }
+
+  /** The sheet doubles as a template: every active variant, with the list's price where set. */
+  function exportExcel() {
+    const sheet = exportSheet(variants.values(), rows, (variant) => unitPriceText(variant, null, config.priceKind, header.currency));
+    downloadXlsx(`${header.name || t('priceLists.title')}.xlsx`, sheet.header, sheet.body);
+  }
+
+  async function importExcel(file: File) {
+    let sheet: string[][];
+    try {
+      sheet = await readSpreadsheet(file);
+    } catch {
+      toast.error(t('priceLists.excel.notSheet'));
+      return;
+    }
+    const bySku = new Map([...variants.values()].map((v) => [v.sku.toLowerCase(), v]));
+    const result = parseSheet(sheet, bySku);
+    if (!result) {
+      toast.error(t('priceLists.excel.badHeader'));
+      return;
+    }
+    // Imported prices replace the variant rows they name; every other row stays as it was.
+    const key = (variantId: string, min: string) => `${variantId}|${Number(min) || 0}`;
+    const incoming = new Map(result.rows.map((r) => [key(r.variantId, r.minQuantity), r]));
+    setRows((all) => {
+      const kept = all.filter((row) => row.allVariants || !incoming.has(key(row.variantId, row.minQuantity)));
+      const added = result.rows.map((r) => ({ key: newKey(), variantId: r.variantId, allVariants: false, minQuantity: r.minQuantity, price: r.price }));
+      return [...kept.filter((row) => row.variantId || row.price.trim()), ...added];
+    });
+    toast.success(
+      t('priceLists.excel.imported', { count: result.rows.length }) +
+        (result.unknownSkus.length ? ` · ${t('priceLists.excel.unknown', { count: result.unknownSkus.length })}` : '') +
+        (result.badPrices ? ` · ${t('priceLists.excel.bad', { count: result.badPrices })}` : ''),
+    );
+  }
+
   async function submit() {
     const items = buildItems();
     if (!items) {
       toast.error(t('priceLists.itemsError'));
+      return;
+    }
+    const categoryRules = buildRules();
+    const adjustPercent = joinAdjust(header.adjustMode, header.adjustValue);
+    if (!categoryRules || adjustPercent === null || Number(adjustPercent) < -100 || Number(adjustPercent) > 1000) {
+      toast.error(t('priceLists.adjust.invalid'));
       return;
     }
     try {
@@ -151,10 +276,11 @@ export function PriceListEditorPage({ kind = 'sale' }: { kind?: PriceListKindDto
         input: {
           name: header.name,
           currency: header.currency,
-          discountPercent: header.discountPercent.trim() || '0',
+          adjustPercent,
           isActive: header.isActive,
           notes: header.notes.trim() || null,
           items,
+          categoryRules,
         },
       });
       toast.success(t('priceLists.saved'));
@@ -215,14 +341,13 @@ export function PriceListEditorPage({ kind = 'sale' }: { kind?: PriceListKindDto
                   <CurrencySelect value={header.currency} onChange={(currency) => setHeader({ ...header, currency })} />
                 </div>
                 <div className="grid gap-1.5">
-                  <Label>{t('priceLists.discountPercent')}</Label>
-                  <Input
-                    inputMode="decimal"
-                    placeholder="0"
-                    value={header.discountPercent}
-                    onChange={(e) => setHeader({ ...header, discountPercent: e.target.value })}
+                  <Label>{t('priceLists.adjust.label')}</Label>
+                  <AdjustInput
+                    mode={header.adjustMode}
+                    value={header.adjustValue}
+                    onChange={({ mode, value }) => setHeader({ ...header, adjustMode: mode, adjustValue: value })}
                   />
-                  <p className="text-xs text-muted-foreground">{t('priceLists.discountHint')}</p>
+                  <p className="text-xs text-muted-foreground">{t('priceLists.adjust.hint')}</p>
                 </div>
                 <div className="grid gap-1.5 sm:col-span-2">
                   <Label>{t('priceLists.notes')}</Label>
@@ -235,17 +360,81 @@ export function PriceListEditorPage({ kind = 'sale' }: { kind?: PriceListKindDto
               </div>
             </SectionCard>
 
+            <SectionCard title={t('priceLists.categories.title')} description={t('priceLists.categories.hint')}>
+              <div className="grid gap-2">
+                {rules.map((rule) => (
+                  <div key={rule.key} className="flex flex-wrap items-center gap-2">
+                    <Combobox
+                      className="h-9 w-72"
+                      items={categoryOptions}
+                      value={rule.categoryId}
+                      getValue={(option) => option.id}
+                      getLabel={(option) => option.path}
+                      onValueChange={(categoryId) => setRules((all) => all.map((r) => (r.key === rule.key ? { ...r, categoryId } : r)))}
+                      placeholder={t('priceLists.categories.pick')}
+                    />
+                    <AdjustInput
+                      mode={rule.mode}
+                      value={rule.value}
+                      onChange={({ mode, value }) => setRules((all) => all.map((r) => (r.key === rule.key ? { ...r, mode, value } : r)))}
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      aria-label={t('common.delete')}
+                      onClick={() => setRules((all) => all.filter((r) => r.key !== rule.key))}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+                <div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setRules((all) => [...all, { key: newKey(), categoryId: '', mode: 'discount', value: '' }])}
+                  >
+                    <Plus className="me-1 h-4 w-4" />
+                    {t('priceLists.categories.add')}
+                  </Button>
+                </div>
+              </div>
+            </SectionCard>
+
             <SectionCard
               title={t('priceLists.items')}
               description={t('priceLists.itemsHint')}
               flush
               actions={
-                <Input
-                  className="h-8 w-56"
-                  placeholder={t('priceLists.searchItems')}
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                />
+                <div className="flex items-center gap-2">
+                  <Input
+                    className="h-8 w-56"
+                    placeholder={t('priceLists.searchItems')}
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                  />
+                  <Button type="button" variant="outline" size="sm" onClick={exportExcel}>
+                    <Download className="me-1 h-4 w-4" />
+                    {t('priceLists.excel.export')}
+                  </Button>
+                  <Button type="button" variant="outline" size="sm" onClick={() => importInput.current?.click()}>
+                    <Upload className="me-1 h-4 w-4" />
+                    {t('priceLists.excel.import')}
+                  </Button>
+                  <input
+                    ref={importInput}
+                    type="file"
+                    accept=".xlsx,.csv"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      e.target.value = '';
+                      if (file) void importExcel(file);
+                    }}
+                  />
+                </div>
               }
             >
               <Table className="min-w-[760px]">

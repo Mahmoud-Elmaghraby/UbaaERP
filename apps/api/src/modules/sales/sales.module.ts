@@ -15,6 +15,7 @@ import { ChequeEndorsementListener } from './infrastructure/events/cheque-endors
 import { ReceivedChequesController } from './presentation/cheques.controller';
 import { CustomerRefundsService } from './application/services/customer-refunds.service';
 import { PosOperationsService } from './application/services/pos-operations.service';
+import { PosExchangeService } from './application/services/pos-exchange.service';
 import { CustomerRefundsController } from './presentation/customer-refunds.controller';
 import { PosOperationsController } from './presentation/pos-operations.controller';
 import { CustomerCreditService } from './application/services/customer-credit.service';
@@ -249,6 +250,7 @@ import { StockAvailabilityChecker } from '../../shared/catalog/stock-availabilit
     ReceivedChequesService,
     CustomerRefundsService,
     PosOperationsService,
+    PosExchangeService,
     ChequeEndorsementListener,
     CustomerCreditService,
     SalesLimitsService,

@@ -26,7 +26,7 @@ export const saveSalesRepSchema = z.object({
 export type SaveSalesRepDto = z.infer<typeof saveSalesRepSchema>;
 
 /** Sales analysis report (GET /sales-reports/analysis). */
-export const salesAnalysisGroupBySchema = z.enum(['rep', 'item', 'customer', 'month']);
+export const salesAnalysisGroupBySchema = z.enum(['rep', 'item', 'product', 'category', 'option', 'customer', 'cashier', 'channel', 'month']);
 export type SalesAnalysisGroupByDto = z.infer<typeof salesAnalysisGroupBySchema>;
 
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
@@ -37,6 +37,9 @@ export const salesAnalysisQuerySchema = z.object({
   toDate: isoDate.optional(),
   salesRepId: z.string().uuid().optional(),
   customerId: z.string().uuid().optional(),
+  /** groupBy 'option': the option to group by ("المقاس", "اللون"…). */
+  optionName: z.string().trim().min(1).max(60).optional(),
+  salesChannelId: z.string().uuid().optional(),
 });
 export type SalesAnalysisQueryDto = z.infer<typeof salesAnalysisQuerySchema>;
 
@@ -55,6 +58,9 @@ export const salesAnalysisRowSchema = z.object({
   /** Gross profit ÷ net sales × 100, two decimals; null when net sales is zero. */
   marginPercent: z.number().nullable(),
   invoiceCount: z.number().int(),
+  /** groupBy 'channel': the platform fees settled in the period (commission, shipping, ads…), and profit after them. */
+  feesMinorUnits: z.string().nullable().default(null),
+  netProfitMinorUnits: z.string().nullable().default(null),
 });
 export type SalesAnalysisRowDto = z.infer<typeof salesAnalysisRowSchema>;
 
@@ -65,6 +71,8 @@ export const salesAnalysisReportSchema = z.object({
   currency: z.string(),
   rows: z.array(salesAnalysisRowSchema),
   totals: salesAnalysisRowSchema.omit({ key: true, label: true, secondaryLabel: true, quantity: true }),
+  /** The option names in use (for the size / colour picker). */
+  optionNames: z.array(z.string()).default([]),
   /** Documents in another currency than the company's — left out of the figures. */
   excludedForeignCurrencyDocuments: z.number().int(),
 });

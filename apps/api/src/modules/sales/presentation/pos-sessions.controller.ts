@@ -4,7 +4,6 @@ import {
   openPosSessionSchema,
   closePosSessionSchema,
   posCheckoutSchema,
-  posCheckoutResultSchema,
   posSessionReportSchema,
   type PosSessionDto,
   type OpenPosSessionDto,
@@ -14,7 +13,6 @@ import {
   type PosSessionReportDto,
 } from '@erp-platform/contracts';
 import type { PosSession, PosSessionReport, PosSessionStatus } from '../domain/pos-session.entity';
-import type { PosCheckoutResult } from '../domain/pos-sale.entity';
 import { TenantConnectionManager } from '../../../shared/tenancy/tenant-connection-manager';
 import { CurrentTenantSchema } from '../../../shared/auth/current-tenant-schema.decorator';
 import { CurrentUser } from '../../../shared/auth/current-user.decorator';
@@ -27,10 +25,7 @@ import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pip
 import { PosSessionsService } from '../application/services/pos-sessions.service';
 import { PosSalesService } from '../application/services/pos-sales.service';
 import { moneyFromDto, moneyToDto } from './money.mapper';
-import { orderWithLinesToDto } from './sales-orders.controller';
-import { deliveryWithLinesToDto } from './deliveries.controller';
-import { invoiceWithLinesToDto } from './sales-invoices.controller';
-import { paymentWithAllocationsToDto } from './payments-received.controller';
+import { checkoutInputFromDto, checkoutResultToDto } from './pos-checkout.mapper';
 import { PlanFeatureGuard } from '../../../shared/auth/plan-feature.guard';
 import { RequireFeature } from '../../../shared/auth/require-feature.decorator';
 import { FEATURE_KEYS } from '../../../shared/plans/feature-catalog';
@@ -42,16 +37,6 @@ function toDto(session: PosSession): PosSessionDto {
     expectedCashAmount: session.expectedCashAmount ? moneyToDto(session.expectedCashAmount) : null,
     countedCashAmount: session.countedCashAmount ? moneyToDto(session.countedCashAmount) : null,
     varianceAmount: session.varianceAmount ? moneyToDto(session.varianceAmount) : null,
-  });
-}
-
-function checkoutResultToDto(result: PosCheckoutResult): PosCheckoutResultDto {
-  return posCheckoutResultSchema.parse({
-    salesOrder: orderWithLinesToDto(result.salesOrder),
-    delivery: deliveryWithLinesToDto(result.delivery),
-    salesInvoice: invoiceWithLinesToDto(result.salesInvoice),
-    payments: result.payments.map(paymentWithAllocationsToDto),
-    changeAmount: { amountMinorUnits: result.changeAmount.toMinorUnits().toString(), currency: result.changeAmount.currency },
   });
 }
 
@@ -200,31 +185,7 @@ export class PosSessionsController {
     const result = await this.checkoutService.checkout(
       db,
       id,
-      {
-        customerId: body.customerId,
-        lines: body.lines.map((line) => ({
-          productVariantId: line.productVariantId,
-          unitOfMeasureId: line.unitOfMeasureId ?? null,
-          quantity: line.quantity,
-          unitPrice: moneyFromDto(line.unitPrice),
-          discountType: line.discountType,
-          discountPercentage: line.discountPercentage,
-          discountFixedAmount: line.discountFixedAmount ? moneyFromDto(line.discountFixedAmount) : line.discountFixedAmount,
-          notes: line.notes,
-        })),
-        discountType: body.discountType,
-        discountPercentage: body.discountPercentage,
-        discountFixedAmount: body.discountFixedAmount ? moneyFromDto(body.discountFixedAmount) : body.discountFixedAmount,
-        tenders: body.tenders.map((tender) => ({
-          paymentMethod: tender.paymentMethod,
-          amount: moneyFromDto(tender.amount),
-          referenceNumber: tender.referenceNumber,
-          treasuryId: tender.treasuryId ?? null,
-        })),
-        notes: body.notes,
-        checkoutId: body.checkoutId ?? null,
-        approvalPin: body.approvalPin ?? null,
-      },
+      checkoutInputFromDto(body),
       schema,
       user.sub,
       { canSupervise: user.permissions.includes('pos.supervise'), permissions: user.permissions },

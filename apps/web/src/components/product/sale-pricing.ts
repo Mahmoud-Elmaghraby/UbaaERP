@@ -11,8 +11,9 @@ import { findUnit, unitPriceText } from './variant-search';
  *   1. the list's fixed price for this variant, at the highest quantity
  *      break the line reaches;
  *   2. the list's fixed price for the whole product (any variant), same rule;
- *   3. the list's general discount % off the normal price;
- *   4. the normal price.
+ *   3. the % of the product's category (or its nearest parent with a rule);
+ *   4. the list's general % on the normal price (− discount, + markup);
+ *   5. the normal price.
  * Breaks and list prices are in base units; a line in a carton converts
  * through the unit's factor. A list in another currency than the document
  * is ignored. Null = leave the price to the user.
@@ -41,12 +42,14 @@ function indexItems(list: PriceListDto): Map<string, ItemBreak[]> {
   return index;
 }
 
-/** (100 − percent) / 100 as exact decimal text ("12.5" → "0.8750"). */
-function keepFactor(discountPercent: string): string | null {
-  const basis = BigInt(decimalToMinorUnits(discountPercent || '0', 2)); // percent × 100
-  if (basis <= 0n) return null;
-  const keep = 10000n - basis;
-  if (keep < 0n) return '0';
+/** (100 + percent) / 100 as exact decimal text ("-12.5" → "0.8750", "15" → "1.1500"); null = no change. */
+export function adjustFactor(adjustPercent: string | undefined): string | null {
+  const text = (adjustPercent || '0').trim();
+  const negative = text.startsWith('-');
+  const basis = BigInt(decimalToMinorUnits(negative ? text.slice(1) : text, 2)) * (negative ? -1n : 1n); // percent × 100
+  if (basis === 0n) return null;
+  const keep = 10000n + basis;
+  if (keep <= 0n) return '0';
   return `${keep / 10000n}.${(keep % 10000n).toString().padStart(4, '0')}`;
 }
 
@@ -65,7 +68,8 @@ export function buildSalePricer(
   if (!active) return (variant, unitId) => unitPriceText(variant, unitId, priceKind, currency);
 
   const index = indexItems(active);
-  const factor = keepFactor(active.discountPercent);
+  const factor = adjustFactor(active.adjustPercent);
+  const categoryFactors = new Map(Object.entries(active.categoryAdjust ?? {}).map(([id, pct]) => [id, adjustFactor(pct)]));
 
   return (variant, unitId, quantity) => {
     if (!variant) return null;
@@ -77,8 +81,9 @@ export function buildSalePricer(
       if (hit) return minorUnitsToDecimalString(multiplyMinorUnits(hit.priceMinor, String(unitFactor)));
     }
     const normal = unitPriceText(variant, unitId, priceKind, currency);
-    if (normal === null || factor === null) return normal;
-    return minorUnitsToDecimalString(multiplyMinorUnits(decimalToMinorUnits(normal), factor));
+    const applied = variant.categoryId && categoryFactors.has(variant.categoryId) ? categoryFactors.get(variant.categoryId)! : factor;
+    if (normal === null || applied === null) return normal;
+    return minorUnitsToDecimalString(multiplyMinorUnits(decimalToMinorUnits(normal), applied));
   };
 }
 

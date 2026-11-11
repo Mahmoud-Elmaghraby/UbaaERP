@@ -43,7 +43,7 @@ export function PriceListsPage({ kind = 'sale' }: { kind?: PriceListKindDto }) {
             <TableRow>
               <TableHead>{t('priceLists.name')}</TableHead>
               <TableHead>{t('priceLists.currency')}</TableHead>
-              <TableHead>{t('priceLists.discountPercent')}</TableHead>
+              <TableHead>{t('priceLists.adjust.label')}</TableHead>
               <TableHead>{t('priceLists.itemCount')}</TableHead>
               <TableHead>{t(purchase ? 'priceLists.supplierCount' : 'priceLists.customerCount')}</TableHead>
               <TableHead className="w-24" />
@@ -58,7 +58,7 @@ export function PriceListsPage({ kind = 'sale' }: { kind?: PriceListKindDto }) {
                 <TableCell dir="ltr" className="text-end">
                   {list.currency}
                 </TableCell>
-                <TableCell className="tabular">{Number(list.discountPercent) > 0 ? `${list.discountPercent}%` : '—'}</TableCell>
+                <TableCell className="tabular">{Number(list.adjustPercent) ? `${Number(list.adjustPercent) > 0 ? '+' : ''}${list.adjustPercent}%` : '—'}</TableCell>
                 <TableCell className="tabular">{list.itemCount}</TableCell>
                 <TableCell className="tabular">{purchase ? list.supplierCount : list.customerCount}</TableCell>
                 <TableCell className="text-end">

@@ -112,4 +112,68 @@ describe('POS operations (e2e)', () => {
     const closed = await request(server).post(`/pos-sessions/${sessionId}/close`).set(...auth).send({ countedCashAmount: egp(17000) }).expect(201);
     expect(closed.body.varianceAmount.amountMinorUnits).toBe('0');
   }, 120_000);
+
+  it('exchange: a size swapped for a dearer one, paid the difference; then for a cheaper one, the rest back in cash', async () => {
+    const server = app.getHttpServer();
+    const auth = authHeader(owner);
+    const s = Date.now().toString().slice(-6);
+    const warehouse = await request(server).post('/warehouses').set(...auth).send({ code: `EX-${s}`, name: `مخزن الاستبدال ${s}` }).expect(201);
+    const product = await request(server)
+      .post('/products')
+      .set(...auth)
+      .send({ code: `EX-${s}`, name: 'قميص', variantOptions: { 'المقاس': ['M', 'L', 'XL'] } })
+      .expect(201);
+    const [m, l, xl] = (product.body.variants as { id: string }[]).map((v) => v.id);
+    await request(server)
+      .post('/stock-adjustments')
+      .set(...auth)
+      .send({ warehouseId: warehouse.body.id, post: true, lines: [m, l, xl].map((id) => ({ productVariantId: id, direction: 'increase', quantity: 5, unitCost: egp(10000) })) })
+      .expect(201);
+    const current = await request(server).get('/pos-sessions/current').set(...auth).expect(200);
+    if (current.body?.id) {
+      await request(server).post(`/pos-sessions/${current.body.id}/close`).set(...auth).send({ countedCashAmount: egp(0) }).expect(201);
+    }
+    const session = await request(server).post('/pos-sessions').set(...auth).send({ openingCashAmount: egp(10000), warehouseId: warehouse.body.id }).expect(201);
+    const sessionId = session.body.id as string;
+
+    // Sold an M for 200.00 cash.
+    const sale = await request(server)
+      .post(`/pos-sessions/${sessionId}/checkout`)
+      .set(...auth)
+      .send({ checkoutId: randomUUID(), lines: [{ productVariantId: m, quantity: 1, unitPrice: egp(20000) }], tenders: [{ paymentMethod: 'cash', amount: egp(20000) }] })
+      .expect(201);
+    const lookup = await request(server).get('/pos/sales/lookup').query({ number: sale.body.salesInvoice.invoiceNumber }).set(...auth).expect(200);
+
+    // M (200) back for an L at 250: the customer pays 50.
+    const up = await request(server)
+      .post(`/pos/sessions/${sessionId}/exchange`)
+      .set(...auth)
+      .send({
+        return: { deliveryId: lookup.body.deliveryId, lines: [{ deliveryLineId: lookup.body.lines[0].deliveryLineId, quantity: 1 }] },
+        sale: { checkoutId: randomUUID(), lines: [{ productVariantId: l, quantity: 1, unitPrice: egp(25000) }], tenders: [{ paymentMethod: 'cash', amount: egp(5000) }] },
+      })
+      .expect(201);
+    expect(up.body.creditAmount.amountMinorUnits).toBe('20000');
+    expect(up.body.balance.amountMinorUnits).toBe('5000');
+    expect(up.body.sale.changeAmount.amountMinorUnits).toBe('0');
+
+    // L (250) back for an XL at 180: 70 goes back to the customer, nothing tendered.
+    const lookup2 = await request(server).get('/pos/sales/lookup').query({ number: up.body.sale.salesInvoice.invoiceNumber }).set(...auth).expect(200);
+    const down = await request(server)
+      .post(`/pos/sessions/${sessionId}/exchange`)
+      .set(...auth)
+      .send({
+        return: { deliveryId: lookup2.body.deliveryId, lines: [{ deliveryLineId: lookup2.body.lines[0].deliveryLineId, quantity: 1 }] },
+        sale: { checkoutId: randomUUID(), lines: [{ productVariantId: xl, quantity: 1, unitPrice: egp(18000) }], tenders: [] },
+      })
+      .expect(201);
+    expect(down.body.balance.amountMinorUnits).toBe('-7000');
+    expect(down.body.sale.changeAmount.amountMinorUnits).toBe('7000');
+
+    // Drawer: 100 opening + 200 sale + 50 − 70 = 280.00, and the stock followed every swap.
+    const report = await request(server).get(`/pos-sessions/${sessionId}/report`).set(...auth).expect(200);
+    expect(report.body.expectedCashAmount.amountMinorUnits).toBe('28000');
+    await request(server).post(`/pos-sessions/${sessionId}/close`).set(...auth).send({ countedCashAmount: egp(28000) }).expect(201);
+  }, 120_000);
 });
+

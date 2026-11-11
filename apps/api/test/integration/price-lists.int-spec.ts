@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import type { Kysely } from 'kysely';
 import type { TenantDatabase } from '../../src/database/tenant/kysely-client';
 import { PriceListsService } from '../../src/modules/sales/application/services/price-lists.service';
@@ -29,7 +30,7 @@ describe('Price lists by kind (integration, real Postgres)', () => {
     const name = `Wholesale ${uniqueSuffix()}`;
     const sale = await lists.save(db, null, { name, currency: 'EGP', items: [] }, 'sale');
     // The same name is fine in the other kind.
-    const purchase = await lists.save(db, null, { name, currency: 'EGP', discountPercent: '5', items: [] }, 'purchase');
+    const purchase = await lists.save(db, null, { name, currency: 'EGP', adjustPercent: '-5', items: [] }, 'purchase');
     expect(purchase.kind).toBe('purchase');
     await expect(lists.save(db, null, { name, currency: 'EGP', items: [] }, 'purchase')).rejects.toThrow();
 
@@ -49,5 +50,36 @@ describe('Price lists by kind (integration, real Postgres)', () => {
     await suppliers.update(db, supplier.id, { priceListId: null });
     await lists.delete(db, purchase.id, 'purchase');
     await lists.delete(db, sale.id, 'sale');
+  });
+
+  it('keeps a signed adjustment and category rules that reach sub-categories (migration 0122)', async () => {
+    const parent = randomUUID();
+    const child = randomUUID();
+    const other = randomUUID();
+    const suffix = uniqueSuffix();
+    await db
+      .insertInto('product_categories')
+      .values([
+        { id: parent, name: `Clothes ${suffix}`, parent_id: null },
+        { id: child, name: `Shirts ${suffix}`, parent_id: parent },
+        { id: other, name: `Shoes ${suffix}`, parent_id: null },
+      ])
+      .execute();
+    const saved = await lists.save(db, null, {
+      name: `Jumia ${suffix}`,
+      currency: 'EGP',
+      adjustPercent: '15',
+      items: [],
+      categoryRules: [{ categoryId: parent, adjustPercent: '-20' }],
+    });
+    expect(saved.adjustPercent).toBe('15');
+    expect(saved.categoryRules).toEqual([{ categoryId: parent, adjustPercent: '-20' }]);
+    expect(saved.categoryAdjust[parent]).toBe('-20');
+    expect(saved.categoryAdjust[child]).toBe('-20');
+    expect(saved.categoryAdjust[other]).toBeUndefined();
+    await expect(
+      lists.save(db, saved.id, { name: saved.name, currency: 'EGP', items: [], categoryRules: [{ categoryId: other, adjustPercent: '5' }, { categoryId: other, adjustPercent: '6' }] }),
+    ).rejects.toMatchObject({ code: 'PRICE_LIST.DUPLICATE_CATEGORY' });
+    await lists.delete(db, saved.id, 'sale');
   });
 });

@@ -44,8 +44,15 @@ export class PriceListsService {
       .orderBy('product_variant_id')
       .orderBy('min_quantity')
       .execute();
+    const rules = await db
+      .selectFrom('price_list_category_rules')
+      .select(['category_id', 'adjust_percent'])
+      .where('price_list_id', '=', id)
+      .execute();
     return {
       ...toSummary(row),
+      categoryRules: rules.map((rule) => ({ categoryId: rule.category_id, adjustPercent: trimDecimal(rule.adjust_percent) })),
+      categoryAdjust: await this.expandCategoryRules(db, rules),
       items: items.map((item) => ({
         id: item.id,
         productId: item.product_id,
@@ -69,13 +76,17 @@ export class PriceListsService {
       price: item.priceAmountMinorUnits,
     }));
     this.assertNoDuplicateItems(items);
+    const rules = input.categoryRules ?? [];
+    if (new Set(rules.map((r) => r.categoryId)).size !== rules.length) {
+      throw new BusinessRuleError('The same category appears twice in the list.', { code: 'PRICE_LIST.DUPLICATE_CATEGORY' });
+    }
     await this.assertVariantsBelongToProducts(db, items);
 
     const listId = id ?? randomUUID();
     const header = {
       name: input.name,
       currency: input.currency,
-      discount_percent: input.discountPercent ?? '0',
+      adjust_percent: input.adjustPercent ?? '0',
       is_active: input.isActive ?? true,
       notes: input.notes ?? null,
     };
@@ -90,8 +101,15 @@ export class PriceListsService {
             .executeTakeFirst();
           if (!updated.numUpdatedRows) throw entityNotFound('PRICE_LIST', id);
           await trx.deleteFrom('price_list_items').where('price_list_id', '=', id).execute();
+          await trx.deleteFrom('price_list_category_rules').where('price_list_id', '=', id).execute();
         } else {
           await trx.insertInto('price_lists').values({ id: listId, kind, ...header }).execute();
+        }
+        if (rules.length) {
+          await trx
+            .insertInto('price_list_category_rules')
+            .values(rules.map((r) => ({ id: randomUUID(), price_list_id: listId, category_id: r.categoryId, adjust_percent: r.adjustPercent })))
+            .execute();
         }
         // Chunked: a big catalogue can have thousands of rows.
         for (let start = 0; start < items.length; start += 1000) {
@@ -130,6 +148,31 @@ export class PriceListsService {
       }
       throw err;
     }
+  }
+
+  /** Each category under a rule → the % of its nearest ruled ancestor (itself included). */
+  private async expandCategoryRules(
+    db: Kysely<TenantDatabase>,
+    rules: { category_id: string; adjust_percent: string }[],
+  ): Promise<Record<string, string>> {
+    if (rules.length === 0) return {};
+    const categories = await db.selectFrom('product_categories').select(['id', 'parent_id']).execute();
+    const parent = new Map(categories.map((c) => [c.id, c.parent_id]));
+    const own = new Map(rules.map((r) => [r.category_id, trimDecimal(r.adjust_percent)]));
+    const out: Record<string, string> = {};
+    for (const { id } of categories) {
+      // Walk up (bounded, in case of a bad cycle) until a ruled category is found.
+      let at: string | null | undefined = id;
+      for (let depth = 0; at && depth < 50; depth += 1) {
+        const hit = own.get(at);
+        if (hit !== undefined) {
+          out[id] = hit;
+          break;
+        }
+        at = parent.get(at);
+      }
+    }
+    return out;
   }
 
   private assertNoDuplicateItems(items: { productId: string; productVariantId: string | null; minQuantity: string }[]) {
@@ -176,7 +219,8 @@ export class PriceListsService {
 
 function trimDecimal(value: string | number): string {
   const text = String(value);
-  return text.includes('.') ? text.replace(/\.?0+$/, '') : text;
+  const trimmed = text.includes('.') ? text.replace(/\.?0+$/, '') : text;
+  return trimmed === '-0' ? '0' : trimmed;
 }
 
 function toSummary(row: {
@@ -184,7 +228,7 @@ function toSummary(row: {
   kind: PriceListKindDto;
   name: string;
   currency: string;
-  discount_percent: string;
+  adjust_percent: string;
   is_active: boolean;
   notes: string | null;
   item_count: number;
@@ -196,7 +240,7 @@ function toSummary(row: {
     kind: row.kind,
     name: row.name,
     currency: row.currency,
-    discountPercent: trimDecimal(row.discount_percent),
+    adjustPercent: trimDecimal(row.adjust_percent),
     isActive: row.is_active,
     notes: row.notes,
     itemCount: Number(row.item_count),

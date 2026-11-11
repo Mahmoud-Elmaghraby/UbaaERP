@@ -45,7 +45,7 @@ import {
 } from '@erp-platform/ui';
 
 import { useCustomers } from '../../api/customers/queries';
-import { useHoldPosCart, usePosCheckout, usePosHeldCarts } from '../../api/pos/queries';
+import { useHoldPosCart, usePosCheckout, usePosExchange, usePosHeldCarts } from '../../api/pos/queries';
 import { useVariantLookup, useVariantLookupMap } from '../../../inventory/api/products/queries';
 import { useDocumentPriceList } from '../../api/price-lists/use-document-price-list';
 import { PriceListSelect } from '../price-lists/price-list-select';
@@ -71,7 +71,7 @@ import { minorToInput, quickCashAmounts } from './pos-quick-cash';
 import { isApprovalCancelled, useSupervisorApproval } from './use-supervisor-approval';
 import { PosHeldCartsDialog } from './pos-held-carts-dialog';
 import { PosReceiptsDialog } from './pos-receipts-dialog';
-import { PosReturnDialog } from './pos-return-dialog';
+import { PosReturnDialog, type PosExchangeDraft } from './pos-return-dialog';
 import { PosDrawerDialog } from './pos-drawer-dialog';
 import { SALES } from '../../../../lib/permissions';
 import { useAppSetting } from '../../../../lib/app-settings';
@@ -145,6 +145,9 @@ export function PosCartPanel({ session }: { session: PosSessionDto }) {
   const { data: catalogue } = useVariantLookup();
   const { data: inventorySettings } = useInventorySettings();
   const checkout = usePosCheckout();
+  const exchangeSale = usePosExchange();
+  // استبدال in progress: the returned items pay for this cart (sent as one exchange).
+  const [exchange, setExchange] = useState<PosExchangeDraft | null>(null);
   const holdCart = useHoldPosCart(session.id);
   const { data: heldCarts } = usePosHeldCarts(session.id);
   const approval = useSupervisorApproval();
@@ -313,9 +316,12 @@ export function PosCartPanel({ session }: { session: PosSessionDto }) {
       : 0n;
   const cartTotalPreview = unroundedTotalPreview - Number(roundingMinor) / 100;
   const tenderedPreview = tenders.reduce((sum, tender) => sum + (Number(tender.amount) || 0), 0);
-  const remainingPreview = cartTotalPreview - tenderedPreview;
+  const exchangeCredit = exchange ? Number(exchange.creditMinorUnits) / 100 : 0;
+  /** What the customer still owes after an exchange's credit (negative = they get money back). */
+  const duePreview = cartTotalPreview - exchangeCredit;
+  const remainingPreview = duePreview - tenderedPreview;
   const itemsCount = lines.reduce((sum, line) => sum + (Number(line.quantity) || 0), 0);
-  const quickCash = quickCashAmounts(BigInt(Math.max(0, Math.round(cartTotalPreview * 100))));
+  const quickCash = quickCashAmounts(BigInt(Math.max(0, Math.round(duePreview * 100))));
 
   /** Quick cash: the amount goes on the cash tender (the only one, or the first cash one). */
   function applyQuickCash(amountMinor: bigint) {
@@ -333,6 +339,7 @@ export function PosCartPanel({ session }: { session: PosSessionDto }) {
 
   function resetCart() {
     setLines([]);
+    setExchange(null);
     setCustomerId(WALK_IN_SENTINEL);
     setHeaderDiscount(createEmptyDiscountDraft());
     setTenders([createEmptyTender(session.treasuryId)]);
@@ -451,7 +458,8 @@ export function PosCartPanel({ session }: { session: PosSessionDto }) {
           }
         : typedHeaderDiscount;
 
-    const freeSale = cartTotalPreview <= 0;
+    // Nothing to collect: a free sale, or an exchange whose credit covers the new items.
+    const freeSale = duePreview <= 0.004;
     if (tenders.length === 0 && !freeSale) {
       setError(t('pos.tenders.emptyError'));
       return;
@@ -487,10 +495,16 @@ export function PosCartPanel({ session }: { session: PosSessionDto }) {
     };
 
     try {
-      // A discount above the cashier's limit → supervisor PIN, same checkoutId.
-      const result = await approval.run((approvalPin) =>
-        checkout.mutateAsync({ posSessionId: session.id, input: { ...payload, approvalPin: approvalPin ?? null } }),
-      );
+      // A discount above the cashier's limit (or the exchange's return) → supervisor PIN, same checkoutId.
+      const result = await approval.run(async (approvalPin) => {
+        const input = { ...payload, approvalPin: approvalPin ?? null };
+        if (!exchange) return checkout.mutateAsync({ posSessionId: session.id, input });
+        const done = await exchangeSale.mutateAsync({
+          sessionId: session.id,
+          input: { return: { deliveryId: exchange.deliveryId, lines: exchange.lines, notes: exchange.notes }, sale: input },
+        });
+        return done.sale;
+      });
       setLastResult(result);
       toast.success(t('pos.checkout.success'));
       if (getSetting('pos.autoPrintReceipt')) openPrint('sales_invoice', result.salesInvoice.id, { paper: 'thermal80', autoprint: true });
@@ -802,6 +816,17 @@ export function PosCartPanel({ session }: { session: PosSessionDto }) {
                   <Amount value={previewMinor(-discountPreview)} hideCurrency />
                 </div>
               ) : null}
+              {exchange ? (
+                <div className="flex items-center justify-between text-success">
+                  <span className="flex items-center gap-1">
+                    {t('pos.exchange.credit', { number: exchange.saleNumber })}
+                    <Button variant="ghost" size="icon-sm" onClick={() => setExchange(null)} aria-label={t('pos.exchange.cancel')}>
+                      <X />
+                    </Button>
+                  </span>
+                  <Amount value={`-${exchange.creditMinorUnits}`} hideCurrency />
+                </div>
+              ) : null}
               {roundingMinor > 0n ? (
                 <div className="flex justify-between text-muted-foreground">
                   <span>{t('pos.cart.cashRounding')}</span>
@@ -809,8 +834,10 @@ export function PosCartPanel({ session }: { session: PosSessionDto }) {
                 </div>
               ) : null}
               <div className="mt-1 flex items-baseline justify-between border-t pt-2">
-                <span className="text-base font-semibold">{t('sales.salesOrders.totalAmount')}</span>
-                <Amount value={previewMinor(cartTotalPreview)} currency={currency} className="text-4xl font-bold text-primary" />
+                <span className="text-base font-semibold">
+                  {exchange ? t(duePreview < 0 ? 'pos.exchange.giveBack' : 'pos.exchange.due') : t('sales.salesOrders.totalAmount')}
+                </span>
+                <Amount value={previewMinor(exchange ? Math.abs(duePreview) : cartTotalPreview)} currency={currency} className="text-4xl font-bold text-primary" />
               </div>
             </div>
 
@@ -980,7 +1007,7 @@ export function PosCartPanel({ session }: { session: PosSessionDto }) {
             <Button
               size="lg"
               onClick={() => void onCheckout()}
-              disabled={checkout.isPending || lines.length === 0}
+              disabled={checkout.isPending || exchangeSale.isPending || lines.length === 0}
               className="h-16 text-lg font-bold"
             >
               {t('pos.checkout.submit')}
@@ -1013,6 +1040,11 @@ export function PosCartPanel({ session }: { session: PosSessionDto }) {
         session={session}
         open={returnState.open}
         initialNumber={returnState.number}
+        onExchange={(draft) => {
+          setExchange(draft);
+          toast.success(t('pos.exchange.started'));
+          focusSearch();
+        }}
         onOpenChange={dialogSetter((open) => setReturnState((prev) => ({ ...prev, open })))}
       />
       <PosDrawerDialog session={session} open={drawerOpen} onOpenChange={dialogSetter(setDrawerOpen)} />

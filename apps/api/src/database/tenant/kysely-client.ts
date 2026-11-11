@@ -653,6 +653,17 @@ export interface PriceListsTable {
   updated_at: Generated<Date>;
   /** Migration 0115 — 'sale' (customers, sales documents) or 'purchase' (suppliers, purchase documents). */
   kind: Generated<'sale' | 'purchase'>;
+  /** Migration 0122 — signed % on the normal price (− discount, + markup); replaces discount_percent. */
+  adjust_percent: Generated<string>;
+}
+
+/** Migration 0122 — a % per category inside a price list. */
+export interface PriceListCategoryRulesTable {
+  id: string;
+  price_list_id: string;
+  category_id: string;
+  /** NUMERIC(6,2), signed. */
+  adjust_percent: string;
 }
 
 export interface PriceListItemsTable {
@@ -1387,6 +1398,7 @@ export interface TenantDatabase {
   customer_refunds: CustomerRefundsTable;
   pos_held_carts: PosHeldCartsTable;
   pos_approvals: PosApprovalsTable;
+  price_list_category_rules: PriceListCategoryRulesTable;
   price_lists: PriceListsTable;
   price_list_items: PriceListItemsTable;
   channel_settlements: ChannelSettlementsTable;

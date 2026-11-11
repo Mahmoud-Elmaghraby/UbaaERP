@@ -123,3 +123,53 @@ describe('cost attribution helpers', () => {
     expect(costOfQuantity(3, [], 0n)).toBe(0n);
   });
 });
+
+describe('aggregateSalesAnalysis — clothing groupings', () => {
+  const fact = (over: Partial<SalesFact>): SalesFact => ({
+    kind: 'invoice',
+    documentId: 'i1',
+    date: '2026-11-01',
+    customerId: 'c',
+    customerName: 'C',
+    salesRepId: null,
+    salesRepName: null,
+    productVariantId: 'v1',
+    productName: 'قميص',
+    sku: 'S-1',
+    productId: 'p1',
+    productCode: 'P1',
+    categoryId: 'cat',
+    categoryName: 'قمصان',
+    attributes: { المقاس: 'M', اللون: 'أزرق' },
+    cashierId: null,
+    cashierName: null,
+    channelId: null,
+    channelName: null,
+    quantity: 1,
+    netMinor: 1000n,
+    costMinor: 600n,
+    ...over,
+  });
+  const facts = [
+    fact({}),
+    fact({ documentId: 'i2', productVariantId: 'v2', attributes: { المقاس: 'L', اللون: 'أزرق' }, channelId: 'jumia', channelName: 'جوميا' }),
+    fact({ documentId: 'i3', productVariantId: 'v3', attributes: { المقاس: 'M', اللون: 'أحمر' }, quantity: 2, netMinor: 2000n, costMinor: 1200n }),
+  ];
+
+  it('sums the sizes of one product, and sales per size with quantities', () => {
+    const byProduct = aggregateSalesAnalysis(facts, 'product');
+    expect(byProduct.rows).toHaveLength(1);
+    expect(byProduct.rows[0]).toMatchObject({ key: 'p1', quantity: 4, secondaryLabel: 'P1' });
+    const bySize = aggregateSalesAnalysis(facts, 'option', 'المقاس');
+    expect(bySize.rows.map((r) => [r.key, r.quantity])).toEqual([
+      ['M', 3],
+      ['L', 1],
+    ]);
+  });
+
+  it('groups by channel (direct sales under no channel) and by category', () => {
+    const byChannel = aggregateSalesAnalysis(facts, 'channel');
+    expect(byChannel.rows.map((r) => r.key).sort()).toEqual([null, 'jumia'].sort());
+    expect(aggregateSalesAnalysis(facts, 'category').rows[0]).toMatchObject({ key: 'cat', label: 'قمصان', quantity: 4 });
+  });
+});
