@@ -23,6 +23,7 @@ import { purchasesRoutes } from '../features/purchases/routes';
 import { salesRoutes } from '../features/sales/routes';
 import { accountingRoutes } from '../features/accounting/routes';
 import { treasuryRoutes } from '../features/treasury/routes';
+import { hrRoutes } from '../features/hr/routes';
 
 export const router = createBrowserRouter([
   { path: '/login', element: <LoginPage />, errorElement: <RouteErrorPage /> },
@@ -63,6 +64,7 @@ export const router = createBrowserRouter([
           ...salesRoutes,
           ...accountingRoutes,
           ...treasuryRoutes,
+          ...hrRoutes,
           { path: 'users', element: <UsersPage /> },
           { path: 'users/new', element: <UserEditorPage /> },
           { path: 'users/:id', element: <UserPage /> },

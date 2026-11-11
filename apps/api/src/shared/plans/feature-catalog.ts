@@ -79,6 +79,11 @@ export const FEATURE_KEYS = {
   FIXED_ASSETS: 'fixed_assets',
   /** Budgets vs actuals (inside Accounting). */
   BUDGETS: 'budgets',
+  /**
+   * HR & payroll (2026-11-11): a whole module, sold on its own — so it IS a plan key (not in
+   * PLAN_EXEMPT_FEATURE_KEYS). Migration 0123 starts it switched off for every tenant.
+   */
+  HR: 'hr',
 } as const;
 
 export type FeatureKey = (typeof FEATURE_KEYS)[keyof typeof FEATURE_KEYS];

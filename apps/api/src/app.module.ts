@@ -23,6 +23,7 @@ import { SalesModule } from './modules/sales/sales.module';
 import { AccountingModule } from './modules/accounting/accounting.module';
 import { AttachmentsModule } from './modules/attachments/attachments.module';
 import { TreasuryModule } from './modules/treasury/treasury.module';
+import { HrModule } from './modules/hr/hr.module';
 
 /**
  * Root application module for the ERP API.
@@ -77,6 +78,7 @@ import { TreasuryModule } from './modules/treasury/treasury.module';
     SalesModule,
     AccountingModule,
     TreasuryModule,
+    HrModule,
     AttachmentsModule,
   ],
   controllers: [HealthController],

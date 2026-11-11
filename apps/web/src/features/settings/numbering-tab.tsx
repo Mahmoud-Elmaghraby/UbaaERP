@@ -58,7 +58,7 @@ const TENANT_WIDE = '__tenant_wide__';
 
 /** Document types by module, in the order the screen lists them (the API creates every one). */
 const NUMBERING_GROUPS: { group: string; types: string[] }[] = [
-  { group: 'master', types: ['product', 'customer', 'supplier'] },
+  { group: 'master', types: ['product', 'customer', 'supplier', 'employee'] },
   { group: 'sales', types: ['quotation', 'sales_order', 'delivery', 'sales_invoice', 'sales_return', 'sales_credit_note', 'payment_received'] },
   {
     group: 'purchases',

@@ -81,6 +81,9 @@ export const ENTITY_LABELS = {
   BANK_STATEMENT_LINE: 'Bank statement line',
   CUSTOMER_REFUND: 'Customer refund',
   POS_HELD_CART: 'Parked sale',
+  EMPLOYEE: 'Employee',
+  HR_DEPARTMENT: 'Department',
+  HR_JOB_TITLE: 'Job title',
 } as const;
 
 export type EntityKey = keyof typeof ENTITY_LABELS;

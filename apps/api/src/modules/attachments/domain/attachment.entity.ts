@@ -26,6 +26,7 @@ export const ATTACHMENT_ENTITY_TYPES = [
   'supplier',
   'customer',
   'journal_entry',
+  'employee',
 ] as const;
 
 export type AttachmentEntityType = (typeof ATTACHMENT_ENTITY_TYPES)[number];
@@ -53,6 +54,7 @@ export const ATTACHMENT_ENTITY_PERMISSIONS: Record<AttachmentEntityType, string>
   supplier: 'purchases.create',
   product: 'inventory.products.manage',
   journal_entry: 'accounting.manage',
+  employee: 'hr.employees.manage',
 };
 
 /** 10 MB — the user's confirmed limit (claude/attachments-strategy.md). */

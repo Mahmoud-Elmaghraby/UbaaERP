@@ -1,9 +1,10 @@
 import type { LucideIcon } from 'lucide-react';
 
-import { ANY_INVENTORY_PERMISSION, ANY_PURCHASES_PERMISSION, ANY_SALES_PERMISSION, INV, PURCH, SALES } from '../../lib/permissions';
+import { ANY_HR_PERMISSION, ANY_INVENTORY_PERMISSION, ANY_PURCHASES_PERMISSION, ANY_SALES_PERMISSION, INV, PURCH, SALES } from '../../lib/permissions';
 import {
   Calculator,
   History,
+  IdCard,
   LayoutDashboard,
   MonitorSmartphone,
   Package,
@@ -188,6 +189,24 @@ export const NAV_GROUPS: NavGroup[] = [
           { to: '/accounting/cost-centers', labelKey: 'accounting.tabs.costCenters' },
           { to: '/accounting/fiscal-years', labelKey: 'accounting.tabs.fiscalYears' },
           { to: '/accounting/settings', labelKey: 'accounting.tabs.settings' },
+        ],
+      },
+    ],
+  },
+  {
+    key: 'people',
+    labelKey: 'nav.groups.people',
+    items: [
+      {
+        to: '/hr',
+        labelKey: 'nav.hr',
+        icon: IdCard,
+        permission: ANY_HR_PERMISSION,
+        feature: 'hr',
+        children: [
+          { to: '/hr/employees', labelKey: 'hr.employees.title' },
+          { to: '/hr/departments', labelKey: 'hr.departments.title' },
+          { to: '/hr/job-titles', labelKey: 'hr.jobTitles.title' },
         ],
       },
     ],

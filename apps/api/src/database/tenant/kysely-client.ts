@@ -612,6 +612,59 @@ export interface SalesInvoicesTable {
 }
 
 /** Migration 0110 — sales representatives. */
+/** HR (migration 0123). */
+export interface HrDepartmentsTable {
+  id: string;
+  name: string;
+  parent_id: string | null;
+  manager_id: string | null;
+  is_active: Generated<boolean>;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
+export interface HrJobTitlesTable {
+  id: string;
+  name: string;
+  description: string | null;
+  is_active: Generated<boolean>;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
+export interface EmployeesTable {
+  id: string;
+  code: string;
+  full_name: string;
+  national_id: string | null;
+  /** DATE columns come back as 'YYYY-MM-DD' strings (pg type parser, see createTenantKyselyClient). */
+  national_id_expiry: string | null;
+  gender: string | null;
+  birth_date: string | null;
+  phone: string | null;
+  email: string | null;
+  address: string | null;
+  emergency_contact_name: string | null;
+  emergency_contact_phone: string | null;
+  branch_id: string | null;
+  department_id: string | null;
+  job_title_id: string | null;
+  manager_id: string | null;
+  user_id: string | null;
+  hire_date: string;
+  employment_type: Generated<string>;
+  status: Generated<string>;
+  termination_date: string | null;
+  termination_reason: string | null;
+  payment_method: Generated<string>;
+  bank_name: string | null;
+  bank_account: string | null;
+  notes: string | null;
+  custom_fields: Generated<unknown>;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
 export interface SalesRepsTable {
   id: string;
   code: string;
@@ -1395,6 +1448,9 @@ export interface TenantDatabase {
   purchase_returns: PurchaseReturnsTable;
   sales_channels: SalesChannelsTable;
   sales_reps: SalesRepsTable;
+  hr_departments: HrDepartmentsTable;
+  hr_job_titles: HrJobTitlesTable;
+  employees: EmployeesTable;
   customer_refunds: CustomerRefundsTable;
   pos_held_carts: PosHeldCartsTable;
   pos_approvals: PosApprovalsTable;

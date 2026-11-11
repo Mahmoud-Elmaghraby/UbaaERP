@@ -39,6 +39,14 @@ export const PURCH = {
   settingsManage: 'purchases.settings.manage',
 } as const;
 
+/** HR keys (migration 0123). Mirrors apps/api/src/shared/auth/hr-permissions.ts. */
+export const HR = {
+  employeesView: 'hr.employees.view',
+  employeesManage: 'hr.employees.manage',
+} as const;
+
+export const ANY_HR_PERMISSION: string[] = Object.values(HR);
+
 /** Any document action at all — the header area that holds the individual buttons. */
 export const SALES_WRITE: string[] = [SALES.create, SALES.post, SALES.cancel];
 export const PURCH_WRITE: string[] = [PURCH.create, PURCH.post, PURCH.cancel];

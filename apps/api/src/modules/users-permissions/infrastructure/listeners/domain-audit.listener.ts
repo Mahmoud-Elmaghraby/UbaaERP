@@ -34,7 +34,7 @@ export function auditMetadata(metadata: Record<string, unknown> | undefined): Re
 }
 
 /**
- * The audit trail for the business modules (sales, purchases, inventory, accounting, settings), without
+ * The audit trail for the business modules (sales, purchases, inventory, accounting, settings, hr), without
  * Users & Permissions importing their code (CLAUDE.md §2.6: Event Bus only). Every
  * '<module>.<entity>.<action>' event — the plain CRUD ones and the Outbox-dispatched financial
  * ones alike — becomes one audit_logs row: entity_type + entity_id + the plain action ('posted'),
@@ -59,6 +59,7 @@ export class DomainAuditListener {
   @OnEvent('inventory.**')
   @OnEvent('accounting.**')
   @OnEvent('settings.**')
+  @OnEvent('hr.**')
   async handle(payload: unknown): Promise<void> {
     if (!isDomainEvent(payload)) return;
     try {

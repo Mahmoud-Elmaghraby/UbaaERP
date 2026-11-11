@@ -26,7 +26,7 @@ const GROUPS: { key: string; features: string[] }[] = [
       'purchases.goods_receipts',
     ],
   },
-  { key: 'core', features: ['accounting', 'multi_currency'] },
+  { key: 'core', features: ['accounting', 'hr', 'multi_currency'] },
 ];
 
 /**

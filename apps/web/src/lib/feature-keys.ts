@@ -22,4 +22,6 @@ export const FEATURE_KEYS = {
   INVENTORY_LANDED_COSTS: 'inventory.landed_costs',
   FIXED_ASSETS: 'fixed_assets',
   BUDGETS: 'budgets',
+  /** HR & payroll — a plan module of its own. */
+  HR: 'hr',
 } as const;
