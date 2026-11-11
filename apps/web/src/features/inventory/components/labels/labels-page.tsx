@@ -25,7 +25,7 @@ import { useVariantLookupMap } from '../../api/products/queries';
 import { ProductVariantPicker } from '../../../../components/product/product-variant-picker';
 import { variantDisplayName } from '../../../../components/product/variant-search';
 import { BarcodeSvg } from '../../../../components/product/barcode-svg';
-import { canEncodeCode128 } from '../../../../lib/barcode';
+import { canEncodeCode128, encodeBarcode } from '../../../../lib/barcode';
 import { formatMoney } from '../../../../lib/money';
 import { toWesternDigits } from '../../../../lib/search-normalize';
 
@@ -47,10 +47,23 @@ export interface LabelsPrefillState {
   labels?: { variantId: string; copies: number }[];
 }
 
-/** The code printed on a label: the barcode, else an ASCII SKU (Code 128), else nothing scannable. */
-function labelCode(variant: ProductVariantLookupDto): string | null {
+/**
+ * The code printed on a label: the barcode, else an ASCII SKU (Code 128), else nothing scannable.
+ * `preferCode`: the item's code (e.g. the factory code) even when it has a barcode.
+ */
+function labelCode(variant: ProductVariantLookupDto, preferCode = false): string | null {
+  if (preferCode && canEncodeCode128(variant.sku)) return variant.sku;
   if (variant.barcode) return variant.barcode;
   return canEncodeCode128(variant.sku) ? variant.sku : null;
+}
+
+/**
+ * Bars thinner than ~0.19 mm (1.5 dots of a 203 dpi thermal printer) print unevenly and many
+ * scanners miss them: a long code on a narrow label. widthMm less the label's side padding.
+ */
+function barsTooThin(code: string, widthMm: number): boolean {
+  const encoded = encodeBarcode(code);
+  return encoded !== null && (widthMm - 1) / (encoded.modules.length + 20) < 0.19;
 }
 
 /**
@@ -69,6 +82,7 @@ export function LabelsPage() {
   const [layout, setLayout] = useState<LayoutKey>('roll38x25');
   const [showPrice, setShowPrice] = useState(true);
   const [showName, setShowName] = useState(true);
+  const [preferCode, setPreferCode] = useState(false);
 
   const labels = useMemo(
     () =>
@@ -119,7 +133,7 @@ export function LabelsPage() {
                 {lines.map((line) => {
                   const variant = variants.get(line.variantId);
                   if (!variant) return null;
-                  const code = labelCode(variant);
+                  const code = labelCode(variant, preferCode);
                   return (
                     <li key={line.variantId} className="flex items-center gap-3 px-3 py-2">
                       <div className="min-w-0 flex-1">
@@ -127,6 +141,9 @@ export function LabelsPage() {
                         <p className="truncate text-xs text-muted-foreground" dir="ltr">
                           {code ?? t('inventory.labels.noCode')}
                         </p>
+                        {code && barsTooThin(code, spec.widthMm) ? (
+                          <p className="text-xs text-warning">{t('inventory.labels.codeTooLong')}</p>
+                        ) : null}
                       </div>
                       <Input
                         className="h-9 w-20 text-end"
@@ -183,6 +200,10 @@ export function LabelsPage() {
               <Checkbox checked={showPrice} onCheckedChange={(checked) => setShowPrice(checked === true)} />
               {t('inventory.labels.showPrice')}
             </label>
+            <label className="flex items-center gap-2 text-sm">
+              <Checkbox checked={preferCode} onCheckedChange={(checked) => setPreferCode(checked === true)} />
+              {t('inventory.labels.preferCode')}
+            </label>
             {labels[0] ? (
               <div className="grid gap-1.5">
                 <span className="text-sm font-medium">{t('inventory.labels.preview')}</span>
@@ -193,6 +214,7 @@ export function LabelsPage() {
                     heightMm={spec.heightMm}
                     showName={showName}
                     showPrice={showPrice}
+                    preferCode={preferCode}
                   />
                 </div>
               </div>
@@ -222,6 +244,7 @@ export function LabelsPage() {
                 heightMm={spec.heightMm}
                 showName={showName}
                 showPrice={showPrice}
+                preferCode={preferCode}
               />
             ))}
           </div>
@@ -238,33 +261,36 @@ function Label({
   heightMm,
   showName,
   showPrice,
+  preferCode,
 }: {
   variant: ProductVariantLookupDto;
   widthMm: number;
   heightMm: number;
   showName: boolean;
   showPrice: boolean;
+  preferCode: boolean;
 }) {
-  const code = labelCode(variant);
+  const code = labelCode(variant, preferCode);
   const options = Object.values(variant.attributeValues ?? {})
     .filter((value) => value !== null && value !== undefined && String(value).trim() !== '')
     .map(String)
     .join(' / ');
   return (
     <div
-      className="label flex flex-col items-center justify-center overflow-hidden bg-white px-[1.5mm] py-[1mm] text-black"
+      className="label flex flex-col items-center justify-center overflow-hidden bg-white px-[0.5mm] py-[1mm] text-black"
       style={{ width: `${widthMm}mm`, height: `${heightMm}mm` }}
     >
       {showName ? (
-        <p className="w-full truncate text-center text-[7.5pt] font-semibold leading-tight">{variant.productName}</p>
+        // Up to two lines, so a long name isn't cut to "بنطلون داخلي ابيض…".
+        <p className="line-clamp-2 w-full shrink-0 break-words text-center text-[7pt] font-semibold leading-[1.15]">{variant.productName}</p>
       ) : null}
       {options ? (
         // Size / colour on its own line, so a shop assistant reads it at a glance.
-        <p className="w-full truncate text-center text-[8.5pt] font-bold leading-tight">{options}</p>
+        <p className="w-full shrink-0 truncate text-center text-[8.5pt] font-bold leading-tight">{options}</p>
       ) : null}
       {code ? <BarcodeSvg value={code} height={36} className="my-[0.5mm] min-h-0 w-full flex-1" /> : null}
       {showPrice && variant.salePrice ? (
-        <p className="text-[9pt] font-bold leading-tight" dir="ltr">
+        <p className="shrink-0 text-[9pt] font-bold leading-tight" dir="ltr">
           {formatMoney(variant.salePrice.amountMinorUnits, variant.salePrice.currency)}
         </p>
       ) : null}

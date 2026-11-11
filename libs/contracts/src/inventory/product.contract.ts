@@ -68,13 +68,18 @@ export const createProductSchema = z.object({
    * one step. Omitted/empty → a simple product with one default variant.
    */
   variantOptions: z.record(z.array(z.string().trim().min(1).max(60)).max(100)).optional(),
-  /** Own prices for some combinations of variantOptions (option name → value); the rest use the product price. */
+  /**
+   * Per-combination details of variantOptions (option name → value): own prices, and the
+   * combination's own code (e.g. the factory code) / barcode. Empty → product price, auto code.
+   */
   variantPrices: z
     .array(
       z.object({
         attributeValues: z.record(z.string()),
         salePrice: nonNegativeMoneySchema.nullable().optional(),
         purchasePrice: nonNegativeMoneySchema.nullable().optional(),
+        sku: z.string().trim().max(100).optional(),
+        barcode: barcodeInputSchema.optional(),
       }),
     )
     .max(500)
@@ -128,6 +133,15 @@ export const productImportRowSchema = z.object({
   isActive: importCell,
   openingQuantity: importCell,
   openingCost: importCell,
+  /**
+   * Variant rows (one row per size / colour…): the option values — option1..3 are named by
+   * the request's optionNames — and the variant's own code (e.g. the factory code). Rows with
+   * the same product code (or name) become one product with several variants.
+   */
+  option1: importCell,
+  option2: importCell,
+  option3: importCell,
+  variantCode: importCell,
 });
 export type ProductImportRowDto = z.infer<typeof productImportRowSchema>;
 
@@ -140,6 +154,8 @@ export const productImportRequestSchema = z.object({
   createMissingBrands: z.boolean().default(true),
   createMissingUnits: z.boolean().default(false),
   openingWarehouseId: z.string().uuid().nullable().optional(),
+  /** Names of option1..3 (e.g. ["المقاس", "اللون"]) — usually the file's column headers. */
+  optionNames: z.array(z.string().trim().max(60)).max(3).optional(),
 });
 export type ProductImportRequestDto = z.input<typeof productImportRequestSchema>;
 

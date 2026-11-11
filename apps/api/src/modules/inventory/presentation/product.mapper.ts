@@ -66,7 +66,7 @@ export function productInputFromDto<T extends CreateProductDto | UpdateProductDt
     ...(others as Omit<T, 'salePrice' | 'purchasePrice' | 'minSalePrice' | 'variantPrices'>),
     ...(minSalePrice !== undefined ? { minSalePrice: minSalePrice ? moneyFromDto(minSalePrice) : null } : {}),
     ...(variantPrices
-      ? { variantPrices: variantPrices.map((p) => ({ attributeValues: p.attributeValues, ...variantPricesFromDto(p) })) }
+      ? { variantPrices: variantPrices.map((p) => ({ attributeValues: p.attributeValues, sku: p.sku, barcode: p.barcode, ...variantPricesFromDto(p) })) }
       : {}),
     ...(salePrice !== undefined ? { salePrice: salePrice ? moneyFromDto(salePrice) : null } : {}),
     ...(purchasePrice !== undefined ? { purchasePrice: purchasePrice ? moneyFromDto(purchasePrice) : null } : {}),

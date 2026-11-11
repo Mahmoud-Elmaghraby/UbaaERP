@@ -1490,15 +1490,18 @@ export function createTenantKyselyClient(
 ): Kysely<TenantDatabase> {
   assertValidSchemaName(schemaName);
 
-  return new Kysely<TenantDatabase>({
-    dialect: new PostgresDialect({
-      pool: new Pool({
-        connectionString,
-        options: `-c search_path="${schemaName}"`,
-        types: TENANT_PG_TYPES,
-      }),
-    }),
+  const pool = new Pool({
+    connectionString,
+    options: `-c search_path="${schemaName}"`,
+    types: TENANT_PG_TYPES,
   });
+  // An idle connection that drops (the database restarted, the PC woke from sleep) is emitted as
+  // 'error' on the pool; with no listener Node treats it as uncaught and the whole API exits.
+  // The pool discards that connection and opens a new one on the next query.
+  pool.on('error', (err) => {
+    console.warn(`[db] idle connection error (${schemaName}): ${err.message}`);
+  });
+  return new Kysely<TenantDatabase>({ dialect: new PostgresDialect({ pool }) });
 }
 
 export interface ChartOfAccountsTable {

@@ -170,4 +170,63 @@ describe('Product import from Excel (integration, real Postgres)', () => {
       .executeTakeFirstOrThrow();
     expect(renamed).toEqual({ name: 'أرز مصري', sale_price_amount: '3000' });
   });
+
+  it('variant rows: one product per code, each size / colour with its own code, price and opening quantity', async () => {
+    const suffix = uniqueSuffix();
+    const code = `CL-${suffix}`;
+    const rows = [
+      { rowNumber: 2, code, name: 'تيشيرت', unit: unitName, salePrice: '200', purchasePrice: '100', option1: 'S', option2: 'أبيض', variantCode: `F${suffix}-S-W`, openingQuantity: '5' },
+      { rowNumber: 3, code, option1: 'M', option2: 'أبيض', variantCode: `F${suffix}-M-W`, openingQuantity: '3' },
+      { rowNumber: 4, code, option1: 'XL', option2: 'أبيض', variantCode: `F${suffix}-XL-W`, salePrice: '220' },
+      { rowNumber: 5, code, option1: 'M', option2: 'أبيض', variantCode: `F${suffix}-DUP` },
+    ];
+    const optionNames = ['المقاس', 'اللون'];
+    const dry = await importer.import(db, rows, { ...options, optionNames, openingWarehouseId: warehouseId }, null);
+    expect(dry.rows.map((row) => row.status)).toEqual(['create', 'create', 'create', 'error']);
+
+    const ok = await importer.import(
+      db,
+      rows.slice(0, 3),
+      { ...options, optionNames, dryRun: false, openingWarehouseId: warehouseId },
+      null,
+    );
+    expect(ok.committed).toBe(true);
+    const product = await db
+      .selectFrom('products')
+      .select(['id', 'track_variants', 'attributes'])
+      .where('code', '=', code)
+      .executeTakeFirstOrThrow();
+    expect(product.track_variants).toBe(true);
+    const variants = await db
+      .selectFrom('product_variants')
+      .select(['id', 'sku', 'attribute_values', 'sale_price_amount'])
+      .where('product_id', '=', product.id)
+      .orderBy('sku')
+      .execute();
+    expect(variants.map((v) => [v.sku, (v.attribute_values as Record<string, string>)['المقاس'], v.sale_price_amount])).toEqual([
+      [`F${suffix}-M-W`, 'M', null],
+      [`F${suffix}-S-W`, 'S', null],
+      [`F${suffix}-XL-W`, 'XL', '22000'],
+    ]);
+    const lines = await db
+      .selectFrom('stock_count_lines')
+      .select(['product_variant_id', 'counted_quantity'])
+      .where('stock_count_id', '=', ok.openingCountId!)
+      .execute();
+    expect(lines).toHaveLength(2);
+
+    // Upsert: an existing size gets a new code, a new colour is added.
+    const upsert = await importer.import(
+      db,
+      [
+        { rowNumber: 2, code, option1: 'S', option2: 'أبيض', variantCode: `F${suffix}-S-W2` },
+        { rowNumber: 3, code, option1: 'S', option2: 'أسود', variantCode: `F${suffix}-S-B` },
+      ],
+      { ...options, optionNames, mode: 'upsert', dryRun: false },
+      null,
+    );
+    expect(upsert.committed).toBe(true);
+    const skus = await db.selectFrom('product_variants').select('sku').where('product_id', '=', product.id).orderBy('sku').execute();
+    expect(skus.map((v) => v.sku)).toEqual([`F${suffix}-M-W`, `F${suffix}-S-B`, `F${suffix}-S-W2`, `F${suffix}-XL-W`]);
+  });
 });

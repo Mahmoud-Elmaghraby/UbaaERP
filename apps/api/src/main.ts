@@ -127,4 +127,14 @@ async function bootstrap() {
   else await app.listen(port);
 }
 
-bootstrap();
+// A promise nobody awaited that fails (a background job, a listener) must not take the server down
+// with it — on the desktop that closed the app's window. Logged with its stack instead.
+process.on('unhandledRejection', (reason) => {
+  console.error('[api] unhandled rejection:', reason instanceof Error ? reason.stack : reason);
+});
+
+bootstrap().catch((err: unknown) => {
+  // Start-up failures still stop the process (the desktop shell reports them).
+  console.error('[api] failed to start:', err instanceof Error ? err.stack : err);
+  process.exit(1);
+});

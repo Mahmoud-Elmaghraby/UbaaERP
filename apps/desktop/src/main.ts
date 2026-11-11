@@ -1,5 +1,5 @@
 import { spawn, type ChildProcess } from 'node:child_process';
-import { createWriteStream, existsSync, mkdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync, type WriteStream } from 'node:fs';
+import { appendFileSync, createWriteStream, existsSync, mkdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync, type WriteStream } from 'node:fs';
 import { get } from 'node:http';
 import { networkInterfaces } from 'node:os';
 import { join } from 'node:path';
@@ -39,6 +39,20 @@ let apiProcess: ChildProcess | null = null;
 let apiLog: WriteStream | null = null;
 let quitting = false;
 const apiCrashTimes: number[] = [];
+
+// ── Crash log ──────────────────────────────────────────────────────────
+/** One line in <data>/logs/desktop.log — what the shell saw when something died (best effort). */
+function logEvent(message: string): void {
+  try {
+    if (data) appendFileSync(join(data.logs, 'desktop.log'), `${new Date().toISOString()} ${message}\n`);
+  } catch {
+    // Logging must never be the thing that crashes the app.
+  }
+}
+
+process.on('uncaughtException', (err) => logEvent(`main uncaught: ${err.stack ?? err.message}`));
+process.on('unhandledRejection', (reason) => logEvent(`main unhandled rejection: ${reason instanceof Error ? reason.stack : String(reason)}`));
+app.on('child-process-gone', (_event, details) => logEvent(`child process gone: ${details.type} ${details.reason} (${details.exitCode})`));
 
 // ── Single instance ─────────────────────────────────────────────────────
 if (!app.requestSingleInstanceLock()) {
@@ -152,12 +166,14 @@ async function startApi(): Promise<void> {
   child.on('exit', (code) => {
     if (apiProcess === child) apiProcess = null;
     apiLog?.write(`\n[desktop] API exited with code ${code}\n`);
+    if (!quitting) logEvent(`API exited with code ${code}`);
     if (quitting || child.killed) return;
     // Unexpected exit: restart, but give up after 5 crashes in 5 minutes.
     const now = Date.now();
     apiCrashTimes.push(now);
     while (apiCrashTimes.length && apiCrashTimes[0]! < now - 5 * 60_000) apiCrashTimes.shift();
     if (apiCrashTimes.length > 5) {
+      logEvent('API keeps crashing — giving up');
       fatal(t.apiKeepsCrashing, new Error(`exit code ${code}`));
       return;
     }
@@ -228,6 +244,12 @@ function createMainWindow(): void {
       void shell.openExternal(url);
     }
   });
+  // The page crashed or ran out of memory: reload it instead of leaving a blank (or vanished) window.
+  mainWindow.webContents.on('render-process-gone', (_event, details) => {
+    logEvent(`window gone: ${details.reason} (${details.exitCode})`);
+    if (!quitting && details.reason !== 'clean-exit') mainWindow?.reload();
+  });
+  mainWindow.webContents.on('unresponsive', () => logEvent('window unresponsive'));
   mainWindow.on('close', (event) => {
     // With network access on, phones/PCs depend on this machine: keep the
     // server running in the tray instead of quitting.

@@ -65,7 +65,14 @@ export interface CreateProductInput extends ProductMasterDataInput {
   /** Options whose every combination becomes a variant, created with the product. */
   variantOptions?: Record<string, string[]>;
   /** Own prices for some combinations (option name → value); the others use the product's price. */
-  variantPrices?: { attributeValues: Record<string, string>; salePrice?: Money | null; purchasePrice?: Money | null }[];
+  variantPrices?: {
+    attributeValues: Record<string, string>;
+    salePrice?: Money | null;
+    purchasePrice?: Money | null;
+    /** The combination's own code (e.g. the factory code); empty → auto. */
+    sku?: string;
+    barcode?: string | null;
+  }[];
   /**
    * When trackVariants is false (the common case), the service creates a
    * single default variant for this product. Its SKU defaults to the

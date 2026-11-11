@@ -62,9 +62,27 @@ export function canEncodeCode128(text: string): boolean {
   return text.length > 0 && /^[\x20-\x7e]+$/.test(text);
 }
 
+const CODE128_START_C = 105;
+const CODE128_CODE_B = 100;
+
+/**
+ * Symbol values: a run of 4+ digits at the start goes in set C (two digits per symbol — about half
+ * as wide, so long numeric codes stay scannable on a 38 mm label); the rest in set B.
+ */
+function code128Values(text: string): number[] {
+  const digits = /^\d+/.exec(text)?.[0] ?? '';
+  const pairs = digits.length >= 4 ? digits.length - (digits.length % 2) : 0;
+  if (pairs === 0) return [CODE128_START_B, ...text.split('').map((char) => char.charCodeAt(0) - 32)];
+  const values = [CODE128_START_C];
+  for (let i = 0; i < pairs; i += 2) values.push(Number(text.slice(i, i + 2)));
+  const rest = text.slice(pairs);
+  if (rest) values.push(CODE128_CODE_B, ...rest.split('').map((char) => char.charCodeAt(0) - 32));
+  return values;
+}
+
 export function encodeCode128(text: string): string {
   if (!canEncodeCode128(text)) throw new Error('Code 128 (set B) supports printable ASCII only.');
-  const values = [CODE128_START_B, ...text.split('').map((char) => char.charCodeAt(0) - 32)];
+  const values = code128Values(text);
   const checksum = values.reduce((sum, value, index) => sum + value * (index === 0 ? 1 : index), 0) % 103;
   return [...values, checksum, CODE128_STOP].map((value) => widthsToModules(CODE128_WIDTHS[value])).join('');
 }

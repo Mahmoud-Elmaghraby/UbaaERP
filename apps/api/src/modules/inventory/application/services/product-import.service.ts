@@ -32,6 +32,10 @@ export interface ProductImportRow {
   isActive?: string | null;
   openingQuantity?: string | null;
   openingCost?: string | null;
+  option1?: string | null;
+  option2?: string | null;
+  option3?: string | null;
+  variantCode?: string | null;
 }
 
 export interface ProductImportOptions {
@@ -45,6 +49,8 @@ export interface ProductImportOptions {
   createMissingUnits: boolean;
   /** When rows carry opening quantities: the warehouse of the draft opening balance created for them. */
   openingWarehouseId?: string | null;
+  /** Names of option1..3 (size, colour…). */
+  optionNames?: string[];
 }
 
 export interface ProductImportRowResult {
@@ -79,6 +85,34 @@ class RowError extends Error {
 }
 
 class Rollback extends Error {}
+
+/** One product being filled by variant rows during an import (first row creates or finds it). */
+interface VariantGroup {
+  productId: string;
+  code: string;
+  attributes: string[];
+  salePrice: Money | null;
+  purchasePrice: Money | null;
+  /** Variant id by its option values (see optionKey). */
+  variantsByKey: Map<string, string>;
+  /** Option combinations already seen in the file. */
+  rowKeys: Set<string>;
+}
+
+const OPTION_FIELDS = ['option1', 'option2', 'option3'] as const;
+
+/** Order-independent identity of a variant's option values. */
+function optionKey(values: Record<string, unknown>): string {
+  return Object.entries(values)
+    .map(([name, value]) => [nameKey(name), nameKey(String(value ?? ''))] as const)
+    .filter(([, value]) => value !== '')
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([name, value]) => `${name}=${value}`)
+    .join('\u0000');
+}
+
+const sameMoney = (a: Money | null, b: Money | null) =>
+  a === null || b === null ? a === b : a.currency === b.currency && a.toMinorUnits() === b.toMinorUnits();
 
 const ITEM_TYPES: Record<string, ProductItemType> = {
   stock: 'stock',
@@ -199,6 +233,12 @@ export class ProductImportService {
         params: { max: PRODUCT_IMPORT_MAX_ROWS },
       });
     }
+    const optionNames = (options.optionNames ?? []).map((name) => name.trim());
+    OPTION_FIELDS.forEach((field, index) => {
+      if (rows.some((row) => clean(row[field])) && !optionNames[index]) {
+        throw new BusinessRuleError('Name the option columns (e.g. size, colour).', { code: 'PRODUCT_IMPORT.OPTION_NAME_REQUIRED' });
+      }
+    });
     const hasOpening = rows.some((row) => clean(row.openingQuantity));
     if (hasOpening && !options.openingWarehouseId) {
       throw new BusinessRuleError('Choose the warehouse for the opening quantities.', {
@@ -215,6 +255,7 @@ export class ProductImportService {
       await withTransaction(db, async (trx) => {
         const lookups = await this.lookups(trx);
         const seenCodes = new Set<string>();
+        const groups = new Map<string, VariantGroup>();
         const openingLines: { productVariantId: string; quantity: number; cost: Money | null }[] = [];
 
         for (const row of rows) {
@@ -228,7 +269,7 @@ export class ProductImportService {
             productId: null,
           };
           try {
-            const outcome = await this.importRow(trx, row, options, currency, lookups, seenCodes);
+            const outcome = await this.importRow(trx, row, options, currency, lookups, seenCodes, groups, optionNames);
             result.status = outcome.status;
             result.productId = outcome.productId;
             result.code = outcome.code;
@@ -287,6 +328,8 @@ export class ProductImportService {
     currency: string,
     lookups: Awaited<ReturnType<ProductImportService['lookups']>>,
     seenCodes: Set<string>,
+    groups: Map<string, VariantGroup>,
+    optionNames: string[],
   ): Promise<{
     status: 'create' | 'update';
     productId: string;
@@ -296,6 +339,18 @@ export class ProductImportService {
   }> {
     const code = clean(row.code);
     const name = clean(row.name);
+    // A variant row: its option values (size, colour…). Rows of one product share its code (or name).
+    const optionValues: Record<string, string> = {};
+    OPTION_FIELDS.forEach((field, index) => {
+      const value = clean(row[field]);
+      if (value) optionValues[optionNames[index]!] = value;
+    });
+    const isVariantRow = Object.keys(optionValues).length > 0;
+    if (!isVariantRow && clean(row.variantCode)) throw new RowError('variantCode', 'كود المتغير يحتاج قيمة مقاس / لون في نفس السطر');
+    const groupKey = isVariantRow ? nameKey(code ?? name ?? '') : '';
+    if (isVariantRow && !groupKey) throw new RowError('code', 'كود الصنف أو اسمه مطلوب في سطور المقاسات');
+    const group = isVariantRow ? groups.get(groupKey) : undefined;
+    if (group) return this.variantRow(trx, row, group, optionValues, currency, 'create');
     if (code) {
       const key = code.toLowerCase();
       if (seenCodes.has(key)) throw new RowError('code', 'الكود مكرر داخل الملف');
@@ -360,12 +415,54 @@ export class ProductImportService {
         ...(isActive !== undefined ? { isActive } : {}),
       });
       const variants = await this.variants.listByProductId(trx, existing.id);
+      if (isVariantRow) {
+        const found: VariantGroup = {
+          productId: existing.id,
+          code: updated.code,
+          attributes: [...updated.attributes],
+          salePrice: updated.salePrice,
+          purchasePrice: updated.purchasePrice,
+          variantsByKey: new Map(variants.map((v) => [optionKey(v.attributeValues), v.id])),
+          rowKeys: new Set(),
+        };
+        groups.set(groupKey, found);
+        return this.variantRow(trx, row, found, optionValues, currency, 'update');
+      }
       const single = variants.length === 1 ? variants[0]! : null;
       if (barcode && single && single.barcode !== barcode) {
         await this.productsService.updateVariant(trx, existing.id, single.id, { barcode });
       }
       if (opening && !single) throw new RowError('openingQuantity', 'الصنف له أكثر من متغير — أدخل رصيده من شاشة رصيد أول المدة');
       return { status: 'update', productId: updated.id, variantId: single?.id ?? '', code: updated.code, opening };
+    }
+
+    if (isVariantRow) {
+      const created = await this.productsService.create(trx, {
+        code: code ?? undefined,
+        name: name!,
+        description: clean(row.description),
+        unitOfMeasureId: unitOfMeasureId!,
+        itemType,
+        trackingType,
+        categoryId: categoryId ?? null,
+        brandId: brandId ?? null,
+        salePrice,
+        purchasePrice,
+        isActive,
+        variantOptions: Object.fromEntries(Object.entries(optionValues).map(([option, value]) => [option, [value]])),
+        variantPrices: [{ attributeValues: optionValues, sku: clean(row.variantCode) ?? undefined, barcode }],
+      });
+      const variant = created.variants[0]!;
+      groups.set(groupKey, {
+        productId: created.id,
+        code: created.code,
+        attributes: Object.keys(optionValues),
+        salePrice,
+        purchasePrice,
+        variantsByKey: new Map([[optionKey(optionValues), variant.id]]),
+        rowKeys: new Set([optionKey(optionValues)]),
+      });
+      return { status: 'create', productId: created.id, variantId: variant.id, code: created.code, opening };
     }
 
     const created = await this.productsService.create(trx, {
@@ -389,6 +486,61 @@ export class ProductImportService {
       code: created.code,
       opening,
     };
+  }
+
+  /**
+   * One more variant row of a product already met in the file (or found by code in upsert mode):
+   * updates the variant with these options — its code, barcode, own prices — or adds it.
+   */
+  private async variantRow(
+    trx: Kysely<TenantDatabase>,
+    row: ProductImportRow,
+    group: VariantGroup,
+    optionValues: Record<string, string>,
+    currency: string,
+    status: 'create' | 'update',
+  ): Promise<{ status: 'create' | 'update'; productId: string; variantId: string; code: string; opening: { quantity: number; cost: Money | null } | null }> {
+    const key = optionKey(optionValues);
+    if (group.rowKeys.has(key)) throw new RowError('option1', 'نفس المقاس / اللون مكرر لنفس الصنف في الملف');
+    const salePrice = parseMoney(clean(row.salePrice), currency, 'salePrice');
+    const purchasePrice = parseMoney(clean(row.purchasePrice), currency, 'purchasePrice');
+    const barcode = clean(row.barcode) ? westernDigits(clean(row.barcode)!) : null;
+    const sku = clean(row.variantCode) ?? undefined;
+    const quantityText = clean(row.openingQuantity);
+    const opening = quantityText
+      ? {
+          quantity: parseDecimal(quantityText, 'openingQuantity'),
+          cost: parseMoney(clean(row.openingCost), currency, 'openingCost') ?? purchasePrice ?? group.purchasePrice,
+        }
+      : null;
+    if (opening && opening.quantity > 0 && !opening.cost) {
+      throw new RowError('openingCost', 'تكلفة رصيد أول المدة مطلوبة (أو سعر الشراء)');
+    }
+
+    // An option the product doesn't have yet (a colour column only on later rows) joins its attributes.
+    const missing = Object.keys(optionValues).filter((option) => !group.attributes.includes(option));
+    if (missing.length > 0) {
+      group.attributes = [...group.attributes, ...missing];
+      await this.productsService.update(trx, group.productId, { trackVariants: true, attributes: group.attributes });
+    }
+
+    // Own price only where it differs from the product's.
+    const prices = {
+      ...(salePrice && !sameMoney(salePrice, group.salePrice) ? { salePrice } : {}),
+      ...(purchasePrice && !sameMoney(purchasePrice, group.purchasePrice) ? { purchasePrice } : {}),
+    };
+    let variantId = group.variantsByKey.get(key);
+    if (variantId) {
+      const patch = { ...(sku ? { sku } : {}), ...(barcode ? { barcode } : {}), ...prices };
+      if (Object.keys(patch).length > 0) await this.productsService.updateVariant(trx, group.productId, variantId, patch);
+    } else {
+      if (sku && (await this.variants.skuExists(trx, sku))) throw new RowError('variantCode', `الكود "${sku}" مستخدم لصنف آخر`);
+      variantId = (await this.productsService.addVariant(trx, group.productId, { sku, attributeValues: optionValues, barcode })).id;
+      if (Object.keys(prices).length > 0) await this.productsService.updateVariant(trx, group.productId, variantId, prices);
+      group.variantsByKey.set(key, variantId);
+    }
+    group.rowKeys.add(key);
+    return { status, productId: group.productId, variantId, code: group.code, opening };
   }
 
   private async lookups(trx: Kysely<TenantDatabase>) {

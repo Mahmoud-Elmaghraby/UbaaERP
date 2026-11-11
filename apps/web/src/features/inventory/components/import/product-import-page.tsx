@@ -56,7 +56,13 @@ const FIELDS: { field: Field; synonyms: string[]; required?: boolean }[] = [
   { field: 'isActive', synonyms: ['نشط', 'الحالة', 'active', 'status'] },
   { field: 'openingQuantity', synonyms: ['رصيد أول المدة', 'الرصيد', 'الكمية', 'opening quantity', 'quantity', 'qty'] },
   { field: 'openingCost', synonyms: ['تكلفة الوحدة', 'تكلفة الرصيد', 'opening cost', 'unit cost'] },
+  // Variant rows: one row per size / colour; the column header names the option.
+  { field: 'option1', synonyms: ['المقاس', 'مقاس', 'size'] },
+  { field: 'option2', synonyms: ['اللون', 'لون', 'color', 'colour'] },
+  { field: 'option3', synonyms: ['الخامة', 'خامة', 'material'] },
+  { field: 'variantCode', synonyms: ['كود المتغير', 'كود المصنع', 'كود المقاس', 'variant code', 'variant sku'] },
 ];
+const OPTION_FIELDS = ['option1', 'option2', 'option3'] as const;
 const IGNORE = '__ignore__';
 
 function guessField(header: string, taken: Set<Field>): Field | null {
@@ -118,8 +124,11 @@ export function ProductImportPage() {
       t('inventory.import.templateName'),
       FIELDS.map(({ synonyms }) => synonyms[0]!),
       [
-        ['ITM-1001', 'لبن كامل الدسم 1 لتر', '', '6221234567890', 'أغذية > ألبان', 'جهينة', 'قطعة', 'مخزني', 'بدون', 38.5, 32, 'نعم', 24, 32],
-        ['', 'خدمة توصيل', '', '', '', '', 'خدمة', 'خدمة', '', 50, '', 'نعم', '', ''],
+        ['ITM-1001', 'لبن كامل الدسم 1 لتر', '', '6221234567890', 'أغذية > ألبان', 'جهينة', 'قطعة', 'مخزني', 'بدون', 38.5, 32, 'نعم', 24, 32, '', '', '', ''],
+        ['', 'خدمة توصيل', '', '', '', '', 'خدمة', 'خدمة', '', 50, '', 'نعم', '', '', '', '', '', ''],
+        // A product with sizes: one row per size / colour, same item code, each with its own code.
+        ['TS-200', 'تيشيرت قطن', '', '', 'ملابس > رجالي', '', 'قطعة', 'مخزني', 'بدون', 250, 120, 'نعم', 6, '', 'M', 'أبيض', '', 'F-200-M-W'],
+        ['TS-200', '', '', '', '', '', '', '', '', '', '', '', 4, '', 'L', 'أبيض', '', 'F-200-L-W'],
       ],
     );
   }
@@ -172,6 +181,11 @@ export function ProductImportPage() {
         createMissingBrands,
         createMissingUnits,
         openingWarehouseId: mapsOpening ? openingWarehouseId : null,
+        // Each option is named by its column header in the file ("المقاس", "اللون"…).
+        optionNames: OPTION_FIELDS.map((field) => {
+          const column = mapping.indexOf(field);
+          return (column >= 0 ? header[column]?.trim() : '') || t(`inventory.import.fields.${field}`);
+        }),
       });
       setResult(data);
       if (!dryRun && data.committed) toast.success(t('inventory.import.done', { created: data.created, updated: data.updated }));

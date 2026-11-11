@@ -81,6 +81,7 @@ export function CreateProductForm({ onDone }: { onDone: (productId: string) => v
 
   const [options, setOptions] = useState<VariantOption[]>([]);
   const [variantPrices, setVariantPrices] = useState<Record<string, string>>({});
+  const [variantCodes, setVariantCodes] = useState<Record<string, string>>({});
   const variantOptions = variantOptionsToRecord(options);
   const hasOptions = Object.keys(variantOptions).length > 0;
 
@@ -94,20 +95,33 @@ export function CreateProductForm({ onDone }: { onDone: (productId: string) => v
       toast.error(t('inventory.products.invalidPrice'));
       return;
     }
-    // Rows whose price differs from the product's become the variant's own price.
+    // Rows with a typed code (e.g. the factory code) or a price that differs from the product's.
     const ownPrices: NonNullable<CreateProductDto['variantPrices']> = [];
+    const seenCodes = new Set<string>();
     for (const combo of hasOptions ? variantCombinations(options) : []) {
-      const text = variantPrices[combo.key]?.trim();
-      if (!text || text === prices.sale.trim()) continue;
-      let minor: string;
-      try {
-        minor = decimalToMinorUnits(text);
-        if (minor.startsWith('-')) throw new Error('negative');
-      } catch {
-        toast.error(t('inventory.products.invalidPrice'));
-        return;
+      const sku = variantCodes[combo.key]?.trim() || undefined;
+      if (sku) {
+        if (seenCodes.has(sku)) {
+          toast.error(t('inventory.products.options.duplicateCode', { code: sku }));
+          return;
+        }
+        seenCodes.add(sku);
       }
-      ownPrices.push({ attributeValues: combo.values, salePrice: { amountMinorUnits: minor, currency } });
+      const text = variantPrices[combo.key]?.trim();
+      const ownPrice = Boolean(text) && text !== prices.sale.trim();
+      if (!ownPrice && !sku) continue;
+      let salePrice: { amountMinorUnits: string; currency: string } | undefined;
+      if (ownPrice) {
+        try {
+          const minor = decimalToMinorUnits(text!);
+          if (minor.startsWith('-')) throw new Error('negative');
+          salePrice = { amountMinorUnits: minor, currency };
+        } catch {
+          toast.error(t('inventory.products.invalidPrice'));
+          return;
+        }
+      }
+      ownPrices.push({ attributeValues: combo.values, ...(salePrice ? { salePrice } : {}), ...(sku ? { sku } : {}) });
     }
     try {
       const created = await createProduct.mutateAsync({
@@ -127,6 +141,7 @@ export function CreateProductForm({ onDone }: { onDone: (productId: string) => v
       form.reset();
       setOptions([]);
       setVariantPrices({});
+      setVariantCodes({});
       onDone(created.id);
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : t('inventory.products.createError'));
@@ -191,6 +206,8 @@ export function CreateProductForm({ onDone }: { onDone: (productId: string) => v
           onChange={setOptions}
           prices={variantPrices}
           onPricesChange={setVariantPrices}
+          codes={variantCodes}
+          onCodesChange={setVariantCodes}
           basePrice={prices.sale}
         />
         {!hasOptions ? (

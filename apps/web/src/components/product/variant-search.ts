@@ -1,5 +1,6 @@
 import type { InventorySettingsDto, ProductVariantLookupDto } from '@erp-platform/contracts';
 
+import { fromArabicKeyboard } from '../../lib/keyboard-layout';
 import { normalizeForSearch } from '../../lib/search-normalize';
 import { minorUnitsToDecimalString, multiplyMinorUnits } from '../../lib/money';
 
@@ -92,6 +93,18 @@ function resolveScaleBarcode(
  * code, then — when enabled — a weighing-scale barcode.
  */
 export function resolveScan(
+  variants: readonly ProductVariantLookupDto[],
+  code: string,
+  scale?: ScaleBarcodeSettings | null,
+): ScanResult | undefined {
+  const found = resolveScanExact(variants, code, scale);
+  if (found) return found;
+  // A scanner typing on the Arabic keyboard layout turns the code's letters into Arabic ones.
+  const latin = fromArabicKeyboard(code);
+  return latin ? resolveScanExact(variants, latin, scale) : undefined;
+}
+
+function resolveScanExact(
   variants: readonly ProductVariantLookupDto[],
   code: string,
   scale?: ScaleBarcodeSettings | null,

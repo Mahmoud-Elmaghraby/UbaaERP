@@ -280,7 +280,7 @@ export class ProductsService {
     }
   }
 
-  /** Every missing combination of `options` as a variant (auto SKU / barcode). */
+  /** Every missing combination of `options` as a variant (its typed code / barcode, else auto). */
   private async createCombinations(
     trx: Kysely<TenantDatabase>,
     product: Product,
@@ -306,17 +306,26 @@ export class ProductsService {
     const keyOf = (values: Record<string, unknown>) => names.map((name) => String(values[name] ?? '').trim()).join('\u0000');
     const existing = new Set(existingVariants.map((variant) => keyOf(variant.attributeValues)));
     const priceByKey = new Map((prices ?? []).map((p) => [keyOf(p.attributeValues), p]));
+    // Typed codes (e.g. factory codes): each one once, and not already used by another item.
+    const typedSkus = new Set<string>();
+    for (const p of prices ?? []) {
+      const sku = p.sku?.trim();
+      if (!sku) continue;
+      if (typedSkus.has(sku) || (await this.variants.skuExists(trx, sku))) throw duplicateEntity('PRODUCT_VARIANT', 'sku', sku);
+      typedSkus.add(sku);
+    }
     const created: ProductVariant[] = [];
     for (const combo of combinations) {
       if (existing.has(keyOf(combo))) continue;
+      const details = priceByKey.get(keyOf(combo));
       created.push(
         await this.variants.create(trx, {
           productId: product.id,
           attributeValues: combo,
-          sku: await this.codes.resolveVariantSku(trx, undefined, product.code),
-          barcode: await this.codes.resolveBarcode(trx, undefined),
-          salePrice: priceByKey.get(keyOf(combo))?.salePrice ?? null,
-          purchasePrice: priceByKey.get(keyOf(combo))?.purchasePrice ?? null,
+          sku: await this.codes.resolveVariantSku(trx, details?.sku, product.code),
+          barcode: await this.codes.resolveBarcode(trx, details?.barcode),
+          salePrice: details?.salePrice ?? null,
+          purchasePrice: details?.purchasePrice ?? null,
         }),
       );
     }

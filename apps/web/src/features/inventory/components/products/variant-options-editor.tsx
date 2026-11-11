@@ -40,6 +40,8 @@ export function VariantOptionsEditor({
   onChange,
   prices,
   onPricesChange,
+  codes,
+  onCodesChange,
   basePrice,
 }: {
   value: VariantOption[];
@@ -47,6 +49,9 @@ export function VariantOptionsEditor({
   /** Sale price text per combination key (see variantCombinations); empty = the product's price. */
   prices: Record<string, string>;
   onPricesChange: (prices: Record<string, string>) => void;
+  /** Code (SKU) text per combination key — e.g. the factory code; empty = automatic. */
+  codes: Record<string, string>;
+  onCodesChange: (codes: Record<string, string>) => void;
   /** The product's sale price (placeholder of every row). */
   basePrice: string;
 }) {
@@ -168,7 +173,15 @@ export function VariantOptionsEditor({
             <div className="scrollbar-thin grid max-h-72 gap-1 overflow-y-auto">
               {combinations.map((combo) => (
                 <div key={combo.key} className="flex items-center justify-between gap-3 rounded-md px-2 py-1 hover:bg-subtle">
-                  <span className="text-sm">{combo.label}</span>
+                  <span className="min-w-0 flex-1 truncate text-sm">{combo.label}</span>
+                  <Input
+                    className="h-8 w-36"
+                    dir="ltr"
+                    value={codes[combo.key] ?? ''}
+                    onChange={(e) => onCodesChange({ ...codes, [combo.key]: e.target.value })}
+                    placeholder={t('inventory.products.options.autoCode')}
+                    aria-label={`${t('inventory.products.options.code')} ${combo.label}`}
+                  />
                   <Input
                     className="h-8 w-28 text-end"
                     dir="ltr"
@@ -180,7 +193,7 @@ export function VariantOptionsEditor({
                   />
                 </div>
               ))}
-              <p className="px-2 text-xs text-muted-foreground">{t('inventory.products.options.priceHint')}</p>
+              <p className="px-2 text-xs text-muted-foreground">{t('inventory.products.options.codeHint')} {t('inventory.products.options.priceHint')}</p>
             </div>
           ) : (
             <div className="flex flex-wrap gap-1">
