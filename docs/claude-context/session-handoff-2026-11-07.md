@@ -239,3 +239,32 @@ Migration `0121_purchases_settings` adds the permission `purchases.approve`. It 
 - The hub's Purchases section, plus a gear on the purchases menu.
 - `use-new-document-defaults.ts` moved to `components/document` and is shared by sales and purchases.
 
+## 10. Clothing client release 0.2.0 (added 2026-11-11)
+
+Full notes: Claude Project doc `claude/clothing-release-0.2.0-2026-11-10.md`. Desktop version 0.1.0 → 0.2.0. Tenant migrations go up to `0122_price_list_adjust_and_categories`.
+
+**Price lists**
+- A signed `adjust_percent`: − is a discount, + is a markup. The old `discount_percent` was converted (adjust = −discount) and is no longer read.
+- `price_list_category_rules`: a % per category, reaching its sub-categories; the API returns `categoryAdjust`.
+- Pricing order in `sale-pricing.ts`: variant → product → category → list % → normal price.
+- Excel export/import, matched by SKU.
+
+**POS exchange**
+- `POST /pos/sessions/:id/exchange` (`PosExchangeService`), in one transaction:
+  1. the return, kept as credit;
+  2. the checkout, with the credit as a cash tender;
+  3. a cash refund of the credit note.
+- The drawer nets to the difference.
+- The return dialog gets a mode "استبدال".
+
+**Sales analysis**
+- New groupings: product, category, option (size/colour), cashier, channel.
+- By channel it also shows settlement fees and profit after fees.
+
+**Size × colour grid**
+- `VariantGridDialog` in the shared lines editor: purchase orders and invoices, sales orders, quotations, direct sales invoices.
+
+**Upgrade safety**
+- `test/integration/upgrade-rehearsal.int-spec.ts` builds a tenant at 0101 with clothing-like data, upgrades it, and checks that nothing is lost.
+- After an upgrade, activity switches the client never used are off (0118). POS may need turning on in الإعدادات › الموديولات.
+
