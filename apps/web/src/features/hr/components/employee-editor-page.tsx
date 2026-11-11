@@ -58,6 +58,7 @@ import {
   useSaveEmployee,
 } from '../api/queries';
 import { EmployeeStatusBadge } from './employee-status-badge';
+import { EmployeeSalarySection } from './employee-salary-section';
 
 const EMPLOYEE_ENTITY_TYPE = 'employee';
 const EMPLOYEES_PATH = '/hr/employees';
@@ -193,6 +194,7 @@ function EmployeeEditor({ employee }: { employee: EmployeeDto | undefined }) {
         />
         <DocumentBody
           main={
+            <>
             <fieldset disabled={readOnly} className="flex min-w-0 flex-col gap-5">
               {employee?.status === 'terminated' ? (
                 <p className="rounded-lg border border-warning/40 bg-warning-soft px-4 py-3 text-sm text-warning">
@@ -303,6 +305,8 @@ function EmployeeEditor({ employee }: { employee: EmployeeDto | undefined }) {
                 </div>
               </SectionCard>
             </fieldset>
+            {employee ? <EmployeeSalarySection employee={employee} /> : null}
+            </>
           }
           side={
             employee ? (

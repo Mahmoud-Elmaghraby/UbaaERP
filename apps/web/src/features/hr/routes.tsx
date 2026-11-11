@@ -5,6 +5,8 @@ const EmployeesPage = lazy(() => import('./components').then((m) => ({ default: 
 const EmployeeEditorPage = lazy(() => import('./components').then((m) => ({ default: m.EmployeeEditorPage })));
 const DepartmentsPage = lazy(() => import('./components').then((m) => ({ default: m.DepartmentsPage })));
 const JobTitlesPage = lazy(() => import('./components').then((m) => ({ default: m.JobTitlesPage })));
+const SalaryComponentsPage = lazy(() => import('./components').then((m) => ({ default: m.SalaryComponentsPage })));
+const SalaryRegisterPage = lazy(() => import('./components').then((m) => ({ default: m.SalaryRegisterPage })));
 
 /** HR (الموارد البشرية): employees and the organisation structure. */
 export const hrRoutes: RouteObject[] = [
@@ -18,6 +20,8 @@ export const hrRoutes: RouteObject[] = [
       { path: 'employees/:id', element: <EmployeeEditorPage /> },
       { path: 'departments', element: <DepartmentsPage /> },
       { path: 'job-titles', element: <JobTitlesPage /> },
+      { path: 'salary-components', element: <SalaryComponentsPage /> },
+      { path: 'salaries', element: <SalaryRegisterPage /> },
     ],
   },
 ];

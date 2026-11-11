@@ -207,6 +207,8 @@ export const NAV_GROUPS: NavGroup[] = [
           { to: '/hr/employees', labelKey: 'hr.employees.title' },
           { to: '/hr/departments', labelKey: 'hr.departments.title' },
           { to: '/hr/job-titles', labelKey: 'hr.jobTitles.title' },
+          { to: '/hr/salaries', labelKey: 'hr.register.title', permission: ['hr.salaries.view', 'hr.salaries.manage'] },
+          { to: '/hr/salary-components', labelKey: 'hr.salaryComponents.title', permission: ['hr.salaries.view', 'hr.salaries.manage'] },
         ],
       },
     ],

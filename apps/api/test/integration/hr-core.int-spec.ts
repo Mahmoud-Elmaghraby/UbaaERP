@@ -19,12 +19,13 @@ describe('HR core (integration, real Postgres)', () => {
   });
 
   afterAll(async () => {
-    await db.updateTable('hr_departments').set({ manager_id: null }).execute();
-    await db.updateTable('employees').set({ manager_id: null }).execute();
-    await db.deleteFrom('employees').execute();
-    await db.deleteFrom('hr_departments').where('parent_id', 'is not', null).execute();
-    await db.deleteFrom('hr_departments').execute();
-    await db.deleteFrom('hr_job_titles').execute();
+    // Only this file's rows: other HR suites share the schema.
+    const mine = db.selectFrom('hr_departments').select('id').where('name', 'like', `%${s}`);
+    await db.updateTable('hr_departments').set({ manager_id: null }).where('name', 'like', `%${s}`).execute();
+    await db.deleteFrom('employees').where((eb) => eb.or([eb('department_id', 'in', mine), eb('full_name', 'like', `%${s}`)])).execute();
+    await db.deleteFrom('hr_departments').where('name', 'like', `%${s}`).where('parent_id', 'is not', null).execute();
+    await db.deleteFrom('hr_departments').where('name', 'like', `%${s}`).execute();
+    await db.deleteFrom('hr_job_titles').where('name', 'like', `%${s}`).execute();
     await db.destroy();
   });
 
@@ -32,7 +33,7 @@ describe('HR core (integration, real Postgres)', () => {
     const toggle = await db.selectFrom('tenant_feature_toggles').select('enabled').where('feature_key', '=', 'hr').executeTakeFirst();
     expect(toggle?.enabled).toBe(false);
     const keys = (await db.selectFrom('permissions').select('key').where('key', 'like', 'hr.%').execute()).map((r) => r.key).sort();
-    expect(keys).toEqual(['hr.employees.manage', 'hr.employees.view']);
+    expect(keys).toEqual(expect.arrayContaining(['hr.employees.manage', 'hr.employees.view']));
   });
 
   it('keeps the department tree free of loops and refuses to delete a used department', async () => {

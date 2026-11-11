@@ -84,6 +84,8 @@ export const ENTITY_LABELS = {
   EMPLOYEE: 'Employee',
   HR_DEPARTMENT: 'Department',
   HR_JOB_TITLE: 'Job title',
+  HR_SALARY_COMPONENT: 'Salary component',
+  HR_EMPLOYEE_SALARY: 'Salary revision',
 } as const;
 
 export type EntityKey = keyof typeof ENTITY_LABELS;

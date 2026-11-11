@@ -5,8 +5,14 @@ import type {
   EmployeeListQueryDto,
   EmployeeSummaryDto,
   HrDepartmentDto,
+  EmployeeSalaryHistoryDto,
   HrJobTitleDto,
+  SalaryComponentDto,
+  SalaryRegisterDto,
+  SalaryRegisterQueryDto,
   SaveEmployeeDto,
+  SaveEmployeeSalaryDto,
+  SaveSalaryComponentDto,
   SaveHrDepartmentDto,
   SaveHrJobTitleDto,
 } from '@erp-platform/contracts';
@@ -99,4 +105,65 @@ export function useSaveJobTitle() {
 export function useDeleteJobTitle() {
   const invalidate = useInvalidateHr();
   return useMutation({ mutationFn: (id: string) => apiDelete<void>(`/hr/job-titles/${id}`), onSuccess: invalidate });
+}
+
+// ── salaries (hr.salaries.*) ──────────────────────────────────────────────
+
+export function useSalaryComponents(enabled = true) {
+  return useQuery({
+    queryKey: ['hr', 'salary-components'],
+    queryFn: () => apiGet<SalaryComponentDto[]>('/hr/salary-components'),
+    staleTime: 60_000,
+    enabled,
+  });
+}
+
+export function useSaveSalaryComponent() {
+  const invalidate = useInvalidateHr();
+  return useMutation({
+    mutationFn: ({ id, input }: { id?: string; input: SaveSalaryComponentDto }) =>
+      id ? apiPut<SalaryComponentDto>(`/hr/salary-components/${id}`, input) : apiPost<SalaryComponentDto>('/hr/salary-components', input),
+    onSuccess: invalidate,
+  });
+}
+
+export function useDeleteSalaryComponent() {
+  const invalidate = useInvalidateHr();
+  return useMutation({ mutationFn: (id: string) => apiDelete<void>(`/hr/salary-components/${id}`), onSuccess: invalidate });
+}
+
+export function useEmployeeSalaries(employeeId: string, enabled = true) {
+  return useQuery({
+    queryKey: ['hr', 'employee-salaries', employeeId],
+    queryFn: () => apiGet<EmployeeSalaryHistoryDto>(`/hr/employees/${employeeId}/salaries`),
+    enabled,
+  });
+}
+
+export function useSaveEmployeeSalary(employeeId: string) {
+  const invalidate = useInvalidateHr();
+  return useMutation({
+    mutationFn: ({ id, input }: { id?: string; input: SaveEmployeeSalaryDto }) =>
+      id
+        ? apiPut<EmployeeSalaryHistoryDto>(`/hr/employees/${employeeId}/salaries/${id}`, input)
+        : apiPost<EmployeeSalaryHistoryDto>(`/hr/employees/${employeeId}/salaries`, input),
+    onSuccess: invalidate,
+  });
+}
+
+export function useDeleteEmployeeSalary(employeeId: string) {
+  const invalidate = useInvalidateHr();
+  return useMutation({
+    mutationFn: (id: string) => apiDelete<EmployeeSalaryHistoryDto>(`/hr/employees/${employeeId}/salaries/${id}`),
+    onSuccess: invalidate,
+  });
+}
+
+export function useSalaryRegister(query: SalaryRegisterQueryDto) {
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(query)) if (value) params.set(key, String(value));
+  return useQuery({
+    queryKey: ['hr', 'salary-register', query],
+    queryFn: () => apiGet<SalaryRegisterDto>(`/hr/salaries/register?${params.toString()}`),
+  });
 }

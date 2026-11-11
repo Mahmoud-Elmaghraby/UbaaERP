@@ -82,4 +82,12 @@ Status: **approved — building.**
   - Web `apps/web/src/features/hr`: employees list (status/department filters), employee file page (sections + status card + attachments + custom fields), departments, job titles; sidebar group "الموظفين".
   - Tests: unit (hierarchy, status) + integration `hr-core.int-spec.ts`; 34 suites / 184 int tests, 479 unit tests green.
   - Known gap: the branch list on the employee form needs `settings.manage` (`GET /branches` is admin-only); an HR user without it sees only the saved branch.
-- **Next: step 2** — salary components + salary history (`hr.salaries.view`).
+- **Step 2 done (2026-11-12)** — migration `0124_hr_salaries`:
+  - `hr_salary_components` (earning / deduction; fixed amount or % of basic; suggested default). A component on salaries can't change type and can't be deleted (deactivate instead).
+  - `hr_employee_salaries` (one revision per date, in force until the next — no gaps/overlaps by design) + `hr_employee_salary_lines` (amount or percent, defaults from the component).
+  - Pure `domain/salary.ts` `computeSalary` (Money VO): earnings, deductions, gross, net (floored at 0). The payroll run (step 6) starts from it.
+  - Permissions `hr.salaries.view` / `hr.salaries.manage`; salaries are never part of the employee DTO. Writes audited as `hr.salary.*` / `hr.salary_component.*`.
+  - API: `/hr/salary-components`, `/hr/employees/:id/salaries` (GET history+current, POST, PUT/DELETE `:salaryId`), `GET /hr/salaries/register?asOf=&departmentId=&includeTerminated=`.
+  - Web: البدلات والاستقطاعات page, salary card + revision dialog on the employee file, كشف المرتبات page with totals.
+  - Revisions stay editable for now; the payroll run will lock paid months.
+- **Next: step 3** — shifts, public holidays, attendance import (Excel/CSV) and the daily sheet; day-rate basis setting (÷30 default).

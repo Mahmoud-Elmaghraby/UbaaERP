@@ -665,6 +665,39 @@ export interface EmployeesTable {
   updated_at: Generated<Date>;
 }
 
+export interface HrSalaryComponentsTable {
+  id: string;
+  name: string;
+  kind: string;
+  calculation: string;
+  /** BIGINT — string out. */
+  default_amount_minor: string | null;
+  /** NUMERIC(7,3) — string out. */
+  default_percent: string | null;
+  is_active: Generated<boolean>;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
+export interface HrEmployeeSalariesTable {
+  id: string;
+  employee_id: string;
+  effective_from: string;
+  basic_minor: string;
+  notes: string | null;
+  created_by: string | null;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
+export interface HrEmployeeSalaryLinesTable {
+  id: string;
+  salary_id: string;
+  component_id: string;
+  amount_minor: string | null;
+  percent: string | null;
+}
+
 export interface SalesRepsTable {
   id: string;
   code: string;
@@ -1451,6 +1484,9 @@ export interface TenantDatabase {
   hr_departments: HrDepartmentsTable;
   hr_job_titles: HrJobTitlesTable;
   employees: EmployeesTable;
+  hr_salary_components: HrSalaryComponentsTable;
+  hr_employee_salaries: HrEmployeeSalariesTable;
+  hr_employee_salary_lines: HrEmployeeSalaryLinesTable;
   customer_refunds: CustomerRefundsTable;
   pos_held_carts: PosHeldCartsTable;
   pos_approvals: PosApprovalsTable;

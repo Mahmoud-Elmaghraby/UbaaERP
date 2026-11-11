@@ -43,6 +43,8 @@ export const PURCH = {
 export const HR = {
   employeesView: 'hr.employees.view',
   employeesManage: 'hr.employees.manage',
+  salariesView: 'hr.salaries.view',
+  salariesManage: 'hr.salaries.manage',
 } as const;
 
 export const ANY_HR_PERMISSION: string[] = Object.values(HR);
