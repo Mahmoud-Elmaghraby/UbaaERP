@@ -1,5 +1,8 @@
 # Claude Context Docs
 
+> **2026-11-11: read `START-HERE.md` first.** It is the full, current handoff (rules, customers, releases, build steps, backlog). `project-docs/` holds a full copy of the 30 docs from the old account's Claude Project "ERPplatform" (Oct–Nov 2026).
+
+
 **Purpose:** this folder is a local, in-repo mirror of the working docs Claude (via the "ERP system" Claude Project) keeps about this codebase's build history, decisions, and status — settings/permissions, inventory, purchases, sales, accounting, and the cross-cutting Plan/feature-flexibility, competitive-strategy, attachments, and multi-currency work. It exists so that starting a fresh Claude session (on this account or a different one) with just this repo attached is enough to pick up full context, without needing access to the Claude Project itself (which is tied to one account/organization and doesn't transfer automatically to a different account).
 
 **Source of truth:** the Claude Project ("ERP system") is still the live, actively-updated copy — any future session working from that Project will keep writing there. This folder is a point-in-time export, originally generated 2026-08-31, refreshed 2026-09-10, and **refreshed again 2026-09-13** (all 19 files re-fetched from the live Project and re-written here byte-for-byte; 5 files that didn't exist in this folder before this refresh were added — see the file list below). If you're continuing work from the Project directly, these files may drift slightly behind it over time — ask whichever session is working to re-export this folder after a significant milestone if you want it kept current.

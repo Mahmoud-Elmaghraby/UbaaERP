@@ -68,6 +68,8 @@ if (!flag('--skip-build')) {
   step('Building libraries, API, web and desktop');
   sh('pnpm', ['--filter', '@erp-platform/shared-kernel', 'build']);
   sh('pnpm', ['--filter', '@erp-platform/contracts', 'build']);
+  // The web app imports libs/ui from its built dist/ — a stale dist misses new components.
+  sh('pnpm', ['--filter', '@erp-platform/ui', 'build']);
   sh('pnpm', ['--filter', 'api', 'exec', 'prisma', 'generate']);
   sh('pnpm', ['--filter', 'api', 'build']);
   // Desktop serves web and API from one origin → relative API URLs.
