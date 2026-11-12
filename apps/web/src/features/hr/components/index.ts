@@ -9,3 +9,4 @@ export { AttendanceImportPage } from './attendance-import-page';
 export { LeaveRequestsPage, LeaveBalancesPage, LeaveTypesPage } from './leaves-pages';
 export { LoansPage, PayAdjustmentsPage } from './loans-pages';
 export { PayrollRunsPage, PayrollRunPage } from './payroll-pages';
+export { HrOverviewPage } from './hr-overview-page';

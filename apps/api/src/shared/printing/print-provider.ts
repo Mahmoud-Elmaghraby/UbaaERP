@@ -21,6 +21,8 @@ export interface PrintProvider {
   paperSizes: PaperSizeDto[];
   /** The user needs ANY of these to print it (the same as opening the document). */
   permissions: string[];
+  /** A plan module the document belongs to (CLAUDE.md §2.8): printing it needs the module too. */
+  feature?: string;
   /**
    * `options` carries the print request's query string — only report-like
    * documents use it (a statement's period: from / to / currency).

@@ -18,6 +18,9 @@ import { HrLoanMovements } from './infrastructure/hr-loan-movements';
 import { PayrollController } from './presentation/payroll.controller';
 import { PayrollService } from './application/payroll.service';
 import { HrPayrollMovements } from './infrastructure/hr-payroll-movements';
+import { HrPrintRegistration } from './infrastructure/hr-print.registration';
+import { HrReportsController } from './presentation/hr-reports.controller';
+import { HrReportsService } from './application/hr-reports.service';
 
 /**
  * HR & payroll (الموارد البشرية) — docs/claude-context/project-docs/hr-module-plan-2026-11-11.md.
@@ -33,10 +36,11 @@ import { HrPayrollMovements } from './infrastructure/hr-payroll-movements';
  * Step 4: leave types, balances and requests (hr.leaves.*); approved leaves mark the sheet.
  * Step 5: loans paid out of / back into treasuries (outbox events hr.loan.*), bonuses and penalties.
  * Step 6: the monthly payroll run (hr.payroll.posted / hr.payroll.paid).
+ * Step 7: payslip and payroll-register printing, HR overview report.
  */
 @Module({
   imports: [SettingsModule],
-  controllers: [EmployeesController, HrDepartmentsController, HrJobTitlesController, SalaryComponentsController, EmployeeSalariesController, AttendanceSetupController, AttendanceController, LeavesController, LoansController, PayAdjustmentsController, PayrollController],
-  providers: [EmployeesService, HrOrgService, SalaryComponentsService, EmployeeSalariesService, AttendanceSetupService, AttendanceService, LeavesService, LoansService, HrLoanMovements, PayrollService, HrPayrollMovements],
+  controllers: [EmployeesController, HrDepartmentsController, HrJobTitlesController, SalaryComponentsController, EmployeeSalariesController, AttendanceSetupController, AttendanceController, LeavesController, LoansController, PayAdjustmentsController, PayrollController, HrReportsController],
+  providers: [EmployeesService, HrOrgService, SalaryComponentsService, EmployeeSalariesService, AttendanceSetupService, AttendanceService, LeavesService, LoansService, HrLoanMovements, PayrollService, HrPayrollMovements, HrPrintRegistration, HrReportsService],
 })
 export class HrModule {}

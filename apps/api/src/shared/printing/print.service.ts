@@ -28,9 +28,13 @@ export class PrintService {
     id: string,
     userPermissions: readonly string[],
     query: Record<string, string> = {},
+    grantedFeatures?: readonly string[],
   ): Promise<PrintResponseDto> {
     const provider = this.registry.get(documentType);
     if (!provider) throw new NotFoundException(`No printable document type "${documentType}".`);
+    if (provider.feature && grantedFeatures && !grantedFeatures.includes(provider.feature)) {
+      throw new ForbiddenException(`This tenant's plan does not include the "${provider.feature}" module.`);
+    }
     if (!provider.permissions.some((permission) => userPermissions.includes(permission))) {
       throw new ForbiddenException('You are not allowed to print this document.');
     }

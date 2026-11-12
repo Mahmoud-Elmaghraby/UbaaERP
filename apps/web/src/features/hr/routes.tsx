@@ -1,5 +1,5 @@
 import { lazy } from 'react';
-import { Navigate, Outlet, type RouteObject } from 'react-router-dom';
+import { Outlet, type RouteObject } from 'react-router-dom';
 
 const EmployeesPage = lazy(() => import('./components').then((m) => ({ default: m.EmployeesPage })));
 const EmployeeEditorPage = lazy(() => import('./components').then((m) => ({ default: m.EmployeeEditorPage })));
@@ -17,6 +17,7 @@ const LoansPage = lazy(() => import('./components').then((m) => ({ default: m.Lo
 const PayAdjustmentsPage = lazy(() => import('./components').then((m) => ({ default: m.PayAdjustmentsPage })));
 const PayrollRunsPage = lazy(() => import('./components').then((m) => ({ default: m.PayrollRunsPage })));
 const PayrollRunPage = lazy(() => import('./components').then((m) => ({ default: m.PayrollRunPage })));
+const HrOverviewPage = lazy(() => import('./components').then((m) => ({ default: m.HrOverviewPage })));
 const SalaryRegisterPage = lazy(() => import('./components').then((m) => ({ default: m.SalaryRegisterPage })));
 
 /** HR (الموارد البشرية): employees and the organisation structure. */
@@ -25,7 +26,7 @@ export const hrRoutes: RouteObject[] = [
     path: 'hr',
     element: <Outlet />,
     children: [
-      { index: true, element: <Navigate to="employees" replace /> },
+      { index: true, element: <HrOverviewPage /> },
       { path: 'employees', element: <EmployeesPage /> },
       { path: 'employees/new', element: <EmployeeEditorPage /> },
       { path: 'employees/:id', element: <EmployeeEditorPage /> },

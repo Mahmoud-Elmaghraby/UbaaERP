@@ -123,4 +123,10 @@ Status: **approved — building.**
   - Settings hub: `hr.monthlyLateAllowanceMinutes`, `hr.absenceDeductionDays`.
   - Web: مسير الرواتب list + run page (totals, lines with warnings, line dialog with breakdown/overrides/manual adjustment/remove, recalculate, post, pay dialog, bank-transfer Excel). Journal entries link back to the run.
   - Not yet: reversing a posted run; mid-month salary changes split; cut-off day other than the calendar month; payslip printing (step 7).
-- **Next: step 7** — payslip printing (shared/printing), payroll and HR reports, upgrade rehearsal, desktop release.
+- **Step 7 done (2026-11-12)** — no migration:
+  - Printing: `payslip` (id = payroll line; earnings then deductions, totals in words) and `payroll_run` (the register) through the central print service. `PrintProvider.feature` added: the print endpoint now refuses a document whose plan module the tenant lacks (CLAUDE.md §2.8).
+  - `GET /hr/reports/overview?year=`: headcount (by department / employment type), monthly hires & leavers, posted payroll cost by month and department (only with a payroll permission), open loans (only with a loans permission), national IDs expired or expiring within 60 days. Web: "نظرة عامة" is now the HR home page.
+  - Payroll run page: print register, payslip per employee, full Excel export.
+  - Upgrade rehearsal (0101 → latest) checks the HR defaults and that HR starts off.
+  - Desktop **0.3.0**.
+- **Phase 1 complete.** Known gaps for phase 2: reversing a posted payroll; mid-month salary change split; payroll cut-off day; employee self-service (own payslips, requests) and manager approval of their own team; end-of-service settlement; rep commissions into payroll; payroll tax / social insurance (switch); direct fingerprint-device sync; branch list for HR users without settings.manage.

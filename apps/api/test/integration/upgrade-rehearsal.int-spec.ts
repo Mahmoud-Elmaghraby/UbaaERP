@@ -108,6 +108,18 @@ async function rehearse() {
   const minCol = (await sql<{ n: number }>`SELECT count(*)::int n FROM products WHERE min_sale_price_amount IS NULL`.execute(db)).rows[0]!.n;
   check('new product columns empty (no behaviour change)', Number(minCol) === now.products);
 
+  // ---- HR module (0123–0128): off until switched on, defaults in place, nothing else touched ----
+  check('HR switched off for an upgraded tenant', toggles.get('hr') === false, 'turn on from Settings › Modules');
+  const hr = (
+    await sql<{ shifts: number; leave_types: number; employees: number; runs: number }>`
+      SELECT (SELECT count(*)::int FROM hr_shifts WHERE is_default) shifts,
+             (SELECT count(*)::int FROM hr_leave_types) leave_types,
+             (SELECT count(*)::int FROM employees) employees,
+             (SELECT count(*)::int FROM hr_payroll_runs) runs
+    `.execute(db)
+  ).rows[0]!;
+  check('HR defaults seeded (one default shift, four leave types), no data invented', hr.shifts === 1 && hr.leave_types === 4 && hr.employees === 0 && hr.runs === 0, JSON.stringify(hr));
+
   await db.destroy();
   const cleanup = new Pool({ connectionString: url });
   await cleanup.query(`DROP SCHEMA ${schema} CASCADE`);

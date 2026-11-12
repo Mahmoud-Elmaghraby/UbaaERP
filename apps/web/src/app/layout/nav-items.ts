@@ -205,6 +205,7 @@ export const NAV_GROUPS: NavGroup[] = [
         feature: 'hr',
         settings: { to: '/settings/hr', permission: ['settings.manage', 'hr.salaries.manage', 'hr.attendance.manage'] },
         children: [
+          { to: '/hr', labelKey: 'hr.overview.nav' },
           { to: '/hr/employees', labelKey: 'hr.employees.title' },
           { to: '/hr/payroll', labelKey: 'hr.payroll.title', permission: ['hr.payroll.view', 'hr.payroll.manage', 'hr.payroll.approve', 'hr.payroll.pay'] },
           { to: '/hr/departments', labelKey: 'hr.departments.title' },

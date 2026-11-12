@@ -24,8 +24,8 @@ This is an Egyptian ERP product with a placeholder name ("ERP Platform" / "Ubaa"
 - **GitHub:** `Mahmoud-Elmaghraby/UbaaERP`, branch `master`.
 - **Last pushed commit:** `d132aaa` (feat: clothing client 0.2.1).
 - **Pending on the device, not committed yet:** `apps/desktop/scripts/stage.mjs` now builds `@erp-platform/ui` before the web app. This fixed the installer build failing on `Switch`. The commit message is in `.git/msg-code.txt`, and the list in `.git/commit-files.txt` has just that file.
-- **Tenant migrations:** they go up to **`0122_price_list_adjust_and_categories`**. They are auto-discovered by filename in `apps/api/src/database/tenant/migrations/`.
-- **Desktop version:** **0.2.1** (`apps/desktop/package.json`).
+- **Tenant migrations:** they go up to **`0128_hr_payroll`** (0123–0128 = HR module). They are auto-discovered by filename in `apps/api/src/database/tenant/migrations/`.
+- **Desktop version:** **0.3.0** (`apps/desktop/package.json`) — adds the HR module (off by default).
 - **Cloud clones:** any copy in a Claude cloud sandbox has a different, unpushable history. **Never push from the cloud.** Deliver changes as files to the device repo; the user commits and pushes.
 
 ## 3. Standing rules from the user (always apply)
@@ -76,6 +76,7 @@ This is an Egyptian ERP product with a placeholder name ("ERP Platform" / "Ubaa"
   - label fixes: the name wraps to 2 lines; "print the item code as the barcode"; a warning for codes too long for the label; Code 128 set C;
   - **the scanner works on the Arabic keyboard layout** (`apps/web/src/lib/keyboard-layout.ts`, used by `resolveScan`);
   - **a crash fix.** The tenant pg Pool had no `'error'` listener, so a dropped idle connection (sleep/wake) killed the API. The app reloaded, and quit after 5 crashes. Also: `unhandledRejection` is logged, the window reloads on a renderer crash, and events go to `logs/desktop.log`.
+- **0.3.0** (2026-11-12): the **HR & payroll module** (steps 1–7 of `project-docs/hr-module-plan-2026-11-11.md`): employees and org structure, salaries, shifts/holidays/attendance import, leaves, loans and bonuses/penalties, the monthly payroll run (post + pay), payslip printing and the HR overview. Migrations 0123–0128; the `hr` module starts **off** for every tenant (Settings › Modules), so the clothing customer sees no change. The upgrade rehearsal now checks the HR defaults too.
 - **To install at the customer:** run the new installer over the old one. It takes a pre-update `pg_dump` automatically. Then:
   - Turn on any activity they need in **الإعدادات › الموديولات**. Migration 0118 turned off switches they never used, such as POS.
   - On the labels page, tick "اطبع كود الصنف كباركود" if they label with factory codes.
@@ -169,7 +170,7 @@ cd M:\Projects\erp-platform\apps\web; pnpm dev -- --port 8080   # 5173 is in a W
    - Build and install 0.2.1, then confirm whether the crashes stop. If they don't, get `api.log` / `desktop.log`.
    - Commit the `stage.mjs` fix.
    - Waiting from the customer: the Jumia **Orders** export, for the daily import.
-2. **Distribution client:** HR module (approved, standalone). Wait for the user's go-ahead and discussion first.
+2. **Distribution client:** HR module **built (0.3.0)** — see `project-docs/hr-module-plan-2026-11-11.md` (decisions, progress, known gaps). Next per the client plan: the foundation (shop restrictions, lots/FEFO…), then sales/reps/commissions.
 3. **Settings hub, phase 4:**
    - Fixed or editable document numbers.
    - Inventory settings moved into the hub, plus the negative-stock policy.

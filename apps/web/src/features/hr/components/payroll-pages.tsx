@@ -33,6 +33,7 @@ import { decimalToMinorUnits, formatAmount, formatMoney, minorUnitsToDecimalStri
 import { downloadXlsx } from '../../../lib/xlsx';
 import { confirmDialog } from '../../../components/feedback/confirm-dialog';
 import { TreasurySelect } from '../../../components/document/treasury-select';
+import { PrintButton, openPrint } from '../../../components/printing/print-button';
 import { DocumentBody, DocumentHeaderBar, SectionCard } from '../../../components/document/document-layout';
 import { useBranches } from '../../settings/queries';
 import { useCreatePayrollRun, useDeletePayrollRun, useDepartments, usePayrollAction, usePayrollRun, usePayrollRuns } from '../api/queries';
@@ -255,6 +256,50 @@ export function PayrollRunPage() {
     }
   }
 
+  function exportRun() {
+    if (!run) return;
+    const n = (minor: string) => Number(minorUnitsToDecimalString(minor));
+    downloadXlsx(
+      `${run.number}-${run.month}`,
+      [
+        t('hr.employees.code'),
+        t('hr.employees.fullName'),
+        t('hr.employees.department'),
+        t('hr.salary.basic'),
+        t('hr.salary.earnings'),
+        t('hr.attendance.overtime'),
+        t('hr.adjustments.kinds.bonus'),
+        t('hr.payroll.gross'),
+        t('hr.salary.deductions'),
+        t('hr.payroll.absence'),
+        t('hr.payroll.lateEarly'),
+        t('hr.payroll.unpaidLeave'),
+        t('hr.adjustments.kinds.penalty'),
+        t('hr.payroll.loan'),
+        t('hr.payroll.adjustment'),
+        t('hr.salary.net'),
+      ],
+      run.lines.map((l) => [
+        l.employeeCode,
+        l.employeeName,
+        l.departmentName ?? '',
+        n(l.basicMinorUnits),
+        n(l.allowancesMinorUnits),
+        n(l.overtimeMinorUnits),
+        n(l.bonusesMinorUnits),
+        n(l.grossMinorUnits),
+        n(l.componentDeductionsMinorUnits),
+        n(l.absenceMinorUnits),
+        n(l.lateMinorUnits),
+        n(l.unpaidLeaveMinorUnits),
+        n(l.penaltiesMinorUnits),
+        n(l.loanMinorUnits),
+        n(l.manualAdjustmentMinorUnits),
+        n(l.netMinorUnits),
+      ]),
+    );
+  }
+
   function exportBankSheet() {
     if (!run) return;
     const rows = run.lines
@@ -308,6 +353,11 @@ export function PayrollRunPage() {
         status={<Badge variant={STATUS_VARIANT[run.status]}>{t(`hr.payroll.statuses.${run.status}`)}</Badge>}
         actions={
           <>
+            <PrintButton documentType="payroll_run" id={run.id} />
+            <Button variant="outline" onClick={exportRun}>
+              <Download className="me-1 h-4 w-4" />
+              {t('hr.payroll.excel')}
+            </Button>
             <Button variant="outline" onClick={exportBankSheet}>
               <Download className="me-1 h-4 w-4" />
               {t('hr.payroll.bankSheet')}
@@ -542,6 +592,9 @@ function LineDialog({ run, line, onClose }: { run: PayrollRunDto; line: PayrollL
               <Input placeholder={t('hr.payroll.adjustmentNote')} disabled={!canEdit} value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} />
               <p className="text-xs text-muted-foreground">{t('hr.payroll.adjustmentHint')}</p>
             </div>
+            <Button variant="outline" onClick={() => openPrint('payslip', line.id)}>
+              {t('hr.payroll.printPayslip')}
+            </Button>
             {canEdit ? (
               <div className="flex justify-between gap-2">
                 <Button variant="ghost" className="text-destructive" onClick={removeLine}>

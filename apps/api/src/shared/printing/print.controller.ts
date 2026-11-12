@@ -43,6 +43,6 @@ export class PrintController {
     const options = Object.fromEntries(
       Object.entries(query).filter((entry): entry is [string, string] => typeof entry[1] === 'string'),
     );
-    return this.service.render(this.connections.getClient(schema), documentType, id, user.permissions, options);
+    return this.service.render(this.connections.getClient(schema), documentType, id, user.permissions, options, user.features ?? []);
   }
 }

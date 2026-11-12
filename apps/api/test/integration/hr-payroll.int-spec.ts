@@ -15,6 +15,8 @@ import { LeavesService } from '../../src/modules/hr/application/leaves.service';
 import { LoansService } from '../../src/modules/hr/application/loans.service';
 import { PayrollService } from '../../src/modules/hr/application/payroll.service';
 import { HrPayrollMovements } from '../../src/modules/hr/infrastructure/hr-payroll-movements';
+import { payslipLines } from '../../src/modules/hr/infrastructure/hr-print.registration';
+import { HrReportsService } from '../../src/modules/hr/application/hr-reports.service';
 import { openIntegrationDb, uniqueSuffix } from './tenant-db';
 
 /** HR step 6 (migration 0128): the monthly payroll run, end to end. */
@@ -170,5 +172,19 @@ describe('HR payroll (integration, real Postgres)', () => {
     const postedMeta = (events.find((x) => x.event_type === 'hr.payroll.posted')!.payload as { metadata: Record<string, string> }).metadata;
     expect(BigInt(postedMeta.expenseMinorUnits)).toBe(BigInt(postedMeta.netMinorUnits) + BigInt(postedMeta.loanMinorUnits));
     expect(postedMeta.date).toBe('2026-03-31');
+
+    // the payslip adds up to the net
+    const slip = payslipLines(paid.lines[0]!, currency);
+    expect(slip.reduce((sum, l) => sum + BigInt(l.amount!.amountMinorUnits), 0n).toString()).toBe(final.netMinorUnits);
+
+    // the HR overview shows the posted month only to those who may see pay
+    const reports = new HrReportsService();
+    const withPay = await reports.overview(db, 2026, ['hr.employees.view', 'hr.payroll.view']);
+    const march = withPay.payrollCost!.find((m) => m.month === '2026-03')!;
+    expect(BigInt(march.expenseMinorUnits)).toBeGreaterThanOrEqual(BigInt(final.netMinorUnits) + 100000n);
+    expect(withPay.costByDepartment!.some((d) => d.departmentName === `Payroll ${s}`)).toBe(true);
+    const withoutPay = await reports.overview(db, 2026, ['hr.employees.view']);
+    expect(withoutPay.payrollCost).toBeNull();
+    expect(withoutPay.openLoans).toBeNull();
   });
 });
