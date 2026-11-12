@@ -53,6 +53,10 @@ export const HR = {
   loansView: 'hr.loans.view',
   loansManage: 'hr.loans.manage',
   loansApprove: 'hr.loans.approve',
+  payrollView: 'hr.payroll.view',
+  payrollManage: 'hr.payroll.manage',
+  payrollApprove: 'hr.payroll.approve',
+  payrollPay: 'hr.payroll.pay',
 } as const;
 
 export const ANY_HR_PERMISSION: string[] = Object.values(HR);

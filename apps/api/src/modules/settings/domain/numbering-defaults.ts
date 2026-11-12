@@ -18,6 +18,8 @@ export const DEFAULT_DOCUMENT_NUMBERING: Record<string, { prefix: string; paddin
   leave_request: { prefix: 'LV-', paddingLength: 5 },
   employee_loan: { prefix: 'LN-', paddingLength: 5 },
   loan_repayment: { prefix: 'LR-', paddingLength: 5 },
+  payroll_run: { prefix: 'PR-', paddingLength: 5 },
+  payroll_payment: { prefix: 'PP-', paddingLength: 5 },
   // Sales
   quotation: { prefix: 'QT-', paddingLength: 5 },
   sales_order: { prefix: 'SO-', paddingLength: 5 },

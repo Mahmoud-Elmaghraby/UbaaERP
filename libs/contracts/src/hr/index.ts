@@ -4,3 +4,4 @@ export * from './salary.contract';
 export * from './attendance.contract';
 export * from './leave.contract';
 export * from './loan.contract';
+export * from './payroll.contract';

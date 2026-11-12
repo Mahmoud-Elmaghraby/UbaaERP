@@ -65,4 +65,35 @@ describe('AccountingHrPostingListener', () => {
   it('reports a missing account mapping (the outbox retries it)', async () => {
     await expect(listener(null).handleDisbursed(payload('disbursed'))).rejects.toMatchObject({ code: 'ACCOUNTING_SETTINGS.MAPPING_MISSING' });
   });
+
+  it('books a payroll: Dr expense = net + installments / Cr advances / Cr salaries payable', async () => {
+    const l = new AccountingHrPostingListener(
+      { getClient: () => db } as unknown as TenantConnectionManager,
+      { createAuto } as unknown as JournalEntriesService,
+      {
+        get: async () => ({ employeeAdvancesAccountId: 'advances', salariesExpenseAccountId: 'expense', salariesPayableAccountId: 'payable' }),
+      } as unknown as AccountingSettingsService,
+      { toLedger: async (_db: unknown, a: { amountMinorUnits: string }) => ({ amountMinorUnits: a.amountMinorUnits }) } as unknown as LedgerAmountService,
+    );
+    await l.handlePayrollPosted({
+      ...payload('disbursed'),
+      entityId: 'run-1',
+      metadata: { number: 'PR-00001', month: '2026-03', date: '2026-03-31', currency: 'EGP', expenseMinorUnits: '1100000', loanMinorUnits: '100000', netMinorUnits: '1000000' },
+    });
+    const entry = createAuto.mock.calls[0][1];
+    expect(entry.lines).toEqual([
+      { accountId: 'expense', debitAmountMinorUnits: '1100000', creditAmountMinorUnits: '0' },
+      { accountId: 'advances', debitAmountMinorUnits: '0', creditAmountMinorUnits: '100000' },
+      { accountId: 'payable', debitAmountMinorUnits: '0', creditAmountMinorUnits: '1000000' },
+    ]);
+    expect(entry).toMatchObject({ entryDate: '2026-03-31', sourceReferenceType: 'hr_payroll' });
+
+    createAuto.mockClear();
+    await l.handlePayrollPaid({
+      ...payload('disbursed'),
+      entityId: 'pay-1',
+      metadata: { number: 'PP-00001', runNumber: 'PR-00001', date: '2026-04-01', treasuryId: 'box', amount: { amountMinorUnits: '1000000', currency: 'EGP' } },
+    });
+    expect(createAuto.mock.calls[0][1].lines.map((x: { accountId: string }) => x.accountId)).toEqual(['payable', 'box-account']);
+  });
 });

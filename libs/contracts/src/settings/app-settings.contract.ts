@@ -101,6 +101,8 @@ export const APP_SETTINGS = {
   'hr.dayRateBasis': { section: 'hr', group: 'hrPay', feature: 'hr', kind: 'choice', default: 'days30', options: ['days30', 'days26', 'workingDays'] },
   'hr.overtimeMultiplier': { section: 'hr', group: 'hrPay', feature: 'hr', kind: 'number', default: 1.5, min: 1, max: 5, decimals: 2 },
   'hr.minOvertimeMinutes': { section: 'hr', group: 'hrAttendance', feature: 'hr', kind: 'number', default: 30, min: 0, max: 480, unit: 'minutes' },
+  'hr.monthlyLateAllowanceMinutes': { section: 'hr', group: 'hrAttendance', feature: 'hr', kind: 'number', default: 60, min: 0, max: 1440, unit: 'minutes' },
+  'hr.absenceDeductionDays': { section: 'hr', group: 'hrPay', feature: 'hr', kind: 'number', default: 1, min: 0, max: 3, decimals: 2 },
 
   // Document dates, every module.
   'documents.backdateDays': { section: 'documents', kind: 'number', default: null, nullable: true, min: 0, max: 3650, unit: 'days' },

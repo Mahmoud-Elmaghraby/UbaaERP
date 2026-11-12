@@ -56,6 +56,7 @@ const SOURCE_ROUTES: Record<string, (id: string) => string> = {
   cheque_collected: ENTITY_ROUTES.payment_received,
   cheque_bounced: ENTITY_ROUTES.payment_received,
   cheque_cleared: ENTITY_ROUTES.supplier_payment,
+  hr_payroll: (id) => `/hr/payroll/${id}`,
 };
 
 /** /accounting/journal-entries/:id — one entry: header, lines with totals, and what can be done with it. */

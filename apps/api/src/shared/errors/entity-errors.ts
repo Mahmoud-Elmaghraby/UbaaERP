@@ -93,6 +93,8 @@ export const ENTITY_LABELS = {
   HR_LEAVE_REQUEST: 'Leave request',
   HR_LOAN: 'Employee loan',
   HR_PAY_ADJUSTMENT: 'Bonus or penalty',
+  HR_PAYROLL_RUN: 'Payroll run',
+  HR_PAYROLL_LINE: 'Payroll line',
 } as const;
 
 export type EntityKey = keyof typeof ENTITY_LABELS;

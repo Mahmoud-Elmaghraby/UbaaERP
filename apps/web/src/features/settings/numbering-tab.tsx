@@ -66,7 +66,7 @@ const NUMBERING_GROUPS: { group: string; types: string[] }[] = [
   },
   { group: 'inventory', types: ['stock_opening', 'stock_transfer', 'stock_adjustment', 'stock_count'] },
   { group: 'treasury', types: ['treasury_expense', 'treasury_income', 'treasury_transfer'] },
-  { group: 'hr', types: ['employee', 'leave_request', 'employee_loan', 'loan_repayment'] },
+  { group: 'hr', types: ['employee', 'leave_request', 'employee_loan', 'loan_repayment', 'payroll_run', 'payroll_payment'] },
   { group: 'accounting', types: ['journal_entry'] },
 ];
 const KNOWN_TYPES = NUMBERING_GROUPS.flatMap((g) => g.types);

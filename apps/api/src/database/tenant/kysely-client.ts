@@ -856,6 +856,62 @@ export interface HrPayAdjustmentsTable {
   created_at: Generated<Date>;
 }
 
+export interface HrPayrollRunsTable {
+  id: string;
+  number: string;
+  pay_month: string;
+  branch_id: string | null;
+  department_id: string | null;
+  status: Generated<string>;
+  currency: string;
+  notes: string | null;
+  skipped_employees: Generated<string[]>;
+  posted_by: string | null;
+  posted_at: Date | null;
+  created_by: string | null;
+  created_at: Generated<Date>;
+}
+
+export interface HrPayrollLinesTable {
+  id: string;
+  run_id: string;
+  employee_id: string;
+  pay_month: string;
+  basic_minor: Generated<string>;
+  allowances_minor: Generated<string>;
+  overtime_minor: Generated<string>;
+  bonuses_minor: Generated<string>;
+  gross_minor: Generated<string>;
+  component_deductions_minor: Generated<string>;
+  absence_minor: Generated<string>;
+  late_minor: Generated<string>;
+  unpaid_leave_minor: Generated<string>;
+  penalties_minor: Generated<string>;
+  loan_minor: Generated<string>;
+  net_minor: Generated<string>;
+  /** Salary cost for the books: net + loan. */
+  expense_minor: Generated<string>;
+  manual_adjustment_minor: Generated<string>;
+  manual_adjustment_note: string | null;
+  overridden: Generated<string[]>;
+  details: Generated<unknown>;
+  warnings: Generated<string[]>;
+  payment_id: string | null;
+}
+
+export interface HrPayrollPaymentsTable {
+  id: string;
+  number: string;
+  run_id: string;
+  treasury_id: string;
+  paid_on: string;
+  amount_minor: string;
+  currency: string;
+  line_count: number;
+  created_by: string | null;
+  created_at: Generated<Date>;
+}
+
 export interface SalesRepsTable {
   id: string;
   code: string;
@@ -1657,6 +1713,9 @@ export interface TenantDatabase {
   hr_loan_installments: HrLoanInstallmentsTable;
   hr_loan_repayments: HrLoanRepaymentsTable;
   hr_pay_adjustments: HrPayAdjustmentsTable;
+  hr_payroll_runs: HrPayrollRunsTable;
+  hr_payroll_lines: HrPayrollLinesTable;
+  hr_payroll_payments: HrPayrollPaymentsTable;
   customer_refunds: CustomerRefundsTable;
   pos_held_carts: PosHeldCartsTable;
   pos_approvals: PosApprovalsTable;

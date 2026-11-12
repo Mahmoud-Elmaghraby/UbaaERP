@@ -25,6 +25,7 @@ const MOVEMENT_LABELS: Record<string, string> = {
   transfer_out: 'تحويل صادر',
   employee_loan: 'سلفة موظف',
   employee_loan_repayment: 'سداد سلفة موظف',
+  payroll: 'صرف مرتبات',
 };
 
 /** سند صرف / قبض / تحويل — A4 or the 80 mm roll. */

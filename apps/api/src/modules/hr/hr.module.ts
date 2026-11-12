@@ -15,6 +15,9 @@ import { LeavesService } from './application/leaves.service';
 import { LoansController, PayAdjustmentsController } from './presentation/loans.controller';
 import { LoansService } from './application/loans.service';
 import { HrLoanMovements } from './infrastructure/hr-loan-movements';
+import { PayrollController } from './presentation/payroll.controller';
+import { PayrollService } from './application/payroll.service';
+import { HrPayrollMovements } from './infrastructure/hr-payroll-movements';
 
 /**
  * HR & payroll (الموارد البشرية) — docs/claude-context/project-docs/hr-module-plan-2026-11-11.md.
@@ -29,10 +32,11 @@ import { HrLoanMovements } from './infrastructure/hr-loan-movements';
  * Step 3: shifts, public holidays, attendance import and the daily sheet (hr.attendance.*).
  * Step 4: leave types, balances and requests (hr.leaves.*); approved leaves mark the sheet.
  * Step 5: loans paid out of / back into treasuries (outbox events hr.loan.*), bonuses and penalties.
+ * Step 6: the monthly payroll run (hr.payroll.posted / hr.payroll.paid).
  */
 @Module({
   imports: [SettingsModule],
-  controllers: [EmployeesController, HrDepartmentsController, HrJobTitlesController, SalaryComponentsController, EmployeeSalariesController, AttendanceSetupController, AttendanceController, LeavesController, LoansController, PayAdjustmentsController],
-  providers: [EmployeesService, HrOrgService, SalaryComponentsService, EmployeeSalariesService, AttendanceSetupService, AttendanceService, LeavesService, LoansService, HrLoanMovements],
+  controllers: [EmployeesController, HrDepartmentsController, HrJobTitlesController, SalaryComponentsController, EmployeeSalariesController, AttendanceSetupController, AttendanceController, LeavesController, LoansController, PayAdjustmentsController, PayrollController],
+  providers: [EmployeesService, HrOrgService, SalaryComponentsService, EmployeeSalariesService, AttendanceSetupService, AttendanceService, LeavesService, LoansService, HrLoanMovements, PayrollService, HrPayrollMovements],
 })
 export class HrModule {}

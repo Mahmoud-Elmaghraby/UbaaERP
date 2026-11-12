@@ -7,6 +7,12 @@ import type {
   HrDepartmentDto,
   AttendanceDayDto,
   CarryOverLeaveDto,
+  CreatePayrollRunDto,
+  PayPayrollDto,
+  PayrollRunDto,
+  PayrollRunQueryDto,
+  PayrollRunSummaryDto,
+  UpdatePayrollLineDto,
   CreateLoanDto,
   CreatePayAdjustmentsDto,
   DisburseLoanDto,
@@ -384,4 +390,53 @@ export function useCreatePayAdjustments() {
 export function useDeletePayAdjustment() {
   const invalidate = useInvalidateHr();
   return useMutation({ mutationFn: (id: string) => apiDelete<void>(`/hr/pay-adjustments/${id}`), onSuccess: invalidate });
+}
+
+// ── payroll (hr.payroll.*) ────────────────────────────────────────────────
+
+export function usePayrollRuns(query: PayrollRunQueryDto) {
+  return useQuery({ queryKey: ['hr', 'payroll', 'list', query], queryFn: () => apiGet<PayrollRunSummaryDto[]>(`/hr/payroll-runs?${toParams(query)}`) });
+}
+
+export function usePayrollRun(id: string | undefined) {
+  return useQuery({ queryKey: ['hr', 'payroll', 'detail', id], queryFn: () => apiGet<PayrollRunDto>(`/hr/payroll-runs/${id}`), enabled: Boolean(id) });
+}
+
+export function useCreatePayrollRun() {
+  const invalidate = useInvalidateHr();
+  return useMutation({ mutationFn: (input: CreatePayrollRunDto) => apiPost<PayrollRunDto>('/hr/payroll-runs', input), onSuccess: invalidate });
+}
+
+export type PayrollAction =
+  | { action: 'recalculate' }
+  | { action: 'post' }
+  | { action: 'pay'; input: PayPayrollDto }
+  | { action: 'updateLine'; lineId: string; input: UpdatePayrollLineDto }
+  | { action: 'removeLine'; lineId: string };
+
+export function usePayrollAction(runId: string) {
+  const invalidate = useInvalidateHrAndTreasury();
+  return useMutation({
+    mutationFn: (a: PayrollAction) => {
+      const base = `/hr/payroll-runs/${runId}`;
+      switch (a.action) {
+        case 'recalculate':
+          return apiPost<PayrollRunDto>(`${base}/recalculate`);
+        case 'post':
+          return apiPost<PayrollRunDto>(`${base}/post`);
+        case 'pay':
+          return apiPost<PayrollRunDto>(`${base}/pay`, a.input);
+        case 'updateLine':
+          return apiPatch<PayrollRunDto>(`${base}/lines/${a.lineId}`, a.input);
+        case 'removeLine':
+          return apiDelete<PayrollRunDto>(`${base}/lines/${a.lineId}`);
+      }
+    },
+    onSuccess: invalidate,
+  });
+}
+
+export function useDeletePayrollRun() {
+  const invalidate = useInvalidateHr();
+  return useMutation({ mutationFn: (id: string) => apiDelete<void>(`/hr/payroll-runs/${id}`), onSuccess: invalidate });
 }

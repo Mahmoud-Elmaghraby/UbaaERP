@@ -21,7 +21,7 @@ export const AUDIT_MODULES: Record<string, string[]> = {
   ],
   hr: [
     'employee', 'department', 'job_title', 'salary', 'salary_component', 'attendance_setup', 'attendance', 'leave', 'loan',
-    'loan_repayment', 'pay_adjustment',
+    'loan_repayment', 'pay_adjustment', 'payroll', 'payroll_payment',
   ],
   users: ['user', 'role', 'auth'],
 };

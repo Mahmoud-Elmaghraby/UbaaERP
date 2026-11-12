@@ -167,6 +167,7 @@ export const treasuryMovementKindSchema = z.enum([
   'transfer_out',
   'employee_loan',
   'employee_loan_repayment',
+  'payroll',
 ]);
 export type TreasuryMovementKindDto = z.infer<typeof treasuryMovementKindSchema>;
 

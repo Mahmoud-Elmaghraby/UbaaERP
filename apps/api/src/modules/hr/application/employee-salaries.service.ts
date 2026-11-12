@@ -57,6 +57,7 @@ export class EmployeeSalariesService {
   async create(db: Kysely<TenantDatabase>, employeeId: string, input: SaveEmployeeSalaryDto, userId: string | null): Promise<EmployeeSalaryHistoryDto> {
     const employee = await this.requireEmployee(db, employeeId);
     this.assertWritable(employee, input.effectiveFrom);
+    await assertNotPaid(db, employeeId, input.effectiveFrom);
     const lines = await this.resolveLines(db, input, new Set());
     await withTransaction(db, async (trx) => {
       const id = randomUUID();
@@ -77,7 +78,8 @@ export class EmployeeSalariesService {
   async update(db: Kysely<TenantDatabase>, employeeId: string, salaryId: string, input: SaveEmployeeSalaryDto): Promise<EmployeeSalaryHistoryDto> {
     const employee = await this.requireEmployee(db, employeeId);
     this.assertWritable(employee, input.effectiveFrom);
-    await this.requireRevision(db, employeeId, salaryId);
+    const old = await this.requireRevision(db, employeeId, salaryId);
+    await assertNotPaid(db, employeeId, old < input.effectiveFrom ? old : input.effectiveFrom);
     // Components already on this revision may stay even if deactivated since.
     const kept = new Set(
       (await db.selectFrom('hr_employee_salary_lines').select('component_id').where('salary_id', '=', salaryId).execute()).map((l) => l.component_id),
@@ -103,7 +105,7 @@ export class EmployeeSalariesService {
   async delete(db: Kysely<TenantDatabase>, employeeId: string, salaryId: string): Promise<EmployeeSalaryHistoryDto> {
     const employee = await this.requireEmployee(db, employeeId);
     if (employee.status === 'terminated') throw terminatedReadOnly();
-    await this.requireRevision(db, employeeId, salaryId);
+    await assertNotPaid(db, employeeId, await this.requireRevision(db, employeeId, salaryId));
     await db.deleteFrom('hr_employee_salaries').where('id', '=', salaryId).execute();
     return this.history(db, employeeId);
   }
@@ -226,14 +228,16 @@ export class EmployeeSalariesService {
     return employee;
   }
 
-  private async requireRevision(db: Kysely<TenantDatabase>, employeeId: string, salaryId: string): Promise<void> {
+  /** The revision's start date. */
+  private async requireRevision(db: Kysely<TenantDatabase>, employeeId: string, salaryId: string): Promise<string> {
     const row = await db
       .selectFrom('hr_employee_salaries')
-      .select('id')
+      .select(['id', 'effective_from'])
       .where('id', '=', salaryId)
       .where('employee_id', '=', employeeId)
       .executeTakeFirst();
     if (!row) throw entityNotFound('HR_EMPLOYEE_SALARY', salaryId);
+    return row.effective_from;
   }
 
   private revisionsQuery(db: Kysely<TenantDatabase>) {
@@ -325,6 +329,25 @@ async function companyCurrency(db: Kysely<TenantDatabase>): Promise<string> {
 
 function today(): string {
   return new Date().toISOString().slice(0, 10);
+}
+
+/** A posted payroll locks the salary history of the months it paid. */
+async function assertNotPaid(db: Kysely<TenantDatabase>, employeeId: string, from: string): Promise<void> {
+  const paid = await db
+    .selectFrom('hr_payroll_lines as l')
+    .innerJoin('hr_payroll_runs as r', 'r.id', 'l.run_id')
+    .select(['r.number', 'l.pay_month'])
+    .where('l.employee_id', '=', employeeId)
+    .where('r.status', '<>', 'draft')
+    .where(sql<boolean>`l.pay_month + interval '1 month' > ${from}::date`)
+    .orderBy('l.pay_month', 'desc')
+    .executeTakeFirst();
+  if (paid) {
+    throw new BusinessRuleError(`Payroll ${paid.number} already paid ${paid.pay_month.slice(0, 7)}.`, {
+      code: 'HR_SALARY.LOCKED_BY_PAYROLL',
+      params: { number: paid.number, month: paid.pay_month.slice(0, 7) },
+    });
+  }
 }
 
 function duplicateDate(date: string): BusinessRuleError {

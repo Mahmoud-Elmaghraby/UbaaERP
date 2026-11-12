@@ -23,7 +23,8 @@ export type TreasuryMovementKind =
   | 'transfer_in'
   | 'transfer_out'
   | 'employee_loan'
-  | 'employee_loan_repayment';
+  | 'employee_loan_repayment'
+  | 'payroll';
 
 export interface TreasuryMovement {
   treasuryId: string;

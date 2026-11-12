@@ -234,7 +234,11 @@
       "hr__leaves__approve": "الموافقة على طلبات الإجازة أو رفضها",
       "hr__loans__view": "رؤية سلف الموظفين",
       "hr__loans__manage": "تسجيل السلف وصرفها وتحصيلها وتأجيل الأقساط",
-      "hr__loans__approve": "الموافقة على السلف أو رفضها"
+      "hr__loans__approve": "الموافقة على السلف أو رفضها",
+      "hr__payroll__view": "رؤية مسيرات الرواتب",
+      "hr__payroll__manage": "تجهيز مسيرات الرواتب وتعديل سطورها",
+      "hr__payroll__approve": "اعتماد وترحيل مسيرات الرواتب",
+      "hr__payroll__pay": "صرف المرتبات من الخزينة"
     },
     "search": "ابحث باسم الدور…",
     "userCount": "المستخدمين",
@@ -375,7 +379,9 @@
         "employee": "كود الموظف",
         "leave_request": "طلب إجازة",
         "employee_loan": "سلفة موظف",
-        "loan_repayment": "سداد سلفة"
+        "loan_repayment": "سداد سلفة",
+        "payroll_run": "مسير رواتب",
+        "payroll_payment": "صرف مرتبات"
       }
     },
     "templates": {
@@ -866,6 +872,14 @@
         "hr__minOvertimeMinutes": {
           "label": "أقل وقت إضافي يتحسب",
           "hint": "أي وقت إضافي أقل من كده في اليوم مش بيتحسب."
+        },
+        "hr__monthlyLateAllowanceMinutes": {
+          "label": "سماح التأخير في الشهر",
+          "hint": "مجموع دقايق التأخير والانصراف البدري في الشهر لحد الرقم ده مش بيتخصم؛ اللي فوقه بيتخصم بأجر الدقيقة."
+        },
+        "hr__absenceDeductionDays": {
+          "label": "خصم يوم الغياب",
+          "hint": "كام يوم أجر بيتخصم عن كل يوم غياب من غير إذن (1 = يوم بيوم، 2 = اليوم بيومين)."
         }
       },
       "units": {
@@ -3011,7 +3025,11 @@
         "cheque_bounced": "ارتداد شيك عميل",
         "cheque_cleared": "صرف شيك لمورد",
         "customer_refund": "رد مبلغ لعميل",
-        "customer_refund_cancel": "إلغاء رد مبلغ لعميل"
+        "customer_refund_cancel": "إلغاء رد مبلغ لعميل",
+        "hr_loan": "صرف سلفة موظف",
+        "hr_loan_repayment": "سداد سلفة موظف",
+        "hr_payroll": "مسير رواتب",
+        "hr_payroll_payment": "صرف مرتبات"
       },
       "approveConfirm": "تعتمد القيد وترحّله؟ بعد الترحيل مينفعش يتعدّل.",
       "approveAndPost": "اعتماد وترحيل",
@@ -4002,7 +4020,8 @@
       "marketplace_fees": "خصومات منصة (عمولات ورسوم)",
       "customer_refund": "رد مبلغ لعميل",
       "employee_loan": "سلفة موظف",
-      "employee_loan_repayment": "سداد سلفة موظف"
+      "employee_loan_repayment": "سداد سلفة موظف",
+      "payroll": "صرف مرتبات"
     },
     "form": {
       "newTitle": "خزينة جديدة",
@@ -4604,7 +4623,9 @@
       "leave": "إجازة",
       "loan": "سلفة",
       "loan_repayment": "سداد سلفة",
-      "pay_adjustment": "مكافأة / جزاء"
+      "pay_adjustment": "مكافأة / جزاء",
+      "payroll": "مسير رواتب",
+      "payroll_payment": "صرف مرتبات"
     },
     "fields": {
       "invoiceNumber": "رقم الفاتورة",
@@ -5016,6 +5037,71 @@
       "settled": "في المسير",
       "created_one": "اتسجل لموظف واحد.",
       "created_other": "اتسجل لـ {{count}} موظف."
+    },
+    "payroll": {
+      "title": "مسير الرواتب",
+      "subtitle": "حساب مرتبات الشهر من المرتب والحضور والإجازات والسلف والمكافآت، ثم الاعتماد والصرف.",
+      "add": "مسير جديد",
+      "notFound": "المسير ده مش موجود",
+      "number": "الرقم",
+      "month": "الشهر",
+      "scope": "لمين",
+      "everyone": "كل الموظفين",
+      "oneDepartment": "إدارة واحدة",
+      "oneBranch": "فرع واحد",
+      "createHint": "السيستم بيحسب كل موظف من بياناته، وتقدر تراجع وتعدّل قبل الاعتماد. اللي اتعمله مسير للشهر ده قبل كده مش هيدخل تاني.",
+      "calculate": "احسب",
+      "gross": "الإجمالي",
+      "paidAmount": "اتصرف",
+      "loan": "قسط سلفة",
+      "adjustment": "تعديل يدوي",
+      "adjustmentNote": "السبب",
+      "adjustmentHint": "موجب = يتصرف أكتر، سالب = يتخصم.",
+      "absence": "خصم الغياب",
+      "lateEarly": "خصم التأخير والانصراف البدري",
+      "unpaidLeave": "إجازة بدون أجر",
+      "absenceHint": "{{days}} يوم غياب في كشف الحضور.",
+      "lateHint": "{{minutes}} دقيقة تأخير وانصراف بدري، منها {{chargeable}} بعد السماح.",
+      "overtimeHint": "{{minutes}} دقيقة إضافي في كشف الحضور.",
+      "overridden": "متعدّل",
+      "backToSuggestion": "رجّع المقترح",
+      "rates": "أجر اليوم {{day}} — أجر الساعة {{hour}}",
+      "partial": "شغال {{days}} يوم من {{of}} (جزء من الشهر).",
+      "leaveLine": "{{type}}: {{days}} يوم (بأجر {{pay}}%)",
+      "removeLine": "شيله من المسير",
+      "removeLineConfirm": "تشيل {{name}} من المسير ده؟ تقدر تعمله مسير لوحده بعدين.",
+      "recalculate": "إعادة الحساب",
+      "post": "اعتماد وترحيل",
+      "postConfirm": "تعتمد مسير {{month}}؟ بعد الاعتماد: المكافآت والجزاءات وأقساط السلف بتتسوّى، ومرتبات الشهر بتتقفل، والقيد بيتعمل.",
+      "deleteConfirm": "تمسح المسير ده؟ (لسه مسودة)",
+      "pay": "صرف المرتبات",
+      "payWho": "صرف لـ",
+      "everyoneUnpaid": "كل اللي ماتصرفلهمش",
+      "fromTreasury": "من خزينة",
+      "payDate": "تاريخ الصرف",
+      "payPreview": "هيتصرف لـ {{count}} موظف: {{amount}}",
+      "payments": "عمليات الصرف",
+      "employeesCount": "{{count}} موظف",
+      "bankSheet": "كشف التحويل البنكي",
+      "skipped": "مش في المسير ده لأنهم في مسير تاني للشهر: {{names}}",
+      "statuses": {
+        "draft": "مسودة",
+        "posted": "معتمد",
+        "paid": "اتصرف"
+      },
+      "totals": {
+        "gross": "الإجمالي",
+        "deductions": "الخصومات",
+        "loan": "أقساط السلف",
+        "net": "الصافي"
+      },
+      "warnings": {
+        "NO_SALARY": "مفيش مرتب متسجل",
+        "NO_ATTENDANCE": "مفيش حضور للشهر",
+        "PARTIAL_MONTH": "جزء من الشهر",
+        "LOAN_REDUCED": "القسط اتقلل",
+        "DEDUCTIONS_CAPPED": "الخصومات أكبر من المرتب"
+      }
     }
   }
 }
