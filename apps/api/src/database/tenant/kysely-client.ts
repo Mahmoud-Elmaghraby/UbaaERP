@@ -753,7 +753,53 @@ export interface HrAttendanceDaysTable {
   overtime_minutes: Generated<number>;
   is_manual: Generated<boolean>;
   note: string | null;
+  /** Migration 0126 — the approved leave this day belongs to. */
+  leave_request_id: Generated<string | null>;
   updated_at: Generated<Date>;
+}
+
+export interface HrLeaveTypesTable {
+  id: string;
+  name: string;
+  pay_percent: Generated<number>;
+  has_balance: Generated<boolean>;
+  /** NUMERIC(5,1) — string out. */
+  annual_days: string | null;
+  max_carry_over: Generated<string>;
+  parent_type_id: string | null;
+  is_active: Generated<boolean>;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
+export interface HrLeaveBalancesTable {
+  id: string;
+  employee_id: string;
+  leave_type_id: string;
+  year: number;
+  entitled: string;
+  carried_over: Generated<string>;
+  adjustment: Generated<string>;
+  note: string | null;
+  updated_at: Generated<Date>;
+}
+
+export interface HrLeaveRequestsTable {
+  id: string;
+  number: string;
+  employee_id: string;
+  leave_type_id: string;
+  start_date: string;
+  end_date: string;
+  half_day: Generated<boolean>;
+  days: string;
+  reason: string | null;
+  status: Generated<string>;
+  decided_by: string | null;
+  decided_at: Date | null;
+  decision_note: string | null;
+  created_by: string | null;
+  created_at: Generated<Date>;
 }
 
 export interface SalesRepsTable {
@@ -1550,6 +1596,9 @@ export interface TenantDatabase {
   hr_attendance_imports: HrAttendanceImportsTable;
   hr_attendance_punches: HrAttendancePunchesTable;
   hr_attendance_days: HrAttendanceDaysTable;
+  hr_leave_types: HrLeaveTypesTable;
+  hr_leave_balances: HrLeaveBalancesTable;
+  hr_leave_requests: HrLeaveRequestsTable;
   customer_refunds: CustomerRefundsTable;
   pos_held_carts: PosHeldCartsTable;
   pos_approvals: PosApprovalsTable;

@@ -6,6 +6,17 @@ import type {
   EmployeeSummaryDto,
   HrDepartmentDto,
   AttendanceDayDto,
+  CarryOverLeaveDto,
+  CreateLeaveRequestDto,
+  DecideLeaveRequestDto,
+  LeaveBalanceDto,
+  LeaveBalanceQueryDto,
+  LeavePreviewDto,
+  LeaveRequestDto,
+  LeaveRequestQueryDto,
+  LeaveTypeDto,
+  SaveLeaveBalanceDto,
+  SaveLeaveTypeDto,
   AttendanceImportDto,
   AttendanceImportResultDto,
   AttendanceQueryDto,
@@ -253,4 +264,66 @@ export function useUpdateAttendanceDay() {
 export function useResetAttendanceDay() {
   const invalidate = useInvalidateHr();
   return useMutation({ mutationFn: (id: string) => apiPost<AttendanceDayDto>(`/hr/attendance/days/${id}/reset`), onSuccess: invalidate });
+}
+
+// ── leaves (hr.leaves.*) ──────────────────────────────────────────────────
+
+export function useLeaveTypes() {
+  return useQuery({ queryKey: ['hr', 'leave-types'], queryFn: () => apiGet<LeaveTypeDto[]>('/hr/leave-types'), staleTime: 60_000 });
+}
+
+export function useSaveLeaveType() {
+  const invalidate = useInvalidateHr();
+  return useMutation({
+    mutationFn: ({ id, input }: { id?: string; input: SaveLeaveTypeDto }) =>
+      id ? apiPut<LeaveTypeDto>(`/hr/leave-types/${id}`, input) : apiPost<LeaveTypeDto>('/hr/leave-types', input),
+    onSuccess: invalidate,
+  });
+}
+
+export function useDeleteLeaveType() {
+  const invalidate = useInvalidateHr();
+  return useMutation({ mutationFn: (id: string) => apiDelete<void>(`/hr/leave-types/${id}`), onSuccess: invalidate });
+}
+
+export function useLeaveRequests(query: LeaveRequestQueryDto) {
+  return useQuery({ queryKey: ['hr', 'leave-requests', query], queryFn: () => apiGet<LeaveRequestDto[]>(`/hr/leave-requests?${toParams(query)}`) });
+}
+
+/** Live "how many days / what's left" while the request form is filled in. */
+export function useLeavePreview(input: CreateLeaveRequestDto | null) {
+  return useQuery({
+    queryKey: ['hr', 'leave-preview', input],
+    queryFn: () => apiPost<LeavePreviewDto>('/hr/leave-requests/preview', input),
+    enabled: input !== null,
+    retry: false,
+  });
+}
+
+export function useCreateLeaveRequest() {
+  const invalidate = useInvalidateHr();
+  return useMutation({ mutationFn: (input: CreateLeaveRequestDto) => apiPost<LeaveRequestDto>('/hr/leave-requests', input), onSuccess: invalidate });
+}
+
+export function useDecideLeaveRequest() {
+  const invalidate = useInvalidateHr();
+  return useMutation({
+    mutationFn: ({ id, action, input }: { id: string; action: 'approve' | 'reject' | 'cancel'; input: DecideLeaveRequestDto }) =>
+      apiPost<LeaveRequestDto>(`/hr/leave-requests/${id}/${action}`, input),
+    onSuccess: invalidate,
+  });
+}
+
+export function useLeaveBalances(query: LeaveBalanceQueryDto) {
+  return useQuery({ queryKey: ['hr', 'leave-balances', query], queryFn: () => apiGet<LeaveBalanceDto[]>(`/hr/leave-balances?${toParams(query)}`) });
+}
+
+export function useSaveLeaveBalance() {
+  const invalidate = useInvalidateHr();
+  return useMutation({ mutationFn: (input: SaveLeaveBalanceDto) => apiPut<LeaveBalanceDto>('/hr/leave-balances', input), onSuccess: invalidate });
+}
+
+export function useCarryOverLeave() {
+  const invalidate = useInvalidateHr();
+  return useMutation({ mutationFn: (input: CarryOverLeaveDto) => apiPost<{ updated: number }>('/hr/leave-balances/carry-over', input), onSuccess: invalidate });
 }

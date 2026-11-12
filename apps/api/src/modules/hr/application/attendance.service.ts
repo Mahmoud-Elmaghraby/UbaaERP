@@ -25,9 +25,9 @@ import {
   measure,
   punchWindow,
   type DayResult,
-  type ShiftRule,
 } from '../domain/attendance';
 import { parsePunch } from '../domain/punch-parse';
+import { loadHolidays, loadShiftRules } from './shift-rules';
 
 const MAX_RANGE_DAYS = 366;
 const CHUNK = 500;
@@ -135,15 +135,8 @@ export class AttendanceService {
     const employees = await employeesQuery.execute();
     if (employees.length === 0) return { days: 0, keptManual: 0 };
 
-    const shifts = await db.selectFrom('hr_shifts').selectAll().execute();
-    const fallback = shifts.find((s) => s.is_default) ?? shifts[0];
-    if (!fallback) throw new BusinessRuleError('Define a shift first.', { code: 'HR_SHIFT.DEFAULT_REQUIRED' });
-    const ruleOf = new Map(shifts.map((s) => [s.id, toRule(s)]));
-    const holidays = new Set(
-      (await db.selectFrom('hr_public_holidays').select('holiday_date').where('holiday_date', '>=', from).where('holiday_date', '<=', to).execute()).map(
-        (h) => h.holiday_date,
-      ),
-    );
+    const shifts = await loadShiftRules(db);
+    const holidays = await loadHolidays(db, from, to);
     const minOvertime = await this.settings.get(db, 'hr.minOvertimeMinutes');
 
     // Punches by employee and calendar date, as minutes after that date's midnight.
@@ -164,9 +157,23 @@ export class AttendanceService {
       punchMap.set(key, [...(punchMap.get(key) ?? []), Number(p.minute)]);
     }
 
-    const rows: (DayResult & { employeeId: string; workDate: string })[] = [];
+    // Approved leaves in the period, by employee and day.
+    const leaves = await db
+      .selectFrom('hr_leave_requests')
+      .select(['id', 'employee_id', 'start_date', 'end_date', 'half_day'])
+      .where('status', '=', 'approved')
+      .where('employee_id', 'in', employees.map((e) => e.id))
+      .where('start_date', '<=', to)
+      .where('end_date', '>=', from)
+      .execute();
+    const leaveOn = new Map<string, { id: string; halfDay: boolean }>();
+    for (const l of leaves) {
+      for (let d = l.start_date; d <= l.end_date; d = addDays(d, 1)) leaveOn.set(`${l.employee_id}|${d}`, { id: l.id, halfDay: l.half_day });
+    }
+
+    const rows: (DayResult & { employeeId: string; workDate: string; leaveRequestId: string | null })[] = [];
     for (const e of employees) {
-      const rule = ruleOf.get(e.shift_id ?? '') ?? toRule(fallback);
+      const rule = shifts.of(e.shift_id);
       const window = punchWindow(rule);
       const start = e.hire_date > from ? e.hire_date : from;
       const end = e.termination_date && e.termination_date < to ? e.termination_date : to;
@@ -178,7 +185,9 @@ export class AttendanceService {
             if (relative >= window.from && relative < window.to) minutes.push(relative);
           }
         }
-        rows.push({ employeeId: e.id, workDate: date, ...evaluateDay(dayKind(date, rule, holidays), rule, minutes, minOvertime) });
+        const kind = dayKind(date, rule, holidays);
+        const leave = kind === 'work' ? leaveOn.get(`${e.id}|${date}`) : undefined;
+        rows.push({ employeeId: e.id, workDate: date, leaveRequestId: leave?.id ?? null, ...withLeave(evaluateDay(kind, rule, minutes, minOvertime), leave) });
       }
     }
 
@@ -211,6 +220,7 @@ export class AttendanceService {
               late_minutes: r.lateMinutes,
               early_leave_minutes: r.earlyLeaveMinutes,
               overtime_minutes: r.overtimeMinutes,
+              leave_request_id: r.leaveRequestId,
             })),
           )
           .onConflict((oc) =>
@@ -225,6 +235,7 @@ export class AttendanceService {
                 late_minutes: eb.ref('excluded.late_minutes'),
                 early_leave_minutes: eb.ref('excluded.early_leave_minutes'),
                 overtime_minutes: eb.ref('excluded.overtime_minutes'),
+                leave_request_id: eb.ref('excluded.leave_request_id'),
                 updated_at: new Date(),
               }))
               .where('hr_attendance_days.is_manual', '=', false),
@@ -259,12 +270,8 @@ export class AttendanceService {
       .where('d.id', '=', id)
       .executeTakeFirst();
     if (!day) throw entityNotFound('HR_ATTENDANCE_DAY', id);
-    const shift =
-      (day.shift_id ? await db.selectFrom('hr_shifts').selectAll().where('id', '=', day.shift_id).executeTakeFirst() : undefined) ??
-      (await db.selectFrom('hr_shifts').selectAll().where('is_default', '=', true).executeTakeFirstOrThrow());
-    const rule = toRule(shift);
-    const holiday = await db.selectFrom('hr_public_holidays').select('id').where('holiday_date', '=', day.work_date).executeTakeFirst();
-    const kind = dayKind(day.work_date, rule, holiday ? new Set([day.work_date]) : new Set());
+    const rule = (await loadShiftRules(db)).of(day.shift_id);
+    const kind = dayKind(day.work_date, rule, await loadHolidays(db, day.work_date, day.work_date));
     const minOvertime = await this.settings.get(db, 'hr.minOvertimeMinutes');
 
     const checkIn = input.checkInMinute ?? null;
@@ -374,16 +381,6 @@ export class AttendanceService {
   }
 }
 
-function toRule(s: { start_minute: number; end_minute: number; grace_minutes: number; break_minutes: number; weekly_off_days: number[] }): ShiftRule {
-  return {
-    startMinute: s.start_minute,
-    endMinute: s.end_minute,
-    graceMinutes: s.grace_minutes,
-    breakMinutes: s.break_minutes,
-    weeklyOffDays: s.weekly_off_days.map(Number),
-  };
-}
-
 function toDayDto(r: {
   id: string;
   employee_id: string;
@@ -418,6 +415,16 @@ function toDayDto(r: {
     isManual: r.is_manual,
     note: r.note,
   };
+}
+
+/**
+ * A working day inside an approved leave. A full day is 'leave' whatever the device says; on a half
+ * day the employee may still come in — then they are present without lateness or early leave.
+ */
+function withLeave(day: DayResult, leave: { halfDay: boolean } | undefined): DayResult {
+  if (!leave) return day;
+  if (leave.halfDay && day.checkInMinute !== null) return { ...day, lateMinutes: 0, earlyLeaveMinutes: 0 };
+  return { ...day, status: 'leave', missingPunch: false, workedMinutes: 0, lateMinutes: 0, earlyLeaveMinutes: 0, overtimeMinutes: 0 };
 }
 
 /** Device IDs come as "0007", "7" or "7.0": compare numbers without padding, text case-insensitively. */

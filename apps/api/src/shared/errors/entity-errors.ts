@@ -89,6 +89,8 @@ export const ENTITY_LABELS = {
   HR_SHIFT: 'Shift',
   HR_HOLIDAY: 'Public holiday',
   HR_ATTENDANCE_DAY: 'Attendance day',
+  HR_LEAVE_TYPE: 'Leave type',
+  HR_LEAVE_REQUEST: 'Leave request',
 } as const;
 
 export type EntityKey = keyof typeof ENTITY_LABELS;

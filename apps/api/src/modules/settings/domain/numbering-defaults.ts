@@ -15,6 +15,7 @@ export const DEFAULT_DOCUMENT_NUMBERING: Record<string, { prefix: string; paddin
   customer: { prefix: 'CUS-', paddingLength: 5 },
   supplier: { prefix: 'SUP-', paddingLength: 5 },
   employee: { prefix: 'EMP-', paddingLength: 4 },
+  leave_request: { prefix: 'LV-', paddingLength: 5 },
   // Sales
   quotation: { prefix: 'QT-', paddingLength: 5 },
   sales_order: { prefix: 'SO-', paddingLength: 5 },

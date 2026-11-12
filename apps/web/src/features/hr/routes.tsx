@@ -10,6 +10,9 @@ const ShiftsPage = lazy(() => import('./components').then((m) => ({ default: m.S
 const HolidaysPage = lazy(() => import('./components').then((m) => ({ default: m.HolidaysPage })));
 const AttendancePage = lazy(() => import('./components').then((m) => ({ default: m.AttendancePage })));
 const AttendanceImportPage = lazy(() => import('./components').then((m) => ({ default: m.AttendanceImportPage })));
+const LeaveRequestsPage = lazy(() => import('./components').then((m) => ({ default: m.LeaveRequestsPage })));
+const LeaveBalancesPage = lazy(() => import('./components').then((m) => ({ default: m.LeaveBalancesPage })));
+const LeaveTypesPage = lazy(() => import('./components').then((m) => ({ default: m.LeaveTypesPage })));
 const SalaryRegisterPage = lazy(() => import('./components').then((m) => ({ default: m.SalaryRegisterPage })));
 
 /** HR (الموارد البشرية): employees and the organisation structure. */
@@ -30,6 +33,9 @@ export const hrRoutes: RouteObject[] = [
       { path: 'attendance/import', element: <AttendanceImportPage /> },
       { path: 'shifts', element: <ShiftsPage /> },
       { path: 'holidays', element: <HolidaysPage /> },
+      { path: 'leaves', element: <LeaveRequestsPage /> },
+      { path: 'leave-balances', element: <LeaveBalancesPage /> },
+      { path: 'leave-types', element: <LeaveTypesPage /> },
     ],
   },
 ];

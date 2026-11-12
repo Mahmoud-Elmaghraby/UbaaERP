@@ -100,4 +100,12 @@ Status: **approved — building.**
   - API: `/hr/shifts`, `/hr/holidays`, `/hr/attendance` (list, `summary`, `import`, `rebuild`, `PUT days/:id`, `POST days/:id/reset`).
   - Web: الورديات, الإجازات الرسمية, الحضور والانصراف (daily + summary tabs, exceptions filter, hand-correction dialog), استيراد من البصمة (column mapping with guesses, preview, result report); shift + device number on the employee file.
   - Not yet: suspended employees get no days; leaves come in step 4 (status `leave` already exists).
-- **Next: step 4** — leave types, yearly balances and leave requests with the linear approval (employee → manager); approved leaves mark the attendance days.
+- **Step 4 done (2026-11-12)** — migration `0126_hr_leaves`:
+  - `hr_leave_types`: pay % kept, has balance, default yearly days, carry-over cap, optional parent type whose balance it also uses (one level). Seeded: اعتيادي 21 days; عارضة 6 days inside اعتيادي; مرضي (paid, no balance); بدون أجر (0%). All editable.
+  - `hr_leave_balances`: only for employee-years that differ from the type default (entitled, carried, adjustment for opening balances/corrections). Used/pending always computed from requests.
+  - `hr_leave_requests` (LV- numbering): one calendar year each; days = the employee's working days (shift days off and public holidays excluded); half day = 0.5. Checks: hire date, overlap with pending/approved, balance of the type and of its parent (pending counted). pending → approved/rejected (hr.leaves.approve, never your own leave); pending/approved → cancelled.
+  - Approved leave marks its working days `leave` on the attendance sheet (`hr_attendance_days.leave_request_id`); a half-day leave with punches stays present without late/early. Cancelling restores the sheet.
+  - Year close: carry unused days (≤ cap) into next year's balances.
+  - Approval: anyone with `hr.leaves.approve`; the employee's direct manager is shown on the request. Manager self-service (a manager deciding for their own team only) is phase 2.
+  - Web: طلبات الإجازة (live preview of days and balance, decision dialog), أرصدة الإجازات (edit, carry over), أنواع الإجازات.
+- **Next: step 5** — loans/advances with monthly installments, and one-off bonuses/penalties.

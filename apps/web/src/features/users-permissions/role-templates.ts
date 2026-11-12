@@ -52,7 +52,7 @@ export const ROLE_TEMPLATES: RoleTemplate[] = [
     key: 'viewer',
     permissionKeys: ['sales.view', 'sales.reports.view', 'purchases.view', 'purchases.reports.view', 'treasury.view', ...INVENTORY_READ, 'inventory.reports.view', 'audit_logs.view'],
   },
-  { key: 'hrOfficer', permissionKeys: ['hr.employees.view', 'hr.employees.manage', 'hr.salaries.view', 'hr.salaries.manage', 'hr.attendance.view', 'hr.attendance.manage'] },
+  { key: 'hrOfficer', permissionKeys: ['hr.employees.view', 'hr.employees.manage', 'hr.salaries.view', 'hr.salaries.manage', 'hr.attendance.view', 'hr.attendance.manage', 'hr.leaves.view', 'hr.leaves.manage', 'hr.leaves.approve'] },
   // Everything except running the system itself (users, roles, settings).
   { key: 'manager', permissionKeys: ['*'] },
 ];
