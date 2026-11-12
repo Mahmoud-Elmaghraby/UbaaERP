@@ -77,7 +77,15 @@ const MAPPING_GROUPS: { titleKey: string; fields: { name: MappingName; labelKey:
       { name: 'cashOverShortAccountId', labelKey: 'accounting.settings.cashOverShort' },
       { name: 'exchangeGainLossAccountId', labelKey: 'accounting.settings.exchangeGainLoss' },
     ],
+  },  {
+    titleKey: 'accounting.settings.groups.payroll',
+    fields: [
+      { name: 'salariesExpenseAccountId', labelKey: 'accounting.settings.salariesExpense' },
+      { name: 'salariesPayableAccountId', labelKey: 'accounting.settings.salariesPayable' },
+      { name: 'employeeAdvancesAccountId', labelKey: 'accounting.settings.employeeAdvances' },
+    ],
   },
+
   {
     titleKey: 'accounting.settings.groups.closing',
     fields: [{ name: 'retainedEarningsAccountId', labelKey: 'accounting.settings.retainedEarnings' }],

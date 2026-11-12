@@ -12,4 +12,7 @@ export const HR_PERMISSIONS = {
   leavesView: 'hr.leaves.view',
   leavesManage: 'hr.leaves.manage',
   leavesApprove: 'hr.leaves.approve',
+  loansView: 'hr.loans.view',
+  loansManage: 'hr.loans.manage',
+  loansApprove: 'hr.loans.approve',
 } as const;

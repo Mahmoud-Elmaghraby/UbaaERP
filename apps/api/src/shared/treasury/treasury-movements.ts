@@ -21,7 +21,9 @@ export type TreasuryMovementKind =
   | 'expense'
   | 'income'
   | 'transfer_in'
-  | 'transfer_out';
+  | 'transfer_out'
+  | 'employee_loan'
+  | 'employee_loan_repayment';
 
 export interface TreasuryMovement {
   treasuryId: string;

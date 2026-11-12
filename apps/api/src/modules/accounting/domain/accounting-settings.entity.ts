@@ -61,6 +61,10 @@ export interface AccountingSettings {
   tableTaxInputAccountId: string | null;
   withholdingPayableAccountId: string | null;
   withholdingReceivableAccountId: string | null;
+  /** Migration 0127 (HR): employee loans (117), salaries expense (521), salaries payable (214). */
+  employeeAdvancesAccountId: string | null;
+  salariesExpenseAccountId: string | null;
+  salariesPayableAccountId: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -92,4 +96,7 @@ export interface UpdateAccountingSettingsInput {
   tableTaxInputAccountId?: string | null;
   withholdingPayableAccountId?: string | null;
   withholdingReceivableAccountId?: string | null;
+  employeeAdvancesAccountId?: string | null;
+  salariesExpenseAccountId?: string | null;
+  salariesPayableAccountId?: string | null;
 }

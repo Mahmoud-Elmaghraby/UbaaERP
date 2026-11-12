@@ -802,6 +802,60 @@ export interface HrLeaveRequestsTable {
   created_at: Generated<Date>;
 }
 
+export interface HrLoansTable {
+  id: string;
+  number: string;
+  employee_id: string;
+  amount_minor: string;
+  currency: string;
+  first_month: string;
+  reason: string | null;
+  status: Generated<string>;
+  decided_by: string | null;
+  decided_at: Date | null;
+  decision_note: string | null;
+  treasury_id: string | null;
+  disbursed_on: string | null;
+  disbursed_by: string | null;
+  created_by: string | null;
+  created_at: Generated<Date>;
+}
+
+export interface HrLoanInstallmentsTable {
+  id: string;
+  loan_id: string;
+  sequence: number;
+  due_month: string;
+  amount_minor: string;
+  paid_minor: Generated<string>;
+}
+
+export interface HrLoanRepaymentsTable {
+  id: string;
+  number: string;
+  loan_id: string;
+  treasury_id: string;
+  repaid_on: string;
+  amount_minor: string;
+  currency: string;
+  created_by: string | null;
+  created_at: Generated<Date>;
+}
+
+export interface HrPayAdjustmentsTable {
+  id: string;
+  employee_id: string;
+  kind: string;
+  pay_month: string;
+  amount_minor: string | null;
+  /** NUMERIC(5,2) — string out. */
+  days: string | null;
+  reason: string;
+  payroll_run_id: string | null;
+  created_by: string | null;
+  created_at: Generated<Date>;
+}
+
 export interface SalesRepsTable {
   id: string;
   code: string;
@@ -1599,6 +1653,10 @@ export interface TenantDatabase {
   hr_leave_types: HrLeaveTypesTable;
   hr_leave_balances: HrLeaveBalancesTable;
   hr_leave_requests: HrLeaveRequestsTable;
+  hr_loans: HrLoansTable;
+  hr_loan_installments: HrLoanInstallmentsTable;
+  hr_loan_repayments: HrLoanRepaymentsTable;
+  hr_pay_adjustments: HrPayAdjustmentsTable;
   customer_refunds: CustomerRefundsTable;
   pos_held_carts: PosHeldCartsTable;
   pos_approvals: PosApprovalsTable;
@@ -1824,6 +1882,10 @@ export interface AccountingSettingsTable {
   table_tax_input_account_id: string | null;
   withholding_payable_account_id: string | null;
   withholding_receivable_account_id: string | null;
+  /** Migration 0127 — HR: employee advances (117), salaries expense (521), salaries payable (214). */
+  employee_advances_account_id: Generated<string | null>;
+  salaries_expense_account_id: Generated<string | null>;
+  salaries_payable_account_id: Generated<string | null>;
   created_at: Generated<Date>;
   updated_at: Generated<Date>;
 }

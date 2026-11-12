@@ -23,6 +23,9 @@ const SETTINGS = {
   cashAccountId: 'cash',
   defaultBankAccountId: 'bank-default',
   notesReceivableAccountId: 'notes-receivable',
+  employeeAdvancesAccountId: null,
+  salariesExpenseAccountId: null,
+  salariesPayableAccountId: null,
   notesPayableAccountId: 'notes-payable',
 } as AccountingSettings;
 

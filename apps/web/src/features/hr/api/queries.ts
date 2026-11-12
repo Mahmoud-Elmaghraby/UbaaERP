@@ -7,6 +7,15 @@ import type {
   HrDepartmentDto,
   AttendanceDayDto,
   CarryOverLeaveDto,
+  CreateLoanDto,
+  CreatePayAdjustmentsDto,
+  DisburseLoanDto,
+  LoanDto,
+  LoanQueryDto,
+  LoanSummaryDto,
+  PayAdjustmentDto,
+  PayAdjustmentQueryDto,
+  RepayLoanDto,
   CreateLeaveRequestDto,
   DecideLeaveRequestDto,
   LeaveBalanceDto,
@@ -326,4 +335,53 @@ export function useSaveLeaveBalance() {
 export function useCarryOverLeave() {
   const invalidate = useInvalidateHr();
   return useMutation({ mutationFn: (input: CarryOverLeaveDto) => apiPost<{ updated: number }>('/hr/leave-balances/carry-over', input), onSuccess: invalidate });
+}
+
+// ── loans (hr.loans.*) and bonuses / penalties ────────────────────────────
+
+export function useLoans(query: LoanQueryDto) {
+  return useQuery({ queryKey: ['hr', 'loans', query], queryFn: () => apiGet<LoanSummaryDto[]>(`/hr/loans?${toParams(query)}`) });
+}
+
+export function useLoan(id: string | null) {
+  return useQuery({ queryKey: ['hr', 'loans', 'detail', id], queryFn: () => apiGet<LoanDto>(`/hr/loans/${id}`), enabled: Boolean(id) });
+}
+
+/** Loan money moves treasuries too. */
+function useInvalidateHrAndTreasury() {
+  const queryClient = useQueryClient();
+  return () => Promise.all([queryClient.invalidateQueries({ queryKey: ['hr'] }), queryClient.invalidateQueries({ queryKey: ['treasury'] })]);
+}
+
+export function useCreateLoan() {
+  const invalidate = useInvalidateHr();
+  return useMutation({ mutationFn: (input: CreateLoanDto) => apiPost<LoanDto>('/hr/loans', input), onSuccess: invalidate });
+}
+
+export type LoanAction =
+  | { action: 'approve' | 'reject' | 'cancel'; input: { note?: string | null } }
+  | { action: 'disburse'; input: DisburseLoanDto }
+  | { action: 'repay'; input: RepayLoanDto }
+  | { action: 'postpone'; input: { month: string } };
+
+export function useLoanAction() {
+  const invalidate = useInvalidateHrAndTreasury();
+  return useMutation({
+    mutationFn: ({ id, ...rest }: { id: string } & LoanAction) => apiPost<LoanDto>(`/hr/loans/${id}/${rest.action}`, rest.input),
+    onSuccess: invalidate,
+  });
+}
+
+export function usePayAdjustments(query: PayAdjustmentQueryDto) {
+  return useQuery({ queryKey: ['hr', 'pay-adjustments', query], queryFn: () => apiGet<PayAdjustmentDto[]>(`/hr/pay-adjustments?${toParams(query)}`) });
+}
+
+export function useCreatePayAdjustments() {
+  const invalidate = useInvalidateHr();
+  return useMutation({ mutationFn: (input: CreatePayAdjustmentsDto) => apiPost<{ created: number }>('/hr/pay-adjustments', input), onSuccess: invalidate });
+}
+
+export function useDeletePayAdjustment() {
+  const invalidate = useInvalidateHr();
+  return useMutation({ mutationFn: (id: string) => apiDelete<void>(`/hr/pay-adjustments/${id}`), onSuccess: invalidate });
 }

@@ -13,6 +13,8 @@ const AttendanceImportPage = lazy(() => import('./components').then((m) => ({ de
 const LeaveRequestsPage = lazy(() => import('./components').then((m) => ({ default: m.LeaveRequestsPage })));
 const LeaveBalancesPage = lazy(() => import('./components').then((m) => ({ default: m.LeaveBalancesPage })));
 const LeaveTypesPage = lazy(() => import('./components').then((m) => ({ default: m.LeaveTypesPage })));
+const LoansPage = lazy(() => import('./components').then((m) => ({ default: m.LoansPage })));
+const PayAdjustmentsPage = lazy(() => import('./components').then((m) => ({ default: m.PayAdjustmentsPage })));
 const SalaryRegisterPage = lazy(() => import('./components').then((m) => ({ default: m.SalaryRegisterPage })));
 
 /** HR (الموارد البشرية): employees and the organisation structure. */
@@ -36,6 +38,8 @@ export const hrRoutes: RouteObject[] = [
       { path: 'leaves', element: <LeaveRequestsPage /> },
       { path: 'leave-balances', element: <LeaveBalancesPage /> },
       { path: 'leave-types', element: <LeaveTypesPage /> },
+      { path: 'loans', element: <LoansPage /> },
+      { path: 'pay-adjustments', element: <PayAdjustmentsPage /> },
     ],
   },
 ];

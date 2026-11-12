@@ -91,6 +91,8 @@ export const ENTITY_LABELS = {
   HR_ATTENDANCE_DAY: 'Attendance day',
   HR_LEAVE_TYPE: 'Leave type',
   HR_LEAVE_REQUEST: 'Leave request',
+  HR_LOAN: 'Employee loan',
+  HR_PAY_ADJUSTMENT: 'Bonus or penalty',
 } as const;
 
 export type EntityKey = keyof typeof ENTITY_LABELS;

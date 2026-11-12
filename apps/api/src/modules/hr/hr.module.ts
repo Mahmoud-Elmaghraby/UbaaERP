@@ -12,6 +12,9 @@ import { AttendanceSetupService } from './application/attendance-setup.service';
 import { AttendanceService } from './application/attendance.service';
 import { LeavesController } from './presentation/leaves.controller';
 import { LeavesService } from './application/leaves.service';
+import { LoansController, PayAdjustmentsController } from './presentation/loans.controller';
+import { LoansService } from './application/loans.service';
+import { HrLoanMovements } from './infrastructure/hr-loan-movements';
 
 /**
  * HR & payroll (الموارد البشرية) — docs/claude-context/project-docs/hr-module-plan-2026-11-11.md.
@@ -25,10 +28,11 @@ import { LeavesService } from './application/leaves.service';
  * private to those permissions, never part of the employee DTO).
  * Step 3: shifts, public holidays, attendance import and the daily sheet (hr.attendance.*).
  * Step 4: leave types, balances and requests (hr.leaves.*); approved leaves mark the sheet.
+ * Step 5: loans paid out of / back into treasuries (outbox events hr.loan.*), bonuses and penalties.
  */
 @Module({
   imports: [SettingsModule],
-  controllers: [EmployeesController, HrDepartmentsController, HrJobTitlesController, SalaryComponentsController, EmployeeSalariesController, AttendanceSetupController, AttendanceController, LeavesController],
-  providers: [EmployeesService, HrOrgService, SalaryComponentsService, EmployeeSalariesService, AttendanceSetupService, AttendanceService, LeavesService],
+  controllers: [EmployeesController, HrDepartmentsController, HrJobTitlesController, SalaryComponentsController, EmployeeSalariesController, AttendanceSetupController, AttendanceController, LeavesController, LoansController, PayAdjustmentsController],
+  providers: [EmployeesService, HrOrgService, SalaryComponentsService, EmployeeSalariesService, AttendanceSetupService, AttendanceService, LeavesService, LoansService, HrLoanMovements],
 })
 export class HrModule {}

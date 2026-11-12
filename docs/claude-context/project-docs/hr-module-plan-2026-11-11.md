@@ -108,4 +108,11 @@ Status: **approved — building.**
   - Year close: carry unused days (≤ cap) into next year's balances.
   - Approval: anyone with `hr.leaves.approve`; the employee's direct manager is shown on the request. Manager self-service (a manager deciding for their own team only) is phase 2.
   - Web: طلبات الإجازة (live preview of days and balance, decision dialog), أرصدة الإجازات (edit, carry over), أنواع الإجازات.
-- **Next: step 5** — loans/advances with monthly installments, and one-off bonuses/penalties.
+- **Step 5 done (2026-11-12)** — migration `0127_hr_loans_adjustments` (decision: loans go through the treasury, like Daftra; better accounting):
+  - `hr_loans` (LN-): pending → approved (hr.loans.approve, never your own) → active when paid out of a treasury (cash box can't go negative) → closed when repaid; pending/approved can be rejected/cancelled. Schedule fixed at creation (by count, last takes the remainder; or by installment amount); "postpone" moves every open installment from a month on by one month.
+  - `hr_loan_installments` (paid_minor), `hr_loan_repayments` (LR-, cash back into a treasury, oldest installments first; overpayment refused).
+  - Money: pay-out and repayment write outbox events `hr.loan.disbursed` / `hr.loan.repaid` in the same transaction; `AccountingHrPostingListener` books Dr 117 عهد وسلف موظفين / Cr treasury and the reverse. Treasury statements list them (`HrLoanMovements`, kinds employee_loan / employee_loan_repayment).
+  - `accounting_settings` gained employee advances (117), salaries expense (521), salaries payable (214) mappings — shown under "المرتبات والسلف" in accounting settings.
+  - `hr_pay_adjustments`: bonus/penalty for a pay month, as an amount or days (valued at the day rate by payroll); batch for one employee / a department / everyone; deletable until a payroll run takes it (`payroll_run_id`).
+  - Audit-log page got an "الموارد البشرية" module filter.
+- **Next: step 6** — the monthly payroll run: salary + attendance (absence/lateness suggestions, overtime) + unpaid leave + bonuses/penalties + loan installments → approve → post (outbox: payroll entry Dr 521 / Cr 214 + Cr 117 for installments) → pay from treasury.

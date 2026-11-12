@@ -58,7 +58,7 @@ const TENANT_WIDE = '__tenant_wide__';
 
 /** Document types by module, in the order the screen lists them (the API creates every one). */
 const NUMBERING_GROUPS: { group: string; types: string[] }[] = [
-  { group: 'master', types: ['product', 'customer', 'supplier', 'employee', 'leave_request'] },
+  { group: 'master', types: ['product', 'customer', 'supplier'] },
   { group: 'sales', types: ['quotation', 'sales_order', 'delivery', 'sales_invoice', 'sales_return', 'sales_credit_note', 'payment_received'] },
   {
     group: 'purchases',
@@ -66,6 +66,7 @@ const NUMBERING_GROUPS: { group: string; types: string[] }[] = [
   },
   { group: 'inventory', types: ['stock_opening', 'stock_transfer', 'stock_adjustment', 'stock_count'] },
   { group: 'treasury', types: ['treasury_expense', 'treasury_income', 'treasury_transfer'] },
+  { group: 'hr', types: ['employee', 'leave_request', 'employee_loan', 'loan_repayment'] },
   { group: 'accounting', types: ['journal_entry'] },
 ];
 const KNOWN_TYPES = NUMBERING_GROUPS.flatMap((g) => g.types);

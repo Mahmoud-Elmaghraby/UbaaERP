@@ -34,6 +34,9 @@ function toDomain(row: Selectable<AccountingSettingsTable>): AccountingSettings 
     tableTaxInputAccountId: row.table_tax_input_account_id,
     withholdingPayableAccountId: row.withholding_payable_account_id,
     withholdingReceivableAccountId: row.withholding_receivable_account_id,
+    employeeAdvancesAccountId: row.employee_advances_account_id ?? null,
+    salariesExpenseAccountId: row.salaries_expense_account_id ?? null,
+    salariesPayableAccountId: row.salaries_payable_account_id ?? null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -69,6 +72,9 @@ const DEFAULT_CODES = {
   retained_earnings_account_id: '32',
   notes_receivable_account_id: '119',
   notes_payable_account_id: '2110',
+  employee_advances_account_id: '117',
+  salaries_expense_account_id: '521',
+  salaries_payable_account_id: '214',
 } as const;
 
 export class KyselyAccountingSettingsRepository implements AccountingSettingsRepository {
@@ -117,6 +123,9 @@ export class KyselyAccountingSettingsRepository implements AccountingSettingsRep
           table_tax_input_account_id: accountIdByCode.get(DEFAULT_CODES.table_tax_input_account_id) ?? null,
           withholding_payable_account_id: accountIdByCode.get(DEFAULT_CODES.withholding_payable_account_id) ?? null,
           withholding_receivable_account_id: accountIdByCode.get(DEFAULT_CODES.withholding_receivable_account_id) ?? null,
+          employee_advances_account_id: accountIdByCode.get(DEFAULT_CODES.employee_advances_account_id) ?? null,
+          salaries_expense_account_id: accountIdByCode.get(DEFAULT_CODES.salaries_expense_account_id) ?? null,
+          salaries_payable_account_id: accountIdByCode.get(DEFAULT_CODES.salaries_payable_account_id) ?? null,
         })
         .returningAll()
         .executeTakeFirstOrThrow();
@@ -173,6 +182,9 @@ export class KyselyAccountingSettingsRepository implements AccountingSettingsRep
           : {}),
         ...(input.notesReceivableAccountId !== undefined ? { notes_receivable_account_id: input.notesReceivableAccountId } : {}),
         ...(input.notesPayableAccountId !== undefined ? { notes_payable_account_id: input.notesPayableAccountId } : {}),
+        ...(input.employeeAdvancesAccountId !== undefined ? { employee_advances_account_id: input.employeeAdvancesAccountId } : {}),
+        ...(input.salariesExpenseAccountId !== undefined ? { salaries_expense_account_id: input.salariesExpenseAccountId } : {}),
+        ...(input.salariesPayableAccountId !== undefined ? { salaries_payable_account_id: input.salariesPayableAccountId } : {}),
         ...(input.landedCostClearingAccountId !== undefined
           ? { landed_cost_clearing_account_id: input.landedCostClearingAccountId }
           : {}),

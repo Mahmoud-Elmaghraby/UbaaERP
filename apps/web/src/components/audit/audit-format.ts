@@ -19,6 +19,10 @@ export const AUDIT_MODULES: Record<string, string[]> = {
     'tenant_settings', 'branch', 'currency', 'custom_field', 'document_template', 'feature_toggle',
     'numbering_sequence', 'tax_rule', 'inventory_settings', 'accounting_settings', 'app_setting',
   ],
+  hr: [
+    'employee', 'department', 'job_title', 'salary', 'salary_component', 'attendance_setup', 'attendance', 'leave', 'loan',
+    'loan_repayment', 'pay_adjustment',
+  ],
   users: ['user', 'role', 'auth'],
 };
 

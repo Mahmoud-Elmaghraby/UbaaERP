@@ -215,6 +215,8 @@ export const NAV_GROUPS: NavGroup[] = [
           { to: '/hr/shifts', labelKey: 'hr.shifts.title', permission: ['hr.attendance.view', 'hr.attendance.manage'] },
           { to: '/hr/holidays', labelKey: 'hr.holidays.title', permission: ['hr.attendance.view', 'hr.attendance.manage'] },
           { to: '/hr/salaries', labelKey: 'hr.register.title', permission: ['hr.salaries.view', 'hr.salaries.manage'] },
+          { to: '/hr/loans', labelKey: 'hr.loans.title', permission: ['hr.loans.view', 'hr.loans.manage', 'hr.loans.approve'] },
+          { to: '/hr/pay-adjustments', labelKey: 'hr.adjustments.title', permission: ['hr.salaries.view', 'hr.salaries.manage'] },
           { to: '/hr/salary-components', labelKey: 'hr.salaryComponents.title', permission: ['hr.salaries.view', 'hr.salaries.manage'] },
         ],
       },

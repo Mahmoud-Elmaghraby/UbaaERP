@@ -231,7 +231,10 @@
       "hr__attendance__manage": "استيراد البصمة وتعديل الحضور وتحديد الورديات والإجازات الرسمية",
       "hr__leaves__view": "رؤية طلبات الإجازة والأرصدة",
       "hr__leaves__manage": "تسجيل طلبات الإجازة وأنواعها والأرصدة",
-      "hr__leaves__approve": "الموافقة على طلبات الإجازة أو رفضها"
+      "hr__leaves__approve": "الموافقة على طلبات الإجازة أو رفضها",
+      "hr__loans__view": "رؤية سلف الموظفين",
+      "hr__loans__manage": "تسجيل السلف وصرفها وتحصيلها وتأجيل الأقساط",
+      "hr__loans__approve": "الموافقة على السلف أو رفضها"
     },
     "search": "ابحث باسم الدور…",
     "userCount": "المستخدمين",
@@ -339,7 +342,8 @@
         "inventory": "المخزون",
         "treasury": "الخزائن",
         "accounting": "الحسابات",
-        "other": "أخرى"
+        "other": "أخرى",
+        "hr": "الموارد البشرية"
       },
       "types": {
         "product": "كود الصنف",
@@ -369,7 +373,9 @@
         "treasury_transfer": "تحويل بين الخزائن",
         "journal_entry": "قيد يومية",
         "employee": "كود الموظف",
-        "leave_request": "طلب إجازة"
+        "leave_request": "طلب إجازة",
+        "employee_loan": "سلفة موظف",
+        "loan_repayment": "سداد سلفة"
       }
     },
     "templates": {
@@ -3104,7 +3110,8 @@
         "cash": "النقدية والعملات",
         "taxes": "الضرائب",
         "closing": "إقفال السنة",
-        "controls": "الاعتماد والمراجعة"
+        "controls": "الاعتماد والمراجعة",
+        "payroll": "المرتبات والسلف"
       },
       "grni": "بضاعة مستلمة لم تصل فواتيرها",
       "grniDescription": "يُقيد دائنًا عند استلام البضاعة (المخزون مدين)، ويُقفل عند ترحيل فاتورة المشتريات.",
@@ -3136,7 +3143,10 @@
       "notesReceivable": "أوراق القبض (شيكات تحت التحصيل)",
       "notesReceivableDescription": "تُسجَّل فيه شيكات العملاء من استلامها لحد تحصيلها أو ارتدادها.",
       "notesPayable": "أوراق الدفع (شيكات صادرة)",
-      "notesPayableDescription": "تُسجَّل فيه شيكاتنا للموردين لحد ما البنك يصرفها."
+      "notesPayableDescription": "تُسجَّل فيه شيكاتنا للموردين لحد ما البنك يصرفها.",
+      "salariesExpense": "مصروف الرواتب والأجور",
+      "salariesPayable": "رواتب مستحقة",
+      "employeeAdvances": "عهد وسلف الموظفين"
     },
     "costCenters": {
       "subtitle": "تصنيف القيود حسب الأقسام أو المشاريع أو الفروع لأغراض التحليل الإداري.",
@@ -3990,7 +4000,9 @@
       "transfer_in": "تحويل وارد",
       "transfer_out": "تحويل صادر",
       "marketplace_fees": "خصومات منصة (عمولات ورسوم)",
-      "customer_refund": "رد مبلغ لعميل"
+      "customer_refund": "رد مبلغ لعميل",
+      "employee_loan": "سلفة موظف",
+      "employee_loan_repayment": "سداد سلفة موظف"
     },
     "form": {
       "newTitle": "خزينة جديدة",
@@ -4319,7 +4331,9 @@
       "return": "مرتجع",
       "bounced": "اترد",
       "collected": "اتحصل",
-      "paid": "اتدفع"
+      "paid": "اتدفع",
+      "disbursed": "اتصرفت",
+      "repaid": "اتسددت"
     }
   },
   "salesReps": {
@@ -4494,7 +4508,8 @@
       "inventory": "المخزون",
       "accounting": "الحسابات",
       "users": "المستخدمين والدخول",
-      "settings": "الإعدادات"
+      "settings": "الإعدادات",
+      "hr": "الموارد البشرية"
     },
     "export": "تصدير Excel",
     "details": "التفاصيل",
@@ -4578,7 +4593,18 @@
       "tax_rule": "ضريبة",
       "inventory_settings": "إعدادات المخزون",
       "accounting_settings": "إعدادات الحسابات",
-      "app_setting": "إعداد"
+      "app_setting": "إعداد",
+      "employee": "موظف",
+      "department": "إدارة",
+      "job_title": "مسمى وظيفي",
+      "salary": "مرتب",
+      "salary_component": "بند مرتب",
+      "attendance_setup": "إعداد الحضور",
+      "attendance": "حضور",
+      "leave": "إجازة",
+      "loan": "سلفة",
+      "loan_repayment": "سداد سلفة",
+      "pay_adjustment": "مكافأة / جزاء"
     },
     "fields": {
       "invoiceNumber": "رقم الفاتورة",
@@ -4920,6 +4946,76 @@
       "maxCarryOver": "أقصى ترحيل",
       "parent": "بتتخصم كمان من",
       "parentHint": "مثلاً العارضة بتتخصم من رصيد الاعتيادي، زي ما القانون بيقول."
+    },
+    "loans": {
+      "title": "السلف",
+      "subtitle": "سلف الموظفين: موافقة، صرف من الخزينة، وأقساط بتتخصم من المرتب.",
+      "add": "سلفة جديدة",
+      "number": "الرقم",
+      "amount": "المبلغ",
+      "installments": "الأقساط",
+      "from": "من",
+      "remaining": "الباقي",
+      "openOnly": "المفتوحة",
+      "firstMonth": "أول قسط في شهر",
+      "splitBy": "التقسيط",
+      "byCount": "بعدد الأقساط",
+      "byAmount": "بقيمة القسط",
+      "installmentCount": "عدد الأقساط",
+      "installmentAmount": "قيمة القسط",
+      "perPreview": "القسط حوالي {{amount}} في الشهر.",
+      "paidOut": "اتصرفت",
+      "month": "الشهر",
+      "installment": "القسط",
+      "paid": "المدفوع",
+      "disburse": "صرف من الخزينة",
+      "disburseTitle": "صرف السلفة",
+      "repay": "سداد نقدي",
+      "repayTitle": "سداد نقدي (بيتوزع على أقدم الأقساط)",
+      "postpone": "تأجيل قسط",
+      "postponeConfirm": "تأجّل القسط المستحق في {{month}} وكل اللي بعده شهر؟",
+      "cancel": "إلغاء السلفة",
+      "cancelConfirm": "تلغي السلفة دي؟",
+      "statuses": {
+        "pending": "مستنية موافقة",
+        "approved": "متوافق عليها",
+        "active": "بتتسدد",
+        "closed": "اتسددت",
+        "rejected": "مرفوضة",
+        "cancelled": "ملغية"
+      },
+      "installmentStatuses": {
+        "due": "مستحق",
+        "partly_paid": "مدفوع جزء",
+        "paid": "مدفوع"
+      }
+    },
+    "adjustments": {
+      "title": "المكافآت والجزاءات",
+      "subtitle": "بنود لمرة واحدة على مرتب شهر معيّن، بمبلغ أو بأيام.",
+      "add": "مكافأة أو جزاء",
+      "kind": "النوع",
+      "kinds": {
+        "bonus": "مكافأة",
+        "penalty": "جزاء"
+      },
+      "month": "شهر المرتب",
+      "for": "على",
+      "targets": {
+        "employee": "موظف",
+        "department": "إدارة كاملة",
+        "all": "كل الموظفين"
+      },
+      "targetCount": "هتتسجل لـ {{count}} موظف.",
+      "by": "بـ",
+      "byAmount": "مبلغ ({{currency}})",
+      "byDays": "أيام",
+      "value": "القيمة",
+      "daysValue": "{{days}} يوم",
+      "daysHint": "الأيام بتتحسب بأجر اليوم وقت مسير الرواتب (حسب إعداد أجر اليوم).",
+      "settled": "في المسير",
+      "created_one": "اتسجل لموظف واحد.",
+      "created_other": "اتسجل لـ {{count}} موظف."
     }
   }
 }
