@@ -8,7 +8,7 @@ import { z } from 'zod';
  * entry here plus the code that reads it. The default is always today's behaviour, so a new option
  * never changes anything until someone sets it.
  */
-export type AppSettingSection = 'security' | 'sales' | 'pos' | 'purchases' | 'documents';
+export type AppSettingSection = 'security' | 'sales' | 'pos' | 'purchases' | 'documents' | 'hr';
 
 /**
  * Who may change a section's settings (any one of the keys). Reading is open to every signed-in
@@ -20,6 +20,7 @@ export const APP_SETTING_SECTION_PERMISSIONS: Record<AppSettingSection, readonly
   sales: ['settings.manage', 'sales.settings.manage'],
   pos: ['settings.manage', 'sales.settings.manage'],
   purchases: ['settings.manage', 'purchases.settings.manage'],
+  hr: ['settings.manage', 'hr.salaries.manage', 'hr.attendance.manage'],
 };
 
 interface BaseDef {
@@ -95,6 +96,11 @@ export const APP_SETTINGS = {
   'purchases.overReceiptTolerancePercent': { section: 'purchases', group: 'receiving', kind: 'number', default: 0, min: 0, max: 100, decimals: 2, unit: 'percent' },
   'purchases.supplierInvoiceNumberRequired': { section: 'purchases', group: 'documents', kind: 'boolean', default: false },
   'purchases.defaultOrderNotes': { section: 'purchases', group: 'documents', kind: 'text', default: '', maxLength: 2000, multiline: true },
+
+  // HR (migration 0125). The day rate turns a monthly salary into a day's pay (absence, overtime).
+  'hr.dayRateBasis': { section: 'hr', group: 'hrPay', feature: 'hr', kind: 'choice', default: 'days30', options: ['days30', 'days26', 'workingDays'] },
+  'hr.overtimeMultiplier': { section: 'hr', group: 'hrPay', feature: 'hr', kind: 'number', default: 1.5, min: 1, max: 5, decimals: 2 },
+  'hr.minOvertimeMinutes': { section: 'hr', group: 'hrAttendance', feature: 'hr', kind: 'number', default: 30, min: 0, max: 480, unit: 'minutes' },
 
   // Document dates, every module.
   'documents.backdateDays': { section: 'documents', kind: 'number', default: null, nullable: true, min: 0, max: 3650, unit: 'days' },

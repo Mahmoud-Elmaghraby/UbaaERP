@@ -90,4 +90,14 @@ Status: **approved — building.**
   - API: `/hr/salary-components`, `/hr/employees/:id/salaries` (GET history+current, POST, PUT/DELETE `:salaryId`), `GET /hr/salaries/register?asOf=&departmentId=&includeTerminated=`.
   - Web: البدلات والاستقطاعات page, salary card + revision dialog on the employee file, كشف المرتبات page with totals.
   - Revisions stay editable for now; the payroll run will lock paid months.
-- **Next: step 3** — shifts, public holidays, attendance import (Excel/CSV) and the daily sheet; day-rate basis setting (÷30 default).
+- **Step 3 done (2026-11-12)** — migration `0125_hr_attendance`:
+  - Times are whole minutes, never time zones: shift start/end after midnight; a day's in/out after that work day's midnight (≥ 1440 = next morning, night shifts). Raw punches keep the device's wall clock (TIMESTAMP, read via to_char).
+  - `hr_shifts` (start/end, grace, unpaid break, weekly days off; exactly one default, seeded 09:00–17:00, 15 min grace, Friday off); `employees.shift_id` (null = default) and `employees.attendance_code` (device number).
+  - `hr_public_holidays`; `hr_attendance_imports` + `hr_attendance_punches` (unique per employee+minute → re-importing a file adds nothing); `hr_attendance_days` (the daily sheet, `is_manual` rows survive rebuilds).
+  - Pure domain: `domain/attendance.ts` (punch window = shift start − 4h for 24h, late from start once past grace, early leave, overtime over `hr.minOvertimeMinutes`, weekend/holiday work = all overtime) and `domain/punch-parse.ts` (ISO, d/m/y, m/d/y, Excel serials, AM/PM and ص/م, Arabic digits). Device keys match the attendance code, then the employee code, ignoring zero-padding.
+  - Settings hub section "الموارد البشرية": `hr.dayRateBasis` (÷30 default / ÷26 / working days), `hr.overtimeMultiplier` (1.5), `hr.minOvertimeMinutes` (30) — the first two are used by payroll (step 6).
+  - Permissions `hr.attendance.view` / `hr.attendance.manage`.
+  - API: `/hr/shifts`, `/hr/holidays`, `/hr/attendance` (list, `summary`, `import`, `rebuild`, `PUT days/:id`, `POST days/:id/reset`).
+  - Web: الورديات, الإجازات الرسمية, الحضور والانصراف (daily + summary tabs, exceptions filter, hand-correction dialog), استيراد من البصمة (column mapping with guesses, preview, result report); shift + device number on the employee file.
+  - Not yet: suspended employees get no days; leaves come in step 4 (status `leave` already exists).
+- **Next: step 4** — leave types, yearly balances and leave requests with the linear approval (employee → manager); approved leaves mark the attendance days.

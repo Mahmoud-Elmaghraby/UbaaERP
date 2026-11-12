@@ -7,6 +7,9 @@ import { HrOrgService } from './application/hr-org.service';
 import { EmployeeSalariesController, SalaryComponentsController } from './presentation/salaries.controller';
 import { SalaryComponentsService } from './application/salary-components.service';
 import { EmployeeSalariesService } from './application/employee-salaries.service';
+import { AttendanceController, AttendanceSetupController } from './presentation/attendance.controller';
+import { AttendanceSetupService } from './application/attendance-setup.service';
+import { AttendanceService } from './application/attendance.service';
 
 /**
  * HR & payroll (الموارد البشرية) — docs/claude-context/project-docs/hr-module-plan-2026-11-11.md.
@@ -18,10 +21,11 @@ import { EmployeeSalariesService } from './application/employee-salaries.service
  * Step 1: organisation structure (departments, job titles) and the employee file.
  * Step 2: salary components and each employee's salary history (hr.salaries.* — salaries stay
  * private to those permissions, never part of the employee DTO).
+ * Step 3: shifts, public holidays, attendance import and the daily sheet (hr.attendance.*).
  */
 @Module({
   imports: [SettingsModule],
-  controllers: [EmployeesController, HrDepartmentsController, HrJobTitlesController, SalaryComponentsController, EmployeeSalariesController],
-  providers: [EmployeesService, HrOrgService, SalaryComponentsService, EmployeeSalariesService],
+  controllers: [EmployeesController, HrDepartmentsController, HrJobTitlesController, SalaryComponentsController, EmployeeSalariesController, AttendanceSetupController, AttendanceController],
+  providers: [EmployeesService, HrOrgService, SalaryComponentsService, EmployeeSalariesService, AttendanceSetupService, AttendanceService],
 })
 export class HrModule {}

@@ -651,6 +651,9 @@ export interface EmployeesTable {
   job_title_id: string | null;
   manager_id: string | null;
   user_id: string | null;
+  /** Migration 0125. */
+  shift_id: Generated<string | null>;
+  attendance_code: Generated<string | null>;
   hire_date: string;
   employment_type: Generated<string>;
   status: Generated<string>;
@@ -696,6 +699,61 @@ export interface HrEmployeeSalaryLinesTable {
   component_id: string;
   amount_minor: string | null;
   percent: string | null;
+}
+
+export interface HrShiftsTable {
+  id: string;
+  name: string;
+  start_minute: number;
+  end_minute: number;
+  grace_minutes: Generated<number>;
+  break_minutes: Generated<number>;
+  weekly_off_days: Generated<number[]>;
+  is_default: Generated<boolean>;
+  is_active: Generated<boolean>;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
+export interface HrPublicHolidaysTable {
+  id: string;
+  holiday_date: string;
+  name: string;
+  created_at: Generated<Date>;
+}
+
+export interface HrAttendanceImportsTable {
+  id: string;
+  file_name: string;
+  rows_total: number;
+  rows_imported: number;
+  imported_by: string | null;
+  created_at: Generated<Date>;
+}
+
+export interface HrAttendancePunchesTable {
+  id: string;
+  employee_id: string;
+  /** TIMESTAMP (device wall clock). Written as 'YYYY-MM-DD HH:MM:SS'; always read through to_char(). */
+  punched_at: string;
+  import_id: string | null;
+}
+
+export interface HrAttendanceDaysTable {
+  id: string;
+  employee_id: string;
+  work_date: string;
+  status: string;
+  check_in_minute: number | null;
+  check_out_minute: number | null;
+  missing_punch: Generated<boolean>;
+  worked_minutes: Generated<number>;
+  late_minutes: Generated<number>;
+  early_leave_minutes: Generated<number>;
+  overtime_minutes: Generated<number>;
+  is_manual: Generated<boolean>;
+  note: string | null;
+  updated_at: Generated<Date>;
 }
 
 export interface SalesRepsTable {
@@ -1487,6 +1545,11 @@ export interface TenantDatabase {
   hr_salary_components: HrSalaryComponentsTable;
   hr_employee_salaries: HrEmployeeSalariesTable;
   hr_employee_salary_lines: HrEmployeeSalaryLinesTable;
+  hr_shifts: HrShiftsTable;
+  hr_public_holidays: HrPublicHolidaysTable;
+  hr_attendance_imports: HrAttendanceImportsTable;
+  hr_attendance_punches: HrAttendancePunchesTable;
+  hr_attendance_days: HrAttendanceDaysTable;
   customer_refunds: CustomerRefundsTable;
   pos_held_carts: PosHeldCartsTable;
   pos_approvals: PosApprovalsTable;

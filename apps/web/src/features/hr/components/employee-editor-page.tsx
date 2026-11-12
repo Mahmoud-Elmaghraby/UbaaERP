@@ -56,6 +56,7 @@ import {
   useEmployees,
   useJobTitles,
   useSaveEmployee,
+  useShifts,
 } from '../api/queries';
 import { EmployeeStatusBadge } from './employee-status-badge';
 import { EmployeeSalarySection } from './employee-salary-section';
@@ -72,6 +73,7 @@ const NULLABLE_TEXT = [
   'address',
   'emergencyContactName',
   'emergencyContactPhone',
+  'attendanceCode',
   'bankName',
   'bankAccount',
   'notes',
@@ -99,6 +101,7 @@ function EmployeeEditor({ employee }: { employee: EmployeeDto | undefined }) {
   const { data: departments } = useDepartments();
   const { data: jobTitles } = useJobTitles();
   const { data: colleagues } = useEmployees({ status: 'active' });
+  const { data: shifts } = useShifts();
   // Branches and users are admin lists — asked for only when the viewer may read them.
   const canListBranches = useHasPermission('settings.manage');
   const canListUsers = useHasPermission('users.manage');
@@ -131,6 +134,8 @@ function EmployeeEditor({ employee }: { employee: EmployeeDto | undefined }) {
       jobTitleId: employee?.jobTitleId ?? null,
       managerId: employee?.managerId ?? null,
       userId: employee?.userId ?? null,
+      shiftId: employee?.shiftId ?? null,
+      attendanceCode: employee?.attendanceCode ?? '',
       hireDate: employee?.hireDate ?? new Date().toISOString().slice(0, 10),
       employmentType: employee?.employmentType ?? 'full_time',
       paymentMethod: employee?.paymentMethod ?? 'cash',
@@ -245,6 +250,24 @@ function EmployeeEditor({ employee }: { employee: EmployeeDto | undefined }) {
                       employee?.userName,
                     )}
                   />
+                </div>
+              </SectionCard>
+
+              <SectionCard title={t('hr.employees.sections.attendance')}>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <ChoiceField
+                    control={control}
+                    name="shiftId"
+                    label={t('hr.employees.shift')}
+                    nullable
+                    noneLabel={t('hr.employees.defaultShift', { name: (shifts ?? []).find((s) => s.isDefault)?.name ?? '' })}
+                    options={withCurrent(
+                      (shifts ?? []).filter((s) => s.isActive && !s.isDefault),
+                      employee?.shiftId,
+                      employee?.shiftName,
+                    )}
+                  />
+                  <TextField control={control} name="attendanceCode" label={t('hr.employees.attendanceCode')} dir="ltr" placeholder={t('hr.employees.attendanceCodeHint')} />
                 </div>
               </SectionCard>
 
@@ -377,6 +400,7 @@ function ChoiceField({
   options,
   nullable,
   hint,
+  noneLabel,
 }: {
   control: Control<SaveEmployeeDto>;
   name: FieldPath<SaveEmployeeDto>;
@@ -384,6 +408,8 @@ function ChoiceField({
   options: { id: string; name: string }[];
   nullable?: boolean;
   hint?: ReactNode;
+  /** The label of the empty choice (default: "— none —"). */
+  noneLabel?: string;
 }) {
   const { t } = useTranslation();
   return (
@@ -403,7 +429,7 @@ function ChoiceField({
               </SelectTrigger>
             </FormControl>
             <SelectContent>
-              {nullable ? <SelectItem value={NONE}>{t('hr.none')}</SelectItem> : null}
+              {nullable ? <SelectItem value={NONE}>{noneLabel ?? t('hr.none')}</SelectItem> : null}
               {options.map((o) => (
                 <SelectItem key={o.id} value={o.id}>
                   {o.name}

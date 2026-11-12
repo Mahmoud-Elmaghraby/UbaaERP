@@ -6,6 +6,10 @@ const EmployeeEditorPage = lazy(() => import('./components').then((m) => ({ defa
 const DepartmentsPage = lazy(() => import('./components').then((m) => ({ default: m.DepartmentsPage })));
 const JobTitlesPage = lazy(() => import('./components').then((m) => ({ default: m.JobTitlesPage })));
 const SalaryComponentsPage = lazy(() => import('./components').then((m) => ({ default: m.SalaryComponentsPage })));
+const ShiftsPage = lazy(() => import('./components').then((m) => ({ default: m.ShiftsPage })));
+const HolidaysPage = lazy(() => import('./components').then((m) => ({ default: m.HolidaysPage })));
+const AttendancePage = lazy(() => import('./components').then((m) => ({ default: m.AttendancePage })));
+const AttendanceImportPage = lazy(() => import('./components').then((m) => ({ default: m.AttendanceImportPage })));
 const SalaryRegisterPage = lazy(() => import('./components').then((m) => ({ default: m.SalaryRegisterPage })));
 
 /** HR (الموارد البشرية): employees and the organisation structure. */
@@ -22,6 +26,10 @@ export const hrRoutes: RouteObject[] = [
       { path: 'job-titles', element: <JobTitlesPage /> },
       { path: 'salary-components', element: <SalaryComponentsPage /> },
       { path: 'salaries', element: <SalaryRegisterPage /> },
+      { path: 'attendance', element: <AttendancePage /> },
+      { path: 'attendance/import', element: <AttendanceImportPage /> },
+      { path: 'shifts', element: <ShiftsPage /> },
+      { path: 'holidays', element: <HolidaysPage /> },
     ],
   },
 ];

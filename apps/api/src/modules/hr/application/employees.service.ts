@@ -46,6 +46,7 @@ export class EmployeesService {
   async getById(db: Kysely<TenantDatabase>, id: string): Promise<EmployeeDto> {
     const row = await this.base(db)
       .leftJoin('users as u', 'u.id', 'e.user_id')
+      .leftJoin('hr_shifts as sh', 'sh.id', 'e.shift_id')
       .select([
         'e.national_id',
         'e.national_id_expiry',
@@ -57,6 +58,9 @@ export class EmployeesService {
         'e.emergency_contact_phone',
         'e.user_id',
         'u.full_name as user_name',
+        'e.shift_id',
+        'sh.name as shift_name',
+        'e.attendance_code',
         'e.termination_date',
         'e.termination_reason',
         'e.payment_method',
@@ -82,6 +86,9 @@ export class EmployeesService {
       emergencyContactPhone: row.emergency_contact_phone,
       userId: row.user_id,
       userName: row.user_name,
+      shiftId: row.shift_id,
+      shiftName: row.shift_name,
+      attendanceCode: row.attendance_code,
       terminationDate: row.termination_date,
       terminationReason: row.termination_reason,
       paymentMethod: row.payment_method as SalaryPaymentMethodDto,
@@ -183,13 +190,16 @@ export class EmployeesService {
       const constraint = String((err as { constraint?: unknown }).constraint ?? '');
       if (isPostgresUniqueViolation(err)) {
         if (constraint.includes('national_id')) throw duplicateEntity('EMPLOYEE', 'national_id', input.nationalId ?? '');
+        if (constraint.includes('attendance_code')) {
+          throw duplicateEntity('EMPLOYEE', 'attendance_code', input.attendanceCode ?? '');
+        }
         if (constraint.includes('user_id')) {
           throw new BusinessRuleError('This user is already linked to another employee.', { code: 'EMPLOYEE.DUPLICATE_USER' });
         }
         throw duplicateEntity('EMPLOYEE', 'code', code);
       }
       if (isPostgresForeignKeyViolation(err)) {
-        throw new BusinessRuleError('A linked branch, department, job title or user does not exist.', { code: 'EMPLOYEE.LINK_NOT_FOUND' });
+        throw new BusinessRuleError('A linked branch, department, job title, shift or user does not exist.', { code: 'EMPLOYEE.LINK_NOT_FOUND' });
       }
       throw err;
     }
@@ -241,6 +251,8 @@ function columns(input: SaveEmployeeDto) {
     job_title_id: input.jobTitleId ?? null,
     manager_id: input.managerId ?? null,
     user_id: input.userId ?? null,
+    shift_id: input.shiftId ?? null,
+    attendance_code: text(input.attendanceCode),
     hire_date: input.hireDate,
     employment_type: input.employmentType,
     payment_method: input.paymentMethod,

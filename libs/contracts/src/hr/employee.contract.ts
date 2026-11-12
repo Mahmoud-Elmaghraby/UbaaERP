@@ -48,6 +48,11 @@ export const employeeSchema = employeeSummarySchema.extend({
   emergencyContactPhone: z.string().nullable(),
   userId: z.string().uuid().nullable(),
   userName: z.string().nullable(),
+  /** The work shift; null = the default shift. */
+  shiftId: z.string().uuid().nullable(),
+  shiftName: z.string().nullable(),
+  /** The employee's number on the fingerprint device, when it isn't the employee code. */
+  attendanceCode: z.string().nullable(),
   terminationDate: isoDate.nullable(),
   terminationReason: z.string().nullable(),
   paymentMethod: salaryPaymentMethodSchema,
@@ -78,6 +83,8 @@ export const saveEmployeeSchema = z.object({
   jobTitleId: z.string().uuid().nullable().optional(),
   managerId: z.string().uuid().nullable().optional(),
   userId: z.string().uuid().nullable().optional(),
+  shiftId: z.string().uuid().nullable().optional(),
+  attendanceCode: optionalText(30),
   hireDate: isoDate,
   employmentType: employmentTypeSchema.default('full_time'),
   paymentMethod: salaryPaymentMethodSchema.default('cash'),

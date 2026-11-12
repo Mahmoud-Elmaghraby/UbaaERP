@@ -5,7 +5,19 @@ import type {
   EmployeeListQueryDto,
   EmployeeSummaryDto,
   HrDepartmentDto,
+  AttendanceDayDto,
+  AttendanceImportDto,
+  AttendanceImportResultDto,
+  AttendanceQueryDto,
+  AttendanceSummaryRowDto,
   EmployeeSalaryHistoryDto,
+  HrHolidayDto,
+  HrShiftDto,
+  RebuildAttendanceDto,
+  RebuildAttendanceResultDto,
+  SaveHrHolidaysDto,
+  SaveHrShiftDto,
+  UpdateAttendanceDayDto,
   HrJobTitleDto,
   SalaryComponentDto,
   SalaryRegisterDto,
@@ -166,4 +178,79 @@ export function useSalaryRegister(query: SalaryRegisterQueryDto) {
     queryKey: ['hr', 'salary-register', query],
     queryFn: () => apiGet<SalaryRegisterDto>(`/hr/salaries/register?${params.toString()}`),
   });
+}
+
+// ── attendance (hr.attendance.*) ──────────────────────────────────────────
+
+function toParams(query: object): string {
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(query)) if (value) params.set(key, String(value));
+  return params.toString();
+}
+
+export function useShifts(enabled = true) {
+  return useQuery({ queryKey: ['hr', 'shifts'], queryFn: () => apiGet<HrShiftDto[]>('/hr/shifts'), staleTime: 60_000, enabled });
+}
+
+export function useSaveShift() {
+  const invalidate = useInvalidateHr();
+  return useMutation({
+    mutationFn: ({ id, input }: { id?: string; input: SaveHrShiftDto }) =>
+      id ? apiPut<HrShiftDto>(`/hr/shifts/${id}`, input) : apiPost<HrShiftDto>('/hr/shifts', input),
+    onSuccess: invalidate,
+  });
+}
+
+export function useDeleteShift() {
+  const invalidate = useInvalidateHr();
+  return useMutation({ mutationFn: (id: string) => apiDelete<void>(`/hr/shifts/${id}`), onSuccess: invalidate });
+}
+
+export function useHolidays(year: number) {
+  return useQuery({ queryKey: ['hr', 'holidays', year], queryFn: () => apiGet<HrHolidayDto[]>(`/hr/holidays?year=${year}`) });
+}
+
+export function useAddHolidays() {
+  const invalidate = useInvalidateHr();
+  return useMutation({ mutationFn: (input: SaveHrHolidaysDto) => apiPost<HrHolidayDto[]>('/hr/holidays', input), onSuccess: invalidate });
+}
+
+export function useDeleteHoliday() {
+  const invalidate = useInvalidateHr();
+  return useMutation({ mutationFn: (id: string) => apiDelete<void>(`/hr/holidays/${id}`), onSuccess: invalidate });
+}
+
+export function useAttendance(query: AttendanceQueryDto) {
+  return useQuery({ queryKey: ['hr', 'attendance', 'days', query], queryFn: () => apiGet<AttendanceDayDto[]>(`/hr/attendance?${toParams(query)}`) });
+}
+
+export function useAttendanceSummary(query: AttendanceQueryDto, enabled = true) {
+  return useQuery({
+    queryKey: ['hr', 'attendance', 'summary', query],
+    queryFn: () => apiGet<AttendanceSummaryRowDto[]>(`/hr/attendance/summary?${toParams(query)}`),
+    enabled,
+  });
+}
+
+export function useImportAttendance() {
+  const invalidate = useInvalidateHr();
+  return useMutation({ mutationFn: (input: AttendanceImportDto) => apiPost<AttendanceImportResultDto>('/hr/attendance/import', input), onSuccess: invalidate });
+}
+
+export function useRebuildAttendance() {
+  const invalidate = useInvalidateHr();
+  return useMutation({ mutationFn: (input: RebuildAttendanceDto) => apiPost<RebuildAttendanceResultDto>('/hr/attendance/rebuild', input), onSuccess: invalidate });
+}
+
+export function useUpdateAttendanceDay() {
+  const invalidate = useInvalidateHr();
+  return useMutation({
+    mutationFn: ({ id, input }: { id: string; input: UpdateAttendanceDayDto }) => apiPut<AttendanceDayDto>(`/hr/attendance/days/${id}`, input),
+    onSuccess: invalidate,
+  });
+}
+
+export function useResetAttendanceDay() {
+  const invalidate = useInvalidateHr();
+  return useMutation({ mutationFn: (id: string) => apiPost<AttendanceDayDto>(`/hr/attendance/days/${id}/reset`), onSuccess: invalidate });
 }

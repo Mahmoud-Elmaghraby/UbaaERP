@@ -45,6 +45,8 @@ export const HR = {
   employeesManage: 'hr.employees.manage',
   salariesView: 'hr.salaries.view',
   salariesManage: 'hr.salaries.manage',
+  attendanceView: 'hr.attendance.view',
+  attendanceManage: 'hr.attendance.manage',
 } as const;
 
 export const ANY_HR_PERMISSION: string[] = Object.values(HR);

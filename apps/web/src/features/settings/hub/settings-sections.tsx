@@ -8,6 +8,7 @@ import {
   FileText,
   Hash,
   History,
+  IdCard,
   KeyRound,
   Landmark,
   MonitorSmartphone,
@@ -53,6 +54,7 @@ const SecuritySection = () => <AppSettingsSection section="security" />;
 const SalesSection = () => <AppSettingsSection section="sales" />;
 const DocumentDatesSection = () => <AppSettingsSection section="documents" />;
 const PurchasesSection = () => <AppSettingsSection section="purchases" />;
+const HrSection = () => <AppSettingsSection section="hr" />;
 function PosSection() {
   const { t } = useTranslation();
   return (
@@ -94,6 +96,7 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
   { id: 'sales', group: 'modules', icon: ShoppingCart, component: SalesSection, permission: SALES_SETTINGS },
   { id: 'pos', group: 'modules', icon: MonitorSmartphone, component: PosSection, permission: SALES_SETTINGS, feature: 'pos' },
   { id: 'purchases', group: 'modules', icon: Truck, component: PurchasesSection, permission: PURCHASES_SETTINGS },
+  { id: 'hr', group: 'modules', icon: IdCard, component: HrSection, permission: ['settings.manage', 'hr.salaries.manage', 'hr.attendance.manage'], feature: 'hr' },
   { id: 'inventory', group: 'modules', icon: Package, to: '/inventory/settings', permission: ['settings.manage', 'inventory.settings.manage'] },
   { id: 'accounting', group: 'modules', icon: FileText, to: '/accounting/settings', permission: 'accounting.manage', feature: 'accounting' },
   { id: 'operations', group: 'system', icon: Activity, component: BackgroundOperationsTab },
