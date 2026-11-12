@@ -1,19 +1,21 @@
-# START HERE: full project handoff (2026-11-11)
+# START HERE: full project handoff (updated 2026-11-12)
 
 Read this first in any new Claude session or account. The repo alone is enough to pick up the work. You do not need the old account's Claude Project.
 
 **Reading order:**
 1. This file.
 2. `CLAUDE.md` (repo root). These are the engineering rules, and they bind.
-3. `docs/claude-context/session-handoff-2026-11-07.md`. It covers what was built from 2026-11-07 to 11-11, section by section.
-4. `docs/claude-context/project-docs/`. This is a full copy of the 30 docs from the old account's Claude Project "ERPplatform" (Oct–Nov 2026). Each doc's details are there.
-5. The older history from Aug–Sep 2026 is in the other files in `docs/claude-context/`. See `README.md`.
+3. `docs/claude-context/session-handoff-2026-11-12-hr.md`. **The newest work:** the whole HR & payroll module (11-11 → 11-12): migrations, endpoints, permissions, money flows, tests, gaps, lessons.
+4. `docs/claude-context/project-docs/hr-module-plan-2026-11-11.md`. The HR design, the user's decisions, and per-step progress.
+5. `docs/claude-context/session-handoff-2026-11-07.md`. What was built from 2026-11-07 to 11-11, section by section.
+6. `docs/claude-context/project-docs/`. A full copy of the docs from the old account's Claude Project "ERPplatform" (Oct–Nov 2026).
+7. The older history from Aug–Sep 2026 is in the other files in `docs/claude-context/`. See `README.md`.
 
 ---
 
 ## 1. Project in one paragraph
 This is an Egyptian ERP product with a placeholder name ("ERP Platform" / "Ubaa"; the final name is still open).
-- **Modules:** Settings, Users & Permissions, Inventory, Purchases, Sales (with POS), Accounting, and Treasury.
+- **Modules:** Settings, Users & Permissions, Inventory, Purchases, Sales (with POS), Accounting, Treasury, and **HR & Payroll** (since 0.3.0; a plan module, off by default).
 - **Two targets, one codebase:**
   - Web: multi-tenant SaaS, schema-per-tenant. Not deployed yet.
   - Windows desktop: Electron, fully offline, with its own PostgreSQL. This is what customers use today.
@@ -22,8 +24,7 @@ This is an Egyptian ERP product with a placeholder name ("ERP Platform" / "Ubaa"
 ## 2. Repo and where the truth lives
 - **Local source of truth:** `M:\Projects\erp-platform` on the user's Windows PC.
 - **GitHub:** `Mahmoud-Elmaghraby/UbaaERP`, branch `master`.
-- **Last pushed commit:** `d132aaa` (feat: clothing client 0.2.1).
-- **Pending on the device, not committed yet:** `apps/desktop/scripts/stage.mjs` now builds `@erp-platform/ui` before the web app. This fixed the installer build failing on `Switch`. The commit message is in `.git/msg-code.txt`, and the list in `.git/commit-files.txt` has just that file.
+- **Last pushed commit:** `53bf415` (feat(hr): step 7 — payslips, HR overview, desktop 0.3.0), plus the docs commit that added this update.
 - **Tenant migrations:** they go up to **`0128_hr_payroll`** (0123–0128 = HR module). They are auto-discovered by filename in `apps/api/src/database/tenant/migrations/`.
 - **Desktop version:** **0.3.0** (`apps/desktop/package.json`) — adds the HR module (off by default).
 - **Cloud clones:** any copy in a Claude cloud sandbox has a different, unpushable history. **Never push from the cloud.** Deliver changes as files to the device repo; the user commits and pushes.
@@ -56,7 +57,7 @@ This is an Egyptian ERP product with a placeholder name ("ERP Platform" / "Ubaa"
 | Customer | Status | Notes |
 |---|---|---|
 | **Clothing brand** (first live customer, urgent) | Has **v0.1.0** installed (2026-10-15) with their items. **v0.2.1 is ready to build and install.** | Buys from factories and companies. Sells in a shop, wholesale and retail, and online on Jumia / Amazon / Noon at different prices. **Every size/colour has its own factory code.** Uses **no taxes**. Docs: `project-docs/clothing-release-0.2.0-*.md`, `jumia-statement-format.md`, `sales-channels-settlements-2026-10-10.md`, `product-form-clothing-2026-10-09.md`. |
-| **Distribution company** (food: chocolate and candy; important prospect) | **Plan only. The user said "don't build anything yet"; he wants to discuss first.** HR is approved as the first module, complete and standalone so it can be sold on its own. | Needs: HR and payroll (monthly, no taxes or insurance at first; fingerprint data by Excel import), inventory with lots/FEFO and units, purchases, accounting, wholesale/retail by price list, reps with commission (fixed or tiers, monthly targets; they take orders and sell from the van), shops as POS each with its own warehouse and supplied by transfer from the main warehouse at cost (a setting), a fleet (owned and depreciated, or rented; fuel from custody; routes), and live map tracking from Android phones. Not registered for ETA. Doc: `project-docs/new-client-distribution-plan-2026-11-10.md`. The full plan was a Claude Doc on the old account: https://claude.ai/artifact/9iZyHJSPXzeDBV1Y3PcC7c (may not open from another account). |
+| **Distribution company** (food: chocolate and candy; important prospect) | **HR & payroll built (0.3.0, phase 1 complete)** — waiting for the user to test a full month and for the client's real fingerprint export. The rest of their plan is **not started**; discuss before building (next: the foundation — shops as warehouse+POS+treasury, lots/expiry/FEFO, carton/box/piece units, transfer pricing setting, data import). | Needs: HR and payroll (monthly, no taxes or insurance at first; fingerprint data by Excel import), inventory with lots/FEFO and units, purchases, accounting, wholesale/retail by price list, reps with commission (fixed or tiers, monthly targets; they take orders and sell from the van), shops as POS each with its own warehouse and supplied by transfer from the main warehouse at cost (a setting), a fleet (owned and depreciated, or rented; fuel from custody; routes), and live map tracking from Android phones. Not registered for ETA. Doc: `project-docs/new-client-distribution-plan-2026-11-10.md`. The full plan was a Claude Doc on the old account: https://claude.ai/artifact/9iZyHJSPXzeDBV1Y3PcC7c (may not open from another account). |
 | **Marble/tile engraving workshop** | Discovery only. | Hypothesis: a light Job Orders module. Doc: `project-docs/engraving-customer-discovery-2026-10-16.md`. Question sheet: `docs/customers/engraving/`. |
 
 ## 5. Release history (desktop)
@@ -78,7 +79,7 @@ This is an Egyptian ERP product with a placeholder name ("ERP Platform" / "Ubaa"
   - **a crash fix.** The tenant pg Pool had no `'error'` listener, so a dropped idle connection (sleep/wake) killed the API. The app reloaded, and quit after 5 crashes. Also: `unhandledRejection` is logged, the window reloads on a renderer crash, and events go to `logs/desktop.log`.
 - **0.3.0** (2026-11-12): the **HR & payroll module** (steps 1–7 of `project-docs/hr-module-plan-2026-11-11.md`): employees and org structure, salaries, shifts/holidays/attendance import, leaves, loans and bonuses/penalties, the monthly payroll run (post + pay), payslip printing and the HR overview. Migrations 0123–0128; the `hr` module starts **off** for every tenant (Settings › Modules), so the clothing customer sees no change. The upgrade rehearsal now checks the HR defaults too.
 - **To install at the customer:** run the new installer over the old one. It takes a pre-update `pg_dump` automatically. Then:
-  - Turn on any activity they need in **الإعدادات › الموديولات**. Migration 0118 turned off switches they never used, such as POS.
+  - Turn on any activity they need in **الإعدادات › الموديولات**. Migration 0118 turned off switches they never used, such as POS. HR (0123) starts off too.
   - On the labels page, tick "اطبع كود الصنف كباركود" if they label with factory codes.
 
 ## 6. Building the Windows installer (user's PC)
@@ -120,7 +121,7 @@ cd M:\Projects\erp-platform\apps\web; pnpm dev -- --port 8080   # 5173 is in a W
   ```
   cd apps/api && npx jest --config jest.config.js --selectProjects unit
   ```
-  Expect 471 passing, plus 2 Prisma suites that fail.
+  Expect 514 passing (as of `53bf415`), plus 2 Prisma suites that fail.
 - **Integration tests (real Postgres 16):**
   1. Start Postgres:
      ```
@@ -130,7 +131,7 @@ cd M:\Projects\erp-platform\apps\web; pnpm dev -- --port 8080   # 5173 is in a W
      ```
      DATABASE_URL=postgres://postgres@localhost:5433/postgres npx jest -c .devcheck/jest.int.config.js
      ```
-  Expect 33 suites / 179 tests. `.devcheck/` is git-ignored and sandbox-only: a jest config that provisions from the tenant migrations and stubs Prisma.
+  Expect 39 suites / 193 tests (as of `53bf415`). `apps/api/.devcheck/` is git-ignored and sandbox-only: a jest config that provisions a schema from the tenant migrations and stubs Prisma. **A copy is kept in `docs/claude-context/sandbox-devcheck/`** — copy its three files to `apps/api/.devcheck/` in a new sandbox. Postgres first needs `initdb`: `mkdir -p /var/tmp/pg && chown postgres /var/tmp/pg && su postgres -c "/usr/lib/postgresql/16/bin/initdb -D /var/tmp/pg/data -A trust"`. The sandbox server stops between turns sometimes — start it again if a run says ECONNREFUSED 5433.
 - **e2e tests:** they need Prisma, so run them on the user's PC.
 - **Sending changes to the device:**
   1. Tar the changed files to `/mnt/user-data/outputs`.
@@ -138,9 +139,12 @@ cd M:\Projects\erp-platform\apps\web; pnpm dev -- --port 8080   # 5173 is in a W
   3. Extract on the device with `tar --overwrite -xzf`.
   4. Check every file's md5 against the cloud copy, ignoring CR.
   5. Add the files to `.git/commit-files.txt`.
-  6. Delete `.claude-tmp`, which needs delete permission; otherwise ask the user to.
+  6. Write `.git/commit-files.txt` and `.git/msg-code.txt` with `device_bash` (`cp` from `.claude-tmp/`) — `device_commit_files` refuses paths inside `.git/`.
+  7. Delete `.claude-tmp`, which needs delete permission; otherwise ask the user to.
 - **CRLF noise:** hundreds of files in the device working tree show as changed only because of CRLF line endings. Commit only through `commit-files.txt`. The suggested fix is `git config core.autocrlf true`.
+- **CRLF files:** some sources on the device are CRLF (e.g. `entity-errors.ts`, `numbering-defaults.ts`, contracts). Edit them keeping CRLF (Python `open(p, newline='')`), or the diff becomes the whole file.
 - **i18n:** merge Arabic strings with a small JSON fragment merge into `ar.json`. Never hand-edit large parts of it.
+- **Libs on the PC:** after changing `libs/`, tell the user to run `pnpm --filter @erp-platform/contracts build` (and shared-kernel / ui if touched) before `pnpm start:dev`.
 - **The device VM** can't run pnpm/tsc: Windows junctions can't be read there. Typecheck, lint and tests run in the cloud; the installer build runs on the user's PC.
 
 ## 9. Key architecture pieces added recently (use them; don't duplicate)
@@ -163,12 +167,14 @@ cd M:\Projects\erp-platform\apps\web; pnpm dev -- --port 8080   # 5173 is in a W
   - Stock check: `StockAvailabilityChecker`.
   - Outbox decorator: `OnOutboxEvent` with `requiresFeature`.
   - Nested transactions: `withTransaction`. Kysely can't nest them.
-  - Audit trail: `DomainAuditListener`.
+  - Audit trail: `DomainAuditListener` (sales, purchases, inventory, accounting, settings, **hr**); `@AuditChanges(module, entity)` on configuration-style controllers.
+  - Printing gate: `PrintProvider.feature` — a plan module's documents can't be printed without the module.
+- **HR (see `session-handoff-2026-11-12-hr.md`):** pure domain in `modules/hr/domain/` (minutes-not-timezones attendance, punch parsing, leave days, loan schedules, `computePayroll`); `shift-rules.ts` loaders shared by attendance/leaves/payroll; `AccountingHrPostingListener` for loan and payroll entries; treasury sources `HrLoanMovements` / `HrPayrollMovements`.
 
 ## 10. Open items / backlog (priority order)
+0. **HR & payroll — test before selling:** the user runs a full month on his PC (employees, salaries, a real fingerprint export, a leave, a loan, payroll run, post, pay, payslip) and reports issues. Screens were never exercised in a browser by Claude. Known gaps: `session-handoff-2026-11-12-hr.md` §11.
 1. **Clothing customer:**
-   - Build and install 0.2.1, then confirm whether the crashes stop. If they don't, get `api.log` / `desktop.log`.
-   - Commit the `stage.mjs` fix.
+   - Build and install **0.3.0** (includes every 0.2.x fix; HR stays off), then confirm whether the crashes stop. If they don't, get `api.log` / `desktop.log`.
    - Waiting from the customer: the Jumia **Orders** export, for the daily import.
 2. **Distribution client:** HR module **built (0.3.0)** — see `project-docs/hr-module-plan-2026-11-11.md` (decisions, progress, known gaps). Next per the client plan: the foundation (shop restrictions, lots/FEFO…), then sales/reps/commissions.
 3. **Settings hub, phase 4:**
@@ -214,6 +220,7 @@ cd M:\Projects\erp-platform\apps\web; pnpm dev -- --port 8080   # 5173 is in a W
 | settings-hub-2026-11-09.md / -phase2- / -phase3-purchases- | Settings hub phases 1–3 |
 | clothing-release-0.2.0-2026-11-10.md / -additions-2026-11-11.md | Releases 0.2.0 and 0.2.1 |
 | new-client-distribution-plan-2026-11-10.md | Distribution client plan |
+| hr-module-plan-2026-11-11.md | HR & payroll: design, competitor baseline, user decisions, per-step progress (steps 1–7), known gaps |
 | engraving-customer-discovery-2026-10-16.md | Engraving prospect |
 
 **Claude Docs on the old account** (they may not open from a new account; ask the user to export them if needed):

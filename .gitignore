@@ -16,3 +16,7 @@ apps/desktop/staging/
 apps/desktop/.cache/
 
 Claude outputs/
+
+# Claude cloud-sandbox test harness (copy kept in docs/claude-context/sandbox-devcheck/)
+apps/api/.devcheck/
+.claude-tmp/
