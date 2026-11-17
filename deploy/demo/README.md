@@ -40,11 +40,26 @@ These steps run on the server.
    - email: `owner@alomda.demo`
    - password: `Demo@2026`
 
-## If ports 80/443 are already taken
+## If ports 80/443 are already taken (existing nginx)
 
-Leave the `ports:` section out of the `web` service. Point your existing reverse proxy at it instead.
+Run Caddy on a local port with plain HTTP and let nginx handle TLS. Add these to `.env`:
 
-If the existing proxy is nginx, keep the whole stack behind one hostname. Proxy `/` to the `web` container. If you want nginx to handle `/api/` itself, it must strip the `/api` prefix and rewrite the cookie path (`proxy_cookie_path /auth /api/auth;`).
+```sh
+SITE_ADDRESS=:80
+WEB_HTTP_BIND=127.0.0.1:8090
+WEB_HTTPS_BIND=127.0.0.1:8453
+```
+
+Then add the nginx site and a certificate:
+
+```sh
+cp deploy/demo/nginx-site.conf /etc/nginx/sites-available/ubaa.tcronix.com   # edit server_name
+ln -s /etc/nginx/sites-available/ubaa.tcronix.com /etc/nginx/sites-enabled/
+nginx -t && systemctl reload nginx
+certbot --nginx -d ubaa.tcronix.com
+```
+
+Caddy still strips `/api` and rewrites the refresh-cookie path, so nginx only proxies `/` to `127.0.0.1:8090`.
 
 ## Updating
 

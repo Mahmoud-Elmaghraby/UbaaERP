@@ -1,5 +1,5 @@
 # One domain: the web app at /, the API at /api (HTTPS certificates are automatic).
-{$DOMAIN} {
+{$SITE_ADDRESS} {
 	encode gzip
 
 	handle_path /api/* {

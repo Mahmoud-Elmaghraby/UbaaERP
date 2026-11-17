@@ -49,9 +49,12 @@ services:
     depends_on: [api]
     environment:
       DOMAIN: ${DOMAIN:?set DOMAIN in deploy/demo/.env}
+      # Behind an existing nginx: SITE_ADDRESS=:80 (plain HTTP; nginx does TLS).
+      SITE_ADDRESS: ${SITE_ADDRESS:-${DOMAIN}}
     ports:
-      - '80:80'
-      - '443:443'
+      # Behind an existing nginx: WEB_HTTP_BIND=127.0.0.1:8090, WEB_HTTPS_BIND=127.0.0.1:8453
+      - '${WEB_HTTP_BIND:-80}:80'
+      - '${WEB_HTTPS_BIND:-443}:443'
     volumes:
       - caddy_data:/data
       - caddy_config:/config
