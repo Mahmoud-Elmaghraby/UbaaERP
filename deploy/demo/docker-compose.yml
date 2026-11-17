@@ -27,6 +27,8 @@ services:
     environment:
       NODE_ENV: production
       PORT: '4000'
+      # Business dates ("today") follow Egypt, not the container's UTC.
+      TZ: ${TZ:-Africa/Cairo}
       DATABASE_URL: postgresql://ubaa:${DB_PASSWORD}@db:5432/ubaa
       JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?set JWT_ACCESS_SECRET in deploy/demo/.env}
       SECRETS_ENCRYPTION_KEY: ${SECRETS_ENCRYPTION_KEY:?set SECRETS_ENCRYPTION_KEY in deploy/demo/.env}
