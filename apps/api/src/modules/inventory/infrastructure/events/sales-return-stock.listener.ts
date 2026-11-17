@@ -24,6 +24,8 @@ interface SalesReturnConfirmedLine {
 interface SalesReturnConfirmedMetadata {
   deliveryId: string;
   warehouseId: string;
+  /** YYYY-MM-DD (absent on events written before 2026-11-17). */
+  returnDate?: string | null;
   /** Earlier confirmed returns of the same delivery (absent on old events). */
   earlierReturnIds?: string[];
   lines: SalesReturnConfirmedLine[];
@@ -190,6 +192,7 @@ export class SalesReturnStockListener {
             referenceType: 'sales_return',
             referenceId: payload.entityId,
             warehouseId: metadata.warehouseId,
+            entryDate: metadata.returnDate ?? null,
             currency,
             totalCost: moneyToDto(totalCost),
             lines: costLines,

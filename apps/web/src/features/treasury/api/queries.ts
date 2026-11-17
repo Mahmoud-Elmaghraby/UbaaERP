@@ -30,8 +30,8 @@ function useInvalidateTreasury() {
   return () => queryClient.invalidateQueries({ queryKey: ['treasury'] });
 }
 
-export function useTreasuries() {
-  return useQuery({ queryKey: ['treasury', 'list'], queryFn: () => apiGet<TreasuryDto[]>('/treasuries') });
+export function useTreasuries(enabled = true) {
+  return useQuery({ queryKey: ['treasury', 'list'], queryFn: () => apiGet<TreasuryDto[]>('/treasuries'), enabled });
 }
 
 /** Active treasuries for pickers (receipts, payments, vouchers, POS). */

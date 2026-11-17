@@ -276,6 +276,8 @@ export class SalesReturnsService {
         metadata: {
           deliveryId: updated.deliveryId,
           warehouseId: delivery.warehouseId,
+          // The cost reversal belongs to the return's own date, not to when the outbox ran.
+          returnDate: updated.returnDate,
           earlierReturnIds,
           lines: lines.map((line) => ({
             productVariantId: line.productVariantId,
@@ -295,6 +297,7 @@ export class SalesReturnsService {
         metadata: {
           salesReturnId: updated.id,
           creditNoteNumber: creditNote.creditNoteNumber,
+          entryDate: updated.returnDate,
           customerId: creditNote.customerId,
           currency: creditNote.currency,
           // net / taxes / total — Accounting reverses revenue and the taxes with them.

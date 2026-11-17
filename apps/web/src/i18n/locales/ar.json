@@ -1,6 +1,6 @@
 {
   "app": {
-    "name": "أصول"
+    "name": "Ubaa"
   },
   "nav": {
     "settings": "الإعدادات",
@@ -3675,10 +3675,10 @@
     },
     "reset": "استعادة الافتراضي",
     "accents": {
-      "teal": "أخضر أصول",
+      "teal": "أخضر",
       "indigo": "نيلي",
       "blue": "أزرق",
-      "navy": "كحلي",
+      "navy": "كحلي Ubaa",
       "plum": "بنفسجي",
       "rust": "طوبي"
     }
@@ -3686,9 +3686,8 @@
   "home": {
     "greetingMorning": "صباح الخير",
     "greetingEvening": "مساء الخير",
-    "subtitle": "إليك اختصارات لأهم الأعمال اليومية.",
+    "subtitle": "أرقام شغلك النهارده في مكان واحد.",
     "quickActions": "إجراءات سريعة",
-    "modules": "الأقسام",
     "actions": {
       "salesInvoice": "فواتير البيع",
       "purchaseOrder": "أوامر الشراء",
@@ -3699,14 +3698,6 @@
       "newSalesInvoice": "فاتورة بيع جديدة",
       "newPurchaseInvoice": "فاتورة شراء جديدة"
     },
-    "moduleDescriptions": {
-      "sales": "العملاء وعروض الأسعار والفواتير والتحصيل",
-      "purchases": "الموردون وأوامر الشراء والاستلام والفواتير",
-      "inventory": "الأصناف والمخازن وحركة المخزون",
-      "accounting": "شجرة الحسابات والقيود والتقارير المالية",
-      "pos": "البيع السريع بالباركود والدفع الفوري",
-      "settings": "الفروع والترقيم والضرائب وقوالب الطباعة"
-    },
     "attention": {
       "title": "يحتاج انتباهك",
       "allClear": "لا يوجد شيء معلّق",
@@ -3715,7 +3706,61 @@
       "draftPurchaseInvoices": "فواتير شراء مسودة",
       "draftJournalEntries": "قيود يومية مسودة",
       "lowStock": "أصناف تحت حد الطلب"
-    }
+    },
+    "viewAll": "عرض الكل",
+    "periods": {
+      "today": "النهارده",
+      "thisMonth": "الشهر ده",
+      "lastMonth": "الشهر اللي فات",
+      "thisYear": "السنة دي"
+    },
+    "kpi": {
+      "netSales": "صافي المبيعات",
+      "grossProfit": "مجمل الربح",
+      "cash": "النقدية المتاحة",
+      "cashHint": "كل الخزائن والبنوك",
+      "receivables": "مستحق من العملاء",
+      "payables": "مستحق للموردين",
+      "overdue": "منه متأخر {{amount}}",
+      "nothingOverdue": "مفيش متأخرات",
+      "margin": "هامش {{value}}",
+      "invoices_zero": "مفيش فواتير",
+      "invoices_one": "فاتورة واحدة",
+      "invoices_two": "فاتورتين",
+      "invoices_few": "{{count}} فواتير",
+      "invoices_many": "{{count}} فاتورة",
+      "invoices_other": "{{count}} فاتورة"
+    },
+    "trend": {
+      "title": "المبيعات آخر 6 شهور",
+      "report": "تحليل المبيعات",
+      "hint": "وقّف على أي شهر تشوف تفاصيله",
+      "sales": "مبيعات",
+      "profit": "ربح"
+    },
+    "cash": {
+      "title": "الخزائن والبنوك"
+    },
+    "topDebtors": {
+      "title": "أكبر العملاء مديونية",
+      "empty": "مفيش أرصدة مستحقة"
+    },
+    "topItems": {
+      "title": "الأكثر مبيعًا في الفترة",
+      "empty": "مفيش مبيعات في الفترة دي"
+    },
+    "expiry": {
+      "title": "قرب ينتهي (30 يوم)",
+      "empty": "مفيش أصناف قربت تنتهي",
+      "expired": "منتهي",
+      "days_zero": "بينتهي النهارده",
+      "days_one": "باقي يوم",
+      "days_two": "باقي يومين",
+      "days_few": "باقي {{count}} أيام",
+      "days_many": "باقي {{count}} يوم",
+      "days_other": "باقي {{count}} يوم"
+    },
+    "periodLabel": "الفترة"
   },
   "errorPage": {
     "title": "حدث خطأ غير متوقع",

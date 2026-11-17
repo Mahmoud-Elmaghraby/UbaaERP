@@ -23,6 +23,8 @@ interface DeliveryConfirmedLine {
 interface DeliveryConfirmedMetadata {
   salesOrderId: string;
   warehouseId: string;
+  /** YYYY-MM-DD (absent on events written before 2026-11-17). */
+  deliveryDate?: string | null;
   lines: DeliveryConfirmedLine[];
 }
 
@@ -184,6 +186,7 @@ export class DeliveryStockListener {
             referenceType: 'delivery',
             referenceId: payload.entityId,
             warehouseId: metadata.warehouseId,
+            entryDate: metadata.deliveryDate ?? null,
             currency,
             totalCost: moneyToDto(totalCost),
             lines: costLines,

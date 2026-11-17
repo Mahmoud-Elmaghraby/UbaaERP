@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Can, cn, useFeatureChecker, usePermissions } from '@erp-platform/ui';
 import { PanelRightClose, PanelRightOpen, Settings2 } from 'lucide-react';
 
+import { BrandMark, BrandWordmark } from '../../components/brand/brand-mark';
 import { hasAny } from '../../lib/permissions';
 import { NAV_GROUPS, isPathActive, type NavItem } from './nav-items';
 
@@ -35,13 +36,17 @@ export function Sidebar({ collapsed, onNavigate, onToggleCollapsed }: SidebarPro
           title={collapsed ? label : undefined}
           aria-current={active && !hasChildren ? 'page' : undefined}
           className={cn(
-            'group flex h-10 items-center gap-3 rounded-lg px-3 text-sm font-medium text-sidebar-mutedForeground outline-none transition-colors hover:bg-sidebar-accent/60 hover:text-sidebar-foreground focus-visible:ring-2 focus-visible:ring-ring',
+            'group relative flex h-10 items-center gap-3 rounded-lg px-3 text-sm font-medium text-sidebar-mutedForeground outline-none transition-colors hover:bg-sidebar-accent/60 hover:text-sidebar-foreground focus-visible:ring-2 focus-visible:ring-ring',
             collapsed && 'justify-center px-0',
             active && !hasChildren && 'bg-sidebar-accent font-semibold text-sidebar-accentForeground',
             active && hasChildren && 'font-semibold text-sidebar-accentForeground',
             active && hasChildren && collapsed && 'bg-sidebar-accent',
           )}
         >
+          {active ? (
+            // Ubaa orange marks where you are.
+            <span aria-hidden="true" className="absolute inset-y-2 start-0 w-[3px] rounded-full bg-highlight" />
+          ) : null}
           {Icon ? <Icon className="h-[18px] w-[18px] shrink-0" strokeWidth={1.9} aria-hidden="true" /> : null}
           {collapsed ? <span className="sr-only">{label}</span> : <span className="truncate">{label}</span>}
         </NavLink>
@@ -104,14 +109,14 @@ export function Sidebar({ collapsed, onNavigate, onToggleCollapsed }: SidebarPro
     <div className="flex h-full flex-col">
       <div
         className={cn(
-          'mb-2 flex h-16 shrink-0 items-center gap-2.5 border-b border-sidebar-border px-5',
+          'mb-2 flex h-[72px] shrink-0 items-center justify-center gap-3 border-b border-sidebar-border px-5',
           collapsed && 'justify-center px-0',
         )}
       >
-        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-primary text-base font-bold text-primary-foreground">
-          أ
-        </span>
-        {!collapsed ? <span className="truncate text-lg font-bold">{t('app.name')}</span> : null}
+        {/* Latin lockup reads mark → name left-to-right, so the name comes first in this RTL row. */}
+        {!collapsed ? <BrandWordmark title={t('app.name')} className="h-6 w-auto text-sidebar-foreground" /> : null}
+        {/* The sidebar is always a dark brand surface, so the mark sits on its white tile. */}
+        <BrandMark tile className={collapsed ? 'h-10 w-10' : 'h-11 w-11'} />
       </div>
 
       <nav

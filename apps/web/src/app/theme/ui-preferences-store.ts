@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-import { DEFAULT_ACCENT } from './palette';
+import { DEFAULT_ACCENT, LEGACY_DEFAULT_ACCENT } from './palette';
 
 export type ColorMode = 'light' | 'dark' | 'system';
 export type Density = 'comfortable' | 'compact';
@@ -39,6 +39,17 @@ export const useUiPreferences = create<UiPreferencesState>()(
       setDensity: (density) => set({ density }),
       toggleSidebar: () => set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
     }),
-    { name: 'erp-ui-preferences' },
+    {
+      name: 'erp-ui-preferences',
+      // v1 (2026-11-17, Ubaa brand): a saved accent still on the old default teal moves to the new default.
+      version: 1,
+      migrate: (persisted, version) => {
+        const state = (persisted ?? {}) as Partial<UiPreferencesState>;
+        if (version < 1 && (!state.accent || state.accent.toUpperCase() === LEGACY_DEFAULT_ACCENT)) {
+          return { ...state, accent: DEFAULT_ACCENT } as UiPreferencesState;
+        }
+        return state as UiPreferencesState;
+      },
+    },
   ),
 );

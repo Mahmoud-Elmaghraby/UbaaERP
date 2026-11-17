@@ -1,0 +1,11 @@
+**/node_modules
+**/dist
+.git
+.claude-tmp
+apps/desktop/release
+apps/desktop/staging
+apps/desktop/.cache
+apps/api/.devcheck
+**/.env
+**/.env.local
+deploy/demo/.env

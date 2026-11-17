@@ -51,6 +51,8 @@ module.exports = {
           DEFAULT: hsl('destructive'),
           foreground: hsl('destructive-foreground'),
         },
+        // Ubaa orange — the brand's second colour, used sparingly (active marker, highlights).
+        highlight: { DEFAULT: hsl('highlight'), foreground: hsl('highlight-foreground') },
         success: { DEFAULT: hsl('success'), soft: hsl('success-soft') },
         warning: { DEFAULT: hsl('warning'), soft: hsl('warning-soft') },
         info: { DEFAULT: hsl('info'), soft: hsl('info-soft') },
@@ -87,9 +89,9 @@ module.exports = {
         sm: 'calc(var(--radius) - 4px)',
       },
       fontFamily: {
-        // خط واحد للنظام كله (قرار 2026-10-04): IBM Plex Sans Arabic.
-        sans: ['"IBM Plex Sans Arabic"', 'system-ui', 'sans-serif'],
-        display: ['"IBM Plex Sans Arabic"', 'system-ui', 'sans-serif'],
+        // خط واحد للنظام كله: Cairo (هوية Ubaa، 2026-11-17 — بدّل IBM Plex Sans Arabic).
+        sans: ['Cairo', 'system-ui', 'sans-serif'],
+        display: ['Cairo', 'system-ui', 'sans-serif'],
       },
       boxShadow: {
         card: '0 1px 2px 0 rgb(16 24 40 / 0.04)',

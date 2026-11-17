@@ -6,7 +6,8 @@
  * Design tokens — نظام التصميم (claude/ui-redesign-plan.md).
  *
  * كل ألوان الهوية (primary / ring / accent / sidebar-accent / brand-*) مشتقة
- * من لون أساسي واحد. القيم هنا هي الافتراضية (الأخضر #0E6B5C) فقط حتى لا
+ * من لون أساسي واحد. القيم هنا هي الافتراضية (كحلي Ubaa #0B2D4D، ومعه الأزرق
+ * #0F77C8 للتظليل وللوضع الداكن — docs/brand/README.md) فقط حتى لا
  * يظهر وميض قبل تحميل JS؛ ThemeProvider (apps/web/src/app/theme) يعيد
  * حسابها وقت التشغيل من لون الهوية المختار، فتغيير لون واحد يعيد تلوين
  * النظام كله. الألوان المحايدة رمادية باردة ثابتة لا تتغير مع الهوية.
@@ -22,21 +23,21 @@
     --popover-foreground: 211 28% 13%;
 
     /* الهوية — يعاد حسابها من ThemeProvider */
-    --primary: 170 77% 24%;
+    --primary: 209 75% 17%;
     --primary-foreground: 0 0% 100%;
-    --ring: 170 77% 24%;
-    --accent: 168 33% 93%;
-    --accent-foreground: 170 77% 18%;
-    --brand-50: 165 40% 96%;
-    --brand-100: 167 35% 89%;
-    --brand-200: 168 33% 77%;
-    --brand-300: 169 32% 61%;
-    --brand-400: 170 35% 43%;
-    --brand-500: 170 77% 24%;
-    --brand-600: 170 77% 21%;
-    --brand-700: 170 77% 17%;
-    --brand-800: 170 77% 13%;
-    --brand-900: 170 77% 9%;
+    --ring: 209 75% 17%;
+    --accent: 208 66% 94%;
+    --accent-foreground: 209 76% 13%;
+    --brand-50: 210 15% 95%;
+    --brand-100: 207 15% 88%;
+    --brand-200: 210 16% 75%;
+    --brand-300: 209 16% 59%;
+    --brand-400: 209 26% 38%;
+    --brand-500: 209 75% 17%;
+    --brand-600: 209 74% 15%;
+    --brand-700: 209 75% 12%;
+    --brand-800: 208 75% 9%;
+    --brand-900: 209 76% 6%;
 
     /* محايد */
     --secondary: 216 15% 94%;
@@ -61,13 +62,17 @@
 
     --radius: 0.5rem;
 
-    /* الشريط الجانبي */
-    --sidebar-background: 0 0% 100%;
-    --sidebar-foreground: 211 28% 13%;
-    --sidebar-muted-foreground: 216 14% 34%;
-    --sidebar-accent: 168 33% 93%;
-    --sidebar-accent-foreground: 170 77% 18%;
-    --sidebar-border: 214 12% 90%;
+    /* اللون التاني للهوية (برتقالي Ubaa) — ثابت مش مشتق من لون الهوية، وبيتستخدم بالقليل */
+    --highlight: 33 100% 50%;
+    --highlight-foreground: 209 75% 12%;
+
+    /* الشريط الجانبي — سطح الهوية الكبير: نسخة غامقة من لون الهوية بنص فاتح (يعاد حسابه من ThemeProvider) */
+    --sidebar-background: 209 75% 17%;
+    --sidebar-foreground: 210 15% 95%;
+    --sidebar-muted-foreground: 210 16% 75%;
+    --sidebar-accent: 209 40% 28%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 209 42% 27%;
 
     /* كثافة الجداول — يغيّرها data-density على <html> */
     --row-h: 3rem;
@@ -88,11 +93,11 @@
     --popover: 216 18% 12%;
     --popover-foreground: 214 20% 92%;
 
-    --primary: 167 58% 45%;
-    --primary-foreground: 170 60% 8%;
-    --ring: 167 58% 45%;
-    --accent: 170 25% 17%;
-    --accent-foreground: 167 58% 70%;
+    --primary: 206 63% 60%;
+    --primary-foreground: 206 86% 8%;
+    --ring: 206 63% 60%;
+    --accent: 209 60% 16%;
+    --accent-foreground: 206 62% 74%;
 
     --secondary: 216 15% 16%;
     --secondary-foreground: 214 20% 88%;
@@ -113,12 +118,12 @@
     --danger: 4 75% 65%;
     --danger-soft: 4 40% 17%;
 
-    --sidebar-background: 216 20% 9%;
-    --sidebar-foreground: 214 20% 92%;
-    --sidebar-muted-foreground: 215 12% 66%;
-    --sidebar-accent: 170 25% 17%;
-    --sidebar-accent-foreground: 167 58% 72%;
-    --sidebar-border: 216 14% 18%;
+    --sidebar-background: 211 57% 13%;
+    --sidebar-foreground: 210 8% 95%;
+    --sidebar-muted-foreground: 213 8% 74%;
+    --sidebar-accent: 211 27% 24%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 210 27% 23%;
   }
 }
 

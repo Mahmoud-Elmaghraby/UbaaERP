@@ -32,6 +32,8 @@ interface StockCostEventMetadata {
   referenceType: string;
   referenceId: string;
   warehouseId: string;
+  /** The source document's date (YYYY-MM-DD); absent on events written before 2026-11-17. */
+  entryDate?: string | null;
   currency: string;
   totalCost: { amountMinorUnits: string; currency: string };
   lines: StockCostLine[];
@@ -40,6 +42,8 @@ interface StockCostEventMetadata {
 interface SalesCreditNoteIssuedMetadata {
   salesReturnId: string;
   creditNoteNumber?: string;
+  /** The return's date (YYYY-MM-DD); absent on events written before 2026-11-17. */
+  entryDate?: string | null;
   customerId: string;
   currency: string;
   totalAmount: { amountMinorUnits: string; currency: string };
@@ -262,7 +266,8 @@ export class AccountingAutoPostingListeners {
     ];
 
     await this.journalEntries.createAuto(db, {
-      entryDate: localIsoDate(payload.occurredAt),
+      // Dated on the delivery (a back-dated sale costs in its own month), not on when this ran.
+      entryDate: metadata.entryDate ?? localIsoDate(payload.occurredAt),
       description: `تكلفة البضاعة المباعة — ${referenceLabel(metadata.referenceType)} ${metadata.referenceId}`,
       lines,
       sourceReferenceType: 'stock_consumption',
@@ -303,7 +308,7 @@ export class AccountingAutoPostingListeners {
     ];
 
     await this.journalEntries.createAuto(db, {
-      entryDate: localIsoDate(payload.occurredAt),
+      entryDate: metadata.entryDate ?? localIsoDate(payload.occurredAt),
       description: `عكس تكلفة البضاعة المباعة — ${referenceLabel(metadata.referenceType)} ${metadata.referenceId}`,
       lines,
       sourceReferenceType: 'stock_restoration',
@@ -331,7 +336,7 @@ export class AccountingAutoPostingListeners {
       );
     }
 
-    const entryDate = localIsoDate(payload.occurredAt);
+    const entryDate = metadata.entryDate ?? localIsoDate(payload.occurredAt);
     const { amountMinorUnits, tenantCurrency, wasConverted } = await this.convertToTenantCurrency(
       db,
       metadata.totalAmount,

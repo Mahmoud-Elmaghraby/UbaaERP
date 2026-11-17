@@ -1,0 +1,17 @@
+# One domain: the web app at /, the API at /api (HTTPS certificates are automatic).
+{$DOMAIN} {
+	encode gzip
+
+	handle_path /api/* {
+		reverse_proxy api:4000 {
+			# The API scopes its refresh-token cookie to /auth; the browser sees it under /api/auth.
+			header_down Set-Cookie "Path=/auth" "Path=/api/auth"
+		}
+	}
+
+	handle {
+		root * /srv
+		try_files {path} /index.html
+		file_server
+	}
+}

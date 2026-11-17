@@ -4,7 +4,7 @@
  * (CLAUDE.md §9.1: no hard-coded UI text; Arabic only today).
  */
 export const t = {
-  appName: 'ERP Platform',
+  appName: 'Ubaa',
   splashTitle: 'جاري تشغيل البرنامج',
   statusDatabase: 'جاري تشغيل قاعدة البيانات...',
   statusMigrations: 'جاري تجهيز البيانات...',

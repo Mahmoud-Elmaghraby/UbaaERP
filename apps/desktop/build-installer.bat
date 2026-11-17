@@ -1,5 +1,5 @@
 @echo off
-REM Builds the Windows installer:  apps\desktop\release\ERP Platform-Setup-<version>.exe
+REM Builds the Windows installer:  apps\desktop\release\Ubaa-Setup-<version>.exe
 REM Run from anywhere (no admin needed). First run downloads PostgreSQL (~300 MB zip, cached).
 REM If the download is blocked, download the zip yourself and run:
 REM   build-installer.bat --pg-zip C:\path\to\postgresql-17.x-1-windows-x64-binaries.zip

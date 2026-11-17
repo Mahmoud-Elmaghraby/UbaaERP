@@ -78,7 +78,7 @@ async function start(): Promise<void> {
 
   splash = new BrowserWindow({
     width: 420, height: 280, frame: false, resizable: false, show: false,
-    backgroundColor: '#0d3b30', webPreferences: { sandbox: true },
+    backgroundColor: '#0B2D4D', webPreferences: { sandbox: true },
   });
   splash.once('ready-to-show', () => splash?.show());
   await splash.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(splashHtml(t.splashTitle, t.statusDatabase))}`);

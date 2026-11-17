@@ -54,7 +54,11 @@ export function usePartyStatement(kind: PartyKindDto, id: string | undefined, pa
   });
 }
 
-export function usePartyBalances(kind: PartyKindDto, params: { asOf?: string; currency?: string; nonZeroOnly?: boolean }) {
+export function usePartyBalances(
+  kind: PartyKindDto,
+  params: { asOf?: string; currency?: string; nonZeroOnly?: boolean },
+  enabled = true,
+) {
   return useQuery({
     queryKey: ['party-balances', kind, params],
     queryFn: () =>
@@ -65,6 +69,7 @@ export function usePartyBalances(kind: PartyKindDto, params: { asOf?: string; cu
           nonZeroOnly: params.nonZeroOnly === false ? 'false' : undefined,
         })}`,
       ),
+    enabled,
   });
 }
 

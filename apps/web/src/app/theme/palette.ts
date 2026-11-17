@@ -5,11 +5,25 @@
  * … --brand-900) is recomputed here and written onto <html> by ThemeProvider, so
  * changing a single hex value recolors the entire app.
  *
+ * The sidebar is a deep, light-on-dark version of the accent (the brand's big surface).
+ *
  * Neutral grays and status colors (success/warning/info/danger) intentionally do NOT
  * depend on the accent — they must keep their meaning whatever brand is chosen.
  */
 
-export const DEFAULT_ACCENT = '#0E6B5C';
+/** The Ubaa brand navy (docs/brand/README.md). */
+export const DEFAULT_ACCENT = '#0B2D4D';
+/** The default before the Ubaa brand (2026-11-17) — saved preferences holding it move to the new default. */
+export const LEGACY_DEFAULT_ACCENT = '#0E6B5C';
+
+/**
+ * A very dark accent mixes into grey tints and a dull dark-mode primary. Such an accent can name
+ * a brighter companion that drives the soft highlights (light mode) and the whole palette in dark
+ * mode. Keys are lower-case hex.
+ */
+const ACCENT_COMPANIONS: Record<string, string> = {
+  '#0b2d4d': '#0F77C8', // Ubaa navy → Ubaa blue
+};
 
 export interface AccentPreset {
   /** i18n key under `appearance.accents.*` */
@@ -18,10 +32,10 @@ export interface AccentPreset {
 }
 
 export const ACCENT_PRESETS: AccentPreset[] = [
+  { key: 'navy', hex: '#0B2D4D' },
+  { key: 'blue', hex: '#0F77C8' },
   { key: 'teal', hex: '#0E6B5C' },
   { key: 'indigo', hex: '#3E4FB8' },
-  { key: 'blue', hex: '#1F5FBF' },
-  { key: 'navy', hex: '#1F3A5F' },
   { key: 'plum', hex: '#7A3E8E' },
   { key: 'rust', hex: '#A4432A' },
 ];
@@ -82,7 +96,11 @@ export function isValidHex(value: string): boolean {
 
 /** Returns CSS custom-property name → value (without the leading `--`). */
 export function buildBrandTokens(accentHex: string, dark: boolean): Record<string, string> {
-  const base = hexToRgb(accentHex);
+  const companionHex = ACCENT_COMPANIONS[`#${accentHex.trim().replace('#', '').toLowerCase()}`];
+  const companion = companionHex ? hexToRgb(companionHex) : null;
+  // Dark mode runs on the brighter companion when there is one.
+  const base = dark && companion ? companion : hexToRgb(accentHex);
+  const highlight = companion ?? base;
 
   const scale: Record<string, Rgb> = {
     'brand-50': mix(base, WHITE, 0.94),
@@ -100,17 +118,30 @@ export function buildBrandTokens(accentHex: string, dark: boolean): Record<strin
   const tokens: Record<string, string> = {};
   for (const [name, rgb] of Object.entries(scale)) tokens[name] = toHslToken(rgb);
 
+  // The sidebar is the brand's big surface: a deep version of the accent with light text, in both
+  // modes. A very dark accent (Ubaa navy) is used as is; lighter ones are deepened.
+  const original = hexToRgb(accentHex);
+  const sidebarBg = dark
+    ? mix(original, DARK_SURFACE, 0.55)
+    : relativeLuminance(original) < 0.05
+      ? original
+      : mix(original, BLACK, 0.5);
+  tokens['sidebar-background'] = toHslToken(sidebarBg);
+  tokens['sidebar-foreground'] = toHslToken(mix(sidebarBg, WHITE, 0.94));
+  tokens['sidebar-muted-foreground'] = toHslToken(mix(sidebarBg, WHITE, 0.7));
+  tokens['sidebar-accent'] = toHslToken(mix(sidebarBg, WHITE, 0.13));
+  tokens['sidebar-accent-foreground'] = toHslToken(WHITE);
+  tokens['sidebar-border'] = toHslToken(mix(sidebarBg, WHITE, 0.12));
+
   if (!dark) {
     // Very light accents would make white text unreadable on buttons.
     const onPrimary = relativeLuminance(base) > 0.45 ? mix(base, BLACK, 0.8) : WHITE;
-    const soft = mix(base, WHITE, 0.9);
+    const soft = mix(highlight, WHITE, 0.9);
     tokens.primary = toHslToken(base);
     tokens['primary-foreground'] = toHslToken(onPrimary);
     tokens.ring = toHslToken(base);
     tokens.accent = toHslToken(soft);
     tokens['accent-foreground'] = toHslToken(mix(base, BLACK, 0.25));
-    tokens['sidebar-accent'] = toHslToken(soft);
-    tokens['sidebar-accent-foreground'] = toHslToken(mix(base, BLACK, 0.18));
   } else {
     const bright = mix(base, WHITE, 0.3);
     const soft = mix(base, DARK_SURFACE, 0.78);
@@ -119,8 +150,6 @@ export function buildBrandTokens(accentHex: string, dark: boolean): Record<strin
     tokens.ring = toHslToken(bright);
     tokens.accent = toHslToken(soft);
     tokens['accent-foreground'] = toHslToken(mix(base, WHITE, 0.55));
-    tokens['sidebar-accent'] = toHslToken(soft);
-    tokens['sidebar-accent-foreground'] = toHslToken(mix(base, WHITE, 0.6));
   }
 
   return tokens;

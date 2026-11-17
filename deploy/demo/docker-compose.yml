@@ -1,0 +1,63 @@
+# Ubaa staging/demo stack: Postgres + API + web behind Caddy (automatic HTTPS).
+# Run from the repo root:  docker compose -f deploy/demo/docker-compose.yml --env-file deploy/demo/.env up -d --build
+name: ubaa-demo
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ubaa
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in deploy/demo/.env}
+      POSTGRES_DB: ubaa
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ubaa -d ubaa']
+      interval: 5s
+      retries: 20
+
+  api:
+    build:
+      context: ../..
+      dockerfile: deploy/demo/api.Dockerfile
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: '4000'
+      DATABASE_URL: postgresql://ubaa:${DB_PASSWORD}@db:5432/ubaa
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?set JWT_ACCESS_SECRET in deploy/demo/.env}
+      SECRETS_ENCRYPTION_KEY: ${SECRETS_ENCRYPTION_KEY:?set SECRETS_ENCRYPTION_KEY in deploy/demo/.env}
+      CORS_ORIGIN: https://${DOMAIN}
+      WEB_PUBLIC_URL: https://${DOMAIN}
+      DOCUMENT_SHARE_SECRET: ${DOCUMENT_SHARE_SECRET:?set DOCUMENT_SHARE_SECRET in deploy/demo/.env}
+      # Attachments and item images on a local volume (no MinIO needed for the demo).
+      STORAGE_DRIVER: local
+      STORAGE_LOCAL_PATH: /data/storage
+      STORAGE_SIGNING_SECRET: ${STORAGE_SIGNING_SECRET:?set STORAGE_SIGNING_SECRET in deploy/demo/.env}
+      STORAGE_PUBLIC_BASE_URL: https://${DOMAIN}/api
+    volumes:
+      - storage:/data/storage
+
+  web:
+    build:
+      context: ../..
+      dockerfile: deploy/demo/web.Dockerfile
+    restart: unless-stopped
+    depends_on: [api]
+    environment:
+      DOMAIN: ${DOMAIN:?set DOMAIN in deploy/demo/.env}
+    ports:
+      - '80:80'
+      - '443:443'
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  db_data:
+  storage:
+  caddy_data:
+  caddy_config:

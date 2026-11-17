@@ -272,6 +272,8 @@ export class DeliveriesService {
         metadata: {
           salesOrderId: updated.salesOrderId,
           warehouseId: updated.warehouseId,
+          // The cost-of-sales entry belongs to the delivery's own date, not to when the outbox ran.
+          deliveryDate: updated.deliveryDate,
           lines: lines.map((line) => ({
             productVariantId: line.productVariantId,
             // Inventory counts in the product's base unit (a carton line of 2 × 12 → 24).

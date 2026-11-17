@@ -499,10 +499,11 @@ Captured from a 2026-08-25/26 research pass so it isn't redone from scratch:
 - A larger, separately-raised idea (new industry verticals: real estate development, clothing/
   fashion, medical) was discussed and explicitly **not approved or acted on** — do not build toward
   it without the user re-opening that topic.
-- Product name/visual identity: still not finalized. The current placeholder in code ("أصول")
-  collides with an existing product (OSOL) and must not be treated as final. See the project doc
-  (`claude/settings-module-status.md` in the attached Project) for the full naming history before
-  re-proposing names already ruled out.
+- Product name/visual identity: **decided 2026-11-17 — "Ubaa"** (always Latin), with the hexagon
+  ribbon logo, navy #0B2D4D / blue #0F77C8 / orange #FF8A00 (orange = logo only) and the Cairo UI
+  font. Master files and usage rules: `docs/brand/README.md`. The desktop install/data folder,
+  firewall rule and `productName` deliberately still say "ERP Platform" so installed customers
+  upgrade in place; renaming them needs a migration plan first.
 
 ---
 

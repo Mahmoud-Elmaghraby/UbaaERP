@@ -401,6 +401,29 @@ describe('AccountingAutoPostingListeners — multi-currency Phase 3 (invoice/cre
     });
   });
 
+  describe('back-dated documents (COGS and its reversal)', () => {
+    const cost = {
+      referenceId: 'delivery-1',
+      warehouseId: 'wh-1',
+      currency: 'EGP',
+      totalCost: { amountMinorUnits: '7500', currency: 'EGP' },
+      lines: [],
+    };
+
+    it('dates cost of goods sold on the delivery, not on when the outbox ran', async () => {
+      await listeners.handleStockConsumption(makePayload({ ...cost, referenceType: 'delivery', entryDate: '2026-08-20' }));
+      expect(journalEntries.createAuto).toHaveBeenCalledWith(FAKE_DB, expect.objectContaining({ entryDate: '2026-08-20' }));
+    });
+
+    it('dates the reversal on the return, and falls back to the event time on old events', async () => {
+      await listeners.handleStockRestoration(makePayload({ ...cost, referenceType: 'sales_return', entryDate: '2026-08-25' }));
+      expect(journalEntries.createAuto).toHaveBeenLastCalledWith(FAKE_DB, expect.objectContaining({ entryDate: '2026-08-25' }));
+
+      await listeners.handleStockConsumption(makePayload({ ...cost, referenceType: 'delivery' }));
+      expect(journalEntries.createAuto).toHaveBeenLastCalledWith(FAKE_DB, expect.objectContaining({ entryDate: '2026-09-13' }));
+    });
+  });
+
   describe('handleSalesCreditNoteIssued', () => {
     it('converts a credit note issued against a foreign-currency invoice', async () => {
       currencyConversion.convert.mockResolvedValue({

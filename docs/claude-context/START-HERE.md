@@ -14,7 +14,7 @@ Read this first in any new Claude session or account. The repo alone is enough t
 ---
 
 ## 1. Project in one paragraph
-This is an Egyptian ERP product with a placeholder name ("ERP Platform" / "Ubaa"; the final name is still open).
+This is an Egyptian ERP product named **Ubaa** (decided 2026-11-17; brand in `docs/brand/README.md`). "ERP Platform" survives only in the desktop install/data paths.
 - **Modules:** Settings, Users & Permissions, Inventory, Purchases, Sales (with POS), Accounting, Treasury, and **HR & Payroll** (since 0.3.0; a plan module, off by default).
 - **Two targets, one codebase:**
   - Web: multi-tenant SaaS, schema-per-tenant. Not deployed yet.
@@ -26,7 +26,7 @@ This is an Egyptian ERP product with a placeholder name ("ERP Platform" / "Ubaa"
 - **GitHub:** `Mahmoud-Elmaghraby/UbaaERP`, branch `master`.
 - **Last pushed commit:** `53bf415` (feat(hr): step 7 — payslips, HR overview, desktop 0.3.0), plus the docs commit that added this update.
 - **Tenant migrations:** they go up to **`0128_hr_payroll`** (0123–0128 = HR module). They are auto-discovered by filename in `apps/api/src/database/tenant/migrations/`.
-- **Desktop version:** **0.3.0** (`apps/desktop/package.json`) — adds the HR module (off by default).
+- **Desktop version:** **1.0.0** (`apps/desktop/package.json`) — first release under the Ubaa brand. Installer: `Ubaa-Setup-1.0.0.exe`.
 - **Cloud clones:** any copy in a Claude cloud sandbox has a different, unpushable history. **Never push from the cloud.** Deliver changes as files to the device repo; the user commits and pushes.
 
 ## 3. Standing rules from the user (always apply)
@@ -77,6 +77,7 @@ This is an Egyptian ERP product with a placeholder name ("ERP Platform" / "Ubaa"
   - label fixes: the name wraps to 2 lines; "print the item code as the barcode"; a warning for codes too long for the label; Code 128 set C;
   - **the scanner works on the Arabic keyboard layout** (`apps/web/src/lib/keyboard-layout.ts`, used by `resolveScan`);
   - **a crash fix.** The tenant pg Pool had no `'error'` listener, so a dropped idle connection (sleep/wake) killed the API. The app reloaded, and quit after 5 crashes. Also: `unhandledRejection` is logged, the window reloads on a renderer crash, and events go to `logs/desktop.log`.
+- **1.0.0** (2026-11-18): first **Ubaa**-branded release for the clothing customer. New logo, navy/orange theme, Cairo font, navy splash, live home dashboard (this month by default). Fixes: random logout while working (single-flight refresh token + cross-tab lock), and COGS/credit-note entries now dated on the delivery/return date instead of posting day. No new tenant migrations since 0.3.0. The install folder, data folder and productName stay "ERP Platform" so the upgrade happens in place; only the installer file name changed to `Ubaa-Setup-<version>.exe`.
 - **0.3.0** (2026-11-12): the **HR & payroll module** (steps 1–7 of `project-docs/hr-module-plan-2026-11-11.md`): employees and org structure, salaries, shifts/holidays/attendance import, leaves, loans and bonuses/penalties, the monthly payroll run (post + pay), payslip printing and the HR overview. Migrations 0123–0128; the `hr` module starts **off** for every tenant (Settings › Modules), so the clothing customer sees no change. The upgrade rehearsal now checks the HR defaults too.
 - **To install at the customer:** run the new installer over the old one. It takes a pre-update `pg_dump` automatically. Then:
   - Turn on any activity they need in **الإعدادات › الموديولات**. Migration 0118 turned off switches they never used, such as POS. HR (0123) starts off too.
@@ -189,7 +190,7 @@ cd M:\Projects\erp-platform\apps\web; pnpm dev -- --port 8080   # 5173 is in a W
    - A real email provider.
    - The platform admin panel (plan in `platform-admin-plan.md`).
    - A restore rehearsal on the customer's backup.
-6. **Decisions still open:** the product's final name and icon (not "أصول": it collides with OSOL); allowing bank overdraft; hosting (deferred).
+6. **Decisions still open:** allowing bank overdraft; hosting (deferred); renaming the desktop install/data folder from "ERP Platform" to Ubaa (needs an upgrade-safe plan). Name and logo are decided: Ubaa (2026-11-17).
 
 ## 11. Index of `project-docs/` (copied from the old Claude Project)
 | File | What it covers |

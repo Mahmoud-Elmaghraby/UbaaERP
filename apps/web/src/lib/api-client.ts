@@ -69,8 +69,31 @@ async function parseBody(response: Response): Promise<unknown> {
   }
 }
 
-/** Swaps the access token for a fresh one (new permissions, module switches) — also used right after a module switch changes. */
-export async function refreshSession(): Promise<boolean> {
+let refreshInFlight: Promise<boolean> | null = null;
+
+/**
+ * Swaps the access token for a fresh one (new permissions, module switches) — also used right after a module switch changes.
+ *
+ * Single-flight: the refresh token is rotated on every use, so when the access token expires and
+ * several requests get a 401 at once, they must share ONE refresh — a second call would send the
+ * already-revoked token, fail, and sign the user out mid-work. Across tabs, a Web Lock serializes
+ * the refresh so each tab sends the newest cookie.
+ */
+export function refreshSession(): Promise<boolean> {
+  if (!refreshInFlight) {
+    const run = () => doRefreshSession();
+    const locks = typeof navigator !== 'undefined' ? navigator.locks : undefined;
+    // request() resolves with the callback's own result.
+    const attempt = locks ? (locks.request('erp-auth-refresh', run) as unknown as Promise<boolean>) : run();
+    refreshInFlight = attempt.finally(() => {
+      refreshInFlight = null;
+    });
+    return refreshInFlight;
+  }
+  return refreshInFlight;
+}
+
+async function doRefreshSession(): Promise<boolean> {
   const { setSession, clearSession } = useAuthStore.getState();
 
   // No body, no refreshToken to read from local state — the refresh
