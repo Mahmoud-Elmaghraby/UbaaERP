@@ -76,6 +76,7 @@ function makeMovement(overrides: Partial<StockMovement> = {}): StockMovement {
     notes: null,
     createdBy: null,
     createdAt: new Date('2026-01-01T00:00:00Z'),
+    movementDate: '2026-01-01',
     ...overrides,
   };
 }

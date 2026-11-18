@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
+import { formatDate, formatDateTime } from '../../../../lib/format-date';
 import { useSearchParams } from 'react-router-dom';
 import { ScanSearch, Search } from 'lucide-react';
 import {
@@ -116,13 +117,11 @@ export function LotTracePage() {
                 <TableBody>
                   {lot.movements.map((movement) => (
                     <TableRow key={`${movement.id}-${movement.quantity}`}>
-                      <TableCell className="whitespace-nowrap">
-                        <bdi dir="ltr">
-                          {new Date(movement.createdAt).toLocaleString('en-GB', {
-                            dateStyle: 'short',
-                            timeStyle: 'short',
-                          })}
-                        </bdi>
+                      <TableCell
+                        className="whitespace-nowrap"
+                        title={t('inventory.stock.recordedAt', { at: formatDateTime(movement.createdAt) })}
+                      >
+                        <bdi dir="ltr">{formatDate(movement.movementDate)}</bdi>
                       </TableCell>
                       <TableCell>
                         <DocumentReference {...movement} />

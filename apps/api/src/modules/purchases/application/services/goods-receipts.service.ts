@@ -33,6 +33,7 @@ import { CurrencyRateReader, applyRate } from '../../../../shared/catalog/curren
 import type { ReceiptInvoiceDifference } from '../../../../shared/events/purchase-price-difference';
 import { computeReceiptInvoiceDifferences, type PostedInvoiceLineForReceipt } from './purchase-price-differences';
 import { PurchaseLimitsService } from './purchase-limits.service';
+import { assertStockDocumentDate } from '../../../../shared/time/stock-document-date';
 
 /**
  * Records physical receipt of goods against a purchase order (master doc
@@ -263,6 +264,7 @@ export class GoodsReceiptsService {
     }
 
     return withTransaction(db, async (trx) => {
+      await assertStockDocumentDate(trx, existing.receivedDate);
       // Re-read under a lock: a concurrent confirm/cancel of this same receipt waits here.
       await lockRowsForUpdate(trx, 'goods_receipts', [id]);
       const current = await this.receipts.findById(trx, id);

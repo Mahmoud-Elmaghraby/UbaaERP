@@ -32,6 +32,8 @@ export const stockMovementSchema = z.object({
   notes: z.string().nullable(),
   createdBy: z.string().uuid().nullable(),
   createdAt: z.coerce.date(),
+  /** Business date (YYYY-MM-DD): the moving document's date. */
+  movementDate: z.string(),
 });
 export type StockMovementDto = z.infer<typeof stockMovementSchema>;
 

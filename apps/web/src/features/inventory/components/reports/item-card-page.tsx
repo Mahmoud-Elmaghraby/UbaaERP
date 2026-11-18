@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { formatDate, formatDateTime } from '../../../../lib/format-date';
 import { useSearchParams } from 'react-router-dom';
 import { Download, FileSpreadsheet, Printer } from 'lucide-react';
 import {
@@ -77,7 +78,7 @@ export function ItemCardPage() {
       [
         ['', t('inventory.itemCard.opening'), '', '', '', '', '', '', card.openingQuantity, ''],
         ...card.movements.map((row) => [
-          new Date(row.createdAt).toLocaleString('en-CA'),
+          row.movementDate,
           documentLabel(row.referenceType, row.movementType),
           row.referenceNumber ?? '',
           row.partyName ?? '',
@@ -178,10 +179,11 @@ export function ItemCardPage() {
                   </TableRow>
                   {card.movements.map((row) => (
                     <TableRow key={row.id}>
-                      <TableCell className="whitespace-nowrap">
-                        <bdi dir="ltr">
-                          {new Date(row.createdAt).toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' })}
-                        </bdi>
+                      <TableCell
+                        className="whitespace-nowrap"
+                        title={t('inventory.stock.recordedAt', { at: formatDateTime(row.createdAt) })}
+                      >
+                        <bdi dir="ltr">{formatDate(row.movementDate)}</bdi>
                       </TableCell>
                       <TableCell>
                         <DocumentReference {...row} />

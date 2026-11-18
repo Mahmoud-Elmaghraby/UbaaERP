@@ -27,6 +27,7 @@ import type {
 import { BusinessRuleError } from '../errors';
 import { StockMovementsService } from './stock-movements.service';
 import { InventoryValuationEventsService } from './inventory-valuation-events.service';
+import { assertStockDocumentDate } from '../../../../shared/time/stock-document-date';
 
 const NUMBERING: Record<StockCountKind, { documentType: string; prefix: string }> = {
   opening: { documentType: 'stock_opening', prefix: 'OPN-' },
@@ -257,6 +258,7 @@ export class StockCountsService {
     const changes = await withTransaction(db, async (trx) => {
       await this.counts.lockForUpdate(trx, id);
       const count = await this.draft(trx, id);
+      await assertStockDocumentDate(trx, count.countDate);
       const lines = (await this.counts.listLines(trx, id)).filter((line) => line.countedQuantity !== null);
       if (lines.length === 0) {
         throw new BusinessRuleError('Nothing to post — no line has a counted quantity.', {
@@ -368,6 +370,7 @@ export class StockCountsService {
         referenceId: count.id,
         notes: count.countNumber,
         createdBy: actorUserId,
+        movementDate: count.countDate ?? null,
       });
       changes.push({
         productVariantId: line.productVariantId,
@@ -408,6 +411,7 @@ export class StockCountsService {
         referenceId: count.id,
         notes: count.countNumber,
         createdBy: actorUserId,
+        movementDate: count.countDate ?? null,
       });
       changes.push({
         productVariantId: line.productVariantId,

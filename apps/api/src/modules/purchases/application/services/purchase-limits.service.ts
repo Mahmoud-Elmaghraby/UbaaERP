@@ -10,6 +10,7 @@ import { localIsoDate } from '../../../../shared/time/local-date';
 import { findPriceIncreases, withTolerance, type PurchasePricedLine } from '../../domain/purchase-limits';
 import { BusinessRuleError } from '../errors';
 import { lastPurchasePrices } from './last-purchase-prices';
+import { laterOutgoingMovements } from '../../../../shared/time/stock-document-date';
 
 export interface PurchaseLimitsDocument {
   /** The purchase order the document belongs to (its own lines don't count as "the last price"). */
@@ -19,6 +20,8 @@ export interface PurchaseLimitsDocument {
   checkApproval: boolean;
   /** Invoices only: 'purchases.supplierInvoiceNumberRequired' and the number is empty. */
   supplierInvoiceNumberMissing?: boolean;
+  /** Invoices: the date the stock arrives on — warns when items already went out after it. */
+  stockDate?: string | null;
 }
 
 /**
@@ -79,6 +82,16 @@ export class PurchaseLimitsService {
       }));
     }
 
+    let backdatedSales: PurchaseLimitsCheckDto['backdatedSales'] = [];
+    const variantIds = doc.lines.map((l) => l.productVariantId).filter((id): id is string => Boolean(id));
+    if (doc.stockDate && doc.stockDate < localIsoDate() && variantIds.length > 0) {
+      const later = await laterOutgoingMovements(db, doc.stockDate, variantIds);
+      if (later.length > 0) {
+        const names = await this.productNames(db, later.map((row) => row.productVariantId));
+        backdatedSales = later.map((row) => ({ ...row, productName: names.get(row.productVariantId) ?? '' }));
+      }
+    }
+
     const missingNumber = Boolean(doc.supplierInvoiceNumberMissing);
     const needsApprover = approvalRequired || (mode === 'block' && priceIncreases.length > 0);
     return {
@@ -89,8 +102,10 @@ export class PurchaseLimitsService {
       priceIncreaseTolerance: tolerance,
       priceIncreases,
       supplierInvoiceNumberMissing: missingNumber,
+      backdatedSales,
+      stockDate: doc.stockDate ?? null,
       canApprove,
-      needsConfirmation: priceIncreases.length > 0 || (needsApprover && canApprove),
+      needsConfirmation: priceIncreases.length > 0 || backdatedSales.length > 0 || (needsApprover && canApprove),
       blocked: missingNumber || (needsApprover && !canApprove),
     };
   }

@@ -4,6 +4,8 @@ import type { TenantDatabase } from '../../../../database/tenant/kysely-client';
 export interface ItemCardMovementRow {
   id: string;
   createdAt: Date;
+  /** Business date (YYYY-MM-DD) of the movement. */
+  movementDate: string;
   warehouseId: string;
   movementType: string;
   /** Signed: + in, − out. */
@@ -47,6 +49,8 @@ export interface LowStockRow {
 export interface LotTraceMovementRow {
   id: string;
   createdAt: Date;
+  /** Business date (YYYY-MM-DD) of the movement. */
+  movementDate: string;
   movementType: string;
   /** Signed: + in, − out — only the part of the movement that touched this lot. */
   quantity: number;

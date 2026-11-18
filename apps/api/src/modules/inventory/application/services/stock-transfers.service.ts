@@ -29,6 +29,7 @@ import {
 import { BusinessRuleError } from '../errors';
 import { StockMovementsService } from './stock-movements.service';
 import { InventoryValuationEventsService, localIsoDate } from './inventory-valuation-events.service';
+import { assertStockDocumentDate } from '../../../../shared/time/stock-document-date';
 
 const REFERENCE_TYPE = 'stock_transfer';
 const MAX_LINES = 1000;
@@ -172,7 +173,7 @@ export class StockTransfersService {
       const transfer = await this.draft(trx, id);
       await this.dispatchLines(trx, transfer, actor);
       await this.transfers.setStatus(trx, id, 'in_transit', { userId: actor.userId, step: 'dispatched' });
-      await this.receiveLines(trx, transfer, {}, actor);
+      await this.receiveLines(trx, transfer, {}, actor, transfer.transferDate);
       await this.transfers.setStatus(trx, id, 'received', { userId: actor.userId, step: 'received' });
     });
     return this.getById(db, id);
@@ -232,6 +233,7 @@ export class StockTransfersService {
       throw new BusinessRuleError('The transfer has no lines.', { code: 'STOCK_TRANSFER.NO_LINES' });
     }
     await this.assertActiveRoute(trx, transfer);
+    await assertStockDocumentDate(trx, transfer.transferDate);
     await this.stockMovements.lockVariants(
       trx,
       lines.map((line) => line.productVariantId),
@@ -270,6 +272,7 @@ export class StockTransfersService {
           referenceId: transfer.id,
           notes: transfer.transferNumber,
           createdBy: actor.userId,
+          movementDate: transfer.transferDate,
         });
         const value = movement.totalCost ?? Money.zero(movement.resultingAverageCost.currency);
         total = total ? total.add(value) : value;
@@ -293,7 +296,10 @@ export class StockTransfersService {
     transfer: StockTransfer,
     input: ReceiveStockTransferInput,
     actor: ActorContext,
+    /** Same-step post: the transfer date. A later receipt: today (the day the goods arrive). */
+    arrivalDate?: string,
   ): Promise<void> {
+    if (arrivalDate === undefined) await assertStockDocumentDate(trx, null);
     const lines = await this.transfers.listLines(trx, transfer.id);
     const requested = new Map((input.lines ?? []).map((line) => [line.lineId, line.receivedQuantity]));
     for (const lineId of requested.keys()) {
@@ -327,6 +333,7 @@ export class StockTransfersService {
           referenceId: transfer.id,
           notes: transfer.transferNumber,
           createdBy: actor.userId,
+          movementDate: arrivalDate,
         });
       }
       for (const piece of short) {
@@ -345,6 +352,7 @@ export class StockTransfersService {
         documentNumber: transfer.transferNumber,
         description: `عجز في استلام التحويل ${transfer.transferNumber}`,
         entries: [{ kind: 'adjustment_loss', amount: shortageValue }],
+        entryDate: arrivalDate,
       });
     }
   }

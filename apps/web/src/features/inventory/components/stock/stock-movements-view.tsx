@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { formatDate, formatDateTime } from '../../../../lib/format-date';
 import type { ColumnDef, Row } from '@tanstack/react-table';
 import type { StockMovementDto } from '@erp-platform/contracts';
 import {
@@ -49,9 +50,13 @@ export function StockMovementsView({ filters }: { filters: StockMovementFilters 
       {
         id: 'date',
         header: t('inventory.stock.date'),
-        // Sort by the moment, show it localised (sorting the localised text was wrong).
-        accessorFn: (row: StockMovementDto) => new Date(row.createdAt).getTime(),
-        cell: ({ row }: { row: Row<StockMovementDto> }) => new Date(row.original.createdAt).toLocaleString('ar-EG'),
+        // The document's date; ties keep the order they were recorded in. The recording moment is the tooltip.
+        accessorFn: (row: StockMovementDto) => `${row.movementDate} ${new Date(row.createdAt).toISOString()}`,
+        cell: ({ row }: { row: Row<StockMovementDto> }) => (
+          <span title={t('inventory.stock.recordedAt', { at: formatDateTime(row.original.createdAt) })}>
+            <bdi dir="ltr">{formatDate(row.original.movementDate)}</bdi>
+          </span>
+        ),
       },
       {
         id: 'product',

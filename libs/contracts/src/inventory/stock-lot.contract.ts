@@ -45,6 +45,7 @@ export type ExpiringLotDto = z.infer<typeof expiringLotSchema>;
 export const lotTraceMovementSchema = z.object({
   id: z.string().uuid(),
   createdAt: z.coerce.date(),
+  movementDate: z.string(),
   movementType: z.string(),
   /** Signed: + into stock, − out of stock. */
   quantity: z.number(),

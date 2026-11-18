@@ -36,6 +36,8 @@ export interface StockMovement {
   notes: string | null;
   createdBy: string | null;
   createdAt: Date;
+  /** Business date (YYYY-MM-DD): the date of the document that moved the stock. Reports use this; cost order uses createdAt. */
+  movementDate: string;
 }
 
 /** Movement types that increase quantity on hand. */
@@ -54,6 +56,8 @@ export const OUTGOING_MOVEMENT_TYPES: readonly StockMovementType[] = ['out', 'tr
 export type DirectStockMovementType = 'in' | 'out' | 'adjustment_increase' | 'adjustment_decrease';
 
 export interface RecordStockMovementInput {
+  /** Business date (YYYY-MM-DD) of the moving document; defaults to today. */
+  movementDate?: string | null;
   productVariantId: string;
   /** Always a specific location — even a warehouse with no custom locations has its auto-created default one. */
   locationId: string;
@@ -122,6 +126,8 @@ export interface TransferStockInput {
   lotId?: string;
   notes?: string | null;
   createdBy?: string | null;
+  /** YYYY-MM-DD; defaults to today. */
+  movementDate?: string | null;
 }
 
 export interface TransferStockResult {

@@ -25,6 +25,7 @@ import { OutboxWriterService } from '../../../../shared/outbox/application/servi
 import { SalesCreditNotesService } from './sales-credit-notes.service';
 import { localIsoDate } from '../../../../shared/time/local-date';
 import { SalesLimitsService } from './sales-limits.service';
+import { assertStockDocumentDate } from '../../../../shared/time/stock-document-date';
 
 /**
  * Records goods physically sent back by a customer after a confirmed
@@ -234,6 +235,7 @@ export class SalesReturnsService {
     }
 
     return withTransaction(db, async (trx) => {
+      await assertStockDocumentDate(trx, existing.returnDate);
       const lines = await this.lines.listBySalesReturnId(trx, id);
       // Re-checked under a lock: two drafts can't both return (and credit) the same delivered units.
       const deliveryLineIds = lines.map((line) => line.deliveryLineId);

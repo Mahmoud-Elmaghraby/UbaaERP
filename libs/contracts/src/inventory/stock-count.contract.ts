@@ -80,6 +80,7 @@ export type LoadStockCountDto = z.infer<typeof loadStockCountSchema>;
 export const itemCardMovementSchema = z.object({
   id: z.string().uuid(),
   createdAt: z.coerce.date(),
+  movementDate: z.string(),
   warehouseId: z.string().uuid(),
   movementType: z.string(),
   quantity: z.number(),

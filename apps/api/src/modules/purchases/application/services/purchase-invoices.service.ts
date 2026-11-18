@@ -173,6 +173,7 @@ export class PurchaseInvoicesService {
       purchaseOrderId: invoice.purchaseOrderId,
       checkApproval: order?.source_purchase_invoice_id === invoice.id,
       supplierInvoiceNumberMissing: numberRequired && !invoice.supplierInvoiceNumber?.trim(),
+      stockDate: invoice.invoiceDate,
       lines: lines.map((line) => ({
         lineId: line.id,
         productVariantId: line.productVariantId,

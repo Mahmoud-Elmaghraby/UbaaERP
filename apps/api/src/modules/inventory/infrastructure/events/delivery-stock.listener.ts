@@ -148,6 +148,7 @@ export class DeliveryStockListener {
                 lotId: piece.lotId,
                 referenceType: 'delivery',
                 referenceId: payload.entityId,
+                movementDate: metadata.deliveryDate ?? null,
               }),
             );
           }

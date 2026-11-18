@@ -4,6 +4,7 @@ import {
   type DocumentReferenceInfo,
 } from '../../../../shared/documents/document-reference-reader';
 import { sql, type Kysely } from 'kysely';
+import { localIsoDate } from '../../../../shared/time/local-date';
 import type { TenantDatabase } from '../../../../database/tenant/kysely-client';
 import type {
   InventoryReportsRepository,
@@ -40,6 +41,8 @@ export class KyselyInventoryReportsRepository implements InventoryReportsReposit
     filter: { from: Date; to: Date; warehouseId: string | null; categoryId: string | null },
   ): Promise<MovementAnalysisRow[]> {
     const { from, to, warehouseId, categoryId } = filter;
+    const fromDay = localIsoDate(from);
+    const toDay = localIsoDate(to);
     const movementValue = sql`COALESCE(m.total_cost_amount, ROUND(m.quantity * COALESCE(m.unit_cost_amount, m.resulting_average_cost_amount)))`;
     const result = await sql<{
       product_variant_id: string;
@@ -70,16 +73,16 @@ export class KyselyInventoryReportsRepository implements InventoryReportsReposit
       ),
       mv AS (
         SELECT m.product_variant_id,
-               SUM(CASE WHEN m.created_at >= ${from} AND m.created_at < ${to} AND m.reference_type = 'delivery' AND m.movement_type = 'out' THEN m.quantity
-                        WHEN m.created_at >= ${from} AND m.created_at < ${to} AND m.reference_type = 'sales_return' AND m.movement_type = 'in' THEN -m.quantity
+               SUM(CASE WHEN m.movement_date >= ${fromDay}::date AND m.movement_date < ${toDay}::date AND m.reference_type = 'delivery' AND m.movement_type = 'out' THEN m.quantity
+                        WHEN m.movement_date >= ${fromDay}::date AND m.movement_date < ${toDay}::date AND m.reference_type = 'sales_return' AND m.movement_type = 'in' THEN -m.quantity
                         ELSE 0 END) AS sold,
-               SUM(CASE WHEN m.created_at >= ${from} AND m.created_at < ${to} AND m.reference_type = 'delivery' AND m.movement_type = 'out' THEN ${movementValue}
-                        WHEN m.created_at >= ${from} AND m.created_at < ${to} AND m.reference_type = 'sales_return' AND m.movement_type = 'in' THEN -${movementValue}
+               SUM(CASE WHEN m.movement_date >= ${fromDay}::date AND m.movement_date < ${toDay}::date AND m.reference_type = 'delivery' AND m.movement_type = 'out' THEN ${movementValue}
+                        WHEN m.movement_date >= ${fromDay}::date AND m.movement_date < ${toDay}::date AND m.reference_type = 'sales_return' AND m.movement_type = 'in' THEN -${movementValue}
                         ELSE 0 END) AS sold_cost,
-               SUM(CASE WHEN m.created_at >= ${from} AND m.created_at < ${to} AND m.reference_type = 'goods_receipt' AND m.movement_type = 'in' THEN m.quantity
+               SUM(CASE WHEN m.movement_date >= ${fromDay}::date AND m.movement_date < ${toDay}::date AND m.reference_type = 'goods_receipt' AND m.movement_type = 'in' THEN m.quantity
                         ELSE 0 END) AS received,
-               MAX(CASE WHEN m.created_at < ${to} AND m.reference_type = 'delivery' AND m.movement_type = 'out' THEN m.created_at END) AS last_sale,
-               MAX(CASE WHEN m.created_at < ${to} THEN m.created_at END) AS last_movement
+               MAX(CASE WHEN m.movement_date < ${toDay}::date AND m.reference_type = 'delivery' AND m.movement_type = 'out' THEN m.movement_date END) AS last_sale,
+               MAX(CASE WHEN m.movement_date < ${toDay}::date THEN m.movement_date END) AS last_movement
           FROM stock_movements m
          WHERE (${warehouseId}::uuid IS NULL OR m.warehouse_id = ${warehouseId}::uuid)
          GROUP BY m.product_variant_id
@@ -127,7 +130,7 @@ export class KyselyInventoryReportsRepository implements InventoryReportsReposit
       SELECT SUM(${SIGNED_QUANTITY}) AS total
         FROM stock_movements m
        WHERE m.product_variant_id = ${productVariantId}
-         AND m.created_at < ${from}
+         AND m.movement_date < ${localIsoDate(from)}::date
          ${warehouseId ? sql`AND m.warehouse_id = ${warehouseId}` : sql``}
     `.execute(db);
     return Number(result.rows[0]?.total ?? 0);
@@ -141,6 +144,7 @@ export class KyselyInventoryReportsRepository implements InventoryReportsReposit
     const result = await sql<{
       id: string;
       created_at: Date;
+      movement_date: string;
       warehouse_id: string;
       movement_type: string;
       quantity: string;
@@ -151,7 +155,7 @@ export class KyselyInventoryReportsRepository implements InventoryReportsReposit
       lot_number: string | null;
       notes: string | null;
     }>`
-      SELECT m.id, m.created_at, m.warehouse_id, m.movement_type, ${SIGNED_QUANTITY} AS quantity,
+      SELECT m.id, m.created_at, m.movement_date::text AS movement_date, m.warehouse_id, m.movement_type, ${SIGNED_QUANTITY} AS quantity,
              COALESCE(m.unit_cost_amount, m.resulting_average_cost_amount) AS unit_cost_amount,
              COALESCE(m.unit_cost_currency, m.resulting_average_cost_currency) AS unit_cost_currency,
              m.reference_type, m.reference_id, m.notes, l.lot_number
@@ -159,9 +163,9 @@ export class KyselyInventoryReportsRepository implements InventoryReportsReposit
         LEFT JOIN stock_lots l ON l.id = m.stock_lot_id
        WHERE m.product_variant_id = ${productVariantId}
          ${filter.warehouseId ? sql`AND m.warehouse_id = ${filter.warehouseId}` : sql``}
-         ${filter.from ? sql`AND m.created_at >= ${filter.from}` : sql``}
-         ${filter.to ? sql`AND m.created_at < ${filter.to}` : sql``}
-       ORDER BY m.created_at, m.id
+         ${filter.from ? sql`AND m.movement_date >= ${localIsoDate(filter.from)}::date` : sql``}
+         ${filter.to ? sql`AND m.movement_date < ${localIsoDate(filter.to)}::date` : sql``}
+       ORDER BY m.movement_date, m.created_at, m.id
        LIMIT ${filter.limit}
     `.execute(db);
     const references = await resolveDocumentReferences(
@@ -171,6 +175,7 @@ export class KyselyInventoryReportsRepository implements InventoryReportsReposit
     return result.rows.map((row) => ({
       id: row.id,
       createdAt: row.created_at,
+      movementDate: row.movement_date,
       warehouseId: row.warehouse_id,
       movementType: row.movement_type,
       quantity: Number(row.quantity),
@@ -203,7 +208,7 @@ export class KyselyInventoryReportsRepository implements InventoryReportsReposit
                      AS value,
                    COALESCE(m.unit_cost_currency, m.resulting_average_cost_currency) AS currency
               FROM stock_movements m
-             WHERE m.created_at < ${asOf}
+             WHERE m.movement_date < ${localIsoDate(asOf)}::date
             UNION ALL
             SELECT a.product_variant_id, a.warehouse_id, 0, a.allocated_amount_amount - a.expensed_amount, a.allocated_amount_currency
               FROM landed_cost_allocations a
@@ -350,6 +355,7 @@ export class KyselyInventoryReportsRepository implements InventoryReportsReposit
       stock_lot_id: string;
       id: string;
       created_at: Date;
+      movement_date: string;
       movement_type: string;
       quantity: string;
       warehouse_id: string;
@@ -357,7 +363,7 @@ export class KyselyInventoryReportsRepository implements InventoryReportsReposit
       reference_type: string | null;
       reference_id: string | null;
     }>`
-      SELECT x.stock_lot_id, m.id, m.created_at, m.movement_type,
+      SELECT x.stock_lot_id, m.id, m.created_at, m.movement_date::text AS movement_date, m.movement_type,
              CASE WHEN m.movement_type IN ('in', 'transfer_in', 'adjustment_increase') THEN x.quantity ELSE -x.quantity END
                AS quantity,
              m.warehouse_id, m.location_id, m.reference_type, m.reference_id
@@ -369,7 +375,7 @@ export class KyselyInventoryReportsRepository implements InventoryReportsReposit
            WHERE stock_lot_id IN (${sql.join(lotIds)})
         ) x
         JOIN stock_movements m ON m.id = x.movement_id
-       ORDER BY m.created_at, m.id
+       ORDER BY m.movement_date, m.created_at, m.id
     `.execute(db);
     const references = await resolveDocumentReferences(
       db,
@@ -390,6 +396,7 @@ export class KyselyInventoryReportsRepository implements InventoryReportsReposit
         .map((row) => ({
           id: row.id,
           createdAt: row.created_at,
+          movementDate: row.movement_date,
           movementType: row.movement_type,
           quantity: Number(row.quantity),
           warehouseId: row.warehouse_id,

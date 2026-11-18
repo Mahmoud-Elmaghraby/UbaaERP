@@ -154,6 +154,7 @@ export class SalesReturnStockListener {
                 lotNumber: piece.lotNumber,
                 referenceType: 'sales_return',
                 referenceId: payload.entityId,
+                movementDate: metadata.returnDate ?? null,
               }),
             );
           }

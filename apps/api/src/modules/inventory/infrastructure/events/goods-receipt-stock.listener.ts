@@ -141,6 +141,7 @@ export class GoodsReceiptStockListener {
               expiryDate: piece.expiryDate,
               referenceType: 'goods_receipt',
               referenceId: payload.entityId,
+              movementDate: metadata.receivedDate ?? null,
             });
             if (movement.totalCost) {
               receivedValue = receivedValue ? receivedValue.add(movement.totalCost) : movement.totalCost;

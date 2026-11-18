@@ -32,6 +32,7 @@ import type {
 import { BusinessRuleError, ConflictError } from '../errors';
 import { StockMovementsService } from './stock-movements.service';
 import { InventoryValuationEventsService, localIsoDate, type ValuationEntryInput } from './inventory-valuation-events.service';
+import { assertStockDocumentDate } from '../../../../shared/time/stock-document-date';
 
 const REFERENCE_TYPE = 'stock_adjustment';
 const MAX_LINES = 2000;
@@ -196,6 +197,7 @@ export class StockAdjustmentsService {
     await withTransaction(db, async (trx) => {
       await this.adjustments.lockForUpdate(trx, id);
       const adjustment = await this.draft(trx, id);
+      await assertStockDocumentDate(trx, adjustment.adjustmentDate);
       const lines = await this.adjustments.listLines(trx, id);
       if (lines.length === 0) {
         throw new BusinessRuleError('The adjustment has no lines.', { code: 'STOCK_ADJUSTMENT.NO_LINES' });
@@ -269,6 +271,7 @@ export class StockAdjustmentsService {
         referenceId: adjustment.id,
         notes: input.notes ?? adjustment.adjustmentNumber,
         createdBy: actor.userId,
+        movementDate: adjustment.adjustmentDate,
       });
       const value = movement.totalCost ?? Money.zero(movement.resultingAverageCost.currency);
       await this.adjustments.replaceLines(trx, adjustment.id, [
@@ -327,6 +330,7 @@ export class StockAdjustmentsService {
       referenceId: adjustment.id,
       notes: line.notes ?? adjustment.adjustmentNumber,
       createdBy: userId,
+      movementDate: adjustment.adjustmentDate,
     };
     if (line.direction === 'increase') {
       // Cost per base unit: the typed cost, else (no stock to average from) the item's purchase price.

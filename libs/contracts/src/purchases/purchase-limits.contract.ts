@@ -28,6 +28,14 @@ export const purchaseLimitsCheckSchema = z.object({
   priceIncreases: z.array(purchasePriceIncreaseSchema),
   /** A supplier invoice number is required and missing (invoices only). */
   supplierInvoiceNumberMissing: z.boolean(),
+  /**
+   * Invoices dated in the past: items that already went out (sold, written off) after that date.
+   * Their cost of sales stays as recorded — the weighted average runs in recording order.
+   */
+  backdatedSales: z.array(
+    z.object({ productVariantId: z.string().uuid(), productName: z.string(), count: z.number(), lastDate: z.string() }),
+  ),
+  stockDate: z.string().nullable(),
   /** The user holds 'purchases.approve'. */
   canApprove: z.boolean(),
   needsConfirmation: z.boolean(),

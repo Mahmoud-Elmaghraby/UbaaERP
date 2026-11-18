@@ -18,6 +18,8 @@ export interface CreateStockMovementRow {
   stockLotId?: string | null;
   notes?: string | null;
   createdBy?: string | null;
+  /** YYYY-MM-DD; defaults to today. */
+  movementDate?: string | null;
 }
 
 export interface StockMovementRepository {
@@ -53,10 +55,10 @@ export interface StockMovementListFilter {
   warehouseId?: string;
   locationId?: string;
   movementTypes?: StockMovementType[];
-  /** Inclusive lower bound on created_at. */
-  from?: Date;
-  /** Exclusive upper bound on created_at. */
-  to?: Date;
+  /** Inclusive lower bound on movement_date (YYYY-MM-DD). */
+  fromDate?: string;
+  /** Inclusive upper bound on movement_date (YYYY-MM-DD). */
+  toDate?: string;
   limit?: number;
 }
 

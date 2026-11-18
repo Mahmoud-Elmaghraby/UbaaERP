@@ -97,6 +97,7 @@ function stockMovementToDto(movement: StockMovement, showCost = true): StockMove
     notes: movement.notes,
     createdBy: movement.createdBy,
     createdAt: movement.createdAt,
+    movementDate: movement.movementDate,
   });
 }
 
@@ -198,19 +199,14 @@ export class StockController {
     @Query('types') types?: string,
   ): Promise<StockMovementDto[]> {
     const db = this.connections.getClient(schema);
-    const day = (value: string | undefined, end = false) => {
-      if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return undefined;
-      const date = new Date(`${value}T00:00:00`);
-      if (end) date.setDate(date.getDate() + 1);
-      return date;
-    };
+    const day = (value: string | undefined) => (value && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : undefined);
     const parsedLimit = Number(limit);
     const movements = await this.service.list(db, {
       warehouseId,
       locationId,
       productVariantId,
-      from: day(from),
-      to: day(to, true),
+      fromDate: day(from),
+      toDate: day(to),
       movementTypes: types
         ? (types.split(',').filter((type) => MOVEMENT_TYPES.includes(type as StockMovementType)) as StockMovementType[])
         : undefined,

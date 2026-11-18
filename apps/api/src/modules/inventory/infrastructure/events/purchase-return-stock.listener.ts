@@ -148,6 +148,7 @@ export class PurchaseReturnStockListener {
               lotId: piece.lotId,
               referenceType: 'purchase_return',
               referenceId: payload.entityId,
+              movementDate: metadata.returnDate ?? null,
             });
             if (movement.totalCost) {
               returnedValue = returnedValue ? returnedValue.add(movement.totalCost) : movement.totalCost;

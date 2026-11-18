@@ -30,6 +30,7 @@ import { withTransaction } from '../../../../database/tenant/transaction.util';
 import { StockAvailabilityChecker } from '../../../../shared/catalog/stock-availability-checker';
 import { CurrencyRateReader } from '../../../../shared/catalog/currency-rate-reader';
 import { valueInTenantCurrency } from './goods-receipts.service';
+import { assertStockDocumentDate } from '../../../../shared/time/stock-document-date';
 
 /**
  * Records goods physically sent back to a supplier after a confirmed
@@ -201,6 +202,7 @@ export class PurchaseReturnsService {
     }
 
     return withTransaction(db, async (trx) => {
+      await assertStockDocumentDate(trx, existing.returnDate);
       await lockRowsForUpdate(trx, 'purchase_returns', [id]);
       const current = await this.returns.findById(trx, id);
       if (!current || current.status !== 'draft') throw statusChanged('PURCHASE_RETURN', id);

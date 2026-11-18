@@ -359,6 +359,8 @@ export interface StockMovementsTable {
   created_by: string | null;
   created_at: Generated<Date>;
   total_cost_amount: string | null;
+  /** Business date of the movement (the moving document's date) — see migration 0129. */
+  movement_date: Generated<string>;
 }
 
 export interface StockCountsTable {

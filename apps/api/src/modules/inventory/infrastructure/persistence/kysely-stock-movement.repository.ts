@@ -8,6 +8,7 @@ import type {
   StockMovementRepository,
 } from '../../application/ports/stock-movement.repository';
 import type { StockMovement, StockMovementType } from '../../domain/stock-movement.entity';
+import { localIsoDate } from '../../../../shared/time/local-date';
 
 function toDomain(row: Selectable<StockMovementsTable>): StockMovement {
   return {
@@ -39,6 +40,7 @@ function toDomain(row: Selectable<StockMovementsTable>): StockMovement {
     notes: row.notes,
     createdBy: row.created_by,
     createdAt: row.created_at,
+    movementDate: String(row.movement_date),
   };
 }
 
@@ -47,13 +49,17 @@ export class KyselyStockMovementRepository implements StockMovementRepository {
     db: Kysely<TenantDatabase>,
     filter?: StockMovementListFilter,
   ): Promise<StockMovement[]> {
-    let query = db.selectFrom('stock_movements').selectAll().orderBy('created_at', 'desc');
+    let query = db
+      .selectFrom('stock_movements')
+      .selectAll()
+      .orderBy('movement_date', 'desc')
+      .orderBy('created_at', 'desc');
     if (filter?.productVariantId) query = query.where('product_variant_id', '=', filter.productVariantId);
     if (filter?.warehouseId) query = query.where('warehouse_id', '=', filter.warehouseId);
     if (filter?.locationId) query = query.where('location_id', '=', filter.locationId);
     if (filter?.movementTypes?.length) query = query.where('movement_type', 'in', filter.movementTypes);
-    if (filter?.from) query = query.where('created_at', '>=', filter.from);
-    if (filter?.to) query = query.where('created_at', '<', filter.to);
+    if (filter?.fromDate) query = query.where('movement_date', '>=', filter.fromDate);
+    if (filter?.toDate) query = query.where('movement_date', '<=', filter.toDate);
     if (filter?.limit) query = query.limit(filter.limit);
     const rows = await query.execute();
     return rows.map(toDomain);
@@ -85,6 +91,7 @@ export class KyselyStockMovementRepository implements StockMovementRepository {
         stock_lot_id: input.stockLotId ?? null,
         notes: input.notes ?? null,
         created_by: input.createdBy ?? null,
+        movement_date: input.movementDate ?? localIsoDate(),
       })
       .returningAll()
       .executeTakeFirstOrThrow();

@@ -55,6 +55,7 @@ interface IncomingParams {
   referenceId?: string | null;
   notes?: string | null;
   createdBy?: string | null;
+  movementDate?: string | null;
 }
 
 interface OutgoingParams {
@@ -69,6 +70,7 @@ interface OutgoingParams {
   referenceId?: string | null;
   notes?: string | null;
   createdBy?: string | null;
+  movementDate?: string | null;
 }
 
 /**
@@ -475,6 +477,7 @@ export class StockMovementsService {
         lotId: input.lotId,
         notes: input.notes,
         createdBy: input.createdBy,
+        movementDate: input.movementDate,
       });
 
       const transferIn = await this.applyIncoming(trx, {
@@ -488,6 +491,7 @@ export class StockMovementsService {
         lotId: input.lotId,
         notes: input.notes,
         createdBy: input.createdBy,
+        movementDate: input.movementDate,
       });
 
       await this.movements.linkRelatedMovement(trx, transferOut.id, transferIn.id);
@@ -523,6 +527,8 @@ export class StockMovementsService {
       referenceId: string;
       notes?: string | null;
       createdBy?: string | null;
+      /** YYYY-MM-DD; defaults to today. */
+      movementDate?: string | null;
     },
   ): Promise<StockMovement> {
     if (!Number.isFinite(input.quantity) || input.quantity <= 0) {
@@ -544,6 +550,7 @@ export class StockMovementsService {
         referenceId: input.referenceId,
         notes: input.notes,
         createdBy: input.createdBy,
+        movementDate: input.movementDate,
       };
       if (input.direction === 'out') return this.applyOutgoing(trx, { ...common, movementType: 'transfer_out' });
       if (!input.totalCost) {
@@ -630,6 +637,7 @@ export class StockMovementsService {
       referenceId: params.referenceId,
       notes: params.notes,
       createdBy: params.createdBy,
+      movementDate: params.movementDate,
     });
   }
 
@@ -747,6 +755,7 @@ export class StockMovementsService {
       referenceId: params.referenceId,
       notes: params.notes,
       createdBy: params.createdBy,
+      movementDate: params.movementDate,
     });
 
     for (const consumption of multiLotConsumptions) {

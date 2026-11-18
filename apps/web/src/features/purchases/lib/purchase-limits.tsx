@@ -6,6 +6,7 @@ import type { PurchaseLimitsCheckDto } from '@erp-platform/contracts';
 
 import { apiGet } from '../../../lib/api-client';
 import { confirmDialog } from '../../../components/feedback/confirm-dialog';
+import { formatDate } from '../../../lib/format-date';
 
 /**
  * The settings hub's purchases limits on a draft order / invoice (approval amount, price above
@@ -21,7 +22,13 @@ export function usePurchaseLimitsCheck(kind: 'purchase-orders' | 'purchase-invoi
 }
 
 function hasIssues(check: PurchaseLimitsCheckDto | undefined): check is PurchaseLimitsCheckDto {
-  return Boolean(check && (check.approvalRequired || check.priceIncreases.length > 0 || check.supplierInvoiceNumberMissing));
+  return Boolean(
+    check &&
+      (check.approvalRequired ||
+        check.priceIncreases.length > 0 ||
+        check.supplierInvoiceNumberMissing ||
+        check.backdatedSales.length > 0),
+  );
 }
 
 /** Before confirming / posting: false = stop (blocked, or the user said no). */
@@ -63,6 +70,14 @@ export function PurchaseLimitsCallout({ check }: { check: PurchaseLimitsCheckDto
             })}
           </span>
         ))}
+        {check.backdatedSales.length > 0 ? (
+          <span className="font-medium">
+            {t('purchases.limits.backdated', {
+              date: formatDate(check.stockDate),
+              products: check.backdatedSales.map((row) => row.productName).join('، '),
+            })}
+          </span>
+        ) : null}
         <span className="text-xs">
           {blocked
             ? check.supplierInvoiceNumberMissing

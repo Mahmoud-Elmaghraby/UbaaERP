@@ -22,6 +22,7 @@ import { lockRowsForUpdate } from '../../../../shared/persistence/row-locks';
 import { NumberingSequencesService } from '../../../settings/application/services/numbering-sequences.service';
 import { OutboxWriterService } from '../../../../shared/outbox/application/services/outbox-writer.service';
 import { StockAvailabilityChecker } from '../../../../shared/catalog/stock-availability-checker';
+import { assertStockDocumentDate } from '../../../../shared/time/stock-document-date';
 
 /**
  * Records physical shipment of goods against a sales order (master doc
@@ -232,6 +233,7 @@ export class DeliveriesService {
     }
 
     return withTransaction(db, async (trx) => {
+      await assertStockDocumentDate(trx, existing.deliveryDate);
       const lines = await this.lines.listByDeliveryId(trx, id);
       await this.assertOrderStillDeliverable(trx, existing.salesOrderId, lines);
       // Refuse now, with the shortages listed, rather than confirm and let
