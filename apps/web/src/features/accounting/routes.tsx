@@ -2,6 +2,11 @@ import { lazy } from "react";
 import { Navigate, Outlet, type RouteObject } from "react-router-dom";
 import { LegacyBankAccountRedirect } from "../treasury/routes";
 
+const LedgerIntegrityPage = lazy(() =>
+  import("./components/ledger-integrity").then((m) => ({
+    default: m.LedgerIntegrityPage,
+  })),
+);
 const AccountingOverviewPage = lazy(() =>
   import("./components/overview").then((m) => ({
     default: m.AccountingOverviewPage,
@@ -117,6 +122,7 @@ export const accountingRoutes: RouteObject[] = [
       { path: "reports/:report", element: <AccountingReportsPage /> },
       { path: "settings", element: <AccountingSettingsPage /> },
       { path: "cost-centers", element: <CostCentersPage /> },
+      { path: "integrity", element: <LedgerIntegrityPage /> },
       { path: "bank-accounts", element: <LegacyBankAccountRedirect /> },
       { path: "bank-accounts/:id", element: <LegacyBankAccountRedirect /> },
       { path: "recurring-entries", element: <RecurringEntriesPage /> },

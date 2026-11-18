@@ -62,6 +62,9 @@ import { AccountingSchedulerService } from './infrastructure/scheduling/accounti
 import { AccountingEventPublisher } from './infrastructure/events/accounting-event-publisher';
 import { AccountingInventoryPostingListener } from './infrastructure/events/accounting-inventory-posting.listener';
 import { AccountingAutoPostingListeners } from './infrastructure/events/accounting-auto-posting.listeners';
+import { JournalTreasuryMovements } from './infrastructure/journal-treasury-movements';
+import { LedgerIntegrityService } from './application/services/ledger-integrity.service';
+import { LedgerIntegrityController } from './presentation/ledger-integrity.controller';
 
 /**
  * Accounting module (CLAUDE.md §10: step 5, the last module in the fixed
@@ -200,6 +203,7 @@ import { AccountingAutoPostingListeners } from './infrastructure/events/accounti
 @Module({
   imports: [SettingsModule],
   controllers: [
+    LedgerIntegrityController,
     ChartOfAccountsController,
     FiscalYearsController,
     AccountingPeriodsController,
@@ -215,6 +219,8 @@ import { AccountingAutoPostingListeners } from './infrastructure/events/accounti
     BankStatementsController,
   ],
   providers: [
+    JournalTreasuryMovements,
+    LedgerIntegrityService,
     LedgerAmountService,
     AccountingPaymentPostingListener,
     AccountingOpeningBalanceListener,

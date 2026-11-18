@@ -33,6 +33,8 @@ export interface JournalEntryLine {
   costCenterId: string | null;
   /** Migration 0130: the branch this line belongs to. */
   branchId: string | null;
+  /** Migration 0132: who / which treasury a manual line belongs to (names for display). */
+  parties?: JournalLineParties;
   /** Bank reconciliation status (Stage 5) — meaningful only for lines posted to an account a BankAccount links to; NULL/false everywhere else. See BankAccountsService. */
   isReconciled: boolean;
   reconciledAt: Date | null;
@@ -74,6 +76,21 @@ export interface CreateJournalEntryLineInput {
   costCenterId?: string | null;
   /** Migration 0130: defaults to the entry's branch. */
   branchId?: string | null;
+  /** Migration 0132: required on some accounts in a manual entry (journal-line-rules.ts). */
+  customerId?: string | null;
+  supplierId?: string | null;
+  employeeId?: string | null;
+  treasuryId?: string | null;
+}
+
+/** Migration 0132: the party / treasury of a line; names are filled when read. */
+export interface JournalLineParties {
+  customerId: string | null;
+  supplierId: string | null;
+  employeeId: string | null;
+  treasuryId: string | null;
+  partyName?: string | null;
+  treasuryName?: string | null;
 }
 
 export interface CreateJournalEntryInput {
@@ -118,6 +135,8 @@ export interface JournalEntryLineToPersist {
   costCenterId: string | null;
   /** Migration 0130: the branch this line belongs to. */
   branchId: string | null;
+  /** Migration 0132 — set only on manual lines (validated by journal-line-rules.ts). */
+  parties?: JournalLineParties;
 }
 
 export interface JournalEntryFilters {

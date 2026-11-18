@@ -16,6 +16,7 @@ const KIND_LABELS: Record<PartyLedgerKind, string> = {
   purchase_invoice: 'فاتورة مشتريات',
   supplier_payment: 'سند صرف لمورد',
   purchase_debit_note: 'إشعار خصم (مرتجع مشتريات)',
+  journal_entry: 'قيد يومية',
 };
 
 export function ledgerKindLabel(kind: PartyLedgerKind): string {

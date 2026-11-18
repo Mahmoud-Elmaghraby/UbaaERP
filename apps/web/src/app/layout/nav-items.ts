@@ -193,6 +193,7 @@ export const NAV_GROUPS: NavGroup[] = [
           { to: '/accounting/journal-entries', labelKey: 'accounting.tabs.journalEntries' },
           { to: '/accounting/recurring-entries', labelKey: 'accounting.tabs.recurring' },
           { to: '/accounting/reports', labelKey: 'accounting.tabs.reports' },
+          { to: '/accounting/integrity', labelKey: 'accounting.tabs.integrity' },
           { to: '/accounting/fixed-assets', labelKey: 'accounting.tabs.fixedAssets', feature: 'fixed_assets' },
           { to: '/accounting/budgets', labelKey: 'accounting.tabs.budgets', feature: 'budgets' },
           { to: '/accounting/cost-centers', labelKey: 'accounting.tabs.costCenters', section: 'settings' },

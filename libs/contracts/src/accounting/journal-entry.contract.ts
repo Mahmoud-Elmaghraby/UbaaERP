@@ -19,6 +19,13 @@ export const journalEntryLineSchema = z.object({
   lineOrder: z.number().int(),
   /** Optional cost-center tag (Stage 4). */
   costCenterId: z.string().uuid().nullable(),
+  /** Migration 0132: the party / treasury a manual line belongs to, with display names. */
+  customerId: z.string().uuid().nullable().default(null),
+  supplierId: z.string().uuid().nullable().default(null),
+  employeeId: z.string().uuid().nullable().default(null),
+  treasuryId: z.string().uuid().nullable().default(null),
+  partyName: z.string().nullable().default(null),
+  treasuryName: z.string().nullable().default(null),
   /** Bank reconciliation status (Stage 5) — see BankAccountsService. */
   isReconciled: z.boolean(),
   reconciledAt: z.coerce.date().nullable(),
@@ -65,6 +72,15 @@ export const createJournalEntryLineSchema = z.object({
   description: z.string().nullable().optional(),
   /** Optional cost-center tag (Stage 4) — no effect on the balance invariant. */
   costCenterId: z.string().uuid().nullable().optional(),
+  /**
+   * Migration 0132: required on some accounts (GET /journal-entries/line-rules) — the customer on
+   * the Customers account, the supplier on Suppliers, the employee on advances / salaries payable,
+   * the treasury on a treasury's account. Ignored elsewhere.
+   */
+  customerId: z.string().uuid().nullable().optional(),
+  supplierId: z.string().uuid().nullable().optional(),
+  employeeId: z.string().uuid().nullable().optional(),
+  treasuryId: z.string().uuid().nullable().optional(),
 });
 export type CreateJournalEntryLineDto = z.infer<typeof createJournalEntryLineSchema>;
 
@@ -94,3 +110,75 @@ export const reverseJournalEntrySchema = z.object({
   description: z.string().nullable().optional(),
 });
 export type ReverseJournalEntryDto = z.infer<typeof reverseJournalEntrySchema>;
+
+/** GET /journal-entries/line-rules — what a manual line on each special account must carry. */
+export const journalLineRuleKindSchema = z.enum(['customer', 'supplier', 'employee', 'treasury', 'locked']);
+export type JournalLineRuleKindDto = z.infer<typeof journalLineRuleKindSchema>;
+
+export const journalLineRulesSchema = z.object({
+  accounts: z.array(
+    z.object({
+      accountId: z.string().uuid(),
+      kind: journalLineRuleKindSchema,
+      /** kind 'treasury': the treasuries whose money sits in the account (empty = none to pick). */
+      treasuries: z.array(z.object({ id: z.string().uuid(), name: z.string(), currency: z.string() })),
+    }),
+  ),
+});
+export type JournalLineRulesDto = z.infer<typeof journalLineRulesSchema>;
+
+/** GET /journal-entries/parties?kind= — the parties a manual line can name (accounting permission only). */
+export const journalLinePartySchema = z.object({
+  id: z.string().uuid(),
+  code: z.string(),
+  name: z.string(),
+  phone: z.string().nullable(),
+  isActive: z.boolean(),
+});
+export type JournalLinePartyDto = z.infer<typeof journalLinePartySchema>;
+
+/** GET /ledger-integrity — "فحص سلامة البيانات": each control account against its sub-ledger. */
+export const ledgerCheckKeySchema = z.enum([
+  'customers',
+  'notes_receivable',
+  'suppliers',
+  'notes_payable',
+  'treasury',
+  'inventory',
+  'employee_advances',
+  'salaries_payable',
+]);
+export type LedgerCheckKeyDto = z.infer<typeof ledgerCheckKeySchema>;
+
+const signedMinorString = z.string().regex(/^-?\d+$/);
+
+export const ledgerIntegrityRowSchema = z.object({
+  key: ledgerCheckKeySchema,
+  /** Treasury names for a treasury row; null = the key's own label. */
+  label: z.string().nullable(),
+  accountId: z.string().uuid().nullable(),
+  accountCode: z.string().nullable(),
+  accountName: z.string().nullable(),
+  /** In the account's natural sense (an asset: debits − credits; a liability: credits − debits). */
+  ledgerMinorUnits: signedMinorString,
+  subledgerMinorUnits: signedMinorString,
+  /** ledger − sub-ledger; 0 = they agree. */
+  differenceMinorUnits: signedMinorString,
+  /** Items in another currency left out of the sub-ledger figure. */
+  foreignExcluded: z.number().int(),
+  /** Posted manual lines on the account that name no party / treasury (or any manual line on a document-only account). */
+  unexplained: z.object({
+    count: z.number().int(),
+    totalMinorUnits: signedMinorString,
+    entries: z.array(z.object({ id: z.string().uuid(), number: z.string(), date: z.string(), amountMinorUnits: signedMinorString })),
+  }),
+  link: z.string().nullable(),
+});
+export type LedgerIntegrityRowDto = z.infer<typeof ledgerIntegrityRowSchema>;
+
+export const ledgerIntegrityReportSchema = z.object({
+  currency: z.string(),
+  generatedAt: z.string(),
+  rows: z.array(ledgerIntegrityRowSchema),
+});
+export type LedgerIntegrityReportDto = z.infer<typeof ledgerIntegrityReportSchema>;

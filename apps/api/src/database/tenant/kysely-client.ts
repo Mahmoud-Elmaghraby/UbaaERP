@@ -1934,6 +1934,12 @@ export interface JournalEntryLinesTable {
   created_at: Generated<Date>;
   /** Migration 0130: the branch it belongs to (nullable for old code paths; services fill it). */
   branch_id: string | null;
+  /** Migration 0132: the party a manual line on a customers / suppliers / employee account belongs to (at most one). */
+  customer_id: Generated<string | null>;
+  supplier_id: Generated<string | null>;
+  employee_id: Generated<string | null>;
+  /** Migration 0132: the treasury a manual line on a treasury's account moves. */
+  treasury_id: Generated<string | null>;
 }
 
 export interface AccountingSettingsTable {

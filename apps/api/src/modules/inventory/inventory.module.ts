@@ -81,6 +81,7 @@ import { ProductImportService } from './application/services/product-import.serv
 import { ProductImportController } from './presentation/product-import.controller';
 import { ProductUnitResolver } from '../../shared/catalog/product-unit-resolver';
 import { StockAvailabilityChecker } from '../../shared/catalog/stock-availability-checker';
+import { InventoryLedgerChecks } from './infrastructure/inventory-ledger-checks';
 
 /**
  * Inventory module (CLAUDE.md §10: step 2). Mostly plain CRUD (units of
@@ -120,6 +121,7 @@ import { StockAvailabilityChecker } from '../../shared/catalog/stock-availabilit
     ProductImagesController,
   ],
   providers: [
+    InventoryLedgerChecks,
     InventoryPrintRegistration,
     { provide: UNIT_OF_MEASURE_REPOSITORY, useClass: KyselyUnitOfMeasureRepository },
     { provide: WAREHOUSE_REPOSITORY, useClass: KyselyWarehouseRepository },

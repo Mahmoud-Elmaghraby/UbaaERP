@@ -77,6 +77,7 @@ import { KyselyProductTrackingReader } from './infrastructure/persistence/kysely
 import { ProductUnitResolver } from '../../shared/catalog/product-unit-resolver';
 import { StockAvailabilityChecker } from '../../shared/catalog/stock-availability-checker';
 import { PurchaseLimitsService } from './application/services/purchase-limits.service';
+import { PurchasesLedgerChecks } from './infrastructure/statements/purchases-ledger-checks';
 
 /**
  * Purchases module (CLAUDE.md §10: step 3). Stages so far — see
@@ -154,6 +155,7 @@ import { PurchaseLimitsService } from './application/services/purchase-limits.se
     SupplierPaymentsController,
   ],
   providers: [
+    PurchasesLedgerChecks,
     PurchaseLimitsService,
     PurchasesTreasuryMovements,
     SupplierLedgerSource,

@@ -23,6 +23,8 @@ import {
 import { AccountPicker } from '../account-picker';
 import { Amount, AMOUNT_CELL } from '../../../../components/amount';
 import { useActiveCostCenters } from '../../hooks/use-active-cost-centers';
+import { useJournalLineRules } from '../../api/journal-entries/queries';
+import { JournalLinePartyField } from './journal-line-party-field';
 import { decimalToMinorUnits, minorUnitsToDecimalString } from '../../../../lib/money';
 
 export interface JournalEntryLineDraft {
@@ -35,7 +37,14 @@ export interface JournalEntryLineDraft {
   description: string;
   /** Optional cost-center tag; undefined = none. */
   costCenterId: string | undefined;
+  /** Migration 0132: the party / treasury some accounts require (see useJournalLineRules). */
+  customerId?: string;
+  supplierId?: string;
+  employeeId?: string;
+  treasuryId?: string;
 }
+
+export type JournalLineDraftParties = Pick<JournalEntryLineDraft, 'customerId' | 'supplierId' | 'employeeId' | 'treasuryId'>;
 
 let nextKey = 0;
 export function createEmptyLine(description = ''): JournalEntryLineDraft {
@@ -93,6 +102,10 @@ export function prepareLines(lines: JournalEntryLineDraft[], t: (key: string) =>
       creditAmountMinorUnits: creditMinorUnits,
       description: line.description.trim() === '' ? undefined : line.description,
       costCenterId: line.costCenterId ?? undefined,
+      customerId: line.customerId ?? null,
+      supplierId: line.supplierId ?? null,
+      employeeId: line.employeeId ?? null,
+      treasuryId: line.treasuryId ?? null,
     });
   }
   if (prepared.length < 2) return { lines: null, error: t('accounting.journalEntries.linesMinError') };
@@ -109,6 +122,10 @@ export function draftsFromLines(lines: CreateJournalEntryLineDto[]): JournalEntr
     debit: line.debitAmountMinorUnits === '0' ? '' : minorUnitsToDecimalString(line.debitAmountMinorUnits),
     credit: line.creditAmountMinorUnits === '0' ? '' : minorUnitsToDecimalString(line.creditAmountMinorUnits),
     costCenterId: line.costCenterId ?? undefined,
+    customerId: line.customerId ?? undefined,
+    supplierId: line.supplierId ?? undefined,
+    employeeId: line.employeeId ?? undefined,
+    treasuryId: line.treasuryId ?? undefined,
   }));
 }
 
@@ -131,6 +148,8 @@ export function JournalEntryLineItemsEditor({
 }) {
   const { t } = useTranslation();
   const activeCostCenters = useActiveCostCenters();
+  const { data: lineRules } = useJournalLineRules();
+  const ruleByAccount = useMemo(() => new Map((lineRules?.accounts ?? []).map((rule) => [rule.accountId, rule])), [lineRules]);
   const tableRef = useRef<HTMLTableElement>(null);
   const totals = useMemo(() => lineTotals(lines), [lines]);
   const difference = totals.debit - totals.credit;
@@ -196,6 +215,11 @@ export function JournalEntryLineItemsEditor({
                   className="h-9 w-full"
                   value={line.accountId}
                   onChange={(accountId) => updateLine(line.key, { accountId })}
+                />
+                <JournalLinePartyField
+                  rule={line.accountId ? ruleByAccount.get(line.accountId) : undefined}
+                  line={line}
+                  onChange={(patch) => updateLine(line.key, patch)}
                 />
               </TableCell>
               <TableCell>

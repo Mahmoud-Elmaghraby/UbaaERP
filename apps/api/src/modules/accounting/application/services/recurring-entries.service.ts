@@ -34,6 +34,8 @@ export class RecurringEntriesService {
 
   async save(db: Kysely<TenantDatabase>, id: string | null, input: SaveRecurringEntryDto): Promise<RecurringEntryDto> {
     assertBalanced(input.lines);
+    // The same line rules as a hand-made entry (migration 0132), checked now rather than at the first run.
+    await this.journalEntries.validateManualLines(db, input.lines);
     const values = {
       name: input.name,
       description: input.description ?? null,

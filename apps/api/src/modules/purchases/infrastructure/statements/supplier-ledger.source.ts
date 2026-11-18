@@ -6,6 +6,7 @@ import { parseSnapshot } from '../../../../shared/taxes/line-tax-snapshot';
 import { localIsoDate } from '../../../../shared/time/local-date';
 import { addDays, openingBalanceEntry } from '../../../../shared/statements/account-statement';
 import type { PartyInfo, PartyLedgerSource, PartyLedgerSourceEntry } from '../../../../shared/statements/party-statements';
+import { journalPartyEntries } from '../../../../shared/statements/journal-party-entries';
 import { calculatePurchaseInvoiceTotal } from '../../domain/purchase-invoice.entity';
 
 export const SUPPLIER_OPENING_BALANCE_EVENT = 'purchases.supplier.opening_balance_set';
@@ -159,6 +160,9 @@ export class SupplierLedgerSource implements PartyLedgerSource {
         sequence: payment.created_at.toISOString(),
       });
     }
+
+    // Manual journal lines naming this supplier (migration 0132).
+    entries.push(...(await journalPartyEntries(db, 'supplier', supplierId)));
 
     return entries;
   }

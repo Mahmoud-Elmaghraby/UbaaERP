@@ -619,6 +619,13 @@ export const AR_MESSAGES: Record<string, string> = {
   'JOURNAL_ENTRY.LINE_MUST_HAVE_ONE_SIDE':
     'يجب أن يحتوي كل سطر في القيد المحاسبي على مبلغ مدين أو دائن واحد فقط — وليس كليهما، ولا يجب أن يكونا فارغين.',
   'JOURNAL_ENTRY.NOT_BALANCED':
+  'JOURNAL_ENTRY.ACCOUNT_LOCKED': 'الحساب "{account}" بيتحرك من المستندات بس (الشيكات أو المخزون أو أذون الاستلام)، مينفعش عليه قيد يدوي.',
+  'JOURNAL_ENTRY.CUSTOMER_REQUIRED': 'السطر اللي على حساب "{account}" لازم تختار فيه العميل.',
+  'JOURNAL_ENTRY.SUPPLIER_REQUIRED': 'السطر اللي على حساب "{account}" لازم تختار فيه المورد.',
+  'JOURNAL_ENTRY.EMPLOYEE_REQUIRED': 'السطر اللي على حساب "{account}" لازم تختار فيه الموظف.',
+  'JOURNAL_ENTRY.TREASURY_REQUIRED': 'السطر اللي على حساب "{account}" لازم تختار فيه الخزينة.',
+  'JOURNAL_ENTRY.TREASURY_FOREIGN_CURRENCY': 'الخزينة "{treasury}" بعملة {currency}، والقيد بعملة الشركة. استخدم سند صرف أو قبض للخزينة دي.',
+  'JOURNAL_ENTRY.PARTY_NOT_FOUND': 'الطرف اللي اخترته في القيد مش موجود.',
     'هذا القيد غير متوازن — إجمالي المدين {totalDebit} {currency}، وإجمالي الدائن {totalCredit} {currency}.',
   'JOURNAL_ENTRY.NOT_EDITABLE': 'القيد المحاسبي "{entryNumber}" في حالة "{status}" ولم يعد قابلاً للتعديل.',
   'JOURNAL_ENTRY.NOT_POSTABLE': 'القيد المحاسبي "{entryNumber}" في حالة "{status}" — يمكن ترحيل المسودات فقط.',

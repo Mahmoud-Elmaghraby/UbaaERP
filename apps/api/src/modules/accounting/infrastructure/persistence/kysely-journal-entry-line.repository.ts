@@ -24,6 +24,12 @@ function toDomain(row: Selectable<JournalEntryLinesTable>, currency: string): Jo
     lineOrder: row.line_order,
     costCenterId: row.cost_center_id,
     branchId: row.branch_id,
+    parties: {
+      customerId: row.customer_id,
+      supplierId: row.supplier_id,
+      employeeId: row.employee_id,
+      treasuryId: row.treasury_id,
+    },
     isReconciled: row.is_reconciled,
     reconciledAt: row.reconciled_at,
     createdAt: row.created_at,
@@ -38,6 +44,10 @@ export class KyselyJournalEntryLineRepository implements JournalEntryLineReposit
     const rows = await db
       .selectFrom('journal_entry_lines')
       .innerJoin('journal_entries', 'journal_entries.id', 'journal_entry_lines.journal_entry_id')
+      .leftJoin('customers', 'customers.id', 'journal_entry_lines.customer_id')
+      .leftJoin('suppliers', 'suppliers.id', 'journal_entry_lines.supplier_id')
+      .leftJoin('employees', 'employees.id', 'journal_entry_lines.employee_id')
+      .leftJoin('treasuries', 'treasuries.id', 'journal_entry_lines.treasury_id')
       .select([
         'journal_entry_lines.id as id',
         'journal_entry_lines.journal_entry_id as journal_entry_id',
@@ -48,6 +58,14 @@ export class KyselyJournalEntryLineRepository implements JournalEntryLineReposit
         'journal_entry_lines.line_order as line_order',
         'journal_entry_lines.cost_center_id as cost_center_id',
         'journal_entry_lines.branch_id as branch_id',
+        'journal_entry_lines.customer_id as customer_id',
+        'journal_entry_lines.supplier_id as supplier_id',
+        'journal_entry_lines.employee_id as employee_id',
+        'journal_entry_lines.treasury_id as treasury_id',
+        'customers.name as customer_name',
+        'suppliers.name as supplier_name',
+        'employees.full_name as employee_name',
+        'treasuries.name as treasury_name',
         'journal_entry_lines.is_reconciled as is_reconciled',
         'journal_entry_lines.reconciled_at as reconciled_at',
         'journal_entry_lines.created_at as created_at',
@@ -71,6 +89,14 @@ export class KyselyJournalEntryLineRepository implements JournalEntryLineReposit
       lineOrder: row.line_order,
       costCenterId: row.cost_center_id,
       branchId: row.branch_id,
+      parties: {
+        customerId: row.customer_id,
+        supplierId: row.supplier_id,
+        employeeId: row.employee_id,
+        treasuryId: row.treasury_id,
+        partyName: row.customer_name ?? row.supplier_name ?? row.employee_name ?? null,
+        treasuryName: row.treasury_name,
+      },
       isReconciled: row.is_reconciled,
       reconciledAt: row.reconciled_at,
       createdAt: row.created_at,
@@ -97,6 +123,10 @@ export class KyselyJournalEntryLineRepository implements JournalEntryLineReposit
           line_order: index,
           cost_center_id: line.costCenterId ?? null,
           branch_id: line.branchId ?? header?.branch_id ?? null,
+          customer_id: line.parties?.customerId ?? null,
+          supplier_id: line.parties?.supplierId ?? null,
+          employee_id: line.parties?.employeeId ?? null,
+          treasury_id: line.parties?.treasuryId ?? null,
         })),
       )
       .returningAll()

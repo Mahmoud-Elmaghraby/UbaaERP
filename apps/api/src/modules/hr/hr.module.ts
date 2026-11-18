@@ -21,6 +21,7 @@ import { HrPayrollMovements } from './infrastructure/hr-payroll-movements';
 import { HrPrintRegistration } from './infrastructure/hr-print.registration';
 import { HrReportsController } from './presentation/hr-reports.controller';
 import { HrReportsService } from './application/hr-reports.service';
+import { HrLedgerChecks } from './infrastructure/hr-ledger-checks';
 
 /**
  * HR & payroll (الموارد البشرية) — docs/claude-context/project-docs/hr-module-plan-2026-11-11.md.
@@ -41,6 +42,6 @@ import { HrReportsService } from './application/hr-reports.service';
 @Module({
   imports: [SettingsModule],
   controllers: [EmployeesController, HrDepartmentsController, HrJobTitlesController, SalaryComponentsController, EmployeeSalariesController, AttendanceSetupController, AttendanceController, LeavesController, LoansController, PayAdjustmentsController, PayrollController, HrReportsController],
-  providers: [EmployeesService, HrOrgService, SalaryComponentsService, EmployeeSalariesService, AttendanceSetupService, AttendanceService, LeavesService, LoansService, HrLoanMovements, PayrollService, HrPayrollMovements, HrPrintRegistration, HrReportsService],
+  providers: [HrLedgerChecks, EmployeesService, HrOrgService, SalaryComponentsService, EmployeeSalariesService, AttendanceSetupService, AttendanceService, LeavesService, LoansService, HrLoanMovements, PayrollService, HrPayrollMovements, HrPrintRegistration, HrReportsService],
 })
 export class HrModule {}

@@ -253,6 +253,9 @@ export function JournalEntryPage() {
                               <span className="me-2 tabular-nums text-muted-foreground">{account?.code}</span>
                               {account?.name ?? '—'}
                             </Link>
+                            {line.partyName || line.treasuryName ? (
+                              <span className="block text-xs text-muted-foreground">{line.partyName ?? line.treasuryName}</span>
+                            ) : null}
                           </TableCell>
                           <TableCell className="text-muted-foreground">{line.description ?? '—'}</TableCell>
                           {hasCostCenters ? <TableCell>{center ? `${center.code} — ${center.name}` : '—'}</TableCell> : null}

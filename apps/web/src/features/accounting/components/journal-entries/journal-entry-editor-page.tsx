@@ -44,6 +44,10 @@ function linesFromEntry(entry: JournalEntryWithLinesDto): JournalEntryLineDraft[
     credit: line.creditAmount.amountMinorUnits === '0' ? '' : minorUnitsToDecimalString(line.creditAmount.amountMinorUnits),
     description: line.description ?? '',
     costCenterId: line.costCenterId ?? undefined,
+    customerId: line.customerId ?? undefined,
+    supplierId: line.supplierId ?? undefined,
+    employeeId: line.employeeId ?? undefined,
+    treasuryId: line.treasuryId ?? undefined,
   }));
 }
 

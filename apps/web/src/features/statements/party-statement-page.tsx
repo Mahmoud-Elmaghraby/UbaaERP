@@ -38,6 +38,7 @@ const DOCUMENT_LINKS: Partial<Record<PartyStatementRowDto['kind'], (id: string) 
   purchase_invoice: ENTITY_ROUTES.purchase_invoice,
   payment_received: ENTITY_ROUTES.payment_received,
   cheque_bounced: ENTITY_ROUTES.payment_received,
+  journal_entry: (id) => `/accounting/journal-entries/${id}`,
 };
 
 function yearStart(): string {

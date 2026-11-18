@@ -26,6 +26,7 @@ const MOVEMENT_LABELS: Record<string, string> = {
   employee_loan: 'سلفة موظف',
   employee_loan_repayment: 'سداد سلفة موظف',
   payroll: 'صرف مرتبات',
+  journal_entry: 'قيد يومية',
 };
 
 /** سند صرف / قبض / تحويل — A4 or the 80 mm roll. */

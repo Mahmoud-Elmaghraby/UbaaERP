@@ -10,6 +10,7 @@ import { TreasuryVouchersService } from './application/treasury-vouchers.service
 import { TreasuryStatementService } from './application/treasury-statement.service';
 import { TreasuryVoucherMovements } from './infrastructure/treasury-voucher-movements';
 import { TreasuryPrintRegistration } from './infrastructure/treasury-print.registration';
+import { TreasuryLedgerChecks } from './infrastructure/treasury-ledger-checks';
 
 /**
  * Treasury (الخزائن): cash boxes, banks and e-wallets, expense / income /
@@ -26,6 +27,7 @@ import { TreasuryPrintRegistration } from './infrastructure/treasury-print.regis
   imports: [SettingsModule],
   controllers: [TreasuriesController, TreasuryCategoriesController, TreasuryVouchersController, PosDrawerController],
   providers: [
+    TreasuryLedgerChecks,
     TreasuriesService,
     TreasuryCategoriesService,
     TreasuryVouchersService,

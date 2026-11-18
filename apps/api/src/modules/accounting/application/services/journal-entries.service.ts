@@ -19,8 +19,10 @@ import type {
   CreateJournalEntryLineInput,
   JournalEntryLineToPersist,
   CreateAutoJournalEntryInput,
+  JournalLineParties,
 } from '../../domain/journal-entry.entity';
 import { BusinessRuleError, isPostgresUniqueViolation } from '../errors';
+import { applyLineRules, loadLineRules, type LineRule } from './journal-line-rules';
 import { entityNotFound } from '../../../../shared/errors/entity-errors';
 import { ChartOfAccountsService } from './chart-of-accounts.service';
 import { AccountingPeriodsService } from './accounting-periods.service';
@@ -82,6 +84,7 @@ export class JournalEntriesService {
     db: Kysely<TenantDatabase>,
     currency: string,
     rawLines: CreateJournalEntryLineInput[],
+    manual = false,
   ): Promise<JournalEntryLineToPersist[]> {
     if (rawLines.length < 2) {
       throw new BusinessRuleError('A journal entry needs at least two lines to balance.', {
@@ -128,13 +131,40 @@ export class JournalEntriesService {
       );
     }
 
+    // A hand-made line on a customers / suppliers / employee / treasury account names who or where.
+    if (manual) {
+      const parties = await this.validateManualLines(db, rawLines, currency);
+      if (parties) built.forEach((line, index) => (line.parties = parties[index]));
+    }
+
     return built;
+  }
+
+  /** Line rules (journal-line-rules.ts) for the editor; empty when Accounting Settings aren't wired (unit tests). */
+  async lineRules(db: Kysely<TenantDatabase>): Promise<Map<string, LineRule>> {
+    if (!this.accountingSettings) return new Map();
+    return loadLineRules(db, await this.accountingSettings.get(db));
+  }
+
+  /**
+   * Checks manual lines against the line rules (recurring templates too) and returns each line's
+   * cleaned parties; null when there are no rules to apply.
+   */
+  async validateManualLines(
+    db: Kysely<TenantDatabase>,
+    lines: CreateJournalEntryLineInput[],
+    currency?: string,
+  ): Promise<JournalLineParties[] | null> {
+    const rules = await this.lineRules(db);
+    if (rules.size === 0) return null;
+    const companyCurrency = currency ?? (await this.tenantSettings.get(db)).currencyCode;
+    return applyLineRules(db, rules, lines, companyCurrency);
   }
 
   async create(db: Kysely<TenantDatabase>, input: CreateJournalEntryInput): Promise<JournalEntryWithLines> {
     const tenantSettings = await this.tenantSettings.get(db);
     const currency = tenantSettings.currencyCode;
-    const builtLines = await this.buildAndValidateLines(db, currency, input.lines);
+    const builtLines = await this.buildAndValidateLines(db, currency, input.lines, true);
 
     return withTransaction(db, async (trx) => {
       const allocated = await this.numberingSequences.allocateNext(trx, 'journal_entry', null);
@@ -168,7 +198,7 @@ export class JournalEntriesService {
       );
     }
 
-    const builtLines = await this.buildAndValidateLines(db, existing.currency, input.lines);
+    const builtLines = await this.buildAndValidateLines(db, existing.currency, input.lines, true);
 
     return withTransaction(db, async (trx) => {
       const updated = await this.entries.update(trx, id, {
@@ -225,6 +255,20 @@ export class JournalEntriesService {
       });
     }
     if (!options.allowClosedPeriod) await this.periods.assertOpenForDate(db, entry.entryDate);
+    // A draft written before the line rules (or before an account mapping changed) is checked again.
+    // A reversal mirrors an entry already posted, so it is let through as it is.
+    if (entry.source === 'manual' && !entry.reversalOfEntryId) {
+      await this.validateManualLines(
+        db,
+        entry.lines.map((line) => ({
+          accountId: line.accountId,
+          debitAmountMinorUnits: line.debitAmount.toMinorUnits().toString(),
+          creditAmountMinorUnits: line.creditAmount.toMinorUnits().toString(),
+          ...line.parties,
+        })),
+        entry.currency,
+      );
+    }
 
     // Only while still a draft: a concurrent post/cancel/edit must not slip through.
     const updated = await this.entries.updateStatus(db, id, 'posted', new Date(), 'draft');
@@ -305,6 +349,8 @@ export class JournalEntriesService {
       // same line's activity, so it belongs to the same cost center, if any.
       costCenterId: line.costCenterId,
       branchId: line.branchId,
+      // The reversal undoes the same party's / treasury's line.
+      parties: line.parties,
     }));
 
     return withTransaction(db, async (trx) => {

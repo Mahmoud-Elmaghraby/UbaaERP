@@ -21,6 +21,8 @@ export const partyLedgerKindSchema = z.enum([
   'purchase_invoice',
   'supplier_payment',
   'purchase_debit_note',
+  /** Migration 0132: a manual journal line naming the party. */
+  'journal_entry',
 ]);
 export type PartyLedgerKindDto = z.infer<typeof partyLedgerKindSchema>;
 

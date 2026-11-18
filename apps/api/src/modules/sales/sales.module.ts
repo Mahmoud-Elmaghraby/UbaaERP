@@ -94,6 +94,7 @@ import { SalesInvoiceInstallmentsService } from './application/services/sales-in
 import { SalesEventPublisher } from './infrastructure/events/sales-event-publisher';
 import { ProductUnitResolver } from '../../shared/catalog/product-unit-resolver';
 import { StockAvailabilityChecker } from '../../shared/catalog/stock-availability-checker';
+import { SalesLedgerChecks } from './infrastructure/statements/sales-ledger-checks';
 
 /**
  * Sales module (CLAUDE.md §10: step 4). Stages so far — see
@@ -239,6 +240,7 @@ import { StockAvailabilityChecker } from '../../shared/catalog/stock-availabilit
     SalesInvoiceInstallmentsController,
   ],
   providers: [
+    SalesLedgerChecks,
     SalesTreasuryMovements,
     SalesChannelsService,
     SalesRepsService,

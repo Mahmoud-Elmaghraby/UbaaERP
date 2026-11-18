@@ -7,6 +7,7 @@ import { OutboxModule } from './shared/outbox/outbox.module';
 import { StorageModule } from './shared/storage/storage.module';
 import { PrintingModule } from './shared/printing/printing.module';
 import { TreasuryMovementsModule } from './shared/treasury/treasury-movements';
+import { LedgerChecksModule } from './shared/integrity/ledger-checks';
 import { SupervisorApprovalModule } from './shared/auth/supervisor-approval';
 import { SecretsEncryptionModule } from './shared/crypto/secrets-encryption.module';
 import { AuthInfraModule } from './shared/auth/auth-infra.module';
@@ -66,6 +67,7 @@ import { BranchAccessInterceptor } from './shared/branches/branch-access.interce
     StorageModule,
     PrintingModule,
     TreasuryMovementsModule,
+    LedgerChecksModule,
     SupervisorApprovalModule,
     SecretsEncryptionModule,
     AuthInfraModule,

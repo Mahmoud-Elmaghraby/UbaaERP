@@ -4,6 +4,9 @@ import type {
   JournalEntryDto,
   JournalEntryStatus,
   JournalEntryWithLinesDto,
+  JournalLinePartyDto,
+  JournalLineRulesDto,
+  LedgerIntegrityReportDto,
   ReverseJournalEntryDto,
   UpdateJournalEntryDto,
 } from '@erp-platform/contracts';
@@ -70,6 +73,10 @@ export function usePostJournalEntry() {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: LIST_KEY });
       queryClient.invalidateQueries({ queryKey: ['journal-entries', data.id] });
+      // A line naming a party or treasury moves its statement / balance (migration 0132).
+      for (const key of [['party-statement'], ['party-balances'], ['customers'], ['suppliers'], ['treasury'], ['ledger-integrity']]) {
+        void queryClient.invalidateQueries({ queryKey: key });
+      }
     },
   });
 }
@@ -109,5 +116,32 @@ export function useDeleteJournalEntry() {
   return useMutation({
     mutationFn: (id: string) => apiDelete<void>(`/journal-entries/${id}`),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: LIST_KEY }),
+  });
+}
+
+/** What a manual line on each special account must carry (customer / supplier / employee / treasury / locked). */
+export function useJournalLineRules() {
+  return useQuery({
+    queryKey: ['journal-entries', 'line-rules'],
+    queryFn: () => apiGet<JournalLineRulesDto>('/journal-entries/line-rules'),
+    staleTime: 60_000,
+  });
+}
+
+/** The parties a manual line can name — served by Accounting, so no Sales / Purchases / HR permission is needed. */
+export function useJournalLineParties(kind: 'customer' | 'supplier' | 'employee', enabled: boolean) {
+  return useQuery({
+    queryKey: ['journal-entries', 'parties', kind],
+    queryFn: () => apiGet<JournalLinePartyDto[]>(`/journal-entries/parties?kind=${kind}`),
+    enabled,
+    staleTime: 60_000,
+  });
+}
+
+/** فحص سلامة البيانات — every control account against its sub-ledger. */
+export function useLedgerIntegrity() {
+  return useQuery({
+    queryKey: ['ledger-integrity'],
+    queryFn: () => apiGet<LedgerIntegrityReportDto>('/ledger-integrity'),
   });
 }

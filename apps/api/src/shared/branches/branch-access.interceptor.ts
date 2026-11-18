@@ -75,6 +75,7 @@ const COMPANY_WIDE = new Set([
   'accounting-reports/general-ledger',
   'accounting-reports/cash-flow-statement',
   'accounting-reports/vat-return',
+  'ledger-integrity',
 ]);
 /** Reports that take a `branchId` and must be given one of the user's branches. */
 const BRANCH_REPORTS = new Set(['accounting-reports/income-statement', 'sales-reports/analysis', 'purchase-reports/analysis']);

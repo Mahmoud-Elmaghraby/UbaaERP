@@ -11,7 +11,10 @@ import {
   type UpdateJournalEntryDto,
   type ReverseJournalEntryDto,
   type JournalEntryStatus,
+  type JournalLinePartyDto,
+  type JournalLineRulesDto,
 } from '@erp-platform/contracts';
+import { rulesToDto } from '../application/services/journal-line-rules';
 import type { JournalEntry, JournalEntryWithLines } from '../domain/journal-entry.entity';
 import { TenantConnectionManager } from '../../../shared/tenancy/tenant-connection-manager';
 import { CurrentTenantSchema } from '../../../shared/auth/current-tenant-schema.decorator';
@@ -36,8 +39,9 @@ function entryToDto(entry: JournalEntry): JournalEntryDto {
 function entryWithLinesToDto(entry: JournalEntryWithLines): JournalEntryWithLinesDto {
   return journalEntryWithLinesSchema.parse({
     ...entry,
-    lines: entry.lines.map((line) => ({
+    lines: entry.lines.map(({ parties, ...line }) => ({
       ...line,
+      ...parties,
       debitAmount: moneyToDto(line.debitAmount),
       creditAmount: moneyToDto(line.creditAmount),
     })),
@@ -76,6 +80,31 @@ export class JournalEntriesController {
     const db = this.connections.getClient(schema);
     const entries = await this.service.list(db, { status, fromDate, toDate });
     return entries.map(entryToDto);
+  }
+
+  /** What a manual line on each special account must carry (migration 0132) — the editor's guide. */
+  @Get('line-rules')
+  async lineRules(@CurrentTenantSchema() schema: string): Promise<JournalLineRulesDto> {
+    return rulesToDto(await this.service.lineRules(this.connections.getClient(schema)));
+  }
+
+  /**
+   * The customers / suppliers / employees a manual line can name — served here so an accountant
+   * doesn't also need Sales, Purchases or HR permissions just to pick one.
+   */
+  @Get('parties')
+  async parties(@CurrentTenantSchema() schema: string, @Query('kind') kind?: string): Promise<JournalLinePartyDto[]> {
+    const db = this.connections.getClient(schema);
+    if (kind === 'employee') {
+      const rows = await db
+        .selectFrom('employees')
+        .select(['id', 'code', 'full_name as name', 'phone', 'status'])
+        .orderBy('full_name')
+        .execute();
+      return rows.map(({ status, ...row }) => ({ ...row, isActive: status !== 'terminated' }));
+    }
+    const table = kind === 'supplier' ? 'suppliers' : 'customers';
+    return db.selectFrom(table).select(['id', 'code', 'name', 'phone', 'is_active as isActive']).orderBy('name').execute();
   }
 
   @Get(':id')

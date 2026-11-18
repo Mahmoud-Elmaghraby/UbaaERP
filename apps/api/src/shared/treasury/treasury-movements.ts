@@ -24,7 +24,9 @@ export type TreasuryMovementKind =
   | 'transfer_out'
   | 'employee_loan'
   | 'employee_loan_repayment'
-  | 'payroll';
+  | 'payroll'
+  /** Migration 0132: a manual journal line naming the treasury. */
+  | 'journal_entry';
 
 export interface TreasuryMovement {
   treasuryId: string;

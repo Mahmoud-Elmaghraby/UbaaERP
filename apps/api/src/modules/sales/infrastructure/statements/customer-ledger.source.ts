@@ -6,6 +6,7 @@ import { parseSnapshot } from '../../../../shared/taxes/line-tax-snapshot';
 import { localIsoDate } from '../../../../shared/time/local-date';
 import { addDays, openingBalanceEntry } from '../../../../shared/statements/account-statement';
 import type { PartyInfo, PartyLedgerSource, PartyLedgerSourceEntry } from '../../../../shared/statements/party-statements';
+import { journalPartyEntries } from '../../../../shared/statements/journal-party-entries';
 import { calculateSalesInvoiceTotal } from '../../domain/sales-invoice.entity';
 import { calculateSalesCreditNoteTotals } from '../../domain/sales-credit-note.entity';
 
@@ -207,6 +208,9 @@ export class CustomerLedgerSource implements PartyLedgerSource {
         sequence: refund.created_at.toISOString(),
       });
     }
+
+    // Manual journal lines naming this customer (migration 0132).
+    entries.push(...(await journalPartyEntries(db, 'customer', customerId)));
 
     return entries;
   }
