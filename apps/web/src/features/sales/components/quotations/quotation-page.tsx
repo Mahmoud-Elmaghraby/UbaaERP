@@ -54,6 +54,7 @@ import {
   quotationStatusLabelKey,
 } from './quotation-status';
 import { SALES, SALES_WRITE } from '../../../../lib/permissions';
+import { useBranchInfo } from '../../../../components/list/branch-column';
 
 const SALES_ORDERS_PATH = '/sales/sales-orders';
 
@@ -63,6 +64,7 @@ export function QuotationPage() {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const { data: quotation, isLoading, isError } = useQuotation(id);
+  const branchInfo = useBranchInfo(quotation?.branchId);
   const { data: customer } = useCustomer(quotation?.customerId);
   const variantIndex = useVariantIndex();
   const salesOrdersEnabled = useHasFeature(FEATURE_KEYS.SALES_SALES_ORDERS);
@@ -306,6 +308,7 @@ export function QuotationPage() {
             <SectionCard title={t('documents.info')}>
               <InfoGrid
                 items={[
+                  ...branchInfo,
                   { label: t('sales.quotations.customer'), value: customer?.name },
                   {
                     label: t('sales.quotations.date'),

@@ -43,6 +43,7 @@ import { QuantityWithUnit } from '../../../../components/product/unit-select';
 import { PrintButton } from '../../../../components/printing/print-button';
 import { SALES_RETURNS_PATH, SALES_RETURN_STATUS_VARIANT, salesReturnStatusLabelKey } from './sales-return-status';
 import { SALES, SALES_WRITE } from '../../../../lib/permissions';
+import { useBranchInfo } from '../../../../components/list/branch-column';
 
 /** /sales/sales-returns/:id — the return with its actions, lines, credit note link and history. */
 export function SalesReturnDetailsPage() {
@@ -50,6 +51,7 @@ export function SalesReturnDetailsPage() {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const { data: salesReturn, isLoading, isError } = useSalesReturn(id);
+  const branchInfo = useBranchInfo(salesReturn?.branchId);
   const { data: delivery } = useDelivery(salesReturn?.deliveryId);
   const { data: order } = useSalesOrder(delivery?.salesOrderId);
   const { data: customer } = useCustomer(order?.customerId);
@@ -183,6 +185,7 @@ export function SalesReturnDetailsPage() {
             <SectionCard title={t('documents.info')}>
               <InfoGrid
                 items={[
+                  ...branchInfo,
                   {
                     label: t('sales.salesReturns.customer'),
                     value: customer ? (

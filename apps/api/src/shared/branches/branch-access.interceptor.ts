@@ -1,9 +1,9 @@
-import { Injectable, type CallHandler, type ExecutionContext, type NestInterceptor } from '@nestjs/common';
+import { ForbiddenException, Injectable, type CallHandler, type ExecutionContext, type NestInterceptor } from '@nestjs/common';
 import type { Kysely } from 'kysely';
 import { from, lastValueFrom, type Observable } from 'rxjs';
 import type { TenantDatabase } from '../../database/tenant/kysely-client';
 import type { JwtAccessPayload } from '../auth/jwt-payload.type';
-import { BusinessRuleError } from '../errors/domain-errors';
+import { formatArMessage } from '../errors/error-messages.ar';
 import { TenantConnectionManager } from '../tenancy/tenant-connection-manager';
 import { mainBranchId } from './branch-resolver';
 
@@ -77,7 +77,7 @@ const COMPANY_WIDE = new Set([
   'accounting-reports/vat-return',
 ]);
 /** Reports that take a `branchId` and must be given one of the user's branches. */
-const BRANCH_REPORTS = new Set(['accounting-reports/income-statement', 'sales-reports/analysis']);
+const BRANCH_REPORTS = new Set(['accounting-reports/income-statement', 'sales-reports/analysis', 'purchase-reports/analysis']);
 
 /** Request fields naming a place the user must own. Destinations (toWarehouseId…) may be anywhere. */
 const PLACE_KEYS: Record<string, 'warehouses' | 'treasuries' | 'branches' | 'pos_sessions'> = {
@@ -100,8 +100,13 @@ export function allowedBranchIds(user: Pick<JwtAccessPayload, 'branchIds'> | und
   return user?.branchIds && user.branchIds.length > 0 ? user.branchIds : null;
 }
 
-function denied(): BusinessRuleError {
-  return new BusinessRuleError('This belongs to a branch you have no access to.', { code: 'BRANCH.ACCESS_DENIED' });
+/** 403 with the same {code, message} body every domain error has (UnexpectedExceptionFilter passes it through). */
+function denied(): ForbiddenException {
+  return new ForbiddenException({
+    statusCode: 403,
+    code: 'BRANCH.ACCESS_DENIED',
+    message: formatArMessage('BRANCH.ACCESS_DENIED'),
+  });
 }
 
 @Injectable()

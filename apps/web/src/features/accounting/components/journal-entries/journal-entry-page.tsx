@@ -43,6 +43,7 @@ import { ENTITY_ROUTES } from '../../../../lib/entity-routes';
 import { AttachmentsPanel } from '../../../attachments/components/attachments-panel';
 import { ReverseJournalEntryForm } from './journal-entry-reverse-form';
 import { JOURNAL_ENTRY_STATUS_VARIANT, journalEntryStatusLabelKey, sourceRefKey } from './journal-entry-status';
+import { useBranchInfo } from '../../../../components/list/branch-column';
 
 /** Where an automatic entry's source document lives in the app (when it has its own page). */
 const SOURCE_ROUTES: Record<string, (id: string) => string> = {
@@ -65,6 +66,7 @@ export function JournalEntryPage() {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const { data: entry, isLoading, isError } = useJournalEntry(id);
+  const branchInfo = useBranchInfo(entry?.branchId);
   const { data: original } = useJournalEntry(entry?.reversalOfEntryId);
   const { data: accounts } = useChartOfAccounts();
   const { data: costCenters } = useCostCenters();
@@ -194,6 +196,7 @@ export function JournalEntryPage() {
             <SectionCard>
               <InfoGrid
                 items={[
+                  ...branchInfo,
                   { label: t('accounting.journalEntries.entryDate'), value: formatDate(entry.entryDate) },
                   {
                     label: t('accounting.journalEntries.source'),

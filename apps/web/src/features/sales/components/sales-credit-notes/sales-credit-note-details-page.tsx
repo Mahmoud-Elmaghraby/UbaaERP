@@ -33,6 +33,7 @@ import { taxTotalsRowsFromDto } from '../../../../components/taxes/tax-totals';
 import { QuantityWithUnit } from '../../../../components/product/unit-select';
 import { PrintButton } from '../../../../components/printing/print-button';
 import { SALES_CREDIT_NOTES_PATH } from './sales-credit-notes-page';
+import { useBranchInfo } from '../../../../components/list/branch-column';
 
 /**
  * /sales/sales-credit-notes/:id — read-only: a credit note is issued by
@@ -42,6 +43,7 @@ export function SalesCreditNoteDetailsPage() {
   const { t } = useTranslation();
   const { id } = useParams<{ id: string }>();
   const { data: creditNote, isLoading, isError } = useSalesCreditNote(id);
+  const branchInfo = useBranchInfo(creditNote?.branchId);
   const { data: customer } = useCustomer(creditNote?.customerId);
   const { data: salesReturn } = useSalesReturn(creditNote?.salesReturnId);
   const variantIndex = useVariantIndex();
@@ -97,6 +99,7 @@ export function SalesCreditNoteDetailsPage() {
             <SectionCard title={t('documents.info')}>
               <InfoGrid
                 items={[
+                  ...branchInfo,
                   {
                     label: t('sales.salesCreditNotes.customer'),
                     value: customer ? (

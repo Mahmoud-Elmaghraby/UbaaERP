@@ -45,6 +45,7 @@ import { useVariantIndex } from '../../../../components/product/use-variant-inde
 import { PrintButton } from '../../../../components/printing/print-button';
 import { PURCHASE_RETURN_STATUS_VARIANT, PURCHASE_RETURNS_PATH, purchaseReturnStatusLabelKey } from './purchase-return-status';
 import { PURCH, PURCH_WRITE } from '../../../../lib/permissions';
+import { useBranchInfo } from '../../../../components/list/branch-column';
 
 const GOODS_RECEIPTS_PATH = '/purchases/goods-receipts';
 const PURCHASE_ORDERS_PATH = '/purchases/purchase-orders';
@@ -56,6 +57,7 @@ export function PurchaseReturnPage() {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const { data: purchaseReturn, isLoading, isError } = usePurchaseReturn(id);
+  const branchInfo = useBranchInfo(purchaseReturn?.branchId);
   const { data: receipt } = useGoodsReceipt(purchaseReturn?.goodsReceiptId);
   const { data: order } = usePurchaseOrder(receipt?.purchaseOrderId);
   const { data: supplier } = useSupplier(order?.supplierId);
@@ -245,6 +247,7 @@ export function PurchaseReturnPage() {
             <SectionCard title={t('documents.info')}>
               <InfoGrid
                 items={[
+                  ...branchInfo,
                   { label: t('purchases.purchaseOrders.supplier'), value: supplier?.name },
                   {
                     label: t('purchases.purchaseReturns.goodsReceipt'),

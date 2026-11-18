@@ -28,6 +28,7 @@ import { downloadXlsx } from '../../../../lib/xlsx';
 import { CustomerPicker } from '../../lib/customer-picker';
 import { useSalesAnalysis } from '../../api/sales-reps/queries';
 import { SalesRepSelect } from './sales-rep-select';
+import { BranchFilter } from '../../../../components/list/branch-column';
 
 /** Every grouping, with the activity switch it needs (none = always). */
 const GROUPS: { id: SalesAnalysisGroupByDto; feature?: string }[] = [
@@ -57,7 +58,9 @@ export function SalesAnalysisPage() {
   const salesRepId = params.get('rep') ?? undefined;
   const customerId = params.get('customer') ?? undefined;
   const optionParam = params.get('option') ?? undefined;
+  const branchId = params.get('branch') ?? undefined;
   const { data: report, isLoading } = useSalesAnalysis({
+    branchId,
     groupBy,
     fromDate: params.from,
     toDate: params.to,
@@ -118,6 +121,7 @@ export function SalesAnalysisPage() {
         onExport={report ? exportXlsx : undefined}
         filters={
           <>
+            <BranchFilter value={branchId ?? null} onChange={(id) => params.set({ branch: id })} />
             <div className="grid gap-1">
               <span className="text-xs font-medium text-muted-foreground">{t('salesAnalysis.groupBy')}</span>
               <Select value={groupBy} onValueChange={(value) => params.set({ groupBy: value === 'rep' ? null : value })}>

@@ -11,6 +11,10 @@ export const purchaseAnalysisQuerySchema = z.object({
   fromDate: isoDate.optional(),
   toDate: isoDate.optional(),
   supplierId: z.string().uuid().optional(),
+  /** Only this branch's invoices and debit notes (migration 0130). */
+  branchId: z.string().uuid().optional(),
+  /** Comma-separated: a user limited to several branches (set by the API). */
+  branchIds: z.string().optional(),
 });
 export type PurchaseAnalysisQueryDto = z.infer<typeof purchaseAnalysisQuerySchema>;
 

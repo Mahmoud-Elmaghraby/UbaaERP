@@ -25,6 +25,7 @@ import { minorUnitsToDecimalString } from '../../../../lib/money';
 import { downloadXlsx } from '../../../../lib/xlsx';
 import { usePurchaseAnalysis } from '../../api/purchase-reports/queries';
 import { SupplierPicker } from '../../lib/supplier-picker';
+import { BranchFilter } from '../../../../components/list/branch-column';
 
 const GROUPS: PurchaseAnalysisGroupByDto[] = ['supplier', 'item', 'category', 'month'];
 
@@ -35,7 +36,8 @@ export function PurchaseAnalysisPage() {
   const groupByParam = params.get('groupBy') as PurchaseAnalysisGroupByDto | null;
   const groupBy: PurchaseAnalysisGroupByDto = groupByParam && GROUPS.includes(groupByParam) ? groupByParam : 'supplier';
   const supplierId = params.get('supplier') ?? undefined;
-  const { data: report, isLoading } = usePurchaseAnalysis({ groupBy, fromDate: params.from, toDate: params.to, supplierId });
+  const branchId = params.get('branch') ?? undefined;
+  const { data: report, isLoading } = usePurchaseAnalysis({ groupBy, fromDate: params.from, toDate: params.to, supplierId, branchId });
   const showQuantity = groupBy === 'item' || groupBy === 'category';
   const showAverage = groupBy === 'item';
   const columns = 5 + (showQuantity ? 1 : 0) + (showAverage ? 1 : 0);
@@ -85,6 +87,7 @@ export function PurchaseAnalysisPage() {
         onExport={report ? exportXlsx : undefined}
         filters={
           <>
+            <BranchFilter value={branchId ?? null} onChange={(id) => params.set({ branch: id })} />
             <div className="grid gap-1">
               <span className="text-xs font-medium text-muted-foreground">{t('purchaseAnalysis.groupBy')}</span>
               <Select value={groupBy} onValueChange={(value) => params.set({ groupBy: value === 'supplier' ? null : value })}>

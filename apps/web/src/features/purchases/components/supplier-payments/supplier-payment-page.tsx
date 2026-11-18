@@ -49,6 +49,7 @@ import { PrintButton } from '../../../../components/printing/print-button';
 import { SUPPLIER_PAYMENT_STATUS_VARIANT, SUPPLIER_PAYMENTS_PATH, supplierPaymentStatusLabelKey } from './supplier-payment-status';
 import { useSupplierPaymentActions } from './use-supplier-payment-actions';
 import { PURCH, PURCH_WRITE } from '../../../../lib/permissions';
+import { useBranchInfo } from '../../../../components/list/branch-column';
 
 const PURCHASE_INVOICES_PATH = '/purchases/purchase-invoices';
 const SUPPLIERS_PATH = '/purchases/suppliers';
@@ -59,6 +60,7 @@ export function SupplierPaymentPage() {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const { data: payment, isLoading, isError } = useSupplierPayment(id);
+  const branchInfo = useBranchInfo(payment?.branchId);
   const { data: supplier } = useSupplier(payment?.supplierId);
   const { data: treasuries } = useTreasuryLookup();
   const { data: invoices } = usePurchaseInvoices();
@@ -194,6 +196,7 @@ export function SupplierPaymentPage() {
             <SectionCard title={t('documents.info')}>
               <InfoGrid
                 items={[
+                  ...branchInfo,
                   {
                     label: t('purchases.supplierPayments.supplier'),
                     value: supplier ? (

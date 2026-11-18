@@ -34,6 +34,8 @@ export class PurchaseAnalysisService {
     const fromDate = query.fromDate ?? null;
     const toDate = query.toDate ?? null;
     const supplierId = query.supplierId ?? null;
+    const branchId = query.branchId ?? null;
+    const branchIds = query.branchIds ? query.branchIds.split(',').filter(Boolean) : null;
     const foreign = new Set<string>();
     const facts: PurchaseFact[] = [];
 
@@ -72,6 +74,8 @@ export class PurchaseAnalysisService {
            AND (${fromDate}::date IS NULL OR COALESCE(pi.invoice_date::date, pi.created_at::date) >= ${fromDate}::date)
            AND (${toDate}::date IS NULL OR COALESCE(pi.invoice_date::date, pi.created_at::date) <= ${toDate}::date)
            AND (${supplierId}::uuid IS NULL OR po.supplier_id = ${supplierId}::uuid)
+           AND (${branchId}::uuid IS NULL OR pi.branch_id = ${branchId}::uuid)
+           AND (${branchIds}::uuid[] IS NULL OR pi.branch_id = ANY(${branchIds}::uuid[]))
       `.execute(db)
     ).rows;
     for (const line of invoiceLines) {
@@ -123,6 +127,8 @@ export class PurchaseAnalysisService {
          WHERE (${fromDate}::date IS NULL OR dn.debit_note_date::date >= ${fromDate}::date)
            AND (${toDate}::date IS NULL OR dn.debit_note_date::date <= ${toDate}::date)
            AND (${supplierId}::uuid IS NULL OR dn.supplier_id = ${supplierId}::uuid)
+           AND (${branchId}::uuid IS NULL OR dn.branch_id = ${branchId}::uuid)
+           AND (${branchIds}::uuid[] IS NULL OR dn.branch_id = ANY(${branchIds}::uuid[]))
       `.execute(db)
     ).rows;
     for (const line of debitLines) {

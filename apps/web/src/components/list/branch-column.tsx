@@ -91,3 +91,39 @@ export function useBranchInfo(
   const name = branches.find((branch) => branch.id === branchId)?.name;
   return name ? [{ label: t("branches.label"), value: name }] : [];
 }
+
+/** A report filter: "كل الفروع" or one branch, kept in the page's URL. Hidden with a single branch. */
+export function BranchFilter({
+  value,
+  onChange,
+}: {
+  value: string | null;
+  onChange: (branchId: string | null) => void;
+}) {
+  const { t } = useTranslation();
+  const { data: branches = [] } = useBranches();
+  if (branches.length < 2) return null;
+  return (
+    <label className="grid gap-1">
+      <span className="text-xs font-medium text-muted-foreground">
+        {t("branches.label")}
+      </span>
+      <Select
+        value={value ?? ALL}
+        onValueChange={(v) => onChange(v === ALL ? null : v)}
+      >
+        <SelectTrigger className="h-9 w-44">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value={ALL}>{t("branches.all")}</SelectItem>
+          {branches.map((branch) => (
+            <SelectItem key={branch.id} value={branch.id}>
+              {branch.name}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </label>
+  );
+}

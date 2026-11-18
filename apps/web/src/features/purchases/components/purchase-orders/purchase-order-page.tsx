@@ -54,6 +54,7 @@ import { PrintButton } from '../../../../components/printing/print-button';
 import { PURCHASE_ORDER_STATUS_VARIANT, PURCHASE_ORDERS_PATH, purchaseOrderStatusLabelKey } from './purchase-order-status';
 import { PURCH, PURCH_WRITE } from '../../../../lib/permissions';
 import { PurchaseLimitsCallout, confirmPurchaseLimits, usePurchaseLimitsCheck } from '../../lib/purchase-limits';
+import { useBranchInfo } from '../../../../components/list/branch-column';
 
 const RFQS_PATH = '/purchases/rfqs';
 const GOODS_RECEIPTS_PATH = '/purchases/goods-receipts';
@@ -66,6 +67,7 @@ export function PurchaseOrderPage() {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const { data: order, isLoading, isError } = usePurchaseOrder(id);
+  const branchInfo = useBranchInfo(order?.branchId);
   const { data: supplier } = useSupplier(order?.supplierId);
   const quotationsEnabled = useHasFeature(FEATURE_KEYS.PURCHASES_SUPPLIER_QUOTATIONS);
   const receiptsEnabled = useHasFeature(FEATURE_KEYS.PURCHASES_GOODS_RECEIPTS);
@@ -312,6 +314,7 @@ export function PurchaseOrderPage() {
             <SectionCard title={t('documents.info')}>
               <InfoGrid
                 items={[
+                  ...branchInfo,
                   { label: t('purchases.purchaseOrders.supplier'), value: supplier?.name },
                   { label: t('documents.date'), value: <span className="tabular">{formatDate(order.createdAt)}</span> },
                   {
