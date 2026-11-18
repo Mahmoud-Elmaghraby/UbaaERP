@@ -30,6 +30,8 @@ export interface NavItem {
   /** Sub-sections rendered as a nested list under this item, expanded whenever the current
    * route is this item's path or a descendant of it (see AppShell). */
   children?: NavItem[];
+  /** Child items only: starts a titled sub-section (e.g. 'settings' → "إعدادات") in the expanded list. */
+  section?: 'settings';
   /** The module's own settings page — a gear next to the item in the sidebar. */
   settings?: { to: string; permission?: string | string[] };
 }
@@ -66,14 +68,13 @@ export const NAV_GROUPS: NavGroup[] = [
           { to: '/sales/deliveries', permission: SALES.view, labelKey: 'sales.tabs.deliveries', feature: 'sales.deliveries' },
           { to: '/sales/sales-invoices', permission: SALES.view, labelKey: 'sales.tabs.salesInvoices' },
           { to: '/sales/payments-received', permission: SALES.view, labelKey: 'sales.tabs.paymentsReceived' },
-          { to: '/sales/cheques', permission: SALES.view, labelKey: 'cheques.nav', feature: 'cheques' },
           { to: '/sales/installments-due', permission: SALES.view, labelKey: 'sales.installments.nav', feature: 'sales.installments' },
           { to: '/sales/settlements', permission: SALES.view, labelKey: 'settlements.nav', feature: 'sales.channels' },
           { to: '/sales/channels', permission: [SALES.view, SALES.settingsManage], labelKey: 'channels.nav', feature: 'sales.channels' },
           { to: '/sales/sales-returns', permission: SALES.view, labelKey: 'sales.tabs.salesReturns' },
           { to: '/sales/sales-credit-notes', permission: SALES.view, labelKey: 'sales.tabs.salesCreditNotes' },
           { to: '/sales/reports/analysis', permission: SALES.reportsView, labelKey: 'salesAnalysis.nav' },
-          { to: '/sales/eta-credentials', permission: SALES.settingsManage, labelKey: 'sales.tabs.etaCredentials' },
+          { to: '/sales/eta-credentials', permission: SALES.settingsManage, labelKey: 'sales.tabs.etaCredentials', section: 'settings' },
         ],
       },
       {
@@ -143,6 +144,7 @@ export const NAV_GROUPS: NavGroup[] = [
             to: '/inventory/warehouses',
             labelKey: 'inventory.tabs.warehouses',
             permission: [INV.settingsManage, INV.stockView],
+            section: 'settings',
           },
           {
             to: '/inventory/units-of-measure',
@@ -167,7 +169,15 @@ export const NAV_GROUPS: NavGroup[] = [
         children: [
           { to: '/treasury', labelKey: 'treasury.navTreasuries' },
           { to: '/treasury/vouchers', labelKey: 'treasury.vouchers.title' },
-          { to: '/treasury/categories', labelKey: 'treasury.categories.title' },
+          // Customers' and suppliers' cheques in one place; each side shows by its own permission.
+          { to: '/treasury/cheques', labelKey: 'cheques.nav', feature: 'cheques', permission: [SALES.view, PURCH.view] },
+          {
+            to: '/treasury/bank-reconciliation',
+            labelKey: 'accounting.tabs.bankReconciliation',
+            feature: 'accounting',
+            permission: 'accounting.manage',
+          },
+          { to: '/treasury/categories', labelKey: 'treasury.categories.title', section: 'settings' },
         ],
       },
       {
@@ -183,10 +193,9 @@ export const NAV_GROUPS: NavGroup[] = [
           { to: '/accounting/journal-entries', labelKey: 'accounting.tabs.journalEntries' },
           { to: '/accounting/recurring-entries', labelKey: 'accounting.tabs.recurring' },
           { to: '/accounting/reports', labelKey: 'accounting.tabs.reports' },
-          { to: '/accounting/bank-accounts', labelKey: 'accounting.tabs.bankReconciliation' },
           { to: '/accounting/fixed-assets', labelKey: 'accounting.tabs.fixedAssets', feature: 'fixed_assets' },
           { to: '/accounting/budgets', labelKey: 'accounting.tabs.budgets', feature: 'budgets' },
-          { to: '/accounting/cost-centers', labelKey: 'accounting.tabs.costCenters' },
+          { to: '/accounting/cost-centers', labelKey: 'accounting.tabs.costCenters', section: 'settings' },
           { to: '/accounting/fiscal-years', labelKey: 'accounting.tabs.fiscalYears' },
           { to: '/accounting/settings', labelKey: 'accounting.tabs.settings' },
         ],

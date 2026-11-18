@@ -53,7 +53,7 @@ export function BankAccountsTab() {
         columns={columns}
         data={bankAccounts ?? []}
         isLoading={isLoading}
-        onRowClick={(account) => navigate(`/accounting/bank-accounts/${account.id}`)}
+        onRowClick={(account) => navigate(`/treasury/bank-reconciliation/${account.id}`)}
       />
     </div>
   );

@@ -926,6 +926,8 @@ export interface SalesRepsTable {
   name: string;
   phone: string | null;
   user_id: string | null;
+  /** The HR employee this rep is (migration 0131, optional). */
+  employee_id: Generated<string | null>;
   /** NUMERIC(6,3) — string in/out. Stored for a later commission report. */
   commission_percentage: string | null;
   is_active: Generated<boolean>;

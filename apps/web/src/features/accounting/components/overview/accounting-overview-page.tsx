@@ -129,7 +129,7 @@ export function AccountingOverviewPage() {
             <Shortcut to="/accounting/reports/general-ledger" icon={<BookOpen />} label={t('accounting.reports.generalLedger')} />
             <Shortcut to="/accounting/reports/vat-return" icon={<FileSpreadsheet />} label={t('accounting.reports.vatReturn')} />
             <Shortcut to="/accounting/chart-of-accounts" icon={<ListTree />} label={t('accounting.tabs.chartOfAccounts')} />
-            <Shortcut to="/accounting/bank-accounts" icon={<Landmark />} label={t('accounting.bankAccounts.reconciliation')} />
+            <Shortcut to="/treasury/bank-reconciliation" icon={<Landmark />} label={t('accounting.bankAccounts.reconciliation')} />
             <Shortcut to="/accounting/fiscal-years" icon={<CalendarRange />} label={t('accounting.tabs.fiscalYears')} />
             <Shortcut to="/accounting/recurring-entries" icon={<Repeat />} label={t('accounting.tabs.recurring')} />
             <Shortcut to="/accounting/fixed-assets" icon={<Building2 />} label={t('accounting.tabs.fixedAssets')} />

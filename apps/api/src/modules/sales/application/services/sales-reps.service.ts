@@ -34,6 +34,8 @@ export class SalesRepsService {
       name: input.name,
       phone: input.phone?.trim() || null,
       user_id: input.userId ?? null,
+      // Left out → unchanged (a client that doesn't know the field must not drop the link).
+      ...(input.employeeId === undefined ? {} : { employee_id: input.employeeId }),
       commission_percentage:
         input.commissionPercentage === null || input.commissionPercentage === undefined ? null : String(input.commissionPercentage),
       is_active: input.isActive ?? true,
@@ -47,8 +49,16 @@ export class SalesRepsService {
         await db.insertInto('sales_reps').values({ id: repId, ...values }).execute();
       }
     } catch (err) {
-      if (isPostgresUniqueViolation(err)) throw duplicateEntity('SALES_REP', 'code', input.code);
+      if (isPostgresUniqueViolation(err)) {
+        if (constraintOf(err) === 'sales_reps_employee_idx') {
+          throw new BusinessRuleError('This employee is already linked to another sales rep.', { code: 'SALES_REP.EMPLOYEE_TAKEN' });
+        }
+        throw duplicateEntity('SALES_REP', 'code', input.code);
+      }
       if (isPostgresForeignKeyViolation(err)) {
+        if (constraintOf(err).includes('employee')) {
+          throw new BusinessRuleError('The selected employee does not exist.', { code: 'SALES_REP.EMPLOYEE_NOT_FOUND' });
+        }
         throw new BusinessRuleError('The selected user does not exist.', { code: 'SALES_REP.USER_NOT_FOUND' });
       }
       throw err;
@@ -75,8 +85,9 @@ export class SalesRepsService {
     return db
       .selectFrom('sales_reps as r')
       .leftJoin('users as u', 'u.id', 'r.user_id')
+      .leftJoin('employees as e', 'e.id', 'r.employee_id')
       .selectAll('r')
-      .select('u.full_name as user_name');
+      .select(['u.full_name as user_name', 'e.full_name as employee_name']);
   }
 }
 
@@ -111,6 +122,8 @@ function toDto(row: {
   phone: string | null;
   user_id: string | null;
   user_name: string | null;
+  employee_id: string | null;
+  employee_name: string | null;
   commission_percentage: string | null;
   is_active: boolean;
 }): SalesRepDto {
@@ -121,7 +134,13 @@ function toDto(row: {
     phone: row.phone,
     userId: row.user_id,
     userName: row.user_name,
+    employeeId: row.employee_id,
+    employeeName: row.employee_name,
     commissionPercentage: row.commission_percentage === null ? null : Number(row.commission_percentage),
     isActive: row.is_active,
   };
+}
+
+function constraintOf(err: unknown): string {
+  return typeof err === 'object' && err !== null && 'constraint' in err ? String((err as { constraint: unknown }).constraint ?? '') : '';
 }

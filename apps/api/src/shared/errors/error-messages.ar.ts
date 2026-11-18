@@ -181,6 +181,8 @@ export const AR_MESSAGES: Record<string, string> = {
   'SALES_REP.IN_USE': 'المندوب ده عليه عملاء أو مستندات، فمينفعش يتمسح. وقّفه بدل ما تمسحه.',
   'SALES_REP.INACTIVE': 'المندوب "{name}" موقوف، اختار مندوب تاني.',
   'SALES_REP.USER_NOT_FOUND': 'المستخدم اللي اخترته للمندوب مش موجود.',
+  'SALES_REP.EMPLOYEE_TAKEN': 'الموظف ده مربوط بمندوب تاني بالفعل.',
+  'SALES_REP.EMPLOYEE_NOT_FOUND': 'الموظف اللي اخترته للمندوب مش موجود.',
   'CHANNEL_SETTLEMENT.NOT_FOUND': 'التسوية المطلوبة مش موجودة.',
   'CHANNEL_SETTLEMENT.DUPLICATE_STATEMENT': 'الكشف "{reference}" متسجل قبل كده في التسوية {number}.',
   'CHANNEL_SETTLEMENT.FEE_ACCOUNT_MISSING': 'بند المصروف "{name}" ملوش حساب في دليل الحسابات — حدده من بنود الخزينة قبل الترحيل.',

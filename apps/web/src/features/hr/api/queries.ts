@@ -63,12 +63,13 @@ const KEYS = {
   jobTitles: ['hr', 'job-titles'] as const,
 };
 
-export function useEmployees(query: EmployeeListQueryDto = {}) {
+export function useEmployees(query: EmployeeListQueryDto = {}, enabled = true) {
   const params = new URLSearchParams();
   for (const [key, value] of Object.entries(query)) if (value) params.set(key, String(value));
   return useQuery({
     queryKey: [...KEYS.employees, 'list', query],
     queryFn: () => apiGet<EmployeeSummaryDto[]>(`/hr/employees?${params.toString()}`),
+    enabled,
   });
 }
 

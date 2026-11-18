@@ -73,7 +73,7 @@ export function BankReconciliationPage() {
   return (
     <div>
       <DocumentHeaderBar
-        backTo="/accounting/bank-accounts"
+        backTo="/treasury/bank-reconciliation"
         backLabel={t('accounting.tabs.bankAccounts')}
         eyebrow={t('accounting.bankAccounts.reconciliation')}
         title={account ? `${account.name} — ${account.bankName}` : '…'}

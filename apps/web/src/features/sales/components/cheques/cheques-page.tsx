@@ -1,8 +1,11 @@
-import { useMemo, type ReactNode } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { useTranslation } from 'react-i18next';
-import type { ColumnDef } from '@tanstack/react-table';
-import type { IssuedChequeDto, ReceivedChequeDto } from '@erp-platform/contracts';
+import { useMemo, type ReactNode } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { useTranslation } from "react-i18next";
+import type { ColumnDef } from "@tanstack/react-table";
+import type {
+  IssuedChequeDto,
+  ReceivedChequeDto,
+} from "@erp-platform/contracts";
 import {
   Button,
   Can,
@@ -16,32 +19,51 @@ import {
   TabsList,
   TabsTrigger,
   useHasPermission,
-} from '@erp-platform/ui';
-import { Banknote } from 'lucide-react';
+} from "@erp-platform/ui";
+import { Banknote } from "lucide-react";
 
-import { useIssuedCheques, useReceivedCheques } from '../../api/cheques/queries';
-import { Amount, AMOUNT_CELL } from '../../../../components/amount';
-import { StatusTabs } from '../../../../components/list/status-tabs';
-import { formatDate } from '../../../../lib/format-date';
-import { ChequeDueDate, chequeDueState, ChequeStatusBadge } from '../../../../components/document/cheque-fields';
-import { PAYMENTS_RECEIVED_PATH } from '../payments-received/payment-received-status';
-import { useChequeActions } from './use-cheque-actions';
-import { PURCH, SALES } from '../../../../lib/permissions';
+import {
+  useIssuedCheques,
+  useReceivedCheques,
+} from "../../api/cheques/queries";
+import { Amount, AMOUNT_CELL } from "../../../../components/amount";
+import { StatusTabs } from "../../../../components/list/status-tabs";
+import { formatDate } from "../../../../lib/format-date";
+import {
+  ChequeDueDate,
+  chequeDueState,
+  ChequeStatusBadge,
+} from "../../../../components/document/cheque-fields";
+import { PAYMENTS_RECEIVED_PATH } from "../payments-received/payment-received-status";
+import { useChequeActions } from "./use-cheque-actions";
+import { PURCH, SALES } from "../../../../lib/permissions";
 
-export const CHEQUES_PATH = '/sales/cheques';
-export const SUPPLIER_PAYMENTS_PATH = '/purchases/supplier-payments';
+export const CHEQUES_PATH = "/treasury/cheques";
+export const SUPPLIER_PAYMENTS_PATH = "/purchases/supplier-payments";
 
-type Side = 'received' | 'issued';
-type ReceivedFilter = 'all' | ReceivedChequeDto['status'];
-type IssuedFilter = 'all' | IssuedChequeDto['status'];
-const RECEIVED_FILTERS: readonly ReceivedFilter[] = ['all', 'in_hand', 'collected', 'bounced', 'endorsed'];
-const ISSUED_FILTERS: readonly IssuedFilter[] = ['all', 'issued', 'cleared'];
+type Side = "received" | "issued";
+type ReceivedFilter = "all" | ReceivedChequeDto["status"];
+type IssuedFilter = "all" | IssuedChequeDto["status"];
+const RECEIVED_FILTERS: readonly ReceivedFilter[] = [
+  "all",
+  "in_hand",
+  "collected",
+  "bounced",
+  "endorsed",
+];
+const ISSUED_FILTERS: readonly IssuedFilter[] = ["all", "issued", "cleared"];
 
 /** Sums per currency (cheques may be in several currencies). */
-function sumByCurrency(rows: { amount: { amountMinorUnits: string; currency: string } }[]): Map<string, bigint> {
+function sumByCurrency(
+  rows: { amount: { amountMinorUnits: string; currency: string } }[],
+): Map<string, bigint> {
   const sums = new Map<string, bigint>();
   for (const row of rows) {
-    sums.set(row.amount.currency, (sums.get(row.amount.currency) ?? 0n) + BigInt(row.amount.amountMinorUnits));
+    sums.set(
+      row.amount.currency,
+      (sums.get(row.amount.currency) ?? 0n) +
+        BigInt(row.amount.amountMinorUnits),
+    );
   }
   return sums;
 }
@@ -57,51 +79,102 @@ function Sums({ sums }: { sums: Map<string, bigint> }) {
   );
 }
 
-function Kpi({ label, value, hint, loading, tone }: { label: ReactNode; value: ReactNode; hint?: ReactNode; loading?: boolean; tone?: 'danger' | 'warning' }) {
+function Kpi({
+  label,
+  value,
+  hint,
+  loading,
+  tone,
+}: {
+  label: ReactNode;
+  value: ReactNode;
+  hint?: ReactNode;
+  loading?: boolean;
+  tone?: "danger" | "warning";
+}) {
   return (
     <div className="flex min-w-0 flex-col gap-1 rounded-xl border bg-card p-4 shadow-card">
       <span className="text-[13px] text-muted-foreground">{label}</span>
       {loading ? (
         <Skeleton className="h-7 w-24" />
       ) : (
-        <span className={cn('text-xl font-bold', tone === 'danger' && 'text-danger', tone === 'warning' && 'text-warning')}>{value}</span>
+        <span
+          className={cn(
+            "text-xl font-bold",
+            tone === "danger" && "text-danger",
+            tone === "warning" && "text-warning",
+          )}
+        >
+          {value}
+        </span>
       )}
-      {hint ? <span className="truncate text-xs text-muted-foreground">{hint}</span> : null}
+      {hint ? (
+        <span className="truncate text-xs text-muted-foreground">{hint}</span>
+      ) : null}
     </div>
   );
 }
 
-/** /sales/cheques — أوراق القبض (customer cheques) and أوراق الدفع (our cheques to suppliers). */
+/** /treasury/cheques — أوراق القبض (customer cheques) and أوراق الدفع (our cheques to suppliers). */
 export function ChequesPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
+  const canSales = useHasPermission(SALES.view);
   const canPurchases = useHasPermission(PURCH.view);
-  const side: Side = params.get('tab') === 'issued' && canPurchases ? 'issued' : 'received';
-  const rawStatus = params.get('status');
+  // Each side shows by its own permission; a purchases-only user lands on أوراق الدفع.
+  const side: Side =
+    canPurchases && (params.get("tab") === "issued" || !canSales)
+      ? "issued"
+      : "received";
+  const rawStatus = params.get("status");
   const receivedFilter: ReceivedFilter =
-    side === 'received' && RECEIVED_FILTERS.includes(rawStatus as ReceivedFilter) ? (rawStatus as ReceivedFilter) : 'all';
+    side === "received" &&
+    RECEIVED_FILTERS.includes(rawStatus as ReceivedFilter)
+      ? (rawStatus as ReceivedFilter)
+      : "all";
   const issuedFilter: IssuedFilter =
-    side === 'issued' && ISSUED_FILTERS.includes(rawStatus as IssuedFilter) ? (rawStatus as IssuedFilter) : 'all';
+    side === "issued" && ISSUED_FILTERS.includes(rawStatus as IssuedFilter)
+      ? (rawStatus as IssuedFilter)
+      : "all";
 
-  const { data: received, isLoading: receivedLoading } = useReceivedCheques();
-  const { data: issued, isLoading: issuedLoading } = useIssuedCheques({}, canPurchases);
+  const { data: received, isLoading: receivedLoading } = useReceivedCheques(
+    {},
+    canSales,
+  );
+  const { data: issued, isLoading: issuedLoading } = useIssuedCheques(
+    {},
+    canPurchases,
+  );
   const { open: openAction, dialog: actionDialog } = useChequeActions();
 
   const kpis = useMemo(() => {
-    const inHand = (received ?? []).filter((row) => row.status === 'in_hand');
+    const inHand = (received ?? []).filter((row) => row.status === "in_hand");
     return {
       inHand: sumByCurrency(inHand),
       inHandCount: inHand.length,
-      dueSoon: sumByCurrency(inHand.filter((row) => chequeDueState(row.dueDate) === 'soon')),
-      overdue: sumByCurrency(inHand.filter((row) => chequeDueState(row.dueDate) === 'overdue')),
-      issuedOutstanding: sumByCurrency((issued ?? []).filter((row) => row.status === 'issued')),
-      issuedCount: (issued ?? []).filter((row) => row.status === 'issued').length,
+      dueSoon: sumByCurrency(
+        inHand.filter((row) => chequeDueState(row.dueDate) === "soon"),
+      ),
+      overdue: sumByCurrency(
+        inHand.filter((row) => chequeDueState(row.dueDate) === "overdue"),
+      ),
+      issuedOutstanding: sumByCurrency(
+        (issued ?? []).filter((row) => row.status === "issued"),
+      ),
+      issuedCount: (issued ?? []).filter((row) => row.status === "issued")
+        .length,
     };
   }, [received, issued]);
 
   const receivedCounts = useMemo(() => {
-    const counts: Record<ReceivedFilter, number> = { all: 0, in_hand: 0, collected: 0, bounced: 0, endorsed: 0 };
+    const counts: Record<ReceivedFilter, number> = {
+      all: 0,
+      in_hand: 0,
+      collected: 0,
+      bounced: 0,
+      endorsed: 0,
+    };
     for (const row of received ?? []) {
       counts.all += 1;
       counts[row.status] += 1;
@@ -109,7 +182,11 @@ export function ChequesPage() {
     return counts;
   }, [received]);
   const issuedCounts = useMemo(() => {
-    const counts: Record<IssuedFilter, number> = { all: 0, issued: 0, cleared: 0 };
+    const counts: Record<IssuedFilter, number> = {
+      all: 0,
+      issued: 0,
+      cleared: 0,
+    };
     for (const row of issued ?? []) {
       counts.all += 1;
       counts[row.status] += 1;
@@ -118,35 +195,47 @@ export function ChequesPage() {
   }, [issued]);
 
   const receivedRows = useMemo(
-    () => (received ?? []).filter((row) => receivedFilter === 'all' || row.status === receivedFilter),
+    () =>
+      (received ?? []).filter(
+        (row) => receivedFilter === "all" || row.status === receivedFilter,
+      ),
     [received, receivedFilter],
   );
   const issuedRows = useMemo(
-    () => (issued ?? []).filter((row) => issuedFilter === 'all' || row.status === issuedFilter),
+    () =>
+      (issued ?? []).filter(
+        (row) => issuedFilter === "all" || row.status === issuedFilter,
+      ),
     [issued, issuedFilter],
   );
 
   const receivedColumns = useMemo<ColumnDef<ReceivedChequeDto>[]>(
     () => [
       {
-        id: 'chequeNumber',
-        header: t('cheques.number'),
-        accessorFn: (row) => row.chequeNumber ?? '',
+        id: "chequeNumber",
+        header: t("cheques.number"),
+        accessorFn: (row) => row.chequeNumber ?? "",
         cell: ({ row }) => (
           <span className="font-semibold tabular-nums" dir="ltr">
-            {row.original.chequeNumber ?? '—'}
+            {row.original.chequeNumber ?? "—"}
           </span>
         ),
       },
-      { id: 'bank', header: t('cheques.bank'), accessorFn: (row) => row.bank ?? '—' },
       {
-        accessorKey: 'customerName',
-        header: t('cheques.customer'),
-        cell: ({ row }) => <span className="font-medium">{row.original.customerName}</span>,
+        id: "bank",
+        header: t("cheques.bank"),
+        accessorFn: (row) => row.bank ?? "—",
       },
       {
-        accessorKey: 'paymentNumber',
-        header: t('cheques.receipt'),
+        accessorKey: "customerName",
+        header: t("cheques.customer"),
+        cell: ({ row }) => (
+          <span className="font-medium">{row.original.customerName}</span>
+        ),
+      },
+      {
+        accessorKey: "paymentNumber",
+        header: t("cheques.receipt"),
         cell: ({ row }) => (
           <Link
             to={`${PAYMENTS_RECEIVED_PATH}/${row.original.id}`}
@@ -158,45 +247,53 @@ export function ChequesPage() {
         ),
       },
       {
-        id: 'dueDate',
-        header: t('cheques.dueDate'),
-        accessorFn: (row) => row.dueDate ?? '',
+        id: "dueDate",
+        header: t("cheques.dueDate"),
+        accessorFn: (row) => row.dueDate ?? "",
         cell: ({ row }) => (
           <ChequeDueDate
             dueDate={row.original.dueDate}
             formatted={formatDate(row.original.dueDate)}
-            active={row.original.status === 'in_hand'}
+            active={row.original.status === "in_hand"}
           />
         ),
       },
       {
-        id: 'amount',
-        header: () => <div className={AMOUNT_CELL}>{t('cheques.amount')}</div>,
+        id: "amount",
+        header: () => <div className={AMOUNT_CELL}>{t("cheques.amount")}</div>,
         accessorFn: (row) => Number(row.amount.amountMinorUnits),
         cell: ({ row }) => (
           <div className={AMOUNT_CELL}>
-            <Amount value={row.original.amount.amountMinorUnits} currency={row.original.amount.currency} />
+            <Amount
+              value={row.original.amount.amountMinorUnits}
+              currency={row.original.amount.currency}
+            />
           </div>
         ),
       },
       {
-        id: 'status',
-        header: t('common.status'),
+        id: "status",
+        header: t("common.status"),
         accessorFn: (row) => t(`cheques.status.${row.status}`),
         cell: ({ row }) => {
           const cheque = row.original;
           const detail =
-            cheque.status === 'collected'
+            cheque.status === "collected"
               ? cheque.treasuryName
-              : cheque.status === 'endorsed'
+              : cheque.status === "endorsed"
                 ? cheque.endorsedToSupplierName
                 : null;
           return (
             <div className="flex flex-col items-start gap-0.5">
               <ChequeStatusBadge status={cheque.status} />
-              {cheque.status !== 'in_hand' && (cheque.statusDate || detail) ? (
+              {cheque.status !== "in_hand" && (cheque.statusDate || detail) ? (
                 <span className="text-xs text-muted-foreground">
-                  {[detail, cheque.statusDate ? formatDate(cheque.statusDate) : null].filter(Boolean).join(' · ')}
+                  {[
+                    detail,
+                    cheque.statusDate ? formatDate(cheque.statusDate) : null,
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")}
                 </span>
               ) : null}
             </div>
@@ -204,26 +301,37 @@ export function ChequesPage() {
         },
       },
       {
-        id: 'actions',
-        header: '',
+        id: "actions",
+        header: "",
         enableSorting: false,
         cell: ({ row }) => {
           const cheque = row.original;
-          if (cheque.status !== 'in_hand') return null;
-          const target = { id: cheque.id, currency: cheque.amount.currency, chequeNumber: cheque.chequeNumber };
+          if (cheque.status !== "in_hand") return null;
+          const target = {
+            id: cheque.id,
+            currency: cheque.amount.currency,
+            chequeNumber: cheque.chequeNumber,
+          };
           return (
             <Can permission={SALES.post}>
-              <div className="flex justify-end gap-1.5" onClick={(event) => event.stopPropagation()}>
-                <Button size="sm" variant="outline" onClick={() => openAction('collect', target)}>
-                  {t('cheques.actions.collect')}
+              <div
+                className="flex justify-end gap-1.5"
+                onClick={(event) => event.stopPropagation()}
+              >
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => openAction("collect", target)}
+                >
+                  {t("cheques.actions.collect")}
                 </Button>
                 <Button
                   size="sm"
                   variant="ghost"
                   className="text-danger hover:bg-danger-soft hover:text-danger"
-                  onClick={() => openAction('bounce', target)}
+                  onClick={() => openAction("bounce", target)}
                 >
-                  {t('cheques.actions.bounce')}
+                  {t("cheques.actions.bounce")}
                 </Button>
               </div>
             </Can>
@@ -237,28 +345,30 @@ export function ChequesPage() {
   const issuedColumns = useMemo<ColumnDef<IssuedChequeDto>[]>(
     () => [
       {
-        id: 'chequeNumber',
-        header: t('cheques.number'),
-        accessorFn: (row) => row.chequeNumber ?? '',
+        id: "chequeNumber",
+        header: t("cheques.number"),
+        accessorFn: (row) => row.chequeNumber ?? "",
         cell: ({ row }) => (
           <span className="font-semibold tabular-nums" dir="ltr">
-            {row.original.chequeNumber ?? '—'}
+            {row.original.chequeNumber ?? "—"}
           </span>
         ),
       },
       {
-        id: 'bank',
-        header: t('cheques.bank'),
-        accessorFn: (row) => row.bank ?? row.treasuryName ?? '—',
+        id: "bank",
+        header: t("cheques.bank"),
+        accessorFn: (row) => row.bank ?? row.treasuryName ?? "—",
       },
       {
-        accessorKey: 'supplierName',
-        header: t('cheques.supplier'),
-        cell: ({ row }) => <span className="font-medium">{row.original.supplierName}</span>,
+        accessorKey: "supplierName",
+        header: t("cheques.supplier"),
+        cell: ({ row }) => (
+          <span className="font-medium">{row.original.supplierName}</span>
+        ),
       },
       {
-        accessorKey: 'paymentNumber',
-        header: t('cheques.supplierPayment'),
+        accessorKey: "paymentNumber",
+        header: t("cheques.supplierPayment"),
         cell: ({ row }) => (
           <Link
             to={`${SUPPLIER_PAYMENTS_PATH}/${row.original.id}`}
@@ -270,58 +380,70 @@ export function ChequesPage() {
         ),
       },
       {
-        id: 'dueDate',
-        header: t('cheques.dueDate'),
-        accessorFn: (row) => row.dueDate ?? '',
+        id: "dueDate",
+        header: t("cheques.dueDate"),
+        accessorFn: (row) => row.dueDate ?? "",
         cell: ({ row }) => (
           <ChequeDueDate
             dueDate={row.original.dueDate}
             formatted={formatDate(row.original.dueDate)}
-            active={row.original.status === 'issued'}
+            active={row.original.status === "issued"}
           />
         ),
       },
       {
-        id: 'amount',
-        header: () => <div className={AMOUNT_CELL}>{t('cheques.amount')}</div>,
+        id: "amount",
+        header: () => <div className={AMOUNT_CELL}>{t("cheques.amount")}</div>,
         accessorFn: (row) => Number(row.amount.amountMinorUnits),
         cell: ({ row }) => (
           <div className={AMOUNT_CELL}>
-            <Amount value={row.original.amount.amountMinorUnits} currency={row.original.amount.currency} />
+            <Amount
+              value={row.original.amount.amountMinorUnits}
+              currency={row.original.amount.currency}
+            />
           </div>
         ),
       },
       {
-        id: 'status',
-        header: t('common.status'),
+        id: "status",
+        header: t("common.status"),
         accessorFn: (row) => t(`cheques.status.${row.status}`),
         cell: ({ row }) => (
           <div className="flex flex-col items-start gap-0.5">
             <ChequeStatusBadge status={row.original.status} />
-            {row.original.status === 'cleared' && row.original.statusDate ? (
-              <span className="text-xs text-muted-foreground">{formatDate(row.original.statusDate)}</span>
+            {row.original.status === "cleared" && row.original.statusDate ? (
+              <span className="text-xs text-muted-foreground">
+                {formatDate(row.original.statusDate)}
+              </span>
             ) : null}
           </div>
         ),
       },
       {
-        id: 'actions',
-        header: '',
+        id: "actions",
+        header: "",
         enableSorting: false,
         cell: ({ row }) => {
           const cheque = row.original;
-          if (cheque.status !== 'issued') return null;
+          if (cheque.status !== "issued") return null;
           return (
             <Can permission={PURCH.post}>
-              <div className="flex justify-end" onClick={(event) => event.stopPropagation()}>
+              <div
+                className="flex justify-end"
+                onClick={(event) => event.stopPropagation()}
+              >
                 <Button
                   size="sm"
                   variant="outline"
                   onClick={() =>
-                    openAction('clear', { id: cheque.id, currency: cheque.amount.currency, chequeNumber: cheque.chequeNumber })
+                    openAction("clear", {
+                      id: cheque.id,
+                      currency: cheque.amount.currency,
+                      chequeNumber: cheque.chequeNumber,
+                    })
                   }
                 >
-                  {t('cheques.actions.clear')}
+                  {t("cheques.actions.clear")}
                 </Button>
               </div>
             </Can>
@@ -333,79 +455,102 @@ export function ChequesPage() {
   );
 
   function setSide(next: string) {
-    setParams(next === 'issued' ? { tab: 'issued' } : {}, { replace: true });
+    setParams(next === "issued" ? { tab: "issued" } : {}, { replace: true });
   }
   function setStatus(next: string) {
     const query: Record<string, string> = {};
-    if (side === 'issued') query.tab = 'issued';
-    if (next !== 'all') query.status = next;
+    if (side === "issued") query.tab = "issued";
+    if (next !== "all") query.status = next;
     setParams(query, { replace: true });
   }
 
   return (
     <div className="flex flex-col gap-5">
-      <PageHeader title={t('cheques.title')} description={t('cheques.subtitle')} />
+      <PageHeader
+        title={t("cheques.title")}
+        description={t("cheques.subtitle")}
+      />
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Kpi
-          label={t('cheques.kpi.inHand')}
-          loading={receivedLoading}
-          value={<Sums sums={kpis.inHand} />}
-          hint={t('cheques.kpi.count', { count: kpis.inHandCount })}
-        />
-        <Kpi
-          label={t('cheques.kpi.dueThisWeek')}
-          loading={receivedLoading}
-          tone={kpis.dueSoon.size > 0 ? 'warning' : undefined}
-          value={<Sums sums={kpis.dueSoon} />}
-        />
-        <Kpi
-          label={t('cheques.kpi.overdue')}
-          loading={receivedLoading}
-          tone={kpis.overdue.size > 0 ? 'danger' : undefined}
-          value={<Sums sums={kpis.overdue} />}
-        />
+        {canSales ? (
+          <>
+            <Kpi
+              label={t("cheques.kpi.inHand")}
+              loading={receivedLoading}
+              value={<Sums sums={kpis.inHand} />}
+              hint={t("cheques.kpi.count", { count: kpis.inHandCount })}
+            />
+            <Kpi
+              label={t("cheques.kpi.dueThisWeek")}
+              loading={receivedLoading}
+              tone={kpis.dueSoon.size > 0 ? "warning" : undefined}
+              value={<Sums sums={kpis.dueSoon} />}
+            />
+            <Kpi
+              label={t("cheques.kpi.overdue")}
+              loading={receivedLoading}
+              tone={kpis.overdue.size > 0 ? "danger" : undefined}
+              value={<Sums sums={kpis.overdue} />}
+            />
+          </>
+        ) : null}
         <Can permission={PURCH.view}>
           <Kpi
-            label={t('cheques.kpi.issuedOutstanding')}
+            label={t("cheques.kpi.issuedOutstanding")}
             loading={issuedLoading}
             value={<Sums sums={kpis.issuedOutstanding} />}
-            hint={t('cheques.kpi.count', { count: kpis.issuedCount })}
+            hint={t("cheques.kpi.count", { count: kpis.issuedCount })}
           />
         </Can>
       </div>
 
       <Tabs value={side} onValueChange={setSide}>
         <TabsList>
-          <TabsTrigger value="received">{t('cheques.tabs.received')}</TabsTrigger>
+          {canSales ? (
+            <TabsTrigger value="received">
+              {t("cheques.tabs.received")}
+            </TabsTrigger>
+          ) : null}
           <Can permission={PURCH.view}>
-            <TabsTrigger value="issued">{t('cheques.tabs.issued')}</TabsTrigger>
+            <TabsTrigger value="issued">{t("cheques.tabs.issued")}</TabsTrigger>
           </Can>
         </TabsList>
-        <TabsContent value="received" className="mt-4">
-          <DataTable
-            columns={receivedColumns}
-            data={receivedRows}
-            isLoading={receivedLoading}
-            searchable
-            searchPlaceholder={t('cheques.search')}
-            onRowClick={(cheque) => navigate(`${PAYMENTS_RECEIVED_PATH}/${cheque.id}`)}
-            emptyState={
-              receivedFilter === 'all' ? (
-                <EmptyState icon={<Banknote />} title={t('cheques.emptyReceived')} description={t('cheques.emptyReceivedHint')} />
-              ) : undefined
-            }
-            toolbar={
-              <StatusTabs
-                tabs={RECEIVED_FILTERS}
-                value={receivedFilter}
-                onChange={setStatus}
-                label={(tab) => (tab === 'all' ? t('documents.all') : t(`cheques.status.${tab}`))}
-                counts={receivedCounts}
-              />
-            }
-          />
-        </TabsContent>
+        {canSales ? (
+          <TabsContent value="received" className="mt-4">
+            <DataTable
+              columns={receivedColumns}
+              data={receivedRows}
+              isLoading={receivedLoading}
+              searchable
+              searchPlaceholder={t("cheques.search")}
+              onRowClick={(cheque) =>
+                navigate(`${PAYMENTS_RECEIVED_PATH}/${cheque.id}`)
+              }
+              emptyState={
+                receivedFilter === "all" ? (
+                  <EmptyState
+                    icon={<Banknote />}
+                    title={t("cheques.emptyReceived")}
+                    description={t("cheques.emptyReceivedHint")}
+                  />
+                ) : undefined
+              }
+              toolbar={
+                <StatusTabs
+                  tabs={RECEIVED_FILTERS}
+                  value={receivedFilter}
+                  onChange={setStatus}
+                  label={(tab) =>
+                    tab === "all"
+                      ? t("documents.all")
+                      : t(`cheques.status.${tab}`)
+                  }
+                  counts={receivedCounts}
+                />
+              }
+            />
+          </TabsContent>
+        ) : null}
         {canPurchases ? (
           <TabsContent value="issued" className="mt-4">
             <DataTable
@@ -413,17 +558,28 @@ export function ChequesPage() {
               data={issuedRows}
               isLoading={issuedLoading}
               searchable
-              searchPlaceholder={t('cheques.search')}
-              onRowClick={(cheque) => navigate(`${SUPPLIER_PAYMENTS_PATH}/${cheque.id}`)}
+              searchPlaceholder={t("cheques.search")}
+              onRowClick={(cheque) =>
+                navigate(`${SUPPLIER_PAYMENTS_PATH}/${cheque.id}`)
+              }
               emptyState={
-                issuedFilter === 'all' ? <EmptyState icon={<Banknote />} title={t('cheques.emptyIssued')} /> : undefined
+                issuedFilter === "all" ? (
+                  <EmptyState
+                    icon={<Banknote />}
+                    title={t("cheques.emptyIssued")}
+                  />
+                ) : undefined
               }
               toolbar={
                 <StatusTabs
                   tabs={ISSUED_FILTERS}
                   value={issuedFilter}
                   onChange={setStatus}
-                  label={(tab) => (tab === 'all' ? t('documents.all') : t(`cheques.status.${tab}`))}
+                  label={(tab) =>
+                    tab === "all"
+                      ? t("documents.all")
+                      : t(`cheques.status.${tab}`)
+                  }
                   counts={issuedCounts}
                 />
               }

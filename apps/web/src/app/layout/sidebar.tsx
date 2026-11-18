@@ -1,11 +1,12 @@
-import { NavLink, useLocation } from 'react-router-dom';
-import { useTranslation } from 'react-i18next';
-import { Can, cn, useFeatureChecker, usePermissions } from '@erp-platform/ui';
-import { PanelRightClose, PanelRightOpen, Settings2 } from 'lucide-react';
+import { Fragment } from "react";
+import { NavLink, useLocation } from "react-router-dom";
+import { useTranslation } from "react-i18next";
+import { Can, cn, useFeatureChecker, usePermissions } from "@erp-platform/ui";
+import { PanelRightClose, PanelRightOpen, Settings2 } from "lucide-react";
 
-import { BrandMark, BrandWordmark } from '../../components/brand/brand-mark';
-import { hasAny } from '../../lib/permissions';
-import { NAV_GROUPS, isPathActive, type NavItem } from './nav-items';
+import { BrandMark, BrandWordmark } from "../../components/brand/brand-mark";
+import { hasAny } from "../../lib/permissions";
+import { NAV_GROUPS, isPathActive, type NavItem } from "./nav-items";
 
 interface SidebarProps {
   /** Icon-only rail (desktop). Never true inside the mobile drawer. */
@@ -14,7 +15,11 @@ interface SidebarProps {
   onToggleCollapsed?: () => void;
 }
 
-export function Sidebar({ collapsed, onNavigate, onToggleCollapsed }: SidebarProps) {
+export function Sidebar({
+  collapsed,
+  onNavigate,
+  onToggleCollapsed,
+}: SidebarProps) {
   const { t } = useTranslation();
   const { pathname } = useLocation();
   const hasFeature = useFeatureChecker();
@@ -31,36 +36,55 @@ export function Sidebar({ collapsed, onNavigate, onToggleCollapsed }: SidebarPro
       <div key={item.to} className="group/item relative flex flex-col gap-0.5">
         <NavLink
           to={item.to}
-          end={item.to === '/'}
+          end={item.to === "/"}
           onClick={onNavigate}
           title={collapsed ? label : undefined}
-          aria-current={active && !hasChildren ? 'page' : undefined}
+          aria-current={active && !hasChildren ? "page" : undefined}
           className={cn(
-            'group relative flex h-10 items-center gap-3 rounded-lg px-3 text-sm font-medium text-sidebar-mutedForeground outline-none transition-colors hover:bg-sidebar-accent/60 hover:text-sidebar-foreground focus-visible:ring-2 focus-visible:ring-ring',
-            collapsed && 'justify-center px-0',
-            active && !hasChildren && 'bg-sidebar-accent font-semibold text-sidebar-accentForeground',
-            active && hasChildren && 'font-semibold text-sidebar-accentForeground',
-            active && hasChildren && collapsed && 'bg-sidebar-accent',
+            "group relative flex h-10 items-center gap-3 rounded-lg px-3 text-sm font-medium text-sidebar-mutedForeground outline-none transition-colors hover:bg-sidebar-accent/60 hover:text-sidebar-foreground focus-visible:ring-2 focus-visible:ring-ring",
+            collapsed && "justify-center px-0",
+            active &&
+              !hasChildren &&
+              "bg-sidebar-accent font-semibold text-sidebar-accentForeground",
+            active &&
+              hasChildren &&
+              "font-semibold text-sidebar-accentForeground",
+            active && hasChildren && collapsed && "bg-sidebar-accent",
           )}
         >
           {active ? (
             // Ubaa orange marks where you are.
-            <span aria-hidden="true" className="absolute inset-y-2 start-0 w-[3px] rounded-full bg-highlight" />
+            <span
+              aria-hidden="true"
+              className="absolute inset-y-2 start-0 w-[3px] rounded-full bg-highlight"
+            />
           ) : null}
-          {Icon ? <Icon className="h-[18px] w-[18px] shrink-0" strokeWidth={1.9} aria-hidden="true" /> : null}
-          {collapsed ? <span className="sr-only">{label}</span> : <span className="truncate">{label}</span>}
+          {Icon ? (
+            <Icon
+              className="h-[18px] w-[18px] shrink-0"
+              strokeWidth={1.9}
+              aria-hidden="true"
+            />
+          ) : null}
+          {collapsed ? (
+            <span className="sr-only">{label}</span>
+          ) : (
+            <span className="truncate">{label}</span>
+          )}
         </NavLink>
-        {item.settings && !collapsed && hasAny(granted, item.settings.permission) ? (
+        {item.settings &&
+        !collapsed &&
+        hasAny(granted, item.settings.permission) ? (
           <NavLink
             to={item.settings.to}
             onClick={onNavigate}
-            title={t('nav.moduleSettings', { module: label })}
-            aria-label={t('nav.moduleSettings', { module: label })}
+            title={t("nav.moduleSettings", { module: label })}
+            aria-label={t("nav.moduleSettings", { module: label })}
             className={({ isActive }) =>
               cn(
-                'absolute end-1.5 top-1.5 flex h-7 w-7 items-center justify-center rounded-md text-sidebar-mutedForeground opacity-0 transition hover:bg-sidebar-accent hover:text-sidebar-foreground focus-visible:opacity-100 group-hover/item:opacity-100',
-                (active || isActive) && 'opacity-100',
-                isActive && 'bg-sidebar-accent text-sidebar-accentForeground',
+                "absolute end-1.5 top-1.5 flex h-7 w-7 items-center justify-center rounded-md text-sidebar-mutedForeground opacity-0 transition hover:bg-sidebar-accent hover:text-sidebar-foreground focus-visible:opacity-100 group-hover/item:opacity-100",
+                (active || isActive) && "opacity-100",
+                isActive && "bg-sidebar-accent text-sidebar-accentForeground",
               )
             }
           >
@@ -72,24 +96,33 @@ export function Sidebar({ collapsed, onNavigate, onToggleCollapsed }: SidebarPro
           <div className="ms-[21px] flex flex-col gap-0.5 border-s border-sidebar-border ps-2.5 pb-1 pt-0.5">
             {item
               .children!.filter(
-                (child) => (!child.feature || hasFeature(child.feature)) && hasAny(granted, child.permission),
+                (child) =>
+                  (!child.feature || hasFeature(child.feature)) &&
+                  hasAny(granted, child.permission),
               )
               .map((child) => (
-                <NavLink
-                  key={child.to}
-                  to={child.to}
-                  // A section's index page (same path as the section) is active only on itself.
-                  end={child.to === item.to}
-                  onClick={onNavigate}
-                  className={({ isActive }) =>
-                    cn(
-                      'flex h-8 items-center rounded-md px-2.5 text-[13px] text-sidebar-mutedForeground transition-colors hover:bg-sidebar-accent/60 hover:text-sidebar-foreground',
-                      isActive && 'bg-sidebar-accent font-semibold text-sidebar-accentForeground',
-                    )
-                  }
-                >
-                  <span className="truncate">{t(child.labelKey)}</span>
-                </NavLink>
+                <Fragment key={child.to}>
+                  {child.section ? (
+                    <div className="mt-2 px-2.5 pb-0.5 text-[11px] font-semibold uppercase tracking-wide text-sidebar-mutedForeground/70">
+                      {t(`nav.sections.${child.section}`)}
+                    </div>
+                  ) : null}
+                  <NavLink
+                    to={child.to}
+                    // A section's index page (same path as the section) is active only on itself.
+                    end={child.to === item.to}
+                    onClick={onNavigate}
+                    className={({ isActive }) =>
+                      cn(
+                        "flex h-8 items-center rounded-md px-2.5 text-[13px] text-sidebar-mutedForeground transition-colors hover:bg-sidebar-accent/60 hover:text-sidebar-foreground",
+                        isActive &&
+                          "bg-sidebar-accent font-semibold text-sidebar-accentForeground",
+                      )
+                    }
+                  >
+                    <span className="truncate">{t(child.labelKey)}</span>
+                  </NavLink>
+                </Fragment>
               ))}
           </div>
         ) : null}
@@ -109,19 +142,24 @@ export function Sidebar({ collapsed, onNavigate, onToggleCollapsed }: SidebarPro
     <div className="flex h-full flex-col">
       <div
         className={cn(
-          'mb-2 flex h-[72px] shrink-0 items-center justify-center gap-3 border-b border-sidebar-border px-5',
-          collapsed && 'justify-center px-0',
+          "mb-2 flex h-[72px] shrink-0 items-center justify-center gap-3 border-b border-sidebar-border px-5",
+          collapsed && "justify-center px-0",
         )}
       >
         {/* Latin lockup reads mark → name left-to-right, so the name comes first in this RTL row. */}
-        {!collapsed ? <BrandWordmark title={t('app.name')} className="h-6 w-auto text-sidebar-foreground" /> : null}
+        {!collapsed ? (
+          <BrandWordmark
+            title={t("app.name")}
+            className="h-6 w-auto text-sidebar-foreground"
+          />
+        ) : null}
         {/* The sidebar is always a dark brand surface, so the mark sits on its white tile. */}
-        <BrandMark tile className={collapsed ? 'h-10 w-10' : 'h-11 w-11'} />
+        <BrandMark tile className={collapsed ? "h-10 w-10" : "h-11 w-11"} />
       </div>
 
       <nav
         className="scrollbar-thin flex flex-1 flex-col gap-1 overflow-y-auto px-3 pb-3"
-        aria-label={t('app.name')}
+        aria-label={t("app.name")}
       >
         {NAV_GROUPS.map((group) => {
           const permissions = group.items
@@ -130,7 +168,10 @@ export function Sidebar({ collapsed, onNavigate, onToggleCollapsed }: SidebarPro
             .flat();
           const heading = group.labelKey ? (
             collapsed ? (
-              <div className="mx-auto my-2 h-px w-6 bg-sidebar-border" aria-hidden="true" />
+              <div
+                className="mx-auto my-2 h-px w-6 bg-sidebar-border"
+                aria-hidden="true"
+              />
             ) : (
               <p className="px-3 pb-1 pt-4 text-[11px] font-semibold text-sidebar-mutedForeground/80">
                 {t(group.labelKey)}
@@ -158,14 +199,18 @@ export function Sidebar({ collapsed, onNavigate, onToggleCollapsed }: SidebarPro
             type="button"
             onClick={onToggleCollapsed}
             className={cn(
-              'flex h-9 w-full items-center gap-3 rounded-lg px-3 text-[13px] text-sidebar-mutedForeground transition-colors hover:bg-sidebar-accent/60 hover:text-sidebar-foreground',
-              collapsed && 'justify-center px-0',
+              "flex h-9 w-full items-center gap-3 rounded-lg px-3 text-[13px] text-sidebar-mutedForeground transition-colors hover:bg-sidebar-accent/60 hover:text-sidebar-foreground",
+              collapsed && "justify-center px-0",
             )}
-            aria-label={collapsed ? t('nav.expand') : t('nav.collapse')}
-            title={collapsed ? t('nav.expand') : undefined}
+            aria-label={collapsed ? t("nav.expand") : t("nav.collapse")}
+            title={collapsed ? t("nav.expand") : undefined}
           >
-            {collapsed ? <PanelRightOpen className="h-4 w-4" /> : <PanelRightClose className="h-4 w-4" />}
-            {!collapsed ? <span>{t('nav.collapse')}</span> : null}
+            {collapsed ? (
+              <PanelRightOpen className="h-4 w-4" />
+            ) : (
+              <PanelRightClose className="h-4 w-4" />
+            )}
+            {!collapsed ? <span>{t("nav.collapse")}</span> : null}
           </button>
         </div>
       ) : null}

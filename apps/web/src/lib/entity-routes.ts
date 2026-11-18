@@ -22,7 +22,7 @@ export const ENTITY_ROUTES: Record<string, (id: string) => string> = {
   purchase_invoice: (id) => `/purchases/purchase-invoices/${id}`,
   supplier_payment: (id) => `/purchases/supplier-payments/${id}`,
   journal_entry: (id) => `/accounting/journal-entries/${id}`,
-  bank_account: (id) => `/accounting/bank-accounts/${id}`,
+  bank_account: (id) => `/treasury/bank-reconciliation/${id}`,
   recurring_entry: (id) => `/accounting/recurring-entries/${id}`,
   fixed_asset: (id) => `/accounting/fixed-assets/${id}`,
   budget: (id) => `/accounting/budgets/${id}`,

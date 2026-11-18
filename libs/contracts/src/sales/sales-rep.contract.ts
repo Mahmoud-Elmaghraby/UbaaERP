@@ -9,6 +9,9 @@ export const salesRepSchema = z.object({
   /** The system user this rep logs in as (optional). */
   userId: z.string().uuid().nullable(),
   userName: z.string().nullable(),
+  /** The HR employee this rep is (optional). */
+  employeeId: z.string().uuid().nullable().default(null),
+  employeeName: z.string().nullable().default(null),
   /** Stored for a later commission report; nothing computes with it yet. */
   commissionPercentage: z.number().nullable(),
   isActive: z.boolean(),
@@ -20,6 +23,7 @@ export const saveSalesRepSchema = z.object({
   name: z.string().trim().min(1).max(80),
   phone: z.string().trim().max(30).nullable().optional(),
   userId: z.string().uuid().nullable().optional(),
+  employeeId: z.string().uuid().nullable().optional(),
   commissionPercentage: z.number().min(0).max(100).nullable().optional(),
   isActive: z.boolean().optional(),
 });
