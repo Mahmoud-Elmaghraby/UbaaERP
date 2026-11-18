@@ -42,3 +42,12 @@ export const purchaseLimitsCheckSchema = z.object({
   blocked: z.boolean(),
 });
 export type PurchaseLimitsCheckDto = z.infer<typeof purchaseLimitsCheckSchema>;
+
+/** Before confirming a goods receipt dated in the past: items that already went out after that date. */
+export const stockBackdateCheckSchema = z.object({
+  stockDate: z.string().nullable(),
+  backdatedSales: z.array(
+    z.object({ productVariantId: z.string().uuid(), productName: z.string(), count: z.number(), lastDate: z.string() }),
+  ),
+});
+export type StockBackdateCheckDto = z.infer<typeof stockBackdateCheckSchema>;

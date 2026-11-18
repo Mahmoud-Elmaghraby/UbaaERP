@@ -214,7 +214,8 @@ export class SalesAnalysisService {
         channel_name: string | null;
       }>`
         WITH notes AS (
-          SELECT cn.id, cn.sales_return_id, cn.customer_id, cn.currency, cn.created_at::date AS doc_date,
+          -- A credit note belongs to its return's date (the date its journal entry uses), not the day it was recorded.
+          SELECT cn.id, cn.sales_return_id, cn.customer_id, cn.currency, COALESCE(sr.return_date::date, (cn.created_at AT TIME ZONE 'Africa/Cairo')::date) AS doc_date,
                  COALESCE(
                    (SELECT si.sales_rep_id FROM sales_invoices si
                      WHERE si.sales_order_id = d.sales_order_id AND si.status = 'posted'
@@ -229,8 +230,8 @@ export class SalesAnalysisService {
             JOIN sales_returns sr ON sr.id = cn.sales_return_id
             JOIN deliveries d ON d.id = sr.delivery_id
             JOIN sales_orders so ON so.id = d.sales_order_id
-           WHERE (${fromDate}::date IS NULL OR cn.created_at::date >= ${fromDate}::date)
-             AND (${toDate}::date IS NULL OR cn.created_at::date <= ${toDate}::date)
+           WHERE (${fromDate}::date IS NULL OR COALESCE(sr.return_date::date, (cn.created_at AT TIME ZONE 'Africa/Cairo')::date) >= ${fromDate}::date)
+             AND (${toDate}::date IS NULL OR COALESCE(sr.return_date::date, (cn.created_at AT TIME ZONE 'Africa/Cairo')::date) <= ${toDate}::date)
              AND (${customerId}::uuid IS NULL OR cn.customer_id = ${customerId}::uuid)
         )
         SELECT n.id AS sales_credit_note_id, n.sales_return_id, l.product_variant_id,

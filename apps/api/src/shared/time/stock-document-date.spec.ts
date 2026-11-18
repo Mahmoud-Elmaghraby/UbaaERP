@@ -3,14 +3,16 @@ import type { TenantDatabase } from '../../database/tenant/kysely-client';
 import { assertStockDocumentDate } from './stock-document-date';
 import { localIsoDate } from './local-date';
 
-/** A Kysely stand-in whose accounting_periods lookup returns `period`. */
-function dbWithPeriod(period: { name: string; status: string } | undefined) {
-  const query = {
-    select: () => query,
-    where: () => query,
-    executeTakeFirst: async () => period,
+/** A Kysely stand-in: accounting_periods returns `period`; app_settings returns 'documents.allowFutureDates'. */
+function dbWithPeriod(period: { name: string; status: string } | undefined, allowFutureDates?: boolean) {
+  const query = (row: unknown) => {
+    const q = { select: () => q, where: () => q, executeTakeFirst: async () => row };
+    return q;
   };
-  return { selectFrom: () => query } as unknown as Kysely<TenantDatabase>;
+  return {
+    selectFrom: (table: string) =>
+      table === 'app_settings' ? query(allowFutureDates === undefined ? undefined : { value: allowFutureDates }) : query(period),
+  } as unknown as Kysely<TenantDatabase>;
 }
 
 describe('assertStockDocumentDate', () => {
@@ -26,12 +28,19 @@ describe('assertStockDocumentDate', () => {
     await expect(assertStockDocumentDate(dbWithPeriod(undefined), null)).resolves.toBeUndefined();
   });
 
-  it('refuses a future date', async () => {
+  it('refuses a future date when the settings forbid future-dated documents', async () => {
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
-    await expect(assertStockDocumentDate(dbWithPeriod(undefined), localIsoDate(tomorrow))).rejects.toMatchObject({
+    await expect(assertStockDocumentDate(dbWithPeriod(undefined, false), localIsoDate(tomorrow))).rejects.toMatchObject({
       code: 'DOCUMENT_DATE.IN_FUTURE',
     });
+  });
+
+  it('accepts a future date when the settings allow future-dated documents (the default)', async () => {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    await expect(assertStockDocumentDate(dbWithPeriod(undefined, true), localIsoDate(tomorrow))).resolves.toBeUndefined();
+    await expect(assertStockDocumentDate(dbWithPeriod(undefined), localIsoDate(tomorrow))).resolves.toBeUndefined();
   });
 
   it('refuses a date inside a closed period', async () => {

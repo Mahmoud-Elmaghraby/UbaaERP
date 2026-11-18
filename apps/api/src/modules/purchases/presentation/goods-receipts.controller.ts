@@ -8,6 +8,7 @@ import {
   type CreateGoodsReceiptDto,
 } from '@erp-platform/contracts';
 import type { GoodsReceipt, GoodsReceiptWithLines } from '../domain/goods-receipt.entity';
+import type { StockBackdateCheckDto } from '@erp-platform/contracts';
 import { TenantConnectionManager } from '../../../shared/tenancy/tenant-connection-manager';
 import { CurrentTenantSchema } from '../../../shared/auth/current-tenant-schema.decorator';
 import { CurrentUser } from '../../../shared/auth/current-user.decorator';
@@ -58,6 +59,12 @@ export class GoodsReceiptsController {
       ? await this.service.listByPurchaseOrderId(db, purchaseOrderId)
       : await this.service.list(db);
     return receipts.map(receiptToDto);
+  }
+
+  @Get(':id/backdate-check')
+  @RequirePermissions(PU.view)
+  backdateCheck(@CurrentTenantSchema() schema: string, @Param('id') id: string): Promise<StockBackdateCheckDto> {
+    return this.service.backdateCheck(this.connections.getClient(schema), id);
   }
 
   @Get(':id')

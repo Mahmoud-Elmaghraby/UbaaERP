@@ -117,10 +117,12 @@ export class CustomerLedgerSource implements PartyLedgerSource {
     }
 
     // Credit notes (issued on creation — there is no draft state).
+    // Dated on the return's date (what its journal entry uses), not the day it was recorded.
     let creditNotes = db
-      .selectFrom('sales_credit_notes')
-      .select(['id', 'credit_note_number', 'customer_id', 'created_at']);
-    if (customerId) creditNotes = creditNotes.where('customer_id', '=', customerId);
+      .selectFrom('sales_credit_notes as cn')
+      .leftJoin('sales_returns as sr', 'sr.id', 'cn.sales_return_id')
+      .select(['cn.id', 'cn.credit_note_number', 'cn.customer_id', 'cn.created_at', 'sr.return_date']);
+    if (customerId) creditNotes = creditNotes.where('cn.customer_id', '=', customerId);
     const creditNoteRows = await creditNotes.execute();
     if (creditNoteRows.length > 0) {
       const lines = await db
@@ -136,7 +138,7 @@ export class CustomerLedgerSource implements PartyLedgerSource {
         entries.push({
           partyId: note.customer_id,
           currency: total.currency,
-          date: localIsoDate(note.created_at),
+          date: note.return_date ?? localIsoDate(note.created_at),
           kind: 'sales_credit_note',
           documentId: note.id,
           number: note.credit_note_number,

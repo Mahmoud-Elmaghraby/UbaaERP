@@ -29,8 +29,9 @@ import {
   useDeleteGoodsReceipt,
   useGoodsReceipt,
 } from '../../api/goods-receipts/queries';
-import { ApiError } from '../../../../lib/api-client';
-import { formatDate } from '../../../../lib/format-date';
+import { ApiError, apiGet } from '../../../../lib/api-client';
+import { formatDate, todayIso } from '../../../../lib/format-date';
+import type { StockBackdateCheckDto } from '@erp-platform/contracts';
 import { multiplyMinorUnits } from '../../../../lib/money';
 import { Amount, AMOUNT_CELL } from '../../../../components/amount';
 import { confirmDialog } from '../../../../components/feedback/confirm-dialog';
@@ -109,8 +110,9 @@ export function GoodsReceiptPage() {
     errorKey: string,
     confirmKey: string,
     tone?: 'danger',
+    confirmText?: string,
   ) {
-    if (!(await confirmDialog(t(confirmKey), tone ? { tone } : {}))) return;
+    if (!(await confirmDialog(confirmText ?? t(confirmKey), tone ? { tone } : {}))) return;
     try {
       await mutation.mutateAsync(receipt!.id);
       toast.success(t(successKey));
@@ -223,14 +225,30 @@ export function GoodsReceiptPage() {
                     <Can permission={PURCH.post}>
                       <Button
                         disabled={busy}
-                        onClick={() =>
-                          void run(
+                        onClick={async () => {
+                          // A receipt dated in the past: say which items already went out after
+                          // its date (their cost of sales stays as recorded) before confirming.
+                          let warning: string | undefined;
+                          if (receipt.receivedDate && receipt.receivedDate < todayIso()) {
+                            const check = await apiGet<StockBackdateCheckDto>(
+                              `/goods-receipts/${receipt.id}/backdate-check`,
+                            ).catch(() => null);
+                            if (check?.backdatedSales.length) {
+                              warning = t('purchases.goodsReceipts.backdatedConfirm', {
+                                date: formatDate(check.stockDate),
+                                products: check.backdatedSales.map((row) => row.productName).join('، '),
+                              });
+                            }
+                          }
+                          await run(
                             confirmReceipt,
                             'purchases.goodsReceipts.confirmSuccess',
                             'purchases.goodsReceipts.confirmError',
                             'purchases.goodsReceipts.confirmConfirm',
-                          )
-                        }
+                            undefined,
+                            warning,
+                          );
+                        }}
                       >
                         <CheckCircle2 />
                         {t('purchases.goodsReceipts.confirm')}

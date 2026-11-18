@@ -33,7 +33,9 @@ import { CurrencyRateReader, applyRate } from '../../../../shared/catalog/curren
 import type { ReceiptInvoiceDifference } from '../../../../shared/events/purchase-price-difference';
 import { computeReceiptInvoiceDifferences, type PostedInvoiceLineForReceipt } from './purchase-price-differences';
 import { PurchaseLimitsService } from './purchase-limits.service';
-import { assertStockDocumentDate } from '../../../../shared/time/stock-document-date';
+import { localIsoDate } from '../../../../shared/time/local-date';
+import { assertStockDocumentDate, laterOutgoingMovements } from '../../../../shared/time/stock-document-date';
+import type { StockBackdateCheckDto } from '@erp-platform/contracts';
 
 /**
  * Records physical receipt of goods against a purchase order (master doc
@@ -89,6 +91,33 @@ export class GoodsReceiptsService {
 
   listByPurchaseOrderId(db: Kysely<TenantDatabase>, purchaseOrderId: string): Promise<GoodsReceipt[]> {
     return this.receipts.listByPurchaseOrderId(db, purchaseOrderId);
+  }
+
+  /**
+   * A draft receipt dated in the past: the items that already went out (sold, written off) after
+   * its date. Their cost of sales stays as recorded — the screen warns before confirming.
+   */
+  async backdateCheck(db: Kysely<TenantDatabase>, id: string): Promise<StockBackdateCheckDto> {
+    const receipt = await this.getById(db, id);
+    const date = receipt.receivedDate;
+    if (!date || date >= localIsoDate()) return { stockDate: date, backdatedSales: [] };
+    const later = await laterOutgoingMovements(
+      db,
+      date,
+      receipt.lines.map((line) => line.productVariantId),
+    );
+    if (later.length === 0) return { stockDate: date, backdatedSales: [] };
+    const names = await db
+      .selectFrom('product_variants as v')
+      .innerJoin('products as p', 'p.id', 'v.product_id')
+      .select(['v.id', 'p.name'])
+      .where('v.id', 'in', later.map((row) => row.productVariantId))
+      .execute();
+    const nameById = new Map(names.map((row) => [row.id, row.name]));
+    return {
+      stockDate: date,
+      backdatedSales: later.map((row) => ({ ...row, productName: nameById.get(row.productVariantId) ?? '' })),
+    };
   }
 
   async getById(db: Kysely<TenantDatabase>, id: string): Promise<GoodsReceiptWithLines> {

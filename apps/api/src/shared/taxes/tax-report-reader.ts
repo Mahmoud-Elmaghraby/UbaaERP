@@ -33,11 +33,12 @@ function taxedDocuments(range: { from: string; to: string }) {
        WHERE i.status = 'posted'
          AND COALESCE(i.invoice_date, i.created_at::date) BETWEEN ${range.from}::date AND ${range.to}::date
       UNION ALL
-      SELECT 'output', -1, c.id, l.unit_price_currency, c.created_at::date, t.tax
+      SELECT 'output', -1, c.id, l.unit_price_currency, COALESCE(r.return_date, c.created_at::date), t.tax
         FROM sales_credit_notes c
+        LEFT JOIN sales_returns r ON r.id = c.sales_return_id
         JOIN sales_credit_note_lines l ON l.sales_credit_note_id = c.id
         CROSS JOIN LATERAL jsonb_array_elements(l.taxes) AS t(tax)
-       WHERE c.created_at::date BETWEEN ${range.from}::date AND ${range.to}::date
+       WHERE COALESCE(r.return_date, c.created_at::date) BETWEEN ${range.from}::date AND ${range.to}::date
       UNION ALL
       SELECT 'input', 1, i.id, l.unit_price_currency, COALESCE(i.invoice_date, i.created_at::date), t.tax
         FROM purchase_invoices i

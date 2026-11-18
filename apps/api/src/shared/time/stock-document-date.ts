@@ -2,10 +2,12 @@ import type { Kysely } from 'kysely';
 import type { TenantDatabase } from '../../database/tenant/kysely-client';
 import { BusinessRuleError } from '../errors/domain-errors';
 import { localIsoDate } from './local-date';
+import { AppSettingsRepository } from '../app-settings/app-settings.repository';
 
 /**
  * Checks the date of a document that moves stock, before anything is recorded:
- *  - not in the future;
+ *  - not in the future, unless the settings hub allows future-dated documents
+ *    ('documents.allowFutureDates');
  *  - not inside a closed accounting period. The document's journal entry would otherwise stay a
  *    draft (JournalEntriesService refuses to post into a closed period) while the stock moved —
  *    stock and books out of step with nobody told.
@@ -19,7 +21,7 @@ export async function assertStockDocumentDate(
   date: string | null | undefined,
 ): Promise<void> {
   const day = date ?? localIsoDate();
-  if (day > localIsoDate()) {
+  if (day > localIsoDate() && !(await new AppSettingsRepository().get(db, 'documents.allowFutureDates'))) {
     throw new BusinessRuleError(`Document date ${day} is in the future.`, {
       code: 'DOCUMENT_DATE.IN_FUTURE',
       params: { date: day },

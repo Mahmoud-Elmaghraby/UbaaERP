@@ -42,7 +42,7 @@ export const AR_MESSAGES: Record<string, string> = {
   'JOURNAL_ENTRY_LINE.NOT_FOUND': 'لم يتم العثور على سطر القيد المحاسبي المطلوب.',
   'COST_CENTER.NOT_FOUND': 'لم يتم العثور على مركز التكلفة المطلوب.',
   'ACCOUNTING_PERIOD.FISCAL_YEAR_CLOSED': 'الفترة "{name}" تابعة للسنة المالية المقفولة "{fiscalYear}". افتح السنة الأول.',
-  'DOCUMENT_DATE.IN_FUTURE': 'تاريخ المستند ({date}) في المستقبل. حركات المخزون بتتسجل بتاريخ النهارده أو قبله.',
+  'DOCUMENT_DATE.IN_FUTURE': 'تاريخ المستند ({date}) في المستقبل، والإعدادات مش سامحة بمستندات بتاريخ مستقبلي.',
   'DOCUMENT_DATE.PERIOD_CLOSED': 'الفترة المحاسبية "{name}" مقفولة، فمينفعش تتسجل حركة مخزون بتاريخ {date}. افتح الفترة الأول أو غيّر التاريخ.',
   'ACCOUNTING_PERIOD.NOT_FOUND': 'لم يتم العثور على الفترة المحاسبية المطلوبة.',
   'PURCHASE_REQUISITION.NOT_FOUND': 'لم يتم العثور على طلب الشراء المطلوب.',
