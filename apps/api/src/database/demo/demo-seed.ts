@@ -129,11 +129,14 @@ async function setUpPlaces(ctx: Ctx): Promise<void> {
   const { api, ids } = ctx;
   const branch = (name: string, code: string, address: string) =>
     api.post<{ id: string }>("/branches", { name, code, address });
-  const main = await branch(
-    "المركز الرئيسي - العبور",
-    "HQ",
-    "المنطقة الصناعية - العبور",
-  );
+  // Every tenant starts with its main branch (migration 0130): rename it to the head office.
+  const existing = await api.get<{ id: string; isMain: boolean }[]>("/branches");
+  const main = existing.find((b) => b.isMain)!;
+  await api.patch(`/branches/${main.id}`, {
+    name: "المركز الرئيسي - العبور",
+    code: "HQ",
+    address: "المنطقة الصناعية - العبور",
+  });
   const maadi = await branch("فرع المعادي", "MAADI", "شارع 9 - المعادي");
   const nasr = await branch(
     "فرع مدينة نصر",
@@ -168,10 +171,11 @@ async function setUpPlaces(ctx: Ctx): Promise<void> {
     openingBalanceMinorUnits: "400000000",
     openingBalanceDate: start,
   });
-  const cashbox = (code: string, name: string) =>
+  const cashbox = (code: string, name: string, branchId: string) =>
     api.post<{ id: string }>("/treasuries", {
       code,
       name,
+      branchId,
       kind: "cash",
       currency: CUR,
       openingBalanceMinorUnits: "500000",
@@ -180,8 +184,8 @@ async function setUpPlaces(ctx: Ctx): Promise<void> {
   ids.treasuries = {
     main: mainCash,
     bank: bank.id,
-    maadi: (await cashbox("CASH-MAADI", "خزينة فرع المعادي")).id,
-    nasr: (await cashbox("CASH-NASR", "خزينة فرع مدينة نصر")).id,
+    maadi: (await cashbox("CASH-MAADI", "خزينة فرع المعادي", maadi.id)).id,
+    nasr: (await cashbox("CASH-NASR", "خزينة فرع مدينة نصر", nasr.id)).id,
   };
 
   const customers =
@@ -604,7 +608,8 @@ async function purchase(
     supplierId: ctx.suppliers[supplier],
     directLines: lines,
     warehouseId: ctx.ids.warehouses.main,
-    supplierInvoiceNumber: `S-${day.replace(/-/g, "")}-${supplier.slice(0, 3).toUpperCase()}`,
+    // Unique per supplier even when a restock and a promo lot land on the same day.
+    supplierInvoiceNumber: `S-${day.replace(/-/g, "")}-${supplier.slice(0, 3).toUpperCase()}${kind === "near-expiry" ? "-P" : ""}`,
     invoiceDate: day,
     notes: kind === "near-expiry" ? "دفعة عرض بتاريخ صلاحية قريب" : null,
   });
@@ -890,9 +895,14 @@ async function depositCash(ctx: Ctx, day: string): Promise<void> {
     [treasuries.maadi, 1_500_000],
     [treasuries.nasr, 1_500_000],
   ];
-  const balances = await ctx.api.get<{ id: string; balance: { amountMinorUnits: string } }[]>("/treasuries");
+  const balances =
+    await ctx.api.get<{ id: string; balance: { amountMinorUnits: string } }[]>(
+      "/treasuries",
+    );
   for (const [id, float] of floats) {
-    const balance = Number(balances.find((t) => t.id === id)?.balance.amountMinorUnits ?? 0);
+    const balance = Number(
+      balances.find((t) => t.id === id)?.balance.amountMinorUnits ?? 0,
+    );
     const amount = Math.floor((balance - float) / 100_000) * 100_000; // whole thousands
     if (amount <= 0) continue;
     await ctx.api.post("/treasury-vouchers", {
@@ -914,12 +924,15 @@ async function expenses(ctx: Ctx, date: Date, day: string): Promise<void> {
     amountEgp: number,
     description: string,
     counterparty?: string,
+    // The branch the expense counts for when paid from another branch's treasury.
+    branchId?: string,
   ) =>
     ctx.api.post("/treasury-vouchers", {
       kind: "expense",
       voucherDate: day,
       treasuryId,
       categoryId,
+      branchId: branchId ?? null,
       amountMinorUnits: String(Math.round(amountEgp * 100)),
       description,
       counterparty: counterparty ?? null,
@@ -944,6 +957,7 @@ async function expenses(ctx: Ctx, date: Date, day: string): Promise<void> {
       15000,
       "إيجار فرع المعادي",
       "م. فؤاد شاكر",
+      ids.branches.maadi,
     );
     await voucher(
       ids.treasuries.bank,
@@ -951,6 +965,7 @@ async function expenses(ctx: Ctx, date: Date, day: string): Promise<void> {
       17000,
       "إيجار فرع مدينة نصر",
       "أ. ليلى حمدي",
+      ids.branches.nasr,
     );
   }
   if (date.getDate() === 5) {

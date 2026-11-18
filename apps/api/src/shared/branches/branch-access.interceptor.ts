@@ -88,6 +88,12 @@ const PLACE_KEYS: Record<string, 'warehouses' | 'treasuries' | 'branches' | 'pos
   posSessionId: 'pos_sessions',
 };
 
+/** Side lists whose rows point at a document by another field: route → (field, table). */
+const SIDE_LISTS: Record<string, { field: string; table: 'sales_invoices' | 'purchase_invoices' }> = {
+  'sales-installments': { field: 'salesInvoiceId', table: 'sales_invoices' },
+  'supplier-payments/outstanding-invoices': { field: 'purchaseInvoiceId', table: 'purchase_invoices' },
+};
+
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export function allowedBranchIds(user: Pick<JwtAccessPayload, 'branchIds'> | undefined): string[] | null {
@@ -156,6 +162,13 @@ export class BranchAccessInterceptor implements NestInterceptor {
 
     const result = await lastValueFrom(next.handle(), { defaultValue: undefined });
     if (request.method === 'GET' && Array.isArray(result)) return this.filterList(db, allowed, segments, result);
+    // A POS sale looked up by number (for a return) — from another branch's delivery: refused.
+    if (request.method === 'GET' && route === 'pos/sales' && result && typeof result === 'object') {
+      const deliveryId = (result as { deliveryId?: unknown }).deliveryId;
+      if (typeof deliveryId === 'string' && !(await this.documentAllowed(db, DOCUMENTS.deliveries!, deliveryId, allowed, undefined, 'GET'))) {
+        throw denied();
+      }
+    }
     return result;
   }
 
@@ -231,6 +244,24 @@ export class BranchAccessInterceptor implements NestInterceptor {
     const sample = rows[0] as Record<string, unknown>;
     if (segments.length === 1 && segments[0] === 'branches') {
       return rows.filter((row) => allowed.includes((row as { id: string }).id));
+    }
+    const side = SIDE_LISTS[segments.slice(0, 2).join('/')] ?? (segments.length === 1 ? SIDE_LISTS[segments[0]!] : undefined);
+    if (side) {
+      const ids = [...new Set(rows.map((row) => (row as Record<string, unknown>)[side.field]).filter((id): id is string => typeof id === 'string'))];
+      if (ids.length === 0) return rows;
+      const visible = await db
+        .selectFrom(side.table as 'sales_invoices')
+        .select('id')
+        .where('id', 'in', ids)
+        .where('branch_id', 'in', allowed)
+        .execute();
+      const keep = new Set(visible.map((row) => row.id));
+      return rows.filter((row) => keep.has((row as Record<string, unknown>)[side.field] as string));
+    }
+    if (typeof sample.toWarehouseId === 'string') {
+      const places = await db.selectFrom('warehouses').select('id').where('branch_id', 'in', allowed).execute();
+      const keep = new Set(places.map((row) => row.id));
+      return rows.filter((row) => keep.has((row as { toWarehouseId: string }).toWarehouseId));
     }
     if (typeof sample.branchId === 'string') {
       return rows.filter((row) => allowed.includes((row as { branchId: string }).branchId));

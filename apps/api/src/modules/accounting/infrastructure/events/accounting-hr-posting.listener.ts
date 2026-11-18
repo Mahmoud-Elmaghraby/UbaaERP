@@ -1,4 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { sql, type Kysely } from 'kysely';
+import type { TenantDatabase } from '../../../../database/tenant/kysely-client';
 import { OnOutboxEvent } from '../../../../shared/events/on-outbox-event.decorator';
 import { FEATURE_KEYS } from '../../../../shared/plans/feature-catalog';
 import { TenantConnectionManager } from '../../../../shared/tenancy/tenant-connection-manager';
@@ -81,8 +83,14 @@ export class AccountingHrPostingListener {
     const net = await ledger(m.netMinorUnits);
     const expense = (BigInt(loan) + BigInt(net)).toString();
     if (expense === '0') return;
+    const expenseAccountId = requiredAccount(settings.salariesExpenseAccountId, 'حساب الرواتب والأجور');
     const lines = [
-      { accountId: requiredAccount(settings.salariesExpenseAccountId, 'حساب الرواتب والأجور'), debitAmountMinorUnits: expense, creditAmountMinorUnits: '0' },
+      ...(await this.expenseByBranch(db, payload.entityId, BigInt(expense))).map((part) => ({
+        accountId: expenseAccountId,
+        debitAmountMinorUnits: part.amount.toString(),
+        creditAmountMinorUnits: '0',
+        branchId: part.branchId,
+      })),
       ...(loan !== '0'
         ? [{ accountId: requiredAccount(settings.employeeAdvancesAccountId, 'حساب عهد وسلف الموظفين'), debitAmountMinorUnits: '0', creditAmountMinorUnits: loan }]
         : []),
@@ -117,6 +125,37 @@ export class AccountingHrPostingListener {
       ],
       sourceReferenceType: 'hr_payroll_payment',
       sourceReferenceId: payload.entityId,
+    });
+  }
+
+  /**
+   * The salary cost split by each employee's branch (migration 0130), so a branch's P&L carries
+   * its own staff. The ledger total is shared in proportion to the run's expense per branch; the
+   * last share takes the rounding. Employees with no branch, or a run with no lines, stay on the
+   * entry's own branch (branchId null → the header's).
+   */
+  private async expenseByBranch(
+    db: Kysely<TenantDatabase>,
+    runId: string,
+    total: bigint,
+  ): Promise<{ branchId: string | null; amount: bigint }[]> {
+    const rows = await db
+      .selectFrom('hr_payroll_lines as l')
+      .innerJoin('employees as e', 'e.id', 'l.employee_id')
+      .select(['e.branch_id', sql<string>`SUM(l.expense_minor)`.as('expense')])
+      .where('l.run_id', '=', runId)
+      .groupBy('e.branch_id')
+      .execute();
+    const parts = rows
+      .map((row) => ({ branchId: row.branch_id, weight: BigInt(String(row.expense).split('.')[0]!) }))
+      .filter((row) => row.weight > 0n);
+    const weightTotal = parts.reduce((sum, part) => sum + part.weight, 0n);
+    if (parts.length <= 1 || weightTotal === 0n) return [{ branchId: parts[0]?.branchId ?? null, amount: total }];
+    let given = 0n;
+    return parts.map((part, index) => {
+      const amount = index === parts.length - 1 ? total - given : (total * part.weight) / weightTotal;
+      given += amount;
+      return { branchId: part.branchId, amount };
     });
   }
 
