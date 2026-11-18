@@ -120,6 +120,7 @@ export class QuotationsService {
     const linesWithUnits = await this.unitResolver.resolve(db, input.lines);
     return withTransaction(db, async (trx) => {
       const quotation = await this.quotations.create(trx, {
+        branchId: input.branchId ?? null,
         quotationNumber: allocated.formatted,
         customerId: input.customerId,
         validUntilDate: input.validUntilDate ?? null,

@@ -4,6 +4,7 @@ import type { Kysely, Selectable } from 'kysely';
 import type { PosSessionsTable, TenantDatabase } from '../../../../database/tenant/kysely-client';
 import type { ClosePosSessionFields, PosSessionRepository } from '../../application/ports/pos-session.repository';
 import type { OpenPosSessionInput, PosSession, PosSessionFilters, PosSessionStatus } from '../../domain/pos-session.entity';
+import { resolveBranchId } from '../../../../shared/branches/branch-resolver';
 
 function toDomain(row: Selectable<PosSessionsTable>): PosSession {
   const currency = row.currency;
@@ -134,6 +135,7 @@ export class KyselyPosSessionRepository implements PosSessionRepository {
     const row = await db
       .insertInto('pos_sessions')
       .values({
+        branch_id: await resolveBranchId(db, { warehouseId: input.warehouseId, treasuryId: input.treasuryId }),
         id: randomUUID(),
         cashier_user_id: input.cashierUserId,
         status: 'open',

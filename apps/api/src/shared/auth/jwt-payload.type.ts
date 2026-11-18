@@ -17,4 +17,9 @@ export interface JwtAccessPayload {
   permissions: string[];
   features: string[];
   disabledFeatures: string[];
+  /**
+   * Migration 0130: the branches this user is limited to (user_branch_access). Empty or absent
+   * = every branch (an Owner, or a user given no branch). Enforced by BranchAccessInterceptor.
+   */
+  branchIds?: string[];
 }

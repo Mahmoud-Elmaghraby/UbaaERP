@@ -23,6 +23,7 @@ function toDomain(row: Selectable<JournalEntryLinesTable>, currency: string): Jo
     description: row.description,
     lineOrder: row.line_order,
     costCenterId: row.cost_center_id,
+    branchId: row.branch_id,
     isReconciled: row.is_reconciled,
     reconciledAt: row.reconciled_at,
     createdAt: row.created_at,
@@ -46,6 +47,7 @@ export class KyselyJournalEntryLineRepository implements JournalEntryLineReposit
         'journal_entry_lines.description as description',
         'journal_entry_lines.line_order as line_order',
         'journal_entry_lines.cost_center_id as cost_center_id',
+        'journal_entry_lines.branch_id as branch_id',
         'journal_entry_lines.is_reconciled as is_reconciled',
         'journal_entry_lines.reconciled_at as reconciled_at',
         'journal_entry_lines.created_at as created_at',
@@ -68,6 +70,7 @@ export class KyselyJournalEntryLineRepository implements JournalEntryLineReposit
       description: row.description,
       lineOrder: row.line_order,
       costCenterId: row.cost_center_id,
+      branchId: row.branch_id,
       isReconciled: row.is_reconciled,
       reconciledAt: row.reconciled_at,
       createdAt: row.created_at,
@@ -80,6 +83,7 @@ export class KyselyJournalEntryLineRepository implements JournalEntryLineReposit
     lines: JournalEntryLineToPersist[],
   ): Promise<JournalEntryLine[]> {
     if (lines.length === 0) return [];
+    const header = await db.selectFrom('journal_entries').select('branch_id').where('id', '=', journalEntryId).executeTakeFirst();
     const rows = await db
       .insertInto('journal_entry_lines')
       .values(
@@ -92,6 +96,7 @@ export class KyselyJournalEntryLineRepository implements JournalEntryLineReposit
           description: line.description ?? null,
           line_order: index,
           cost_center_id: line.costCenterId ?? null,
+          branch_id: line.branchId ?? header?.branch_id ?? null,
         })),
       )
       .returningAll()
@@ -200,6 +205,7 @@ export class KyselyJournalEntryLineRepository implements JournalEntryLineReposit
       );
     }
     if (options.costCenterId) query = query.where('journal_entry_lines.cost_center_id', '=', options.costCenterId);
+    if (options.branchId) query = query.where('journal_entry_lines.branch_id', '=', options.branchId);
 
     const rows = await query.groupBy('journal_entry_lines.account_id').execute();
 

@@ -4,6 +4,8 @@ import type { TenantDatabase } from '../../../../database/tenant/kysely-client';
 import type { DiscountType, SalesOrder, SalesOrderStatus } from '../../domain/sales-order.entity';
 
 export interface CreateSalesOrderRow {
+  /** Migration 0130: the branch; derived from its warehouse / treasury / parent document when omitted. */
+  branchId?: string | null;
   soNumber: string;
   customerId: string;
   sourceQuotationId: string | null;

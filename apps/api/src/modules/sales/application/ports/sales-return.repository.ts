@@ -3,6 +3,8 @@ import type { TenantDatabase } from '../../../../database/tenant/kysely-client';
 import type { SalesReturn, SalesReturnStatus } from '../../domain/sales-return.entity';
 
 export interface CreateSalesReturnRow {
+  /** Migration 0130: the branch; derived from its warehouse / treasury / parent document when omitted. */
+  branchId?: string | null;
   returnNumber: string;
   deliveryId: string;
   returnDate: string | null;

@@ -8,6 +8,7 @@ import type {
   UpdateSalesOrderRow,
 } from '../../application/ports/sales-order.repository';
 import type { DiscountType, SalesOrder, SalesOrderStatus } from '../../domain/sales-order.entity';
+import { resolveBranchId } from '../../../../shared/branches/branch-resolver';
 
 function toDomain(row: Selectable<SalesOrdersTable>): SalesOrder {
   return {
@@ -46,6 +47,7 @@ export class KyselySalesOrderRepository implements SalesOrderRepository {
     const row = await db
       .insertInto('sales_orders')
       .values({
+        branch_id: await resolveBranchId(db, { branchId: input.branchId }),
         id: randomUUID(),
         so_number: input.soNumber,
         customer_id: input.customerId,

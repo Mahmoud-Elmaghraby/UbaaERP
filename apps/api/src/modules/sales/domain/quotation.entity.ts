@@ -50,6 +50,8 @@ export interface CreateQuotationLineInput {
 }
 
 export interface CreateQuotationInput {
+  /** Migration 0130: the branch (defaults from the warehouse, the source quotation, or the main branch). */
+  branchId?: string | null;
   customerId: string;
   lines: CreateQuotationLineInput[];
   validUntilDate?: string | null;

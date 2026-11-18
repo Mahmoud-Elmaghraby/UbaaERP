@@ -3,6 +3,8 @@ import type { TenantDatabase } from '../../../../database/tenant/kysely-client';
 import type { PurchaseOrder, PurchaseOrderStatus } from '../../domain/purchase-order.entity';
 
 export interface CreatePurchaseOrderRow {
+  /** Migration 0130: the branch; derived from its warehouse / treasury / parent document when omitted. */
+  branchId?: string | null;
   poNumber: string;
   supplierId: string;
   sourceQuotationId: string | null;

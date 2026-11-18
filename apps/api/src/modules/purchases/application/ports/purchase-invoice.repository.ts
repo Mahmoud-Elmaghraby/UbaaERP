@@ -3,6 +3,8 @@ import type { TenantDatabase } from '../../../../database/tenant/kysely-client';
 import type { PurchaseInvoice, PurchaseInvoiceStatus } from '../../domain/purchase-invoice.entity';
 
 export interface CreatePurchaseInvoiceRow {
+  /** Migration 0130: the branch; derived from its warehouse / treasury / parent document when omitted. */
+  branchId?: string | null;
   invoiceNumber: string;
   supplierInvoiceNumber: string | null;
   purchaseOrderId: string;

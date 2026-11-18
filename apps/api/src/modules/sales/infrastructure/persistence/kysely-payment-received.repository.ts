@@ -12,6 +12,7 @@ import type {
   PaymentMethod,
   PaymentCheque,
 } from '../../domain/payment-received.entity';
+import { resolveBranchId } from '../../../../shared/branches/branch-resolver';
 
 function toDomain(row: Selectable<PaymentsReceivedTable>): PaymentReceived {
   return {
@@ -68,6 +69,7 @@ export class KyselyPaymentReceivedRepository implements PaymentReceivedRepositor
     const row = await db
       .insertInto('payments_received')
       .values({
+        branch_id: await resolveBranchId(db, { branchId: input.branchId, posSessionId: input.posSessionId, treasuryId: input.treasuryId }),
         id: randomUUID(),
         payment_number: input.paymentNumber,
         customer_id: input.customerId,

@@ -43,6 +43,7 @@ import type { SalesLimitsCheckDto } from '@erp-platform/contracts';
 import { SalesOrdersService } from './sales-orders.service';
 import { DeliveriesService } from './deliveries.service';
 import { resolveSalesRepId } from './sales-reps.service';
+import { resolveBranchId } from '../../../../shared/branches/branch-resolver';
 
 /**
  * Sales Invoices (master doc §10, step 4 — Sales, Stage 5). This
@@ -222,6 +223,8 @@ export class SalesInvoicesService {
             trx,
             {
               customerId: input.customerId!,
+              // The internal order (and so the invoice) belongs to the warehouse's branch.
+              branchId: input.warehouseId ? await resolveBranchId(trx, { warehouseId: input.warehouseId }) : null,
               // The internal order carries the invoice's rep (same defaulting).
               salesRepId: input.salesRepId,
               lines: input.directLines!.map((line) => ({

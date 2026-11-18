@@ -14,6 +14,7 @@ export interface CreateJournalEntryRow {
   customFields?: Record<string, unknown>;
   sourceReferenceType?: string | null;
   sourceReferenceId?: string | null;
+  branchId?: string | null;
 }
 
 export interface UpdateJournalEntryRow {

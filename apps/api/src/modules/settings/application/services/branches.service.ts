@@ -5,6 +5,7 @@ import { BRANCH_REPOSITORY, type BranchRepository } from '../ports/branch.reposi
 import type { Branch, CreateBranchInput, UpdateBranchInput } from '../../domain/branch.entity';
 import { isPostgresUniqueViolation } from '../errors';
 import { duplicateEntity, entityNotFound } from '../../../../shared/errors/entity-errors';
+import { BusinessRuleError } from '../../../../shared/errors/domain-errors';
 
 @Injectable()
 export class BranchesService {
@@ -32,6 +33,7 @@ export class BranchesService {
   }
 
   async update(db: Kysely<TenantDatabase>, id: string, input: UpdateBranchInput): Promise<Branch> {
+    if (input.isActive === false) await this.assertNotMain(db, id);
     try {
       const updated = await this.repository.update(db, id, input);
       if (!updated) throw entityNotFound('BRANCH', id);
@@ -45,7 +47,16 @@ export class BranchesService {
   }
 
   async delete(db: Kysely<TenantDatabase>, id: string): Promise<void> {
+    await this.assertNotMain(db, id);
     const deleted = await this.repository.delete(db, id);
     if (!deleted) throw entityNotFound('BRANCH', id);
+  }
+
+  /** The main branch holds everything unplaced (migration 0130): it can't be removed or switched off. */
+  private async assertNotMain(db: Kysely<TenantDatabase>, id: string): Promise<void> {
+    const branch = await this.repository.findById(db, id);
+    if (branch?.isMain) {
+      throw new BusinessRuleError('The main branch cannot be deleted or deactivated.', { code: 'BRANCH.MAIN_PROTECTED' });
+    }
   }
 }

@@ -3,6 +3,8 @@ import type { TenantDatabase } from '../../../../database/tenant/kysely-client';
 import type { SalesInvoice, SalesInvoiceStatus } from '../../domain/sales-invoice.entity';
 
 export interface CreateSalesInvoiceRow {
+  /** Migration 0130: the branch; derived from its warehouse / treasury / parent document when omitted. */
+  branchId?: string | null;
   invoiceNumber: string;
   salesOrderId: string;
   invoiceDate: string | null;

@@ -167,6 +167,7 @@ export class PurchaseOrdersService {
         // Inside the transaction: a failure below doesn't burn a number.
         const allocated = await this.numberingSequences.allocateNext(trx, 'purchase_order', null);
         const order = await this.orders.create(trx, {
+          branchId: input.branchId ?? null,
           poNumber: allocated.formatted,
           supplierId,
           sourceQuotationId: input.sourceQuotationId ?? null,

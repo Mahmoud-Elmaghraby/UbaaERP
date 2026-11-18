@@ -6,6 +6,7 @@ import type {
   CreatePurchaseInvoiceRow,
 } from '../../application/ports/purchase-invoice.repository';
 import type { PurchaseInvoice, PurchaseInvoiceStatus } from '../../domain/purchase-invoice.entity';
+import { resolveBranchId } from '../../../../shared/branches/branch-resolver';
 
 function toDomain(row: Selectable<PurchaseInvoicesTable>): PurchaseInvoice {
   return {
@@ -61,6 +62,7 @@ export class KyselyPurchaseInvoiceRepository implements PurchaseInvoiceRepositor
     const row = await db
       .insertInto('purchase_invoices')
       .values({
+        branch_id: await resolveBranchId(db, { branchId: input.branchId, purchaseOrderId: input.purchaseOrderId }),
         id: randomUUID(),
         invoice_number: input.invoiceNumber,
         supplier_invoice_number: input.supplierInvoiceNumber,

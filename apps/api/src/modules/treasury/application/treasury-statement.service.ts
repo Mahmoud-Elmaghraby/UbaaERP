@@ -48,6 +48,7 @@ export class TreasuryStatementService {
         kind: treasury.kind as TreasuryKindDto,
         currency,
         isDefault: treasury.is_default,
+        branchId: treasury.branch_id,
       },
       from: statement.from,
       to: statement.to,

@@ -8,6 +8,8 @@ import type {
 } from '../../domain/payment-received.entity';
 
 export interface CreatePaymentReceivedRow {
+  /** Migration 0130: the branch; derived from its warehouse / treasury / parent document when omitted. */
+  branchId?: string | null;
   paymentNumber: string;
   customerId: string;
   paymentDate: string | null;

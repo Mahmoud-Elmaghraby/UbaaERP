@@ -41,6 +41,7 @@ import {
 import { decimalToMinorUnits, formatAmount } from '../../../lib/money';
 import { ApiError } from '../../../lib/api-client';
 import { openPrint } from '../../../components/printing/print-button';
+import { useBranches } from '../../settings/queries';
 
 const KIND_ICONS = { expense: MinusCircle, income: PlusCircle, transfer: ArrowLeftRight } as const;
 const ALL = '__all__';
@@ -193,6 +194,8 @@ function VoucherDialog({ kind, onClose }: { kind: TreasuryVoucherKindDto | null;
   const [treasuryId, setTreasuryId] = useState('');
   const [toTreasuryId, setToTreasuryId] = useState('');
   const [categoryId, setCategoryId] = useState('');
+  const [branchId, setBranchId] = useState('');
+  const { data: branches = [] } = useBranches();
   const [amount, setAmount] = useState('');
   const [counterparty, setCounterparty] = useState('');
   const [description, setDescription] = useState('');
@@ -234,6 +237,7 @@ function VoucherDialog({ kind, onClose }: { kind: TreasuryVoucherKindDto | null;
         treasuryId,
         toTreasuryId: kind === 'transfer' ? toTreasuryId : null,
         categoryId: kind === 'transfer' ? null : categoryId,
+        branchId: kind === 'transfer' ? null : branchId || null,
         amountMinorUnits: minor,
         counterparty: counterparty.trim() || null,
         description: description.trim() || null,
@@ -316,6 +320,23 @@ function VoucherDialog({ kind, onClose }: { kind: TreasuryVoucherKindDto | null;
               </Select>
             </div>
           )}
+          {kind !== 'transfer' && branches.length > 1 ? (
+            <div className="grid gap-1.5">
+              <Label>{t('branches.voucherFor')}</Label>
+              <Select value={branchId || (source?.branchId ?? '')} onValueChange={setBranchId}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {branches.map((branch) => (
+                    <SelectItem key={branch.id} value={branch.id}>
+                      {branch.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          ) : null}
           {kind !== 'transfer' ? (
             <div className="grid gap-1.5">
               <Label>{kind === 'expense' ? t('treasury.vouchers.paidTo') : t('treasury.vouchers.receivedFrom')}</Label>

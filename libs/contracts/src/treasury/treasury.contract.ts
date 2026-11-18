@@ -25,6 +25,8 @@ export const treasurySchema = z.object({
   accountNumber: z.string().nullable(),
   iban: z.string().nullable(),
   chartOfAccountId: z.string().uuid().nullable(),
+  /** The branch whose cash or bank this is (migration 0130). */
+  branchId: z.string().uuid(),
   openingBalance: moneySchema,
   openingBalanceDate: isoDate.nullable(),
   isActive: z.boolean(),
@@ -44,6 +46,7 @@ export const treasuryLookupSchema = z.object({
   kind: treasuryKindSchema,
   currency: z.string(),
   isDefault: z.boolean(),
+  branchId: z.string().uuid(),
 });
 export type TreasuryLookupDto = z.infer<typeof treasuryLookupSchema>;
 
@@ -56,6 +59,8 @@ export const createTreasurySchema = z.object({
   accountNumber: z.string().trim().max(60).nullable().optional(),
   iban: z.string().trim().max(60).nullable().optional(),
   chartOfAccountId: z.string().uuid().nullable().optional(),
+  /** Defaults to the main branch. */
+  branchId: z.string().uuid().optional(),
   openingBalanceMinorUnits: nonNegativeMinor.optional(),
   openingBalanceDate: isoDate.nullable().optional(),
   isDefault: z.boolean().optional(),
@@ -131,6 +136,8 @@ export const createTreasuryVoucherSchema = z
     treasuryId: z.string().uuid(),
     toTreasuryId: z.string().uuid().nullable().optional(),
     categoryId: z.string().uuid().nullable().optional(),
+    /** Expense / income: the branch it is for (defaults to the treasury's branch). */
+    branchId: z.string().uuid().nullable().optional(),
     amountMinorUnits: positiveMinor,
     counterparty: z.string().trim().max(200).nullable().optional(),
     description: z.string().trim().max(1000).nullable().optional(),

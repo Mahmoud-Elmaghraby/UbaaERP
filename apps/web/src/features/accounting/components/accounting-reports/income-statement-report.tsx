@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Checkbox, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@erp-platform/ui';
 
 import { useActiveCostCenters } from '../../hooks/use-active-cost-centers';
+import { useBranches } from '../../../settings/queries';
 
 const ALL = '__all__';
 
@@ -22,12 +23,15 @@ export function IncomeStatementReport() {
   const compare = params.get('compare') === '1';
   const costCenterId = params.get('costCenter');
   const costCenters = useActiveCostCenters();
+  const branchId = params.get('branch');
+  const { data: branches = [] } = useBranches();
   const prev = previousPeriod(params.from, params.to);
-  const current = useIncomeStatementReport({ fromDate: params.from, toDate: params.to, costCenterId });
+  const current = useIncomeStatementReport({ fromDate: params.from, toDate: params.to, costCenterId, branchId });
   const previous = useIncomeStatementReport({
     fromDate: compare ? prev.from : undefined,
     toDate: compare ? prev.to : undefined,
     costCenterId,
+    branchId,
   });
   const costCenter = costCenters.find((c) => c.id === costCenterId);
   const report = current.data;
@@ -92,6 +96,24 @@ export function IncomeStatementReport() {
       filters={
         <>
           <PeriodPicker from={params.from} to={params.to} onChange={(range) => params.set(range)} />
+          {branches.length > 1 ? (
+            <label className="grid gap-1">
+              <span className="text-xs font-medium text-muted-foreground">{t('branches.label')}</span>
+              <Select value={branchId ?? ALL} onValueChange={(v) => params.set({ branch: v === ALL ? null : v })}>
+                <SelectTrigger className="h-9 w-48">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={ALL}>{t('branches.all')}</SelectItem>
+                  {branches.map((branch) => (
+                    <SelectItem key={branch.id} value={branch.id}>
+                      {branch.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </label>
+          ) : null}
           {costCenters.length > 0 ? (
             <label className="grid gap-1">
               <span className="text-xs font-medium text-muted-foreground">{t('accounting.journalEntries.lineCostCenter')}</span>

@@ -6,6 +6,7 @@ import type {
   CreateSalesCreditNoteRow,
 } from '../../application/ports/sales-credit-note.repository';
 import type { SalesCreditNote } from '../../domain/sales-credit-note.entity';
+import { resolveBranchId } from '../../../../shared/branches/branch-resolver';
 
 function toDomain(row: Selectable<SalesCreditNotesTable>): SalesCreditNote {
   return {
@@ -45,6 +46,7 @@ export class KyselySalesCreditNoteRepository implements SalesCreditNoteRepositor
     const row = await db
       .insertInto('sales_credit_notes')
       .values({
+        branch_id: await resolveBranchId(db, { branchId: input.branchId, salesReturnId: input.salesReturnId }),
         id: randomUUID(),
         credit_note_number: input.creditNoteNumber,
         sales_return_id: input.salesReturnId,

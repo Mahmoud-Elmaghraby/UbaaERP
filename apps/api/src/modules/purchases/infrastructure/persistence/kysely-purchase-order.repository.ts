@@ -7,6 +7,7 @@ import type {
   UpdatePurchaseOrderRow,
 } from '../../application/ports/purchase-order.repository';
 import type { PurchaseOrder, PurchaseOrderStatus } from '../../domain/purchase-order.entity';
+import { resolveBranchId } from '../../../../shared/branches/branch-resolver';
 
 function toDomain(row: Selectable<PurchaseOrdersTable>): PurchaseOrder {
   return {
@@ -38,6 +39,7 @@ export class KyselyPurchaseOrderRepository implements PurchaseOrderRepository {
     const row = await db
       .insertInto('purchase_orders')
       .values({
+        branch_id: await resolveBranchId(db, { branchId: input.branchId }),
         id: randomUUID(),
         po_number: input.poNumber,
         supplier_id: input.supplierId,

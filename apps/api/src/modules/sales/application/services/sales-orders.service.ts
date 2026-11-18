@@ -222,7 +222,12 @@ export class SalesOrdersService {
     const salesRepId = await resolveSalesRepId(db, input.salesRepId, customerRep?.sales_rep_id ?? null);
 
     return withTransaction(db, async (trx) => {
+      const quotationBranch = input.sourceQuotationId
+        ? (await trx.selectFrom('quotations').select('branch_id').where('id', '=', input.sourceQuotationId).executeTakeFirst())
+            ?.branch_id
+        : null;
       const order = await this.orders.create(trx, {
+        branchId: input.branchId ?? quotationBranch ?? null,
         soNumber: allocated.formatted,
         customerId,
         sourceQuotationId: input.sourceQuotationId ?? null,

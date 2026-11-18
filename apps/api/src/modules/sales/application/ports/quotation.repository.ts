@@ -3,6 +3,8 @@ import type { TenantDatabase } from '../../../../database/tenant/kysely-client';
 import type { Quotation, QuotationStatus } from '../../domain/quotation.entity';
 
 export interface CreateQuotationRow {
+  /** Migration 0130: the branch; derived from its warehouse / treasury / parent document when omitted. */
+  branchId?: string | null;
   quotationNumber: string;
   customerId: string;
   validUntilDate: string | null;

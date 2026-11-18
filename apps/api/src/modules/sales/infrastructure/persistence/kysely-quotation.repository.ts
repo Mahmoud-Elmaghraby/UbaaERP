@@ -7,6 +7,7 @@ import type {
   UpdateQuotationRow,
 } from '../../application/ports/quotation.repository';
 import type { Quotation, QuotationStatus } from '../../domain/quotation.entity';
+import { resolveBranchId } from '../../../../shared/branches/branch-resolver';
 
 function toDomain(row: Selectable<QuotationsTable>): Quotation {
   return {
@@ -37,6 +38,7 @@ export class KyselyQuotationRepository implements QuotationRepository {
     const row = await db
       .insertInto('quotations')
       .values({
+        branch_id: await resolveBranchId(db, { branchId: input.branchId }),
         id: randomUUID(),
         quotation_number: input.quotationNumber,
         customer_id: input.customerId,

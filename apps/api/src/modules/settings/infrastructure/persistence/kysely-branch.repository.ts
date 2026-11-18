@@ -12,6 +12,7 @@ function toDomain(row: Selectable<BranchesTable>): Branch {
     code: row.code,
     address: row.address,
     isActive: row.is_active,
+    isMain: row.is_main,
     customFields: (row.custom_fields ?? {}) as Record<string, unknown>,
     createdAt: row.created_at,
     updatedAt: row.updated_at,

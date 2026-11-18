@@ -15,6 +15,7 @@ import { TreasuryMovementRegistry } from '../../../shared/treasury/treasury-move
 import { BusinessRuleError, ConflictError, isPostgresUniqueViolation } from '../../../shared/errors/domain-errors';
 import { duplicateEntity, entityNotFound } from '../../../shared/errors/entity-errors';
 import { localIsoDate } from '../../../shared/time/local-date';
+import { mainBranchId } from '../../../shared/branches/branch-resolver';
 
 export const TREASURY_OPENING_BALANCE_EVENT = 'treasury.treasury.opening_balance_set';
 
@@ -48,13 +49,13 @@ export class TreasuriesService {
   async lookup(db: Kysely<TenantDatabase>): Promise<TreasuryLookupDto[]> {
     const rows = await db
       .selectFrom('treasuries')
-      .select(['id', 'code', 'name', 'kind', 'currency', 'is_default'])
+      .select(['id', 'code', 'name', 'kind', 'currency', 'is_default', 'branch_id'])
       .where('is_active', '=', true)
       .orderBy('is_default', 'desc')
       .orderBy('kind')
       .orderBy('code')
       .execute();
-    return rows.map((r) => ({ id: r.id, code: r.code, name: r.name, kind: r.kind as TreasuryKindDto, currency: r.currency, isDefault: r.is_default }));
+    return rows.map((r) => ({ id: r.id, code: r.code, name: r.name, kind: r.kind as TreasuryKindDto, currency: r.currency, isDefault: r.is_default, branchId: r.branch_id }));
   }
 
   async getById(db: Kysely<TenantDatabase>, id: string): Promise<TreasuryDto> {
@@ -101,6 +102,7 @@ export class TreasuriesService {
             account_number: input.accountNumber ?? null,
             iban: input.iban ?? null,
             chart_of_account_id: input.chartOfAccountId ?? null,
+            branch_id: input.branchId ?? (await mainBranchId(trx)),
             opening_balance_amount: input.openingBalanceMinorUnits ?? '0',
             opening_balance_date: input.openingBalanceDate ?? null,
             is_default: input.isDefault ?? false,
@@ -140,6 +142,7 @@ export class TreasuriesService {
             ...(input.accountNumber !== undefined ? { account_number: input.accountNumber } : {}),
             ...(input.iban !== undefined ? { iban: input.iban } : {}),
             ...(input.chartOfAccountId !== undefined ? { chart_of_account_id: input.chartOfAccountId } : {}),
+            ...(input.branchId !== undefined ? { branch_id: input.branchId } : {}),
             ...(input.openingBalanceMinorUnits !== undefined ? { opening_balance_amount: input.openingBalanceMinorUnits } : {}),
             ...(input.openingBalanceDate !== undefined ? { opening_balance_date: input.openingBalanceDate } : {}),
             ...(input.isDefault !== undefined ? { is_default: input.isDefault } : {}),
@@ -245,6 +248,7 @@ export function toDto(row: Selectable<TreasuriesTable>, movementsMinor: bigint):
     accountNumber: row.account_number,
     iban: row.iban,
     chartOfAccountId: row.chart_of_account_id,
+    branchId: row.branch_id,
     openingBalance: money(opening, row.currency),
     openingBalanceDate: row.opening_balance_date,
     isActive: row.is_active,

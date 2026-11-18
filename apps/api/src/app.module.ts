@@ -24,6 +24,8 @@ import { AccountingModule } from './modules/accounting/accounting.module';
 import { AttachmentsModule } from './modules/attachments/attachments.module';
 import { TreasuryModule } from './modules/treasury/treasury.module';
 import { HrModule } from './modules/hr/hr.module';
+import { APP_INTERCEPTOR } from '@nestjs/core';
+import { BranchAccessInterceptor } from './shared/branches/branch-access.interceptor';
 
 /**
  * Root application module for the ERP API.
@@ -82,6 +84,7 @@ import { HrModule } from './modules/hr/hr.module';
     AttachmentsModule,
   ],
   controllers: [HealthController],
-  providers: [],
+  // Branch access (migration 0130) for every route; a no-op for users not limited to branches.
+  providers: [{ provide: APP_INTERCEPTOR, useClass: BranchAccessInterceptor }],
 })
 export class AppModule {}

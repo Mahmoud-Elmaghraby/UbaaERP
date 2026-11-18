@@ -14,6 +14,7 @@ import { entityNotFound } from '../../../../shared/errors/entity-errors';
 import { NumberingSequencesService } from '../../../settings/application/services/numbering-sequences.service';
 import { CustomerLedgerSource } from '../../infrastructure/statements/customer-ledger.source';
 import { BusinessRuleError } from '../errors';
+import { resolveBranchId } from '../../../../shared/branches/branch-resolver';
 
 export const CUSTOMER_REFUND_POSTED = 'sales.customer_refund.posted';
 export const CUSTOMER_REFUND_CANCELLED = 'sales.customer_refund.cancelled';
@@ -137,6 +138,7 @@ export class CustomerRefundsService {
           refund_date: refundDate,
           payment_method: input.paymentMethod,
           treasury_id: treasuryId,
+          branch_id: await resolveBranchId(trx, { posSessionId: input.posSessionId, treasuryId }),
           amount: amountMinor.toString(),
           currency,
           sales_credit_note_id: input.salesCreditNoteId ?? null,

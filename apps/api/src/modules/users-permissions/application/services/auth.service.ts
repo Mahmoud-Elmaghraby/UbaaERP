@@ -1,5 +1,5 @@
 import { createHash, randomBytes } from 'node:crypto';
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Optional } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import type { Kysely } from 'kysely';
@@ -18,6 +18,8 @@ import { PlanResolverService } from '../../../../shared/plans/plan-resolver.serv
 import { TenantFeatureTogglesRepository } from '../../../../shared/plans/tenant-feature-toggles.repository';
 import { AuthenticationError } from '../errors';
 import { LoginLockoutService } from './login-lockout.service';
+import { OWNER_ROLE_ID } from '../../../../database/tenant/well-known-ids';
+import { USER_BRANCH_ACCESS_REPOSITORY, type UserBranchAccessRepository } from '../ports/user-branch-access.repository';
 
 const REFRESH_TOKEN_TTL_DAYS = Number(process.env.JWT_REFRESH_TTL_DAYS ?? 30);
 const REFRESH_TOKEN_BYTES = 48;
@@ -80,6 +82,8 @@ export class AuthService {
     private readonly plans: PlanResolverService,
     private readonly featureToggles: TenantFeatureTogglesRepository,
     private readonly lockout: LoginLockoutService,
+    // Optional so hand-built unit tests keep working; Nest always provides it.
+    @Optional() @Inject(USER_BRANCH_ACCESS_REPOSITORY) private readonly branchAccess?: UserBranchAccessRepository,
   ) {}
 
   async login(
@@ -257,10 +261,11 @@ export class AuthService {
     userId: string,
     roleId: string,
   ): Promise<{ accessToken: string; refreshToken: string }> {
-    const [role, features, disabledFeatures] = await Promise.all([
+    const [role, features, disabledFeatures, branchRows] = await Promise.all([
       this.roles.findById(db, roleId),
       this.plans.resolveFeatureKeysForSchema(schema),
       this.featureToggles.listDisabledFeatureKeys(db),
+      this.branchAccess ? this.branchAccess.listBranchIdsForUser(db, userId) : Promise.resolve([] as string[]),
     ]);
     const permissions = role?.permissionKeys ?? [];
 
@@ -271,6 +276,8 @@ export class AuthService {
       permissions,
       features,
       disabledFeatures,
+      // An Owner is never limited to branches.
+      branchIds: roleId === OWNER_ROLE_ID ? [] : branchRows,
     };
     const accessToken = this.jwtService.sign(payload);
 

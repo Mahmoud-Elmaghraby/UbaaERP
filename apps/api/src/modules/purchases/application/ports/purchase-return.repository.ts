@@ -3,6 +3,8 @@ import type { TenantDatabase } from '../../../../database/tenant/kysely-client';
 import type { PurchaseReturn, PurchaseReturnStatus } from '../../domain/purchase-return.entity';
 
 export interface CreatePurchaseReturnRow {
+  /** Migration 0130: the branch; derived from its warehouse / treasury / parent document when omitted. */
+  branchId?: string | null;
   returnNumber: string;
   goodsReceiptId: string;
   returnDate: string | null;

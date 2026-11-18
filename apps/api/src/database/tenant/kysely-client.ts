@@ -62,6 +62,8 @@ export interface BranchesTable {
   custom_fields: unknown;
   created_at: Generated<Date>;
   updated_at: Generated<Date>;
+  /** Migration 0130: the one main branch. */
+  is_main: Generated<boolean>;
 }
 
 export interface NumberingSequencesTable {
@@ -218,7 +220,7 @@ export interface WarehousesTable {
   name: string;
   code: string;
   address: string | null;
-  branch_id: string | null;
+  branch_id: string;
   is_active: boolean;
   custom_fields: unknown;
   created_at: Generated<Date>;
@@ -545,6 +547,8 @@ export interface SalesOrdersTable {
   sales_rep_id: Generated<string | null>;
   /** Migration 0113 — the POS shift this sale was rung up in. */
   pos_session_id: Generated<string | null>;
+  /** Migration 0130: the branch it belongs to (nullable for old code paths; services fill it). */
+  branch_id: string | null;
 }
 
 export interface SalesOrderLinesTable {
@@ -611,6 +615,8 @@ export interface SalesInvoicesTable {
   external_reference: string | null;
   /** Migration 0110 — sales rep the invoice counts for. */
   sales_rep_id: Generated<string | null>;
+  /** Migration 0130: the branch it belongs to (nullable for old code paths; services fill it). */
+  branch_id: string | null;
 }
 
 /** Migration 0110 — sales representatives. */
@@ -995,6 +1001,8 @@ export interface ChannelSettlementsTable {
   posted_at: Date | null;
   created_at: Generated<Date>;
   updated_at: Generated<Date>;
+  /** Migration 0130: the branch it belongs to (nullable for old code paths; services fill it). */
+  branch_id: string | null;
 }
 
 export interface ChannelSettlementLinesTable {
@@ -1051,6 +1059,8 @@ export interface PaymentsReceivedTable {
   cheque_status: Generated<string | null>;
   cheque_status_date: Generated<string | null>;
   cheque_endorsed_to_payment_id: Generated<string | null>;
+  /** Migration 0130: the branch it belongs to (nullable for old code paths; services fill it). */
+  branch_id: string | null;
 }
 
 /** Migration 0111 — installment schedule (التقسيط) of a sales invoice. */
@@ -1098,6 +1108,8 @@ export interface SupplierPaymentsTable {
   cheque_status: Generated<string | null>;
   cheque_status_date: Generated<string | null>;
   endorsed_cheque_id: Generated<string | null>;
+  /** Migration 0130: the branch it belongs to (nullable for old code paths; services fill it). */
+  branch_id: string | null;
 }
 
 export interface SupplierPaymentAllocationsTable {
@@ -1121,6 +1133,8 @@ export interface SalesReturnsTable {
   updated_at: Generated<Date>;
   /** The marketplace settlement whose refund opened this return (migration 0108). */
   channel_settlement_id: Generated<string | null>;
+  /** Migration 0130: the branch it belongs to (nullable for old code paths; services fill it). */
+  branch_id: string | null;
 }
 
 export interface SalesReturnLinesTable {
@@ -1146,6 +1160,8 @@ export interface SalesCreditNotesTable {
   custom_fields: unknown;
   created_at: Generated<Date>;
   updated_at: Generated<Date>;
+  /** Migration 0130: the branch it belongs to (nullable for old code paths; services fill it). */
+  branch_id: string | null;
 }
 
 export interface SalesCreditNoteLinesTable {
@@ -1174,6 +1190,8 @@ export interface QuotationsTable {
   custom_fields: unknown;
   created_at: Generated<Date>;
   updated_at: Generated<Date>;
+  /** Migration 0130: the branch it belongs to (nullable for old code paths; services fill it). */
+  branch_id: string | null;
 }
 
 export interface QuotationLinesTable {
@@ -1289,6 +1307,8 @@ export interface PurchaseOrdersTable {
   updated_at: Generated<Date>;
   /** Migration 0114 — the direct purchase invoice that made this order for itself; NULL = made by hand. */
   source_purchase_invoice_id: Generated<string | null>;
+  /** Migration 0130: the branch it belongs to (nullable for old code paths; services fill it). */
+  branch_id: string | null;
 }
 
 export interface PurchaseOrderLinesTable {
@@ -1346,6 +1366,8 @@ export interface PurchaseReturnsTable {
   custom_fields: unknown;
   created_at: Generated<Date>;
   updated_at: Generated<Date>;
+  /** Migration 0130: the branch it belongs to (nullable for old code paths; services fill it). */
+  branch_id: string | null;
 }
 
 /** Migration 0096 — debit note issued with a confirmed purchase return (invoiced part only). */
@@ -1357,6 +1379,8 @@ export interface PurchaseDebitNotesTable {
   debit_note_date: string;
   currency: string;
   created_at: Generated<Date>;
+  /** Migration 0130: the branch it belongs to (nullable for old code paths; services fill it). */
+  branch_id: string | null;
 }
 
 export interface PurchaseDebitNoteLinesTable {
@@ -1412,6 +1436,8 @@ export interface PurchaseInvoicesTable {
   updated_at: Generated<Date>;
   /** Migration 0092 — unit prices include VAT/table tax. */
   prices_include_tax: Generated<boolean>;
+  /** Migration 0130: the branch it belongs to (nullable for old code paths; services fill it). */
+  branch_id: string | null;
 }
 
 export interface PurchaseInvoiceLinesTable {
@@ -1887,6 +1913,8 @@ export interface JournalEntriesTable {
   source_reference_id: string | null;
   created_at: Generated<Date>;
   updated_at: Generated<Date>;
+  /** Migration 0130: the branch it belongs to (nullable for old code paths; services fill it). */
+  branch_id: string | null;
 }
 
 export interface JournalEntryLinesTable {
@@ -1902,6 +1930,8 @@ export interface JournalEntryLinesTable {
   is_reconciled: Generated<boolean>;
   reconciled_at: Date | null;
   created_at: Generated<Date>;
+  /** Migration 0130: the branch it belongs to (nullable for old code paths; services fill it). */
+  branch_id: string | null;
 }
 
 export interface AccountingSettingsTable {
@@ -1984,6 +2014,8 @@ export interface PosSessionsTable {
   updated_at: Generated<Date>;
   /** Migration 0095 — the cash box the session's cash goes into. */
   treasury_id: string | null;
+  /** Migration 0130: the branch it belongs to (nullable for old code paths; services fill it). */
+  branch_id: string | null;
 }
 
 export interface CostCentersTable {
@@ -2019,6 +2051,8 @@ export interface TreasuriesTable {
   custom_fields: Generated<unknown>;
   created_at: Generated<Date>;
   updated_at: Generated<Date>;
+  /** Migration 0130. */
+  branch_id: string;
 }
 
 export interface TreasuryCategoriesTable {
@@ -2052,6 +2086,8 @@ export interface TreasuryVouchersTable {
   pos_session_id: Generated<string | null>;
   created_at: Generated<Date>;
   updated_at: Generated<Date>;
+  /** Migration 0130: the branch it belongs to (nullable for old code paths; services fill it). */
+  branch_id: string | null;
 }
 
 
@@ -2094,6 +2130,8 @@ export interface CustomerRefundsTable {
   cancel_reason: string | null;
   created_at: Generated<Date>;
   updated_at: Generated<Date>;
+  /** Migration 0130: the branch it belongs to (nullable for old code paths; services fill it). */
+  branch_id: string | null;
 }
 
 /** Migration 0113 — a sale parked at the till. */

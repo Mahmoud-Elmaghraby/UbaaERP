@@ -87,6 +87,8 @@ export interface CreateSalesOrderLineInput extends Discountable {
  * apply regardless of which path is used.
  */
 export interface CreateSalesOrderInput extends Discountable {
+  /** Migration 0130: the branch (defaults from the warehouse, the source quotation, or the main branch). */
+  branchId?: string | null;
   sourceQuotationId?: string | null;
   customerId?: string;
   lines?: CreateSalesOrderLineInput[];

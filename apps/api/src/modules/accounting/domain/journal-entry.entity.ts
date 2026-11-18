@@ -31,6 +31,8 @@ export interface JournalEntryLine {
   lineOrder: number;
   /** Optional cost-center tag (Stage 4) — never required, never validated against the balance invariant. */
   costCenterId: string | null;
+  /** Migration 0130: the branch this line belongs to. */
+  branchId: string | null;
   /** Bank reconciliation status (Stage 5) — meaningful only for lines posted to an account a BankAccount links to; NULL/false everywhere else. See BankAccountsService. */
   isReconciled: boolean;
   reconciledAt: Date | null;
@@ -52,6 +54,8 @@ export interface JournalEntry {
   /** Set only on auto-generated entries (source = 'auto') — the idempotency key auto-posting listeners key off. See migration 0051. */
   sourceReferenceType: string | null;
   sourceReferenceId: string | null;
+  /** Migration 0130. */
+  branchId: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -68,9 +72,13 @@ export interface CreateJournalEntryLineInput {
   description?: string | null;
   /** Optional cost-center tag (Stage 4) — no validation beyond "the referenced row exists" (enforced by the FK; ON DELETE SET NULL, see migration 0056). */
   costCenterId?: string | null;
+  /** Migration 0130: defaults to the entry's branch. */
+  branchId?: string | null;
 }
 
 export interface CreateJournalEntryInput {
+  /** Migration 0130: defaults to the main branch. */
+  branchId?: string | null;
   entryDate: string;
   description?: string | null;
   notes?: string | null;
@@ -87,6 +95,8 @@ export type UpdateJournalEntryInput = CreateJournalEntryInput;
  * (an @OnEvent handler), never by a user. See JournalEntriesService.createAuto().
  */
 export interface CreateAutoJournalEntryInput {
+  /** Migration 0130: defaults to the source document's branch. */
+  branchId?: string | null;
   entryDate: string;
   description?: string | null;
   lines: CreateJournalEntryLineInput[];
@@ -106,6 +116,8 @@ export interface JournalEntryLineToPersist {
   creditAmount: Money;
   description: string | null;
   costCenterId: string | null;
+  /** Migration 0130: the branch this line belongs to. */
+  branchId: string | null;
 }
 
 export interface JournalEntryFilters {

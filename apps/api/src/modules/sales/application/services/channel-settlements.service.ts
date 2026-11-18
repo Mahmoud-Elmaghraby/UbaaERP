@@ -21,6 +21,7 @@ import { SALES_INVOICE_LINE_REPOSITORY, type SalesInvoiceLineRepository } from '
 import { calculateSalesInvoiceTotal } from '../../domain/sales-invoice.entity';
 import { PaymentsReceivedService } from './payments-received.service';
 import { SalesReturnsService } from './sales-returns.service';
+import { resolveBranchId } from '../../../../shared/branches/branch-resolver';
 
 export const CHANNEL_SETTLEMENT_POSTED = 'sales.channel_settlement.posted';
 
@@ -225,6 +226,7 @@ export class ChannelSettlementsService {
           .values({
             id: settlementId,
             settlement_number: number.formatted,
+            branch_id: await resolveBranchId(trx, { treasuryId: channel.treasury_id }),
             sales_channel_id: channel.id,
             statement_date: input.statementDate,
             period_from: input.periodFrom ?? null,

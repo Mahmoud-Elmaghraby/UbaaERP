@@ -6,6 +6,7 @@ import type {
   CreateSalesReturnRow,
 } from '../../application/ports/sales-return.repository';
 import type { SalesReturn, SalesReturnStatus } from '../../domain/sales-return.entity';
+import { resolveBranchId } from '../../../../shared/branches/branch-resolver';
 
 function toDomain(row: Selectable<SalesReturnsTable>): SalesReturn {
   return {
@@ -46,6 +47,7 @@ export class KyselySalesReturnRepository implements SalesReturnRepository {
     const row = await db
       .insertInto('sales_returns')
       .values({
+        branch_id: await resolveBranchId(db, { branchId: input.branchId, deliveryId: input.deliveryId }),
         id: randomUUID(),
         return_number: input.returnNumber,
         delivery_id: input.deliveryId,

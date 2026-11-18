@@ -24,6 +24,7 @@ import { ChartAccountSelect } from './chart-account-select';
 import { decimalToMinorUnits, minorUnitsToDecimalString } from '../../../lib/money';
 import { ApiError } from '../../../lib/api-client';
 import { CurrencySelect } from '../../../components/document/currency-select';
+import { useBranches } from '../../settings/queries';
 
 const KINDS: TreasuryKindDto[] = ['cash', 'bank', 'wallet'];
 
@@ -53,6 +54,8 @@ export function TreasuryFormDialog({
   const [isDefault, setIsDefault] = useState(false);
   const [isActive, setIsActive] = useState(true);
   const [chartOfAccountId, setChartOfAccountId] = useState<string | null>(null);
+  const [branchId, setBranchId] = useState<string>('');
+  const { data: branches = [] } = useBranches();
   const [notes, setNotes] = useState('');
 
   useEffect(() => {
@@ -69,6 +72,7 @@ export function TreasuryFormDialog({
     setIsDefault(treasury?.isDefault ?? false);
     setIsActive(treasury?.isActive ?? true);
     setChartOfAccountId(treasury?.chartOfAccountId ?? null);
+    setBranchId(treasury?.branchId ?? '');
     setNotes(treasury?.notes ?? '');
   }, [open, treasury, defaultCurrency]);
 
@@ -88,6 +92,7 @@ export function TreasuryFormDialog({
       accountNumber: kind === 'cash' ? null : accountNumber.trim() || null,
       iban: kind === 'bank' ? iban.trim() || null : null,
       chartOfAccountId,
+      ...(branchId ? { branchId } : {}),
       openingBalanceMinorUnits: openingMinor,
       openingBalanceDate: openingDate || null,
       isDefault,
@@ -142,6 +147,23 @@ export function TreasuryFormDialog({
 <CurrencySelect value={currency} onChange={setCurrency} disabled={Boolean(treasury)} />
             </div>
           </div>
+          {branches.length > 1 ? (
+            <div className="grid gap-1.5">
+              <Label>{t('branches.label')}</Label>
+              <Select value={branchId || (branches.find((b) => b.isMain)?.id ?? '')} onValueChange={setBranchId}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {branches.map((branch) => (
+                    <SelectItem key={branch.id} value={branch.id}>
+                      {branch.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          ) : null}
           {kind !== 'cash' ? (
             <div className="grid grid-cols-2 gap-3">
               <div className="grid gap-1.5">

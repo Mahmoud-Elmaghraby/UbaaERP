@@ -3,6 +3,7 @@ import { sql, type Kysely, type Selectable } from 'kysely';
 import type { WarehousesTable, TenantDatabase } from '../../../../database/tenant/kysely-client';
 import type { WarehouseRepository } from '../../application/ports/warehouse.repository';
 import type { Warehouse, CreateWarehouseInput, UpdateWarehouseInput } from '../../domain/warehouse.entity';
+import { mainBranchId } from '../../../../shared/branches/branch-resolver';
 
 function toDomain(row: Selectable<WarehousesTable>): Warehouse {
   return {
@@ -37,7 +38,7 @@ export class KyselyWarehouseRepository implements WarehouseRepository {
         name: input.name,
         code: input.code,
         address: input.address ?? null,
-        branch_id: input.branchId ?? null,
+        branch_id: input.branchId ?? (await mainBranchId(db)),
         is_active: input.isActive ?? true,
         custom_fields: JSON.stringify(input.customFields ?? {}),
       })
@@ -53,7 +54,7 @@ export class KyselyWarehouseRepository implements WarehouseRepository {
         ...(input.name !== undefined ? { name: input.name } : {}),
         ...(input.code !== undefined ? { code: input.code } : {}),
         ...(input.address !== undefined ? { address: input.address } : {}),
-        ...(input.branchId !== undefined ? { branch_id: input.branchId } : {}),
+        ...(input.branchId !== undefined ? { branch_id: input.branchId ?? (await mainBranchId(db)) } : {}),
         ...(input.isActive !== undefined ? { is_active: input.isActive } : {}),
         ...(input.customFields !== undefined ? { custom_fields: JSON.stringify(input.customFields) } : {}),
         updated_at: sql`now()`,

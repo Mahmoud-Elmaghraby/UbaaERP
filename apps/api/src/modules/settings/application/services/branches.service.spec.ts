@@ -14,6 +14,7 @@ function makeBranch(overrides: Partial<Branch> = {}): Branch {
     code: 'MAIN',
     address: null,
     isActive: true,
+    isMain: false,
     customFields: {},
     createdAt: new Date('2026-01-01T00:00:00Z'),
     updatedAt: new Date('2026-01-01T00:00:00Z'),
@@ -128,6 +129,20 @@ describe('BranchesService', () => {
       repository.delete.mockResolvedValue(false);
 
       await expect(service.delete(FAKE_DB, 'missing')).rejects.toThrow(NotFoundError);
+    });
+  });
+  describe('main branch protection (migration 0130)', () => {
+    it('refuses to delete the main branch', async () => {
+      repository.findById.mockResolvedValue(makeBranch({ isMain: true }));
+      await expect(service.delete(FAKE_DB, 'branch-1')).rejects.toMatchObject({ code: 'BRANCH.MAIN_PROTECTED' });
+      expect(repository.delete).not.toHaveBeenCalled();
+    });
+
+    it('refuses to deactivate the main branch', async () => {
+      repository.findById.mockResolvedValue(makeBranch({ isMain: true }));
+      await expect(service.update(FAKE_DB, 'branch-1', { isActive: false })).rejects.toMatchObject({
+        code: 'BRANCH.MAIN_PROTECTED',
+      });
     });
   });
 });

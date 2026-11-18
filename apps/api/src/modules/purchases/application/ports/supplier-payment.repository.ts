@@ -8,6 +8,8 @@ import type {
 } from '../../domain/supplier-payment.entity';
 
 export interface CreateSupplierPaymentRow {
+  /** Migration 0130: the branch; derived from its warehouse / treasury / parent document when omitted. */
+  branchId?: string | null;
   paymentNumber: string;
   supplierId: string;
   paymentDate: string | null;

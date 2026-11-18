@@ -111,6 +111,7 @@ export class JournalEntriesService {
         creditAmount: credit,
         description: raw.description ?? null,
         costCenterId: raw.costCenterId ?? null,
+        branchId: raw.branchId ?? null,
       });
       totalDebit = totalDebit.add(debit);
       totalCredit = totalCredit.add(credit);
@@ -145,6 +146,7 @@ export class JournalEntriesService {
         description: input.description ?? null,
         notes: input.notes ?? null,
         customFields: input.customFields ?? {},
+        branchId: input.branchId ?? null,
       });
       const lines = await this.lines.createMany(trx, entry.id, builtLines);
       return { ...entry, lines };
@@ -302,6 +304,7 @@ export class JournalEntriesService {
       // Carried through unchanged (Stage 4) — a reversal is reversing this
       // same line's activity, so it belongs to the same cost center, if any.
       costCenterId: line.costCenterId,
+      branchId: line.branchId,
     }));
 
     return withTransaction(db, async (trx) => {
@@ -315,6 +318,7 @@ export class JournalEntriesService {
         reversalOfEntryId: original.id,
         notes: null,
         customFields: {},
+        branchId: original.branchId,
       });
       const lines = await this.lines.createMany(trx, entry.id, swappedLines);
       return { ...entry, lines };
@@ -421,6 +425,7 @@ export class JournalEntriesService {
           customFields: {},
           sourceReferenceType: input.sourceReferenceType,
           sourceReferenceId: input.sourceReferenceId,
+          branchId: input.branchId ?? null,
         });
         const lines = await this.lines.createMany(trx, entry.id, builtLines);
         return { ...entry, lines };

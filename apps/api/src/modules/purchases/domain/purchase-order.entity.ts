@@ -62,6 +62,8 @@ export interface CreatePurchaseOrderLineInput {
  * PurchaseOrdersService.create(), not by the type system.
  */
 export interface CreatePurchaseOrderInput {
+  /** Migration 0130: the branch (defaults from the warehouse, the source quotation, or the main branch). */
+  branchId?: string | null;
   sourceQuotationId?: string | null;
   supplierId?: string;
   lines?: CreatePurchaseOrderLineInput[];

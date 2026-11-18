@@ -6,6 +6,7 @@ import type {
   CreateSalesInvoiceRow,
 } from '../../application/ports/sales-invoice.repository';
 import type { SalesInvoice, SalesInvoiceStatus } from '../../domain/sales-invoice.entity';
+import { resolveBranchId } from '../../../../shared/branches/branch-resolver';
 
 function toDomain(row: Selectable<SalesInvoicesTable>): SalesInvoice {
   return {
@@ -51,6 +52,7 @@ export class KyselySalesInvoiceRepository implements SalesInvoiceRepository {
     const row = await db
       .insertInto('sales_invoices')
       .values({
+        branch_id: await resolveBranchId(db, { branchId: input.branchId, salesOrderId: input.salesOrderId }),
         id: randomUUID(),
         invoice_number: input.invoiceNumber,
         sales_order_id: input.salesOrderId,

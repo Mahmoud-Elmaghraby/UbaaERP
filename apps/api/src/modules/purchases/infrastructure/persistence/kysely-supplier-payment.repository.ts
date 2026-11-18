@@ -11,6 +11,7 @@ import type {
   SupplierPaymentStatus,
   SupplierPaymentMethod,
 } from '../../domain/supplier-payment.entity';
+import { resolveBranchId } from '../../../../shared/branches/branch-resolver';
 
 function toDomain(row: Selectable<SupplierPaymentsTable>): SupplierPayment {
   return {
@@ -66,6 +67,7 @@ export class KyselySupplierPaymentRepository implements SupplierPaymentRepositor
     const row = await db
       .insertInto('supplier_payments')
       .values({
+        branch_id: await resolveBranchId(db, { branchId: input.branchId, treasuryId: input.treasuryId }),
         id: randomUUID(),
         payment_number: input.paymentNumber,
         supplier_id: input.supplierId,

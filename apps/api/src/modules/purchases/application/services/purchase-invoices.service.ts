@@ -47,6 +47,7 @@ import { localIsoDate } from '../../../../shared/time/local-date';
 import { PurchaseLimitsService, type PurchaseLimitsDocument } from './purchase-limits.service';
 import type { PurchaseLimitsCheckDto } from '@erp-platform/contracts';
 import { AppSettingsRepository } from '../../../../shared/app-settings/app-settings.repository';
+import { resolveBranchId } from '../../../../shared/branches/branch-resolver';
 
 /**
  * Purchase Invoices (master doc §10, step 3 — Purchases, Stage 7). This
@@ -254,6 +255,8 @@ export class PurchaseInvoicesService {
             trx,
             {
               supplierId: input.supplierId!,
+              // The internal order (and so the invoice) belongs to the warehouse's branch.
+              branchId: input.warehouseId ? await resolveBranchId(trx, { warehouseId: input.warehouseId }) : null,
               lines: input.directLines!.map((line) => ({
                 productVariantId: line.productVariantId,
                 quantity: line.quantityInvoiced,

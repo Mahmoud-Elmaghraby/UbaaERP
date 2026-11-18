@@ -16,6 +16,7 @@ import { localIsoDate } from '../../../../shared/time/local-date';
 import { lockRowsForUpdate } from '../../../../shared/persistence/row-locks';
 import { NumberingSequencesService } from '../../../settings/application/services/numbering-sequences.service';
 import { NotFoundError } from '../errors';
+import { resolveBranchId } from '../../../../shared/branches/branch-resolver';
 
 export const PURCHASE_DEBIT_NOTE_ISSUED = 'purchases.purchase_debit_note.issued';
 
@@ -130,6 +131,7 @@ export class PurchaseDebitNotesService {
         id,
         debit_note_number: number.formatted,
         purchase_return_id: purchaseReturn.id,
+        branch_id: await resolveBranchId(trx, { purchaseReturnId: purchaseReturn.id }),
         supplier_id: supplierId,
         debit_note_date: date,
         currency,

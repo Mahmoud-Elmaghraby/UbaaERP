@@ -40,6 +40,8 @@ export const salesAnalysisQuerySchema = z.object({
   /** groupBy 'option': the option to group by ("المقاس", "اللون"…). */
   optionName: z.string().trim().min(1).max(60).optional(),
   salesChannelId: z.string().uuid().optional(),
+  /** Only this branch's invoices and credit notes (migration 0130). */
+  branchId: z.string().uuid().optional(),
 });
 export type SalesAnalysisQueryDto = z.infer<typeof salesAnalysisQuerySchema>;
 

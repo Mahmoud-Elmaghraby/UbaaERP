@@ -19,6 +19,7 @@ import { SupervisorApprovalService } from '../../../shared/auth/supervisor-appro
 import { lockRowsForUpdate } from '../../../shared/persistence/row-locks';
 import { localIsoDate } from '../../../shared/time/local-date';
 import type { PosCashMovementDto, PosCashMovementRowDto } from '@erp-platform/contracts';
+import { resolveBranchId } from '../../../shared/branches/branch-resolver';
 
 export const TREASURY_VOUCHER_POSTED = 'treasury.voucher.posted';
 export const TREASURY_VOUCHER_CANCELLED = 'treasury.voucher.cancelled';
@@ -131,6 +132,11 @@ export class TreasuryVouchersService {
           voucher_date: input.voucherDate,
           treasury_id: treasury.id,
           to_treasury_id: toTreasuryId,
+          branch_id: await resolveBranchId(trx, {
+            branchId: input.kind === 'transfer' ? null : input.branchId,
+            posSessionId: options.posSessionId,
+            treasuryId: treasury.id,
+          }),
           category_id: category?.id ?? null,
           amount: input.amountMinorUnits,
           currency: treasury.currency,

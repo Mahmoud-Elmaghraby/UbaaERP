@@ -6,6 +6,8 @@ export const branchSchema = z.object({
   code: z.string().min(1),
   address: z.string().nullable(),
   isActive: z.boolean(),
+  /** The one main branch (migration 0130): where everything unplaced belongs. */
+  isMain: z.boolean(),
   customFields: z.record(z.unknown()),
   createdAt: z.coerce.date(),
   updatedAt: z.coerce.date(),

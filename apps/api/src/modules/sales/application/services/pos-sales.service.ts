@@ -22,6 +22,7 @@ import { SalesOrdersService } from './sales-orders.service';
 import { DeliveriesService } from './deliveries.service';
 import { SalesInvoicesService } from './sales-invoices.service';
 import { PaymentsReceivedService } from './payments-received.service';
+import { resolveBranchId } from '../../../../shared/branches/branch-resolver';
 
 /**
  * POS Checkout orchestration (CLAUDE.md §10 — step 4, Sales — POS
@@ -191,7 +192,11 @@ export class PosSalesService {
         await this.salesOrders.confirm(trx, order.id);
         await trx
           .updateTable('sales_orders')
-          .set({ pos_session_id: session.id, ...(input.checkoutId ? { pos_checkout_id: input.checkoutId } : {}) })
+          .set({
+            pos_session_id: session.id,
+            branch_id: await resolveBranchId(trx, { posSessionId: session.id }),
+            ...(input.checkoutId ? { pos_checkout_id: input.checkoutId } : {}),
+          })
           .where('id', '=', order.id)
           .execute();
 

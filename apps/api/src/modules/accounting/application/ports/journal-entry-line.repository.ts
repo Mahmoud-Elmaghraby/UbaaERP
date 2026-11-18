@@ -25,6 +25,8 @@ export interface PostedSumOptions {
   excludeSourceReferenceTypes?: string[];
   /** Only lines tagged with this cost center. */
   costCenterId?: string;
+  /** Only lines of this branch (migration 0130). */
+  branchId?: string;
 }
 
 export interface JournalEntryLineRepository {

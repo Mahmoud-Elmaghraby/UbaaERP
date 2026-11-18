@@ -4,6 +4,7 @@ export interface Branch {
   code: string;
   address: string | null;
   isActive: boolean;
+  isMain: boolean;
   customFields: Record<string, unknown>;
   createdAt: Date;
   updatedAt: Date;

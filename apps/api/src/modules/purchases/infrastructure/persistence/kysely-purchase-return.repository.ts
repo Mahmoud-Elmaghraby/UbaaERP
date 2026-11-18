@@ -6,6 +6,7 @@ import type {
   CreatePurchaseReturnRow,
 } from '../../application/ports/purchase-return.repository';
 import type { PurchaseReturn, PurchaseReturnStatus } from '../../domain/purchase-return.entity';
+import { resolveBranchId } from '../../../../shared/branches/branch-resolver';
 
 function toDomain(row: Selectable<PurchaseReturnsTable>): PurchaseReturn {
   return {
@@ -46,6 +47,7 @@ export class KyselyPurchaseReturnRepository implements PurchaseReturnRepository 
     const row = await db
       .insertInto('purchase_returns')
       .values({
+        branch_id: await resolveBranchId(db, { branchId: input.branchId, goodsReceiptId: input.goodsReceiptId }),
         id: randomUUID(),
         return_number: input.returnNumber,
         goods_receipt_id: input.goodsReceiptId,

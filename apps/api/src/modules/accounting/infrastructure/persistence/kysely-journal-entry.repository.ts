@@ -7,6 +7,7 @@ import type {
   UpdateJournalEntryRow,
 } from '../../application/ports/journal-entry.repository';
 import type { JournalEntry, JournalEntryFilters, JournalEntryStatus } from '../../domain/journal-entry.entity';
+import { branchOfSource, mainBranchId } from '../../../../shared/branches/branch-resolver';
 
 function toDomain(row: Selectable<JournalEntriesTable>): JournalEntry {
   return {
@@ -23,6 +24,7 @@ function toDomain(row: Selectable<JournalEntriesTable>): JournalEntry {
     customFields: (row.custom_fields ?? {}) as Record<string, unknown>,
     sourceReferenceType: row.source_reference_type,
     sourceReferenceId: row.source_reference_id,
+    branchId: row.branch_id,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -58,6 +60,10 @@ export class KyselyJournalEntryRepository implements JournalEntryRepository {
         custom_fields: JSON.stringify(input.customFields ?? {}),
         source_reference_type: input.sourceReferenceType ?? null,
         source_reference_id: input.sourceReferenceId ?? null,
+        branch_id:
+          input.branchId ??
+          (await branchOfSource(db, input.sourceReferenceType, input.sourceReferenceId)) ??
+          (await mainBranchId(db)),
       })
       .returningAll()
       .executeTakeFirstOrThrow();

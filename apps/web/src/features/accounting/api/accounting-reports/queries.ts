@@ -51,13 +51,15 @@ export function useIncomeStatementReport(params: {
   toDate: string | undefined;
   /** Only lines tagged with this cost center (مركز تكلفة). */
   costCenterId?: string | null;
+  /** Only lines of this branch (فرع). */
+  branchId?: string | null;
 }) {
-  const { fromDate, toDate, costCenterId } = params;
+  const { fromDate, toDate, costCenterId, branchId } = params;
   return useQuery({
-    queryKey: ['accounting-reports', 'income-statement', fromDate, toDate, costCenterId ?? null],
+    queryKey: ['accounting-reports', 'income-statement', fromDate, toDate, costCenterId ?? null, branchId ?? null],
     queryFn: () =>
       apiGet<IncomeStatementReportDto>(
-        `/accounting-reports/income-statement?fromDate=${fromDate}&toDate=${toDate}${costCenterId ? `&costCenterId=${costCenterId}` : ''}`,
+        `/accounting-reports/income-statement?fromDate=${fromDate}&toDate=${toDate}${costCenterId ? `&costCenterId=${costCenterId}` : ''}${branchId ? `&branchId=${branchId}` : ''}`,
       ),
     enabled: Boolean(fromDate) && Boolean(toDate),
   });
