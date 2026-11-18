@@ -52,6 +52,7 @@ import { WhatsAppShareButton } from '../../../../components/document/whatsapp-sh
 import { ChequeDueDate, ChequeStatusBadge } from '../../../../components/document/cheque-fields';
 import { useChequeActions } from '../cheques/use-cheque-actions';
 import { SALES, SALES_WRITE } from '../../../../lib/permissions';
+import { useBranchInfo } from '../../../../components/list/branch-column';
 
 /** /sales/payments-received/:id — a receipt, its allocations and (when posted) allocating what is left. */
 export function PaymentReceivedPage() {
@@ -59,6 +60,7 @@ export function PaymentReceivedPage() {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const { data: payment, isLoading, isError } = usePaymentReceived(id);
+  const branchInfo = useBranchInfo(payment?.branchId);
   const { data: customer } = useCustomer(payment?.customerId);
   const { data: treasuries } = useTreasuryLookup();
   const { data: customerInvoices } = useSalesInvoiceRegister(
@@ -227,6 +229,7 @@ export function PaymentReceivedPage() {
             <SectionCard title={t('documents.info')}>
               <InfoGrid
                 items={[
+                  ...branchInfo,
                   { label: t('sales.paymentsReceived.customer'), value: customer?.name },
                   {
                     label: t('sales.paymentsReceived.paymentDate'),

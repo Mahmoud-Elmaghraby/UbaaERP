@@ -182,7 +182,7 @@ export class AccountingReportsService {
     db: Kysely<TenantDatabase>,
     fromDate: string,
     toDate: string,
-    options: { costCenterId?: string; branchId?: string } = {},
+    options: { costCenterId?: string; branchId?: string; branchIds?: string[] } = {},
   ): Promise<IncomeStatementReport> {
     const currency = (await this.tenantSettings.get(db)).currencyCode;
     const allAccounts = await this.accounts.list(db);
@@ -195,7 +195,7 @@ export class AccountingReportsService {
       [...revenueAccounts, ...expenseAccounts].map((a) => a.id),
       fromDate,
       toDate,
-      { excludeSourceReferenceTypes: [YEAR_END_CLOSING_SOURCE], costCenterId: options.costCenterId, branchId: options.branchId },
+      { excludeSourceReferenceTypes: [YEAR_END_CLOSING_SOURCE], costCenterId: options.costCenterId, branchId: options.branchId, branchIds: options.branchIds },
     );
 
     const revenue = this.buildAmountRows(revenueAccounts, sums, currency);

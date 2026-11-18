@@ -14,6 +14,8 @@ export interface DecodedAccessToken {
   features: string[];
   /** Layer 2 (tenant self-service) feature keys turned off — see PlanFeatureGuard's own comment. */
   disabledFeatures: string[];
+  /** Branches this user is limited to; empty/absent = all (migration 0130). */
+  branchIds?: string[];
   iat?: number;
   exp?: number;
 }

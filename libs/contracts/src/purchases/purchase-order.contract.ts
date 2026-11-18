@@ -24,6 +24,8 @@ export const purchaseOrderLineSchema = z.object({
 export type PurchaseOrderLineDto = z.infer<typeof purchaseOrderLineSchema>;
 
 export const purchaseOrderSchema = z.object({
+  /** Migration 0130: the branch it belongs to. */
+  branchId: z.string().uuid().nullable().optional(),
   id: z.string().uuid(),
   poNumber: z.string().min(1),
   supplierId: z.string().uuid(),

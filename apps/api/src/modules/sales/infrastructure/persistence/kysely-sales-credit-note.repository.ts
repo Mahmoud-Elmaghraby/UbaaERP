@@ -11,6 +11,7 @@ import { resolveBranchId } from '../../../../shared/branches/branch-resolver';
 function toDomain(row: Selectable<SalesCreditNotesTable>): SalesCreditNote {
   return {
     id: row.id,
+    branchId: row.branch_id,
     creditNoteNumber: row.credit_note_number,
     salesReturnId: row.sales_return_id,
     customerId: row.customer_id,

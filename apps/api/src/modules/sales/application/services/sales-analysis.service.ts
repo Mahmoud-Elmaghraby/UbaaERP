@@ -57,6 +57,7 @@ export class SalesAnalysisService {
     const customerId = query.customerId ?? null;
     const channelId = query.salesChannelId ?? null;
     const branchId = query.branchId ?? null;
+    const branchIds = query.branchIds ? query.branchIds.split(',').filter(Boolean) : null;
     const facts: SalesFact[] = [];
     const foreignDocuments = new Set<string>();
 
@@ -112,6 +113,7 @@ export class SalesAnalysisService {
           LEFT JOIN sales_channels sc ON sc.id = si.sales_channel_id
          WHERE si.status = 'posted'
            AND (${branchId}::uuid IS NULL OR si.branch_id = ${branchId}::uuid)
+           AND (${branchIds}::uuid[] IS NULL OR si.branch_id = ANY(${branchIds}::uuid[]))
            AND (${channelId}::uuid IS NULL OR si.sales_channel_id = ${channelId}::uuid)
            AND (${fromDate}::date IS NULL OR COALESCE(si.invoice_date::date, si.created_at::date) >= ${fromDate}::date)
            AND (${toDate}::date IS NULL OR COALESCE(si.invoice_date::date, si.created_at::date) <= ${toDate}::date)
@@ -236,6 +238,7 @@ export class SalesAnalysisService {
              AND (${toDate}::date IS NULL OR COALESCE(sr.return_date::date, (cn.created_at AT TIME ZONE 'Africa/Cairo')::date) <= ${toDate}::date)
              AND (${customerId}::uuid IS NULL OR cn.customer_id = ${customerId}::uuid)
              AND (${branchId}::uuid IS NULL OR cn.branch_id = ${branchId}::uuid)
+             AND (${branchIds}::uuid[] IS NULL OR cn.branch_id = ANY(${branchIds}::uuid[]))
         )
         SELECT n.id AS sales_credit_note_id, n.sales_return_id, l.product_variant_id,
                (l.quantity * l.unit_factor)::text AS base_quantity,

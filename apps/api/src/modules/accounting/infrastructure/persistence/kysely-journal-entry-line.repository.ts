@@ -206,6 +206,7 @@ export class KyselyJournalEntryLineRepository implements JournalEntryLineReposit
     }
     if (options.costCenterId) query = query.where('journal_entry_lines.cost_center_id', '=', options.costCenterId);
     if (options.branchId) query = query.where('journal_entry_lines.branch_id', '=', options.branchId);
+    if (options.branchIds?.length) query = query.where('journal_entry_lines.branch_id', 'in', options.branchIds);
 
     const rows = await query.groupBy('journal_entry_lines.account_id').execute();
 

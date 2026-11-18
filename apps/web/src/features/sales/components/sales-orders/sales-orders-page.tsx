@@ -14,6 +14,7 @@ import { StatusTabs } from '../../../../components/list/status-tabs';
 import { formatDate } from '../../../../lib/format-date';
 import { SALES_ORDER_STATUS_VARIANT, SALES_ORDERS_PATH, salesOrderStatusLabelKey } from './sales-order-status';
 import { SALES } from '../../../../lib/permissions';
+import { useBranchColumn } from '../../../../components/list/branch-column';
 
 const STATUS_TABS = ['all', 'draft', 'confirmed', 'partially_delivered', 'fully_delivered', 'cancelled'] as const;
 type StatusTab = (typeof STATUS_TABS)[number];
@@ -67,6 +68,7 @@ export function SalesOrdersPage() {
 
   const visible = useMemo(() => (status === 'all' ? rows : rows.filter((r) => r.status === status)), [rows, status]);
 
+  const branch = useBranchColumn<Row>();
   const columns = useMemo<ColumnDef<Row>[]>(
     () => [
       {
@@ -142,20 +144,23 @@ export function SalesOrdersPage() {
         }
       />
       <DataTable
-        columns={columns}
-        data={visible}
+        columns={[...columns.slice(0, 2), ...branch.columns, ...columns.slice(2)]}
+        data={branch.filter(visible)}
         isLoading={isLoading}
         searchable
         searchPlaceholder={t('sales.salesOrders.search')}
         onRowClick={(row) => navigate(`${SALES_ORDERS_PATH}/${row.id}`)}
         toolbar={
-          <StatusTabs
+          <>
+            {branch.control}
+            {<StatusTabs
             tabs={STATUS_TABS}
             value={status}
             onChange={(tab) => setParams(tab === 'all' ? {} : { status: tab }, { replace: true })}
             label={(tab) => (tab === 'all' ? t('documents.all') : t(salesOrderStatusLabelKey(tab as SalesOrderStatusDto)))}
             counts={counts}
-          />
+          />}
+          </>
         }
       />
     </div>

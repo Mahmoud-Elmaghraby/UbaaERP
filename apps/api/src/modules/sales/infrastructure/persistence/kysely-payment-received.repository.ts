@@ -17,6 +17,7 @@ import { resolveBranchId } from '../../../../shared/branches/branch-resolver';
 function toDomain(row: Selectable<PaymentsReceivedTable>): PaymentReceived {
   return {
     id: row.id,
+    branchId: row.branch_id,
     paymentNumber: row.payment_number,
     customerId: row.customer_id,
     status: row.status as PaymentReceivedStatus,

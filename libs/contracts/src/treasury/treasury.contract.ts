@@ -108,6 +108,8 @@ export type TreasuryVoucherKindDto = z.infer<typeof treasuryVoucherKindSchema>;
 
 export const treasuryVoucherSchema = z.object({
   id: z.string().uuid(),
+  /** Migration 0130: the branch the voucher counts for. */
+  branchId: z.string().uuid().nullable().optional(),
   voucherNumber: z.string(),
   kind: treasuryVoucherKindSchema,
   status: z.enum(['posted', 'cancelled']),

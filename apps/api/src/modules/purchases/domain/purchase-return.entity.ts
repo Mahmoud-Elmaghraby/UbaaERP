@@ -22,6 +22,8 @@ export interface PurchaseReturnLine {
 }
 
 export interface PurchaseReturn {
+  /** Migration 0130: the branch it belongs to. */
+  branchId: string | null;
   id: string;
   returnNumber: string;
   goodsReceiptId: string;

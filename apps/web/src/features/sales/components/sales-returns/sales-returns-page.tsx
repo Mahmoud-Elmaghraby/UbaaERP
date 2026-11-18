@@ -14,6 +14,7 @@ import { StatusTabs } from '../../../../components/list/status-tabs';
 import { formatDate } from '../../../../lib/format-date';
 import { SALES_RETURNS_PATH, SALES_RETURN_STATUS_VARIANT, salesReturnStatusLabelKey } from './sales-return-status';
 import { SALES } from '../../../../lib/permissions';
+import { useBranchColumn } from '../../../../components/list/branch-column';
 
 const STATUS_TABS = ['all', 'draft', 'confirmed', 'cancelled'] as const;
 type StatusTab = (typeof STATUS_TABS)[number];
@@ -60,6 +61,7 @@ export function SalesReturnsPage() {
     [rows, status],
   );
 
+  const branch = useBranchColumn<ReturnRow>();
   const columns = useMemo<ColumnDef<ReturnRow>[]>(
     () => [
       {
@@ -110,20 +112,23 @@ export function SalesReturnsPage() {
         }
       />
       <DataTable
-        columns={columns}
-        data={visibleRows}
+        columns={[...columns.slice(0, 2), ...branch.columns, ...columns.slice(2)]}
+        data={branch.filter(visibleRows)}
         isLoading={isLoading}
         searchable
         searchPlaceholder={t('sales.salesReturns.search')}
         onRowClick={(salesReturn) => navigate(`${SALES_RETURNS_PATH}/${salesReturn.id}`)}
         toolbar={
-          <StatusTabs
+          <>
+            {branch.control}
+            {<StatusTabs
             tabs={STATUS_TABS}
             value={status}
             onChange={(tab) => setParams(tab === 'all' ? {} : { status: tab }, { replace: true })}
             label={(tab) => (tab === 'all' ? t('documents.all') : t(salesReturnStatusLabelKey(tab)))}
             counts={counts}
-          />
+          />}
+          </>
         }
       />
     </div>

@@ -54,6 +54,7 @@ import { WhatsAppShareButton } from '../../../../components/document/whatsapp-sh
 import { SalesInvoiceInstallmentsSection } from './sales-invoice-installments-section';
 import { SALES, SALES_WRITE } from '../../../../lib/permissions';
 import { WhenFeature } from '../../../../components/feature/when-feature';
+import { useBranchInfo } from '../../../../components/list/branch-column';
 
 const PAYMENTS_PATH = '/sales/payments-received';
 
@@ -62,6 +63,7 @@ export function SalesInvoiceDetailsPage() {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const { data: invoice, isLoading, isError } = useSalesInvoice(id);
+  const branchInfo = useBranchInfo(invoice?.branchId);
   const { data: order } = useSalesOrder(invoice?.salesOrderId);
   const { data: customer } = useCustomer(order?.customerId);
   const variantIndex = useVariantIndex();
@@ -304,6 +306,7 @@ export function SalesInvoiceDetailsPage() {
             <SectionCard title={t('documents.info')}>
               <InfoGrid
                 items={[
+                  ...branchInfo,
                   { label: t('sales.salesInvoices.customer'), value: customer?.name },
                   ...(salesOrdersEnabled
                     ? [

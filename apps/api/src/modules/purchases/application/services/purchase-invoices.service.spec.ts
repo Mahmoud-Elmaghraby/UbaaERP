@@ -14,6 +14,7 @@ const usd = (minor: number) => Money.fromMinorUnits(BigInt(minor), 'USD');
 function setup(rate: string | null) {
   const draft: PurchaseInvoice = {
     id: 'inv1',
+    branchId: null,
     invoiceNumber: 'PI-1',
     supplierInvoiceNumber: null,
     purchaseOrderId: 'po1',

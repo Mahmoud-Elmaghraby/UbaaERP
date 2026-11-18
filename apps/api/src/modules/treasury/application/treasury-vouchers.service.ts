@@ -344,6 +344,7 @@ export class TreasuryVouchersService {
 
 type VoucherRow = {
   id: string;
+  branch_id: string | null;
   voucher_number: string;
   kind: string;
   status: string;
@@ -367,6 +368,7 @@ type VoucherRow = {
 function toDto(row: VoucherRow): TreasuryVoucherDto {
   return {
     id: row.id,
+    branchId: row.branch_id,
     voucherNumber: row.voucher_number,
     kind: row.kind as TreasuryVoucherKindDto,
     status: row.status as 'posted' | 'cancelled',

@@ -128,12 +128,9 @@ export class BranchAccessInterceptor implements NestInterceptor {
     if (COMPANY_WIDE.has(route)) throw denied();
     if (BRANCH_REPORTS.has(route)) {
       const query = request.query ?? {};
-      if (!query.branchId) {
-        if (allowed.length !== 1) {
-          throw new BusinessRuleError('Choose one of your branches.', { code: 'BRANCH.CHOOSE_BRANCH' });
-        }
-        query.branchId = allowed[0];
-      }
+      // No branch picked → all of the user's branches together; branchIds is set by the API only.
+      if (!query.branchId) query.branchIds = allowed.join(',');
+      else delete query.branchIds;
     }
 
     await this.checkPlaces(db, allowed, request.body);
@@ -250,7 +247,8 @@ export class BranchAccessInterceptor implements NestInterceptor {
         return typeof place !== 'string' || places.has(place);
       });
     }
-    const doc = segments.length === 1 ? DOCUMENTS[segments[0]!] : undefined;
+    // The plain list or its register view; other sub-lists (lines, allocations…) aren't documents.
+    const doc = segments.length === 1 || segments[1] === 'register' ? DOCUMENTS[segments[0]!] : undefined;
     if (!doc || typeof sample.id !== 'string') return rows;
     const ids = rows.map((row) => (row as { id: string }).id);
     let visible: { id: string }[];

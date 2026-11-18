@@ -42,6 +42,8 @@ export const salesAnalysisQuerySchema = z.object({
   salesChannelId: z.string().uuid().optional(),
   /** Only this branch's invoices and credit notes (migration 0130). */
   branchId: z.string().uuid().optional(),
+  /** Comma-separated: a user limited to several branches (set by the API). */
+  branchIds: z.string().optional(),
 });
 export type SalesAnalysisQueryDto = z.infer<typeof salesAnalysisQuerySchema>;
 

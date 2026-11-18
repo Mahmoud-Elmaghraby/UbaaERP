@@ -44,12 +44,14 @@ import { QuantityWithUnit } from '../../../../components/product/unit-select';
 import { PrintButton } from '../../../../components/printing/print-button';
 import { PURCH, PURCH_WRITE } from '../../../../lib/permissions';
 import { PurchaseLimitsCallout, confirmPurchaseLimits, usePurchaseLimitsCheck } from '../../lib/purchase-limits';
+import { useBranchInfo } from '../../../../components/list/branch-column';
 
 export function PurchaseInvoiceDetailsPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const { data: invoice, isLoading, isError } = usePurchaseInvoice(id);
+  const branchInfo = useBranchInfo(invoice?.branchId);
   const { data: order } = usePurchaseOrder(invoice?.purchaseOrderId);
   const { data: supplier } = useSupplier(order?.supplierId);
   const variantIndex = useVariantIndex();
@@ -234,6 +236,7 @@ export function PurchaseInvoiceDetailsPage() {
             <SectionCard title={t('documents.info')}>
               <InfoGrid
                 items={[
+                  ...branchInfo,
                   { label: t('purchases.purchaseInvoices.supplier'), value: supplier?.name },
                   ...(purchaseOrdersEnabled
                     ? [

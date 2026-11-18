@@ -18,6 +18,8 @@ export const salesReturnLineSchema = z.object({
 export type SalesReturnLineDto = z.infer<typeof salesReturnLineSchema>;
 
 export const salesReturnSchema = z.object({
+  /** Migration 0130: the branch it belongs to. */
+  branchId: z.string().uuid().nullable().optional(),
   id: z.string().uuid(),
   returnNumber: z.string().min(1),
   deliveryId: z.string().uuid(),

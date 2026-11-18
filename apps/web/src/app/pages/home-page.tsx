@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Can, PageHeader, cn, useFeatureChecker } from '@erp-platform/ui';
+import { Can, PageHeader, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, cn, useFeatureChecker } from '@erp-platform/ui';
 import type { LucideIcon } from 'lucide-react';
 import {
   BookOpenText,
@@ -16,6 +16,9 @@ import { useAuthStore } from '../../lib/auth-store';
 import { HomeAttention } from './home-attention';
 import { HOME_PERIODS, HomeDashboard, type HomePeriod } from './home-dashboard';
 import { INV, PURCH, SALES } from '../../lib/permissions';
+import { useBranches } from '../../features/settings/queries';
+
+const ALL_BRANCHES = '__all__';
 
 interface QuickAction {
   to: string;
@@ -80,6 +83,8 @@ export function HomePage() {
   const firstName = user?.fullName?.split(' ')[0] ?? '';
   const hasFeature = useFeatureChecker();
   const [period, setPeriod] = useState<HomePeriod>('thisMonth');
+  const [branchId, setBranchId] = useState<string>(ALL_BRANCHES);
+  const { data: branches = [] } = useBranches();
 
   return (
     <div className="flex flex-col gap-6">
@@ -87,6 +92,22 @@ export function HomePage() {
         title={firstName ? `${greeting}، ${firstName}` : greeting}
         description={`${dateFormatter.format(now)} · ${t('home.subtitle')}`}
         actions={
+          <div className="flex flex-wrap items-center gap-2">
+          {branches.length > 1 ? (
+            <Select value={branchId} onValueChange={setBranchId}>
+              <SelectTrigger className="h-9 w-44" aria-label={t('branches.label')}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ALL_BRANCHES}>{t('branches.all')}</SelectItem>
+                {branches.map((branch) => (
+                  <SelectItem key={branch.id} value={branch.id}>
+                    {branch.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : null}
           <div role="radiogroup" aria-label={t('home.periodLabel')} className="flex rounded-lg border bg-card p-1">
             {HOME_PERIODS.map((p) => (
               <button
@@ -106,6 +127,7 @@ export function HomePage() {
               </button>
             ))}
           </div>
+          </div>
         }
       />
 
@@ -123,7 +145,7 @@ export function HomePage() {
         ))}
       </div>
 
-      <HomeDashboard period={period} />
+      <HomeDashboard period={period} branchId={branchId === ALL_BRANCHES ? null : branchId} />
 
       <HomeAttention />
     </div>

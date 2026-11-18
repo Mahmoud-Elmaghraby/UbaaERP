@@ -23,6 +23,8 @@ export interface SalesReturnLine {
 }
 
 export interface SalesReturn {
+  /** Migration 0130: the branch it belongs to. */
+  branchId: string | null;
   id: string;
   returnNumber: string;
   deliveryId: string;

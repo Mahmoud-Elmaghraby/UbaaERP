@@ -12,6 +12,7 @@ import { resolveBranchId } from '../../../../shared/branches/branch-resolver';
 function toDomain(row: Selectable<QuotationsTable>): Quotation {
   return {
     id: row.id,
+    branchId: row.branch_id,
     quotationNumber: row.quotation_number,
     customerId: row.customer_id,
     status: row.status as QuotationStatus,

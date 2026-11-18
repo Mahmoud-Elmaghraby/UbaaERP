@@ -10,6 +10,7 @@ import { useSalesReturns } from '../../api/sales-returns/queries';
 import { useSalesCreditNoteDetails, useSalesCreditNotes } from '../../api/sales-credit-notes/queries';
 import { Amount, AMOUNT_CELL } from '../../../../components/amount';
 import { formatDate } from '../../../../lib/format-date';
+import { useBranchColumn } from '../../../../components/list/branch-column';
 
 export const SALES_CREDIT_NOTES_PATH = '/sales/sales-credit-notes';
 
@@ -49,6 +50,7 @@ export function SalesCreditNotesPage() {
     // `details` is a new array every render; totalsKey tracks its content.
   }, [creditNotes, customers, salesReturns, totalsKey]);
 
+  const branch = useBranchColumn<CreditNoteRow>();
   const columns = useMemo<ColumnDef<CreditNoteRow>[]>(
     () => [
       {
@@ -86,8 +88,9 @@ export function SalesCreditNotesPage() {
     <div className="grid gap-5">
       <PageHeader title={t('sales.tabs.salesCreditNotes')} description={t('sales.salesCreditNotes.subtitle')} />
       <DataTable
-        columns={columns}
-        data={rows}
+        columns={[...columns.slice(0, 2), ...branch.columns, ...columns.slice(2)]}
+        data={branch.filter(rows)}
+        toolbar={branch.control}
         isLoading={isLoading}
         searchable
         searchPlaceholder={t('sales.salesCreditNotes.search')}

@@ -23,6 +23,8 @@ export const salesInvoiceLineSchema = z.object({
 export type SalesInvoiceLineDto = z.infer<typeof salesInvoiceLineSchema>;
 
 export const salesInvoiceSchema = z.object({
+  /** Migration 0130: the branch it belongs to. */
+  branchId: z.string().uuid().nullable().optional(),
   id: z.string().uuid(),
   invoiceNumber: z.string().min(1),
   salesOrderId: z.string().uuid(),
@@ -108,6 +110,8 @@ export type CreateSalesInvoiceDto = z.infer<typeof createSalesInvoiceSchema>;
  */
 export const salesInvoiceRegisterRowSchema = z.object({
   id: z.string().uuid(),
+  /** Migration 0130. */
+  branchId: z.string().uuid().nullable().optional(),
   invoiceNumber: z.string(),
   status: salesInvoiceStatusSchema,
   invoiceDate: z.string().nullable(),

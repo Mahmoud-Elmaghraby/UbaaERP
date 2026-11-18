@@ -117,7 +117,8 @@ function ListSkeleton() {
 
 // ── the dashboard ────────────────────────────────────────────────────────
 
-export function HomeDashboard({ period }: { period: HomePeriod }) {
+/** `branchId`: one branch's sales and cash; customer and supplier balances stay company-wide. */
+export function HomeDashboard({ period, branchId }: { period: HomePeriod; branchId?: string | null }) {
   const { t } = useTranslation();
   const currency = useBaseCurrency();
   const range = periodRange(period);
@@ -128,15 +129,18 @@ export function HomeDashboard({ period }: { period: HomePeriod }) {
   const canTreasury = useHasPermission('treasury.view');
   const canStock = useHasPermission(INV.stockView);
 
-  const sales = useSalesAnalysis({ groupBy: 'month', fromDate: range.from, toDate: range.to }, canSalesReports);
+  const branch = branchId ?? undefined;
+  const sales = useSalesAnalysis({ groupBy: 'month', fromDate: range.from, toDate: range.to, branchId: branch }, canSalesReports);
   const receivables = usePartyBalances('customer', { nonZeroOnly: true }, canCustomers);
   const payables = usePartyBalances('supplier', { nonZeroOnly: true }, canSuppliers);
   const treasuries = useTreasuries(canTreasury);
 
   const cash = useMemo(() => {
-    const own = (treasuries.data ?? []).filter((tr) => tr.isActive && tr.balance.currency === currency);
+    const own = (treasuries.data ?? []).filter(
+      (tr) => tr.isActive && tr.balance.currency === currency && (!branch || tr.branchId === branch),
+    );
     return sumMinorUnits(own.map((tr) => tr.balance.amountMinorUnits));
-  }, [treasuries.data, currency]);
+  }, [treasuries.data, currency, branch]);
 
   const overdue = (totals?: { total: { amountMinorUnits: string }; current: { amountMinorUnits: string } }) =>
     totals ? minus(totals.total.amountMinorUnits, totals.current.amountMinorUnits) : undefined;
@@ -203,7 +207,7 @@ export function HomeDashboard({ period }: { period: HomePeriod }) {
       {kpis.length ? <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">{kpis}</div> : null}
 
       <div className="grid gap-5 xl:grid-cols-3">
-        {canSalesReports ? <SalesTrend className="xl:col-span-2" /> : null}
+        {canSalesReports ? <SalesTrend className="xl:col-span-2" branchId={branch} /> : null}
         {canTreasury ? (
           <Panel title={t('home.cash.title')} to="/treasury" linkLabel={t('home.viewAll')}>
             {treasuries.isLoading ? (
@@ -211,7 +215,7 @@ export function HomeDashboard({ period }: { period: HomePeriod }) {
             ) : (
               <ul className="flex flex-col divide-y">
                 {(treasuries.data ?? [])
-                  .filter((tr) => tr.isActive)
+                  .filter((tr) => tr.isActive && (!branch || tr.branchId === branch))
                   .map((tr) => (
                     <li key={tr.id} className="flex items-center justify-between gap-3 py-2.5 text-sm">
                       <Link to={`/treasury/${tr.id}`} className="truncate hover:text-primary">
@@ -227,7 +231,7 @@ export function HomeDashboard({ period }: { period: HomePeriod }) {
       </div>
 
       <div className="grid gap-5 xl:grid-cols-3">
-        {canSalesReports ? <TopItems from={range.from} to={range.to} /> : null}
+        {canSalesReports ? <TopItems from={range.from} to={range.to} branchId={branch} /> : null}
         {canCustomers ? (
           <Panel title={t('home.topDebtors.title')} to="/sales/receivables" linkLabel={t('home.viewAll')}>
             {receivables.isLoading ? (
@@ -259,12 +263,12 @@ export function HomeDashboard({ period }: { period: HomePeriod }) {
 
 // ── sales trend: last six months, net sales per month ───────────────────
 
-function SalesTrend({ className }: { className?: string }) {
+function SalesTrend({ className, branchId }: { className?: string; branchId?: string }) {
   const { t } = useTranslation();
   const [hover, setHover] = useState<number | null>(null);
   const now = new Date();
   const from = toIsoDate(new Date(now.getFullYear(), now.getMonth() - 5, 1));
-  const report = useSalesAnalysis({ groupBy: 'month', fromDate: from, toDate: todayIso() });
+  const report = useSalesAnalysis({ groupBy: 'month', fromDate: from, toDate: todayIso(), branchId });
 
   const months = useMemo(() => {
     const now = new Date();
@@ -346,9 +350,9 @@ function SalesTrend({ className }: { className?: string }) {
 
 // ── best sellers in the chosen period ───────────────────────────────────
 
-function TopItems({ from, to }: { from: string; to: string }) {
+function TopItems({ from, to, branchId }: { from: string; to: string; branchId?: string }) {
   const { t } = useTranslation();
-  const report = useSalesAnalysis({ groupBy: 'item', fromDate: from, toDate: to });
+  const report = useSalesAnalysis({ groupBy: 'item', fromDate: from, toDate: to, branchId });
   const rows = [...(report.data?.rows ?? [])]
     .sort((a, b) => (BigInt(b.netSalesMinorUnits) > BigInt(a.netSalesMinorUnits) ? 1 : -1))
     .slice(0, 5);

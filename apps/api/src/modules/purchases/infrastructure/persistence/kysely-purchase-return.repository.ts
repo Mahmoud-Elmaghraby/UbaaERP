@@ -11,6 +11,7 @@ import { resolveBranchId } from '../../../../shared/branches/branch-resolver';
 function toDomain(row: Selectable<PurchaseReturnsTable>): PurchaseReturn {
   return {
     id: row.id,
+    branchId: row.branch_id,
     returnNumber: row.return_number,
     goodsReceiptId: row.goods_receipt_id,
     status: row.status as PurchaseReturnStatus,

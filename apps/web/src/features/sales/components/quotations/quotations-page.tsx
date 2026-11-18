@@ -13,6 +13,7 @@ import { StatusTabs } from '../../../../components/list/status-tabs';
 import { formatDate, todayIso } from '../../../../lib/format-date';
 import { QUOTATION_STATUS_VARIANT, QUOTATIONS_PATH, isQuotationExpired, quotationStatusLabelKey } from './quotation-status';
 import { SALES } from '../../../../lib/permissions';
+import { useBranchColumn } from '../../../../components/list/branch-column';
 
 const STATUS_TABS = ['all', 'draft', 'sent', 'accepted', 'rejected', 'cancelled'] as const;
 type StatusTab = (typeof STATUS_TABS)[number];
@@ -42,6 +43,7 @@ export function QuotationsPage() {
 
   const visible = useMemo(() => (status === 'all' ? rows : rows.filter((r) => r.status === status)), [rows, status]);
 
+  const branch = useBranchColumn<Row>();
   const columns = useMemo<ColumnDef<Row>[]>(() => {
     const today = todayIso();
     return [
@@ -112,20 +114,23 @@ export function QuotationsPage() {
         }
       />
       <DataTable
-        columns={columns}
-        data={visible}
+        columns={[...columns.slice(0, 2), ...branch.columns, ...columns.slice(2)]}
+        data={branch.filter(visible)}
         isLoading={isLoading}
         searchable
         searchPlaceholder={t('sales.quotations.search')}
         onRowClick={(row) => navigate(`${QUOTATIONS_PATH}/${row.id}`)}
         toolbar={
-          <StatusTabs
+          <>
+            {branch.control}
+            {<StatusTabs
             tabs={STATUS_TABS}
             value={status}
             onChange={(tab) => setParams(tab === 'all' ? {} : { status: tab }, { replace: true })}
             label={(tab) => (tab === 'all' ? t('documents.all') : t(quotationStatusLabelKey(tab as QuotationStatusDto)))}
             counts={counts}
-          />
+          />}
+          </>
         }
       />
     </div>

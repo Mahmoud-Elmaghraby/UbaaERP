@@ -29,6 +29,8 @@ interface AuthState {
   features: string[];
   /** Layer 2 (tenant self-service) feature keys turned off. */
   disabledFeatures: string[];
+  /** Branches this user is limited to; empty = every branch. UX only — the API enforces it. */
+  branchIds: string[];
   setTenantSchema: (schema: string) => void;
   setSession: (tokens: AuthTokensDto) => void;
   clearSession: () => void;
@@ -54,6 +56,7 @@ export const useAuthStore = create<AuthState>()(
       permissions: [],
       features: [],
       disabledFeatures: [],
+      branchIds: [],
       setTenantSchema: (schema) => set({ tenantSchema: schema }),
       setSession: (tokens) => {
         const decoded = decodeAccessToken(tokens.accessToken);
@@ -63,10 +66,11 @@ export const useAuthStore = create<AuthState>()(
           permissions: decoded?.permissions ?? [],
           features: decoded?.features ?? [],
           disabledFeatures: decoded?.disabledFeatures ?? [],
+          branchIds: decoded?.branchIds ?? [],
         });
       },
       clearSession: () =>
-        set({ accessToken: null, user: null, permissions: [], features: [], disabledFeatures: [] }),
+        set({ accessToken: null, user: null, permissions: [], features: [], disabledFeatures: [], branchIds: [] }),
     }),
     {
       name: 'erp-auth',
@@ -77,6 +81,7 @@ export const useAuthStore = create<AuthState>()(
         permissions: state.permissions,
         features: state.features,
         disabledFeatures: state.disabledFeatures,
+        branchIds: state.branchIds,
       }),
     },
   ),

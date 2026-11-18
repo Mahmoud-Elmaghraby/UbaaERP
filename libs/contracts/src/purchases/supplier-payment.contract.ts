@@ -16,6 +16,8 @@ export const supplierPaymentAllocationSchema = z.object({
 export type SupplierPaymentAllocationDto = z.infer<typeof supplierPaymentAllocationSchema>;
 
 export const supplierPaymentSchema = z.object({
+  /** Migration 0130: the branch it belongs to. */
+  branchId: z.string().uuid().nullable().optional(),
   id: z.string().uuid(),
   paymentNumber: z.string().min(1),
   supplierId: z.string().uuid(),

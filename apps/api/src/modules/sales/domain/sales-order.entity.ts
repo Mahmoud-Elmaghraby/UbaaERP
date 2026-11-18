@@ -46,6 +46,8 @@ export interface SalesOrderLine extends Discountable {
 
 export interface SalesOrder extends Discountable {
   id: string;
+  /** Migration 0130: the branch it belongs to. */
+  branchId: string | null;
   soNumber: string;
   customerId: string;
   sourceQuotationId: string | null;

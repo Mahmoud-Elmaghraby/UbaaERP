@@ -13,6 +13,7 @@ import { resolveBranchId } from '../../../../shared/branches/branch-resolver';
 function toDomain(row: Selectable<SalesOrdersTable>): SalesOrder {
   return {
     id: row.id,
+    branchId: row.branch_id,
     soNumber: row.so_number,
     customerId: row.customer_id,
     sourceQuotationId: row.source_quotation_id,

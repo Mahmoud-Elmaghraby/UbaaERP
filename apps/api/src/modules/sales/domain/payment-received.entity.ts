@@ -20,6 +20,8 @@ export interface PaymentAllocation {
 }
 
 export interface PaymentReceived {
+  /** Migration 0130: the branch it belongs to. */
+  branchId: string | null;
   id: string;
   paymentNumber: string;
   customerId: string;

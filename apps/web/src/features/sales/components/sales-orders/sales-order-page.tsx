@@ -56,6 +56,7 @@ import { QuantityWithUnit } from '../../../../components/product/unit-select';
 import { PrintButton } from '../../../../components/printing/print-button';
 import { SALES_ORDER_STATUS_VARIANT, SALES_ORDERS_PATH, salesOrderStatusLabelKey } from './sales-order-status';
 import { SALES, SALES_WRITE } from '../../../../lib/permissions';
+import { useBranchInfo } from '../../../../components/list/branch-column';
 
 const QUOTATIONS_PATH = '/sales/quotations';
 const DELIVERIES_PATH = '/sales/deliveries';
@@ -79,6 +80,7 @@ export function SalesOrderPage() {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const { data: order, isLoading, isError } = useSalesOrder(id);
+  const branchInfo = useBranchInfo(order?.branchId);
   const { data: customer } = useCustomer(order?.customerId);
   const quotationsEnabled = useHasFeature(FEATURE_KEYS.SALES_QUOTATIONS);
   const deliveriesEnabled = useHasFeature(FEATURE_KEYS.SALES_DELIVERIES);
@@ -332,6 +334,7 @@ export function SalesOrderPage() {
             <SectionCard title={t('documents.info')}>
               <InfoGrid
                 items={[
+                  ...branchInfo,
                   { label: t('sales.salesOrders.customer'), value: customer?.name },
                   {
                     label: t('sales.salesOrders.date'),

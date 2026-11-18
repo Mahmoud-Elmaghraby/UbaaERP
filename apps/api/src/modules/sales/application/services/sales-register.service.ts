@@ -41,6 +41,7 @@ export class SalesRegisterService {
       .leftJoin('sales_reps as rep', 'rep.id', 'si.sales_rep_id')
       .select([
         'si.id',
+        'si.branch_id',
         'si.invoice_number',
         'si.sales_rep_id',
         'rep.name as sales_rep_name',
@@ -120,6 +121,7 @@ export class SalesRegisterService {
       const overdueDays = outstanding > 0n && dueDate && dueDate < today ? Math.round((Date.parse(today) - Date.parse(dueDate)) / 86_400_000) : 0;
       result.set(row.id, {
         id: row.id,
+        branchId: row.branch_id,
         invoiceNumber: row.invoice_number,
         status: row.status as SalesInvoiceRegisterRowDto['status'],
         invoiceDate: row.invoice_date,
@@ -153,6 +155,7 @@ export class SalesRegisterService {
       .innerJoin('customers as c', 'c.id', 'p.customer_id')
       .select([
         'p.id',
+        'p.branch_id',
         'p.payment_number',
         'p.status',
         'p.payment_date',
@@ -201,6 +204,7 @@ export class SalesRegisterService {
       const allocated = BigInt(String(row.allocated ?? '0').split('.')[0]!);
       return {
         id: row.id,
+        branchId: row.branch_id,
         paymentNumber: row.payment_number,
         status: row.status as PaymentReceivedRegisterRowDto['status'],
         paymentDate: row.payment_date,

@@ -8,14 +8,16 @@ import { IncomeStatementReport } from './income-statement-report';
 import { BalanceSheetReport } from './balance-sheet-report';
 import { CashFlowReport } from './cash-flow-report';
 import { VatReturnReport } from './vat-return-report';
+import { useAuthStore } from '../../../../lib/auth-store';
 
+/** `companyWide`: whole-company balances, which a user limited to branches can't open (the API refuses them too). */
 const REPORTS = {
-  'trial-balance': { label: 'accounting.reports.trialBalance', Component: TrialBalanceReport },
-  'income-statement': { label: 'accounting.reports.incomeStatement', Component: IncomeStatementReport },
-  'balance-sheet': { label: 'accounting.reports.balanceSheet', Component: BalanceSheetReport },
-  'general-ledger': { label: 'accounting.reports.generalLedger', Component: GeneralLedgerReport },
-  'cash-flow': { label: 'accounting.reports.cashFlow', Component: CashFlowReport },
-  'vat-return': { label: 'accounting.reports.vatReturn', Component: VatReturnReport },
+  'trial-balance': { label: 'accounting.reports.trialBalance', Component: TrialBalanceReport, companyWide: true },
+  'income-statement': { label: 'accounting.reports.incomeStatement', Component: IncomeStatementReport, companyWide: false },
+  'balance-sheet': { label: 'accounting.reports.balanceSheet', Component: BalanceSheetReport, companyWide: true },
+  'general-ledger': { label: 'accounting.reports.generalLedger', Component: GeneralLedgerReport, companyWide: true },
+  'cash-flow': { label: 'accounting.reports.cashFlow', Component: CashFlowReport, companyWide: true },
+  'vat-return': { label: 'accounting.reports.vatReturn', Component: VatReturnReport, companyWide: true },
 } as const;
 type ReportKey = keyof typeof REPORTS;
 
@@ -27,7 +29,9 @@ type ReportKey = keyof typeof REPORTS;
 export function AccountingReportsPage() {
   const { t } = useTranslation();
   const { report } = useParams<{ report: string }>();
-  if (!report || !(report in REPORTS)) return <Navigate to="/accounting/reports/trial-balance" replace />;
+  const branchLimited = useAuthStore((state) => state.branchIds.length > 0);
+  const available = (Object.keys(REPORTS) as ReportKey[]).filter((key) => !branchLimited || !REPORTS[key].companyWide);
+  if (!report || !available.includes(report as ReportKey)) return <Navigate to={`/accounting/reports/${available[0]}`} replace />;
   const { Component } = REPORTS[report as ReportKey];
 
   return (
@@ -36,7 +40,7 @@ export function AccountingReportsPage() {
         <PageHeader title={t('accounting.tabs.reports')} />
       </div>
       <nav className="-mb-1 flex gap-1 overflow-x-auto border-b print:hidden" aria-label={t('accounting.tabs.reports')}>
-        {(Object.keys(REPORTS) as ReportKey[]).map((key) => (
+        {available.map((key) => (
           <NavLink
             key={key}
             to={`/accounting/reports/${key}`}

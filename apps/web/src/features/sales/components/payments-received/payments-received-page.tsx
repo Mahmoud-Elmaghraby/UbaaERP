@@ -16,6 +16,7 @@ import {
   paymentReceivedStatusLabelKey,
 } from './payment-received-status';
 import { SALES } from '../../../../lib/permissions';
+import { useBranchColumn } from '../../../../components/list/branch-column';
 
 type StatusTab = 'all' | 'unallocated' | PaymentReceivedStatusDto;
 const STATUS_TABS: readonly StatusTab[] = ['all', 'draft', 'posted', 'unallocated', 'bounced', 'cancelled'];
@@ -51,6 +52,7 @@ export function PaymentsReceivedPage() {
     [payments, status],
   );
 
+  const branch = useBranchColumn<PaymentReceivedRegisterRowDto>();
   const columns = useMemo<ColumnDef<PaymentReceivedRegisterRowDto>[]>(
     () => [
       {
@@ -134,8 +136,8 @@ export function PaymentsReceivedPage() {
         actions={newButton}
       />
       <DataTable
-        columns={columns}
-        data={rows}
+        columns={[...columns.slice(0, 2), ...branch.columns, ...columns.slice(2)]}
+        data={branch.filter(rows)}
         isLoading={isLoading}
         searchable
         searchPlaceholder={t('sales.paymentsReceived.search')}
@@ -146,7 +148,9 @@ export function PaymentsReceivedPage() {
           ) : undefined
         }
         toolbar={
-          <StatusTabs
+          <>
+            {branch.control}
+            {<StatusTabs
             tabs={STATUS_TABS}
             value={status}
             onChange={(tab) => setParams(tab === 'all' ? {} : { status: tab }, { replace: true })}
@@ -158,7 +162,8 @@ export function PaymentsReceivedPage() {
                   : t(paymentReceivedStatusLabelKey(tab))
             }
             counts={counts}
-          />
+          />}
+          </>
         }
       />
     </div>

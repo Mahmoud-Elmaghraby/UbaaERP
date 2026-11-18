@@ -17,6 +17,8 @@ export const paymentAllocationSchema = z.object({
 export type PaymentAllocationDto = z.infer<typeof paymentAllocationSchema>;
 
 export const paymentReceivedSchema = z.object({
+  /** Migration 0130: the branch it belongs to. */
+  branchId: z.string().uuid().nullable().optional(),
   id: z.string().uuid(),
   paymentNumber: z.string().min(1),
   customerId: z.string().uuid(),
@@ -91,6 +93,8 @@ export type AllocatePaymentReceivedDto = z.infer<typeof allocatePaymentReceivedS
  */
 export const paymentReceivedRegisterRowSchema = z.object({
   id: z.string().uuid(),
+  /** Migration 0130. */
+  branchId: z.string().uuid().nullable().optional(),
   paymentNumber: z.string(),
   status: paymentReceivedStatusSchema,
   paymentDate: z.string().nullable(),

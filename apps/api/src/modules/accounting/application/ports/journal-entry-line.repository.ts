@@ -27,6 +27,8 @@ export interface PostedSumOptions {
   costCenterId?: string;
   /** Only lines of this branch (migration 0130). */
   branchId?: string;
+  /** Only lines of these branches (a user limited to several branches). */
+  branchIds?: string[];
 }
 
 export interface JournalEntryLineRepository {

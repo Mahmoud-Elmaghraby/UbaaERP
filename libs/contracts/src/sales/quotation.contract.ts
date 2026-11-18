@@ -18,6 +18,8 @@ export const quotationLineSchema = z.object({
 export type QuotationLineDto = z.infer<typeof quotationLineSchema>;
 
 export const quotationSchema = z.object({
+  /** Migration 0130: the branch it belongs to. */
+  branchId: z.string().uuid().nullable().optional(),
   id: z.string().uuid(),
   quotationNumber: z.string().min(1),
   customerId: z.string().uuid(),

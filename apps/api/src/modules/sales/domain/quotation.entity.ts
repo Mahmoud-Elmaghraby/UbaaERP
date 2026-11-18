@@ -22,6 +22,8 @@ export interface QuotationLine {
 }
 
 export interface Quotation {
+  /** Migration 0130: the branch it belongs to. */
+  branchId: string | null;
   id: string;
   quotationNumber: string;
   customerId: string;

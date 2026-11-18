@@ -24,6 +24,8 @@ export const salesCreditNoteLineSchema = z.object({
 export type SalesCreditNoteLineDto = z.infer<typeof salesCreditNoteLineSchema>;
 
 export const salesCreditNoteSchema = z.object({
+  /** Migration 0130: the branch it belongs to. */
+  branchId: z.string().uuid().nullable().optional(),
   id: z.string().uuid(),
   creditNoteNumber: z.string().min(1),
   salesReturnId: z.string().uuid(),

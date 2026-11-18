@@ -44,6 +44,8 @@ export type SalesOrderLineDto = z.infer<typeof salesOrderLineSchema>;
 
 export const salesOrderSchema = z
   .object({
+  /** Migration 0130: the branch it belongs to. */
+  branchId: z.string().uuid().nullable().optional(),
     id: z.string().uuid(),
     soNumber: z.string().min(1),
     customerId: z.string().uuid(),

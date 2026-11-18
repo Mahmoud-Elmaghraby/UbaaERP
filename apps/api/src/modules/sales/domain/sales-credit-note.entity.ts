@@ -26,6 +26,8 @@ export interface SalesCreditNoteLine {
 }
 
 export interface SalesCreditNote {
+  /** Migration 0130: the branch it belongs to. */
+  branchId: string | null;
   id: string;
   creditNoteNumber: string;
   salesReturnId: string;

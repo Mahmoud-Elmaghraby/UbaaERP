@@ -38,6 +38,7 @@ import {
 } from "./sales-invoice-status";
 import { useSalesInvoiceActions } from "./use-sales-invoice-actions";
 import { SALES } from '../../../../lib/permissions';
+import { useBranchColumn } from "../../../../components/list/branch-column";
 
 type StatusTab = "all" | "unpaid" | SalesInvoiceStatusDto;
 const STATUS_TABS: readonly StatusTab[] = [
@@ -116,6 +117,7 @@ export function SalesInvoicesPage() {
     [invoices, status],
   );
 
+  const branch = useBranchColumn<SalesInvoiceRegisterRowDto>();
   const columns = useMemo<ColumnDef<SalesInvoiceRegisterRowDto>[]>(
     () => [
       {
@@ -326,8 +328,8 @@ export function SalesInvoicesPage() {
         actions={newButton}
       />
       <DataTable
-        columns={columns}
-        data={rows}
+        columns={[...columns.slice(0, 2), ...branch.columns, ...columns.slice(2)]}
+        data={branch.filter(rows)}
         isLoading={isLoading}
         searchable
         searchPlaceholder={t("sales.salesInvoices.search")}
@@ -345,7 +347,9 @@ export function SalesInvoicesPage() {
           ) : undefined
         }
         toolbar={
-          <div className="flex flex-wrap items-center gap-2">
+          <>
+            {branch.control}
+            {<div className="flex flex-wrap items-center gap-2">
             <StatusTabs
               tabs={STATUS_TABS}
               value={status}
@@ -385,7 +389,8 @@ export function SalesInvoicesPage() {
                 </SelectContent>
               </Select>
             ) : null}
-          </div>
+          </div>}
+          </>
         }
       />
     </div>

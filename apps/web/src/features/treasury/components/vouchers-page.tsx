@@ -57,6 +57,8 @@ export function TreasuryVouchersPage() {
   const [kind, setKind] = useState<TreasuryVoucherKindDto | undefined>(undefined);
   const [treasuryId, setTreasuryId] = useState<string | undefined>(undefined);
   const { data: vouchers, isLoading } = useTreasuryVouchers({ kind, treasuryId });
+  const { data: allBranches = [] } = useBranches();
+  const branchNames = useMemo(() => new Map(allBranches.map((b) => [b.id, b.name])), [allBranches]);
   const { data: treasuries } = useTreasuryLookup();
   const [creating, setCreating] = useState<TreasuryVoucherKindDto | null>(null);
   const [cancelling, setCancelling] = useState<TreasuryVoucherDto | null>(null);
@@ -127,6 +129,7 @@ export function TreasuryVouchersPage() {
                 <TableHead>{t('statements.columns.date')}</TableHead>
                 <TableHead>{t('treasury.vouchers.kind')}</TableHead>
                 <TableHead>{t('treasury.select.label')}</TableHead>
+                {branchNames.size > 1 ? <TableHead>{t('branches.label')}</TableHead> : null}
                 <TableHead>{t('treasury.vouchers.itemOrTarget')}</TableHead>
                 <TableHead>{t('treasury.vouchers.counterparty')}</TableHead>
                 <TableHead className="text-end">{t('treasury.vouchers.amount')}</TableHead>
@@ -152,6 +155,9 @@ export function TreasuryVouchersPage() {
                     {v.status === 'cancelled' ? <Badge variant="neutral" className="ms-1">{t('treasury.vouchers.cancelled')}</Badge> : null}
                   </TableCell>
                   <TableCell>{v.treasuryName}</TableCell>
+                  {branchNames.size > 1 ? (
+                    <TableCell className="text-muted-foreground">{v.branchId ? branchNames.get(v.branchId) : ''}</TableCell>
+                  ) : null}
                   <TableCell>{v.kind === 'transfer' ? `← ${v.toTreasuryName ?? ''}` : v.categoryName}</TableCell>
                   <TableCell>
                     {v.counterparty ?? ''}

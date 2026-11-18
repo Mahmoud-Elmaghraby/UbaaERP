@@ -24,6 +24,7 @@ import { usePurchaseInvoices } from '../../api/purchase-invoices/queries';
 import { PURCHASE_INVOICE_STATUS_VARIANT, purchaseInvoiceStatusLabelKey } from './purchase-invoice-status';
 import { usePurchaseInvoiceActions } from './use-purchase-invoice-actions';
 import { PURCH, PURCH_WRITE } from '../../../../lib/permissions';
+import { useBranchColumn } from '../../../../components/list/branch-column';
 
 export const PURCHASE_INVOICES_PATH = '/purchases/purchase-invoices';
 
@@ -61,6 +62,7 @@ export function PurchaseInvoicesTab() {
     [invoices, statusFilter],
   );
 
+  const branch = useBranchColumn<PurchaseInvoiceDto>();
   const columns = useMemo<ColumnDef<PurchaseInvoiceDto>[]>(
     () => [
       {
@@ -180,8 +182,8 @@ export function PurchaseInvoicesTab() {
 
   return (
     <DataTable
-      columns={columns}
-      data={rows}
+      columns={[...columns.slice(0, 2), ...branch.columns, ...columns.slice(2)]}
+      data={branch.filter(rows)}
       isLoading={isLoading}
       onRowClick={(invoice) => navigate(`${PURCHASE_INVOICES_PATH}/${invoice.id}`)}
       searchPlaceholder={t('common.search')}
@@ -196,7 +198,9 @@ export function PurchaseInvoicesTab() {
         ) : undefined
       }
       toolbar={
-        <div role="tablist" aria-label={t('common.status')} className="flex flex-wrap items-center gap-1">
+          <>
+            {branch.control}
+            {<div role="tablist" aria-label={t('common.status')} className="flex flex-wrap items-center gap-1">
           {STATUS_FILTERS.map((status) => {
             const active = status === statusFilter;
             return (
@@ -223,8 +227,9 @@ export function PurchaseInvoicesTab() {
               </button>
             );
           })}
-        </div>
-      }
+        </div>}
+          </>
+        }
     />
   );
 }

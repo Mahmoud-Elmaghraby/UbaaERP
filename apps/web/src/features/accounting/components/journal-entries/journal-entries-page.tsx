@@ -9,6 +9,7 @@ import { Plus } from 'lucide-react';
 import { useJournalEntries, type JournalEntryFilters } from '../../api/journal-entries/queries';
 import { formatDate } from '../../../../lib/format-date';
 import { JOURNAL_ENTRY_STATUS_VARIANT, journalEntryStatusLabelKey, sourceRefKey } from './journal-entry-status';
+import { useBranchColumn } from '../../../../components/list/branch-column';
 
 const STATUS_TABS: Array<JournalEntryStatus | 'all'> = ['all', 'draft', 'posted', 'cancelled'];
 
@@ -21,6 +22,7 @@ export function JournalEntriesPage() {
   const filters = useMemo<JournalEntryFilters>(() => (status === 'all' ? {} : { status }), [status]);
   const { data: entries, isLoading } = useJournalEntries(filters);
 
+  const branch = useBranchColumn<JournalEntryDto>();
   const columns = useMemo<ColumnDef<JournalEntryDto>[]>(
     () => [
       {
@@ -80,14 +82,16 @@ export function JournalEntriesPage() {
         }
       />
       <DataTable
-        columns={columns}
-        data={entries ?? []}
+        columns={[...columns.slice(0, 2), ...branch.columns, ...columns.slice(2)]}
+        data={branch.filter(entries ?? [])}
         isLoading={isLoading}
         searchable
         searchPlaceholder={t('accounting.journalEntries.search')}
         onRowClick={(entry) => navigate(`/accounting/journal-entries/${entry.id}`)}
         toolbar={
-          <div className="flex gap-1 rounded-lg bg-muted p-1">
+          <>
+            {branch.control}
+            {<div className="flex gap-1 rounded-lg bg-muted p-1">
             {STATUS_TABS.map((tab) => (
               <button
                 key={tab}
@@ -101,7 +105,8 @@ export function JournalEntriesPage() {
                 {tab === 'all' ? t('accounting.journalEntries.allStatuses') : t(journalEntryStatusLabelKey(tab))}
               </button>
             ))}
-          </div>
+          </div>}
+          </>
         }
       />
     </div>

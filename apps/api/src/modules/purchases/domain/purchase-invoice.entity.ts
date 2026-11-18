@@ -30,6 +30,8 @@ export interface PurchaseInvoiceLine {
 }
 
 export interface PurchaseInvoice {
+  /** Migration 0130: the branch it belongs to. */
+  branchId: string | null;
   id: string;
   invoiceNumber: string;
   supplierInvoiceNumber: string | null;

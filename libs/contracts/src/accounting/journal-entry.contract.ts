@@ -27,6 +27,8 @@ export const journalEntryLineSchema = z.object({
 export type JournalEntryLineDto = z.infer<typeof journalEntryLineSchema>;
 
 export const journalEntrySchema = z.object({
+  /** Migration 0130: the branch it belongs to. */
+  branchId: z.string().uuid().nullable().optional(),
   id: z.string().uuid(),
   entryNumber: z.string(),
   entryDate: isoDate,

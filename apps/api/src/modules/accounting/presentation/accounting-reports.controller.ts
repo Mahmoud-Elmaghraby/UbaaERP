@@ -168,6 +168,7 @@ export class AccountingReportsController {
     @Query('toDate') toDate?: string,
     @Query('costCenterId') costCenterId?: string,
     @Query('branchId') branchId?: string,
+    @Query('branchIds') branchIds?: string,
   ): Promise<IncomeStatementReportDto> {
     if (!fromDate || !toDate) {
       throw new BadRequestException('Query parameters "fromDate" and "toDate" are required.');
@@ -176,6 +177,7 @@ export class AccountingReportsController {
     const report = await this.service.incomeStatement(db, fromDate, toDate, {
       costCenterId: costCenterId || undefined,
       branchId: branchId || undefined,
+      branchIds: branchIds ? branchIds.split(',').filter(Boolean) : undefined,
     });
     return incomeStatementToDto(report);
   }
